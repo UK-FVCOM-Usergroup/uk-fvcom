@@ -259,6 +259,9 @@ MODULE CONTROL
     LOGICAL NC_SURFACE_HEAT
     LOGICAL NC_GROUNDWATER
     LOGICAL NC_BIO
+#   if defined (FABM)
+    LOGICAL NC_FABM
+#   endif
     LOGICAL NC_WQM
 
     CHARACTER(LEN=80) NC_FILE_NAME !!NAME OF NC FILE
@@ -297,6 +300,9 @@ MODULE CONTROL
          & NC_ICE,           &
 # endif
          & NC_BIO,           &
+# if defined(FABM)
+         & NC_FABM,           &
+# endif
          & NC_WQM,           &
 	 & NC_VORTICITY
 
@@ -332,6 +338,9 @@ MODULE CONTROL
     LOGICAL NCAV_SURFACE_HEAT
     LOGICAL NCAV_GROUNDWATER
     LOGICAL NCAV_BIO
+# if defined(FABM)
+    LOGICAL NCAV_FABM
+# endif
     LOGICAL NCAV_WQM
 
     CHARACTER(LEN=80) NCAV_FILE_NAME !!NAME OF NCAV FILE
@@ -371,6 +380,9 @@ MODULE CONTROL
          & NCAV_SURFACE_HEAT,   &
          & NCAV_GROUNDWATER,    &
          & NCAV_BIO,            &
+# if defined(FABM)
+         & NCAV_FABM,           &
+# endif
          & NCAV_WQM,            &
 	 & NCAV_VORTICITY
 
@@ -625,6 +637,11 @@ MODULE CONTROL
     CHARACTER(LEN=80) OBC_BIO_FILE
     REAL(SP) OBC_BIO_NUDGING_TIMESCALE
 #   endif    
+#   if defined (FABM)
+    LOGICAL OBC_FABM_NUDGING
+    CHARACTER(LEN=80) OBC_FABM_FILE
+    REAL(SP) OBC_FABM_NUDGING_TIMESCALE
+#   endif    
     LOGICAL OBC_MEANFLOW
     CHARACTER(LEN=80) OBC_MEANFLOW_FILE
     LOGICAL OBC_LONGSHORE_FLOW_ON
@@ -652,6 +669,11 @@ MODULE CONTROL
          & OBC_BIO_NUDGING,                 &
          & OBC_BIO_FILE,                    &
          & OBC_BIO_NUDGING_TIMESCALE,       &
+#   endif    
+#   if defined (FABM)
+         & OBC_FABM_NUDGING,                &
+         & OBC_FABM_FILE,                   &
+         & OBC_FABM_NUDGING_TIMESCALE,      &
 #   endif    
          & OBC_MEANFLOW,                    &
          & OBC_MEANFLOW_FILE,               &
@@ -746,6 +768,9 @@ MODULE CONTROL
     LOGICAL BIOLOGICAL_MODEL
 !!$    CHARACTER(LEN=80) BIOLOGICAL_MODEL_FILE
     CHARACTER(LEN=80) STARTUP_BIO_TYPE  !!TYPE OF BIO START
+#if defined (FABM)
+    LOGICAL FABM_MODEL
+#endif
     LOGICAL SEDIMENT_MODEL
     CHARACTER(LEN=80) SEDIMENT_MODEL_FILE
 # if defined (OFFLINE_SEDIMENT)
@@ -783,7 +808,9 @@ MODULE CONTROL
 #   endif
 
     REAL(SP), ALLOCATABLE :: BIODIS(:,:)
-
+# if defined (FABM)
+    REAL(SP), ALLOCATABLE :: FABMDIS(:,:)
+# endif
 
     ! FVCOM RUN MODE PARAMETERS
     CHARACTER(LEN=80) FVCOM_RUN_MODE
@@ -806,6 +833,9 @@ MODULE CONTROL
          & DATA_ASSIMILATION_FILE,        &
          & BIOLOGICAL_MODEL,              &
 !!$         & BIOLOGICAL_MODEL_FILE,         &
+#if defined (FABM)
+         & FABM_MODEL,              &
+#endif
          & STARTUP_BIO_TYPE,              &
          & SEDIMENT_MODEL,                &
          & SEDIMENT_MODEL_FILE,           &

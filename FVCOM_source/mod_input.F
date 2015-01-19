@@ -277,6 +277,9 @@ CONTAINS
     NC_VORTICITY    = .False.
     NC_WQM          = .False.
     NC_BIO          = .False.
+#if defined (FABM)
+    NC_FABM         = .False.
+#endif
     
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
@@ -308,7 +311,9 @@ CONTAINS
     NCAV_VORTICITY    = .False.
     NCAV_WQM          = .False.
     NCAV_BIO          = .False.
-
+# if defined(FABM)
+    NCAV_FABM         = .False.
+#endif
 
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
@@ -428,6 +433,11 @@ CONTAINS
     OBC_BIO_FILE = trim(casename)//"_obc.nc "
     OBC_BIO_NUDGING_TIMESCALE = 0.0
 #   endif    
+#   if defined (FABM)
+    OBC_FABM_NUDGING = .False.
+    OBC_FABM_FILE = trim(casename)//"_obc.nc "
+    OBC_FABM_NUDGING_TIMESCALE = 0.0
+#   endif    
     OBC_MEANFLOW = .FALSE.
     OBC_MEANFLOW_FILE = trim(casename)//"_obc.nc"
     OBC_LONGSHORE_FLOW_ON = .FALSE.
@@ -474,6 +484,9 @@ CONTAINS
     DATA_ASSIMILATION_FILE = "./"//trim(casename)//"_run.nml"
     BIOLOGICAL_MODEL= .FALSE.
 !!$    BIOLOGICAL_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+# if defined (FABM)
+    FABM_MODEL= .FALSE.
+# endif
     STARTUP_BIO_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
     SEDIMENT_MODEL= .FALSE.
     SEDIMENT_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"

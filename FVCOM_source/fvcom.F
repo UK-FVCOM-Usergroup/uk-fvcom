@@ -429,6 +429,9 @@ PROGRAM FVCOM
 # if defined (BioGen)
   USE MOD_BIO_3D
 # endif    
+# if defined (FABM)
+  USE MOD_FABM_3D
+# endif
 # if defined (DYE_RELEASE)
   USE MOD_DYE
 # endif
@@ -616,6 +619,14 @@ PROGRAM FVCOM
 #  if defined (BioGen)
    KBV=KB
    CALL GET_PARAMETER
+!   RIVER_TS_SETTING = 'NONE' !No bio river yet
+#  endif
+
+  !==============================================================================!
+  !  GET THE PARAMETERS OF FABM                                      !
+  !==============================================================================!
+#  if defined (FABM)
+   CALL FABM_INITIALIZE
 !   RIVER_TS_SETTING = 'NONE' !No bio river yet
 #  endif
 
