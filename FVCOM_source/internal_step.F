@@ -54,6 +54,9 @@ SUBROUTINE INTERNAL_STEP
 # if defined (BioGen)
   USE MOD_BIO_3D
 # endif      
+# if defined (FABM)
+  USE MOD_FABM_3D
+# endif      
 # if defined (NH)
   USE NON_HYDRO
 # endif
@@ -1071,6 +1074,10 @@ SUBROUTINE INTERNAL_STEP
   
 #   if defined (BioGen)
   CALL BIO_3D1D                          
+#   endif
+
+#   if defined (FABM)
+  CALL FABM_3D1D
 #   endif
 
   !==============================================================================!

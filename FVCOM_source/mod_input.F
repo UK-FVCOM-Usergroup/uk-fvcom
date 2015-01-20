@@ -484,10 +484,11 @@ CONTAINS
     DATA_ASSIMILATION_FILE = "./"//trim(casename)//"_run.nml"
     BIOLOGICAL_MODEL= .FALSE.
 !!$    BIOLOGICAL_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+    STARTUP_BIO_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
 # if defined (FABM)
     FABM_MODEL= .FALSE.
+    STARTUP_FABM_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
 # endif
-    STARTUP_BIO_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
     SEDIMENT_MODEL= .FALSE.
     SEDIMENT_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # if defined (OFFLINE_SEDIMENT)

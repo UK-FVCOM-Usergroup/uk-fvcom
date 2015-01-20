@@ -48,6 +48,10 @@ MODULE MOD_STARTUP
 # if defined (BioGen)
   USE MOD_BIO_3D
 # endif
+  
+# if defined (FABM)
+  USE MOD_FABM_3D
+# endif
 
 # if defined (NH)
   USE NON_HYDRO, ONLY: W4ZT, NHQDRX, NHQDRY, NHQDRZ, NHQ2DX, NHQ2DY
@@ -327,6 +331,35 @@ CONTAINS
 
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN STARTUP_BIO_TYPE")
+    END SELECT
+#   endif
+
+#   if defined (FABM)
+    if (dbg_set(dbg_log)) write(ipt,*) &
+         & "! INITIALIZING FABM VARIABLES"
+
+! SET STARTUP VALUES FOR FABM VARIABLES
+    SELECT CASE(STARTUP_FABM_TYPE)
+    CASE(STARTUP_TYPE_OBSERVED) 
+
+       CALL FABM_INITIAL
+
+    CASE(STARTUP_TYPE_LINEAR)
+
+       CALL FABM_INITIAL
+
+    CASE(STARTUP_TYPE_CONSTANT)
+
+       CALL FABM_INITIAL
+
+    CASE(STARTUP_TYPE_DEFAULT)
+       CALL FATAL_ERROR("There is no default startup for FABM model")
+    CASE(STARTUP_TYPE_SETVALUES)
+
+       CALL READ_FABM
+
+    CASE DEFAULT
+       CALL FATAL_ERROR("UNKNOWN STARTUP_FABM_TYPE")
     END SELECT
 #   endif
 
@@ -1867,6 +1900,64 @@ CONTAINS
    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_BIO" 
    
  END SUBROUTINE READ_BIO
+!==============================================================================!
+# endif
+M
+# if defined (FABM)
+!==============================================================================!
+  SUBROUTINE READ_FABM
+    IMPLICIT NONE
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM
+    LOGICAL :: FOUND
+    INTEGER :: STKCNT, K, II
+
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_FABM" 
+
+    STKCNT = NC_START%FTIME%PREV_STKCNT
+
+    CALL FABM_ALLOCATE
+
+    DO II = 1,size(model%state_variables)
+    ! LOAD FABM PELAGIC STATE VARIABLES
+      VAR => FIND_VAR(NC_START,TRIM(model%state_variables(II)%name),FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(model%state_variables(II)%name)//" IN THE HOTSTART FILE OBJECT")
+      CALL NC_CONNECT_AVAR(VAR, FABM_ALL(:,:,II))
+      CALL NC_READ_VAR(VAR,STKCNT)
+
+    ! LOAD MEAN INITIAL FABM VARIABLES
+!      VAR => FIND_VAR(NC_START,TRIM(WQM_NAME(II,4)),FOUND)
+!      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+!         & TRIM(WQM_NAME(II,4))//" IN THE HOTSTART FILE OBJECT")
+!      CALL NC_CONNECT_AVAR(VAR, WMEAN)
+!      CALL NC_READ_VAR(VAR)
+
+      FABM_MEAN=FABM_ALL
+
+    END DO
+
+    DO II = 1,size(model%bottom_state_variables)
+    ! LOAD BOTTOM-BOUND FABM STATE VARIABLES
+      VAR => FIND_VAR(NC_START,TRIM(model%bottom_state_variables(II)%name),FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(model%bottom_state_variables(II)%name)//" IN THE HOTSTART FILE OBJECT")
+      CALL NC_CONNECT_AVAR(VAR, FABM_ALL_HZ(:,II))
+      CALL NC_READ_VAR(VAR,STKCNT)
+    END DO
+
+    DO II = 1,size(model%surface_state_variables)
+    ! LOAD SURFACE-BOUND FABM STATE VARIABLES
+      VAR => FIND_VAR(NC_START,TRIM(model%surface_state_variables(II)%name),FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(model%surface_state_variables(II)%name)//" IN THE HOTSTART FILE OBJECT")
+      CALL NC_CONNECT_AVAR(VAR, FABM_ALL_HZ(:,size(model%bottom_state_variables)+II)
+      CALL NC_READ_VAR(VAR,STKCNT)
+    END DO
+
+   IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_FABM" 
+
+ END SUBROUTINE READ_FABM
 !==============================================================================!
 # endif
 
