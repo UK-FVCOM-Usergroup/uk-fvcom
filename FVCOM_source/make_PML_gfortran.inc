@@ -352,9 +352,9 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #       GENERAL BIOLOGICAL MODEL:    UNCOMMENT TO INCLUDE MODEL
 #--------------------------------------------------------------------------
-#            FLAG_25 = -DBioGen
-#            BIOLIB       = -L$(TOPDIR)/BIO_source -lbiomodule
-#            BIOINCS      = -I$(TOPDIR)/BIO_source/
+            FLAG_25 = -DFABM
+            BIOLIB       = -L/home_nfs/rito/models/FVCOM/src/FABM-FVCOM/build/ -lfabm
+            BIOINCS      = -I/home_nfs/rito/models/FVCOM/src/FABM-FVCOM/build/modules/
 
 #--------------------------------------------------------------------------
 #         Dynamic/Thermodynamic Ice

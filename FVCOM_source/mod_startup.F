@@ -1902,7 +1902,7 @@ CONTAINS
  END SUBROUTINE READ_BIO
 !==============================================================================!
 # endif
-M
+
 # if defined (FABM)
 !==============================================================================!
   SUBROUTINE READ_FABM
@@ -1911,48 +1911,60 @@ M
     TYPE(NCDIM),  POINTER :: DIM
     LOGICAL :: FOUND
     INTEGER :: STKCNT, K, II
-
+    REAL(SP),ALLOCATABLE          :: FABM_TMP(:,:)
+    REAL(SP),ALLOCATABLE          :: FABM_TMP_HZ(:)
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_FABM" 
 
     STKCNT = NC_START%FTIME%PREV_STKCNT
-
+! FABM ALLOCATE is already called in FABM_INITIAL... Do we need a second call?
     CALL FABM_ALLOCATE
 
     DO II = 1,size(model%state_variables)
+    ! READ THE DATA
+      ALLOCATE(FABM_TMP(MT,KB))
+      FABM_TMP(:,:) = FABM_ALL(:,:,II)
     ! LOAD FABM PELAGIC STATE VARIABLES
       VAR => FIND_VAR(NC_START,TRIM(model%state_variables(II)%name),FOUND)
       IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
          & TRIM(model%state_variables(II)%name)//" IN THE HOTSTART FILE OBJECT")
-      CALL NC_CONNECT_AVAR(VAR, FABM_ALL(:,:,II))
+      CALL NC_CONNECT_AVAR(VAR, FABM_TMP)
       CALL NC_READ_VAR(VAR,STKCNT)
-
-    ! LOAD MEAN INITIAL FABM VARIABLES
-!      VAR => FIND_VAR(NC_START,TRIM(WQM_NAME(II,4)),FOUND)
-!      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
-!         & TRIM(WQM_NAME(II,4))//" IN THE HOTSTART FILE OBJECT")
-!      CALL NC_CONNECT_AVAR(VAR, WMEAN)
-!      CALL NC_READ_VAR(VAR)
+      CALL NC_DISCONNECT(VAR)
+      FABM_ALL(:,:,II) = FABM_TMP(:,:)
+      DEALLOCATE(FABM_TMP)
+    END DO
 
       FABM_MEAN=FABM_ALL
 
-    END DO
 
     DO II = 1,size(model%bottom_state_variables)
+   ! READ THE DATA
+      ALLOCATE(FABM_TMP_HZ(MT))
+      FABM_TMP_HZ(:) = FABM_ALL_HZ(:,II)
     ! LOAD BOTTOM-BOUND FABM STATE VARIABLES
       VAR => FIND_VAR(NC_START,TRIM(model%bottom_state_variables(II)%name),FOUND)
       IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
          & TRIM(model%bottom_state_variables(II)%name)//" IN THE HOTSTART FILE OBJECT")
-      CALL NC_CONNECT_AVAR(VAR, FABM_ALL_HZ(:,II))
+      CALL NC_CONNECT_AVAR(VAR, FABM_TMP_HZ)
       CALL NC_READ_VAR(VAR,STKCNT)
-    END DO
+      CALL NC_DISCONNECT(VAR)
+      FABM_ALL_HZ(:,II) = FABM_TMP_HZ(:)
+      DEALLOCATE(FABM_TMP_HZ)
+   END DO
 
-    DO II = 1,size(model%surface_state_variables)
+    DO II = size(model%bottom_state_variables),size(model%bottom_state_variables)+size(model%surface_state_variables)
+   ! READ THE DATA
+      ALLOCATE(FABM_TMP_HZ(MT))
+      FABM_TMP_HZ(:) = FABM_ALL_HZ(:,II)
     ! LOAD SURFACE-BOUND FABM STATE VARIABLES
       VAR => FIND_VAR(NC_START,TRIM(model%surface_state_variables(II)%name),FOUND)
       IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
          & TRIM(model%surface_state_variables(II)%name)//" IN THE HOTSTART FILE OBJECT")
-      CALL NC_CONNECT_AVAR(VAR, FABM_ALL_HZ(:,size(model%bottom_state_variables)+II)
+      CALL NC_CONNECT_AVAR(VAR, FABM_TMP_HZ)
       CALL NC_READ_VAR(VAR,STKCNT)
+      CALL NC_DISCONNECT(VAR)
+      FABM_ALL_HZ(:,II) = FABM_TMP_HZ(:)
+      DEALLOCATE(FABM_TMP_HZ)
     END DO
 
    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_FABM" 

@@ -2287,8 +2287,8 @@ CONTAINS
     REAL(SP), INTENT(IN):: DX,DY
     INTEGER :: IBIT1, IBIT2
     
-    IBIT1 = (INT(SIGN(1.,DX))+1) / 2
-    IBIT2 = (INT(SIGN(1.,DY))+1) / 2
+    IBIT1 = (INT(SIGN(1._SP,DX))+1) / 2
+    IBIT2 = (INT(SIGN(1._SP,DY))+1) / 2
     !    quadrant number:
     QUADRANT = 2 * IBIT1 + IBIT2 + 1
   END FUNCTION QUADRANT

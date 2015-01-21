@@ -574,8 +574,8 @@ SUBROUTINE ADV_S
            ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
            XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+S1(I,K)-S1(I,K)*DT(I)/DTFA(I) 
 
-           BETA(I,K)=0.5*(1.-SIGN(1.,XXXX)) * (SMAX-S1(I,K))/(ABS(XXXX)+1.E-10) &
-                +0.5*(1.-SIGN(1.,-XXXX)) * (S1(I,K)-SMIN)/(ABS(XXXX)+1.E-10)
+           BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (SMAX-S1(I,K))/(ABS(XXXX)+1.E-10) &
+                +0.5*(1.-SIGN(1._SP,-XXXX)) * (S1(I,K)-SMIN)/(ABS(XXXX)+1.E-10)
 
            S1_SF(I,K)=S1(I,K)-MIN(1.,BETA(I,K))*XXXX
 

@@ -5499,10 +5499,10 @@ CONTAINS
 !=============================================================
 # if defined (FABM)
   FUNCTION FABM_FILE_OBJECT(iset) RESULT(NCF)
-   INTEGER,INTENT(IN) :: iset
    USE MOD_FABM_3D
    IMPLICIT NONE
 
+   INTEGER,INTENT(IN) :: iset
    INTEGER :: status
    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
    TYPE(NCFILE), POINTER :: NCF
@@ -5520,9 +5520,9 @@ CONTAINS
      IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL")
      FABM_ALL = 0.0_SP
 
-     ALLOCATE(FABM_STATE_HZ(MGL,size(model%bottom_state_variables)+size(model%surface_state_variables)),STAT=STATUS)
-     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_STATE_HZ")
-     FABM_STATE_HZ = 0.0_SP
+     ALLOCATE(FABM_ALL_HZ(MGL,size(model%bottom_state_variables)+size(model%surface_state_variables)),STAT=STATUS)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_HZ")
+     FABM_ALL_HZ = 0.0_SP
 
      ALLOCATE(FABM_DIAG(MGL,KB,size(model%diagnostic_variables)),STAT=STATUS)
      IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_DIAG")
@@ -5546,12 +5546,12 @@ CONTAINS
    END DO
 
    DO II=1,size(model%bottom_state_variables)
-     VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),data_hz=FABM_STATE_HZ(1:M,II))
+     VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),data_hz=FABM_ALL_HZ(1:M,II))
      NCF  => ADD(NCF,VAR)
    END DO
 
    DO II=1,size(model%surface_state_variables)
-     VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),data_hz=FABM_STATE_HZ(1:M,size(model%bottom_state_variables)+II))
+     VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),data_hz=FABM_ALL_HZ(1:M,size(model%bottom_state_variables)+II))
      NCF  => ADD(NCF,VAR)
    END DO
 
@@ -5563,7 +5563,7 @@ CONTAINS
       END DO
 
       DO II=1,size(model%horizontal_diagnostic_variables)
-        VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),data=FABM_DIAG_HZ(1:M,II))
+        VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),data_hz=FABM_DIAG_HZ(1:M,II))
         NCF  => ADD(NCF,VAR)
       END DO
    END IF
@@ -5572,10 +5572,12 @@ CONTAINS
   END FUNCTION FABM_FILE_OBJECT
 
   FUNCTION ADD_FABM_VARIABLE(variable,data,data_hz) result(VAR)
+     USE fabm 
      class (type_external_variable),intent(in) :: variable
      REAL(SP), TARGET, OPTIONAL :: data(:,:)
      REAL(SP), TARGET, OPTIONAL :: data_hz(:)
      TYPE(NCVAR),  POINTER :: VAR
+     TYPE(NCATT),  POINTER :: ATT
 
      if (present(data)) then
        VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &

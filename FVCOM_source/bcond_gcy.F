@@ -503,7 +503,7 @@
          CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
 # endif
 # if defined(FABM)
-         CALL UPDATE_RIVERS(IntTime,QDIS,FABM=FABMDIS)
+         CALL UPDATE_RIVERS(IntTime,QDIS,FABMR=FABMDIS)
 # endif
 # if !defined(SEDIMENT) && !defined(WATER_QUALITY)
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS)

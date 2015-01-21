@@ -2,7 +2,8 @@ MODULE MOD_FABM_3D
 
    USE fabm
    USE fabm_config
-
+   USE MOD_PREC
+   USE ALL_VARS
    IMPLICIT NONE
 
    TYPE (type_model) :: model
@@ -14,12 +15,15 @@ MODULE MOD_FABM_3D
 
    REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
    REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
+   REAL(SP), ALLOCATABLE ::  KM_FABM(:)        ! VERTICAL MIXING COEFFICIENT
+   REAL(SP), ALLOCATABLE :: FABM_VAR(:,:)     ! ENSEMBLE VARIABLES FOR MIXING
+
 
 CONTAINS
       
-   SUBROUTINE FABM_INITIALIZE()
+   SUBROUTINE FABM_FVCOM_INITIALIZE()
       CALL fabm_create_model_from_yaml_file(model)
-   END SUBROUTINE FABM_INITIALIZE
+   END SUBROUTINE FABM_FVCOM_INITIALIZE
 
    SUBROUTINE FABM_INITIAL()
       CALL FABM_ALLOCATE
@@ -32,9 +36,13 @@ CONTAINS
 
    SUBROUTINE FABM_ALLOCATE()
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)))    ; FABM_ALL     =  0.001_SP
+    ALLOCATE(FABM_ALL_HZ(0:MT,size(model%bottom_state_variables)+&
+       & size(model%surface_state_variables)))    ; FABM_ALL_HZ     =  0.001_SP
     ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)))      ; FABM_F       =  0.001_SP
     ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)))  ; FABM_MEAN    =  0.001_SP
 
+    ALLOCATE(KM_FABM(KB))      ; KM_FABM       =  0.001_SP
+    ALLOCATE(FABM_VAR(KB,size(model%state_variables))) ; FABM_VAR       =  0.001_SP   
     !Following variables appear to be no longer used:
     !ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%state_variables))) ; XFLUX_OBCB  =  0.0_SP
     !ALLOCATE(FABM_MEANN(0:NT,KB,size(model%state_variables)))  ; FABM_MEANN   =  0.001_SP
@@ -44,8 +52,8 @@ CONTAINS
 SUBROUTINE FABM_3D1D
      IMPLICIT NONE
      SAVE
-!     INTEGER  :: I,J,K,L
-!     REAL(SP) :: SPCP,ROSEA,SPRO !,BIO_VAR_MEAN(M,KBM1,NTT)
+     INTEGER  :: I
+
 !
 !     SPCP  = 4.2174E3_SP                        !HEAT SPECIFIC CAPACITY
 !     ROSEA = 1.023E3_SP                         !RHO OF SEA WATER
@@ -112,9 +120,9 @@ SUBROUTINE FABM_3D1D
 !          END DO
 !        END DO 
       KM_FABM(:)=KH(I,:)
-      FABM_VAR(1:KBV,1:size(model%state_variables))=FABM_ALL(I,1:KBV,1:size(model%state_variables))
+      FABM_VAR(1:KB,1:size(model%state_variables))=FABM_ALL(I,1:KB,1:size(model%state_variables))
       CALL FABM_MIXING 
-      FABM_ALL(I,1:KBV,1:size(model%state_variables))=FABM_VAR(1:KBV,1:size(model%state_variables))
+      FABM_ALL(I,1:KB,1:size(model%state_variables))=FABM_VAR(1:KB,1:size(model%state_variables))
       END DO !I=1,M 
 #    if !defined (ONE_D_MODEL)
 #    if defined (MULTIPROCESSOR)

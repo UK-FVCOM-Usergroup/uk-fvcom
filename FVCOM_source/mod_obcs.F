@@ -92,7 +92,7 @@ MODULE MOD_OBCS
   REAL(SP), ALLOCATABLE :: BIO_OBC(:,:,:)      !!OPEN BOUNDARY BIO (see mod_force.F)   
 # endif
 # if defined (FABM)
-  REAL(SP), ALLOCATABLE :: BIO_FABM(:,:,:)     !!OPEN BOUNDARY FABM (see mod_force.F)   
+  REAL(SP), ALLOCATABLE :: FABM_OBC(:,:,:)     !!OPEN BOUNDARY FABM (see mod_force.F)   
 # endif
   !--Open Boundary Metrics
   INTEGER,  ALLOCATABLE :: NFLUXF_OBC(:)    !!NUMBER OF FLUX SEGMENTS TO OBN
