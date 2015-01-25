@@ -5578,13 +5578,16 @@ CONTAINS
      REAL(SP), TARGET, OPTIONAL :: data_hz(:)
      TYPE(NCVAR),  POINTER :: VAR
      TYPE(NCATT),  POINTER :: ATT
+     REAL(SP), POINTER :: pdata(:,:), pdata_hz(:)
 
      if (present(data)) then
+       pdata => data
        VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
-           & values=data, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
+           & values=pdata, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
      elseif (present(data_hz)) then
+       pdata_hz => data_hz 
        VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
-           & values=data_hz, DIM1= DIM_node, DIM2=DIM_time)
+           & values=pdata_hz, DIM1= DIM_node, DIM2=DIM_time)
      else
         CALL FATAL_ERROR("ADD_FABM_VARIABLE: data/data_hz not provided")
      end if
