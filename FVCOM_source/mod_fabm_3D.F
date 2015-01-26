@@ -4,6 +4,15 @@ MODULE MOD_FABM_3D
    USE fabm_config
    USE MOD_PREC
    USE ALL_VARS
+   USE MOD_UTILS ! to USE DBG_SET for debugging screen output
+#  if defined (WET_DRY)
+   USE MOD_WD
+#  endif
+# if defined (THIN_DAM)
+  USE MOD_DAM,only : NODE_DAM1_N,NODE_DAM2_N,NODE_DAM3_N&
+                      &,I_NODE_DAM1_N,I_NODE_DAM2_N,I_NODE_DAM3_N,KDAM
+# endif
+
    IMPLICIT NONE
 
    TYPE (type_model) :: model
@@ -52,7 +61,7 @@ CONTAINS
 SUBROUTINE FABM_3D1D
      IMPLICIT NONE
      SAVE
-     INTEGER  :: I
+     INTEGER  :: I, IFABM
 
 !
 !     SPCP  = 4.2174E3_SP                        !HEAT SPECIFIC CAPACITY
@@ -120,8 +129,23 @@ SUBROUTINE FABM_3D1D
 !          END DO
 !        END DO 
       KM_FABM(:)=KH(I,:)
+
       FABM_VAR(1:KB,1:size(model%state_variables))=FABM_ALL(I,1:KB,1:size(model%state_variables))
-      CALL FABM_MIXING 
+# Loop here over individual variables for vertical mixing
+      DO IFABM=1,size(model%state_variables)
+
+#  if !defined (WET_DRY)
+        !       IF (D(I) > 0.0_SP) THEN
+#  else
+         IF(ISWETN(I) == 1)THEN
+#  endif
+           CALL FABM_MIXING (FABM_VAR(1:KB,IFABM),FABM_VAR(1:KB,IFABM))
+# if defined(WET_DRY)
+         END IF
+# endif
+# Thin DAM treatment goes in here.... as all it does is some averaging over nodes affected by the thin dam
+# at least for the vertical mixing
+      ENDDO #IFABM
       FABM_ALL(I,1:KB,1:size(model%state_variables))=FABM_VAR(1:KB,1:size(model%state_variables))
       END DO !I=1,M 
 #    if !defined (ONE_D_MODEL)
@@ -180,8 +204,84 @@ SUBROUTINE FABM_EXCHANGE
 #endif
   END SUBROUTINE FABM_EXCHANGE
 
-  SUBROUTINE FABM_MIXING()
-  END SUBROUTINE
+  SUBROUTINE FABM_MIXING(F,FOUT)
+!==============================================================================|
+!     vertical mixing adopted from FVCOM                                       !
+!==============================================================================|
+
+   USE MOD_1D
+   IMPLICIT NONE
+   
+   INTEGER :: I,K,J,J1,KI, KVM1,KVM2
+   REAL(DPP) :: GW,FKH
+   REAL(SPP), DIMENSION(KBV),INTENT (IN)     :: F
+   REAL(SPP), DIMENSION(KBV),INTENT (OUT)     :: FOUT
+   REAL(DPP), DIMENSION(KBV)     :: FF,VHF,VHPF
+   REAL(DPP), DIMENSION(KBV)         :: AF,CF 
+
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_MIXING :"
+!------------------------------------------------------------------------------!
+!        the following section solves the equation                             !
+!         dti*(kh*f')'-f=-fb                                                   !
+!------------------------------------------------------------------------------!
+    KVM1=KBV-1
+    KVM2=KBV-2
+!    F(1:KBV,1:NTT)=BIO_VAR(1:KBV,1:NTT)
+
+    DO K = 2, KVM1
+         FKH=KM_BIO(K)
+         AF(K-1)=-T_STEP*FKH/(DELTA_D(K-1)*DELTA_Z(K-1))
+         CF(K)=-T_STEP*FKH/(DELTA_D(K)*DELTA_Z(K-1))
+    END DO
+
+  !------------------------------------------------------------------------------!
+  !   surface bcs;                                                        !
+  !------------------------------------------------------------------------------!
+
+       VHF(1) = AF(1) / (AF(1)-1.)
+       VHPF(1) = -F(1)(1) / (AF(1)-1.)
+  !------------------------------------------------------------------------------!
+  !   Interior;                                                        !
+  !------------------------------------------------------------------------------!
+
+      DO K = 2, KVM2
+         VHPF(K)=1./ (AF(K)+CF(K)*(1.-VHF(K-1))-1.)
+         VHF(K) = AF(K) * VHPF(K)
+         VHPF(K) = (CF(K)*VHPF(K-1)-DBLE(F(K)) &
+                      )*VHPF(K)
+      END DO
+
+
+      DO  K = 1, KVM1
+         FF(K) = F(K) 
+      END DO
+
+  !------------------------------------------------------------------------------!
+  !   Bottom bcs;                                                        !
+  !------------------------------------------------------------------------------!
+
+
+       GW=0.0_SPP
+       FF(KVM1) = ((CF(KVM1)*VHPF(KVM2)-FF(KVM1)-GW) &
+         /(CF(KVM1)*(1._SP-VHF(KVM2))-1._SPP)) !GW IS GROUND FLUX
+
+
+       DO  K = 2, KVM1
+         KI = KBV - K
+         FF(KI) = (VHF(KI)*FF(KI+1)+VHPF(KI))
+       END DO
+
+
+
+       DO K = 1, KVM1
+           FOUT(K) = FF(K)
+# No negative number control here!
+!	   if (BIO_VAR(K,I) < 0.0_SPP) BIO_VAR(K,I)=0.0001	 
+       END DO
+
+
+    RETURN
+END SUBROUTINE FABM_MIXING
 
   SUBROUTINE FABM_ADV()
   END SUBROUTINE
