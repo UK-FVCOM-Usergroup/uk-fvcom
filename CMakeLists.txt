@@ -8,8 +8,6 @@ find_path(JULIAN_BASE fjulian.inc HINTS "${ROOT}/libs/julian" DOC "Source direct
 
 include_directories(${ROOT} ${JULIAN_BASE})
 
-add_library(FVCOM_C ${ROOT}/func_pointer.c)
-
 add_definitions(-DWET_DRY -DLIMITED_2 -DGCY1 -DMPDATA -DFABM)
 
 find_package(NetCDF REQUIRED)
@@ -17,10 +15,13 @@ include_directories("${NetCDF_INCLUDE_DIRS}")
 if (NetCDF_STATIC_MSVC_BUILD)
   # On Windows with a statically-compiled NetCDF library - compile all code against static runtime.
   # This MUST be done before any targets are added.
-  add_compile_options("/libs:static")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} /libs:static")
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
 endif()
 
 add_library(julian
+   ${JULIAN_BASE}/dates.c
    ${JULIAN_BASE}/format.c
    ${JULIAN_BASE}/juldates.c
    ${JULIAN_BASE}/leapsecs.c
@@ -32,7 +33,6 @@ add_library(julian
    ${JULIAN_BASE}/rlerrors.c
    ${JULIAN_BASE}/rlmemory.c
 )
-target_compile_definitions(julian PRIVATE -D__STDC__)
 
 add_library(fjulian
    ${JULIAN_BASE}/fjulian.for
@@ -42,6 +42,10 @@ add_library(fjulian
 find_path(FABM_BASE src/fabm.F90 DOC "Path to FABM source directory.")
 set(FABM_FORCED_HOST fvcom)
 add_subdirectory(${FABM_BASE}/src fabm)
+
+add_library(FVCOM_C
+   ${ROOT}/func_pointer.c
+)
 
 add_executable(FVCOM_exe
 ${ROOT}/adcor.F
