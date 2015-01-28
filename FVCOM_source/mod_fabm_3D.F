@@ -343,7 +343,7 @@ END SUBROUTINE FABM_MIXING
 !
 !  SET CONDITIONS ON OUTER BOUNDARY
 !
-     IF(OBC_BIO_NUDGING) CALL UPDATE_OBC_FABM(IntTime,FABM_OBC)
+     IF(OBC_FABM_NUDGING) CALL UPDATE_OBC_FABM(IntTime,FABM_OBC)
      RAMP_BIO = TANH(FLOAT(IINT)/FLOAT(IRAMP+1))
      DO IFABM=1,size(model%state_variables)
        DO I=1,IOBCN
@@ -396,10 +396,10 @@ END SUBROUTINE FABM_MIXING
 
           ELSE
 
-           IF(OBC_BIO_NUDGING) THEN
+           IF(OBC_FABM_NUDGING) THEN
              DO K=1,KBM1
                FABM_F(J,K,IFABM) = FABM_ALL(J,K,IFABM) - OBC_FABM_NUDGING_TIMESCALE*RAMP_BIO*(FABM_ALL(J,K,IFABM)&
-                      &-BIO_OBC(I,K,IFABM))
+                      &-FABM_OBC(I,K,IFABM))
              END DO
            ELSE
              DO K=1,KBM1
