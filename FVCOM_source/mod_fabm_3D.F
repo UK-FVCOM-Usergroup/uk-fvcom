@@ -133,7 +133,7 @@ SUBROUTINE FABM_3D1D
       KM_FABM(:)=KH(I,:)
 
 !      FABM_VAR(1:KB,1:size(model%state_variables))=FABM_ALL(I,1:KB,1:size(model%state_variables))
-# Loop here over individual variables for vertical mixing
+! Loop here over individual variables for vertical mixing
       DO IFABM=1,size(model%state_variables)
 
 #  if !defined (WET_DRY)
@@ -145,9 +145,9 @@ SUBROUTINE FABM_3D1D
 # if defined(WET_DRY)
          END IF
 # endif
-# Thin DAM treatment goes in here.... as all it does is some averaging over nodes affected by the thin dam
-# at least for the vertical mixing
-      ENDDO #IFABM
+! Thin DAM treatment goes in here.... as all it does is some averaging over nodes affected by the thin dam
+! at least for the vertical mixing
+      ENDDO !IFABM
       FABM_ALL(I,1:KB,1:size(model%state_variables))=FABM_VAR(1:KB,1:size(model%state_variables))
       END DO !I=1,M 
 #    if !defined (ONE_D_MODEL)
@@ -211,15 +211,15 @@ SUBROUTINE FABM_EXCHANGE
 !     vertical mixing adopted from FVCOM                                       !
 !==============================================================================|
 
-   USE MOD_1D
+!   USE MOD_1D
    IMPLICIT NONE
    
    INTEGER :: I,K,J,J1,KI, KVM1,KVM2
-   REAL(DPP) :: GW,FKH
-   REAL(SPP), DIMENSION(KB),INTENT (INOUT)     :: F
+   REAL(DP) :: GW,FKH
+   REAL(SP), DIMENSION(KB),INTENT (INOUT)     :: F
 !   REAL(SPP), DIMENSION(KBV),INTENT (OUT)     :: FOUT
-   REAL(DPP), DIMENSION(KB)     :: FF,VHF,VHPF
-   REAL(DPP), DIMENSION(KB)         :: AF,CF 
+   REAL(DP), DIMENSION(KB)     :: FF,VHF,VHPF
+   REAL(DP), DIMENSION(KB)         :: AF,CF 
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_MIXING :"
 !------------------------------------------------------------------------------!
@@ -263,9 +263,9 @@ SUBROUTINE FABM_EXCHANGE
   !------------------------------------------------------------------------------!
 
 
-       GW=0.0_SPP
+       GW=0.0_SP
        FF(KVM1) = ((CF(KVM1)*VHPF(KVM2)-FF(KVM1)-GW) &
-         /(CF(KVM1)*(1._SP-VHF(KVM2))-1._SPP)) !GW IS GROUND FLUX
+         /(CF(KVM1)*(1._SP-VHF(KVM2))-1._SP)) !GW IS GROUND FLUX
 
 
        DO  K = 2, KVM1
@@ -301,7 +301,7 @@ END SUBROUTINE FABM_MIXING
 #  if defined (WET_DRY) 
    USE MOD_WD
 #  endif
-   USE MOD_1D
+!   USE MOD_1D
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT, ONLY : IFCETA 
 # endif
