@@ -141,7 +141,7 @@ SUBROUTINE FABM_3D1D
 #  else
          IF(ISWETN(I) == 1)THEN
 #  endif
-           CALL FABM_MIXING (FABM_ALL(I,1:KB,IFABM))
+           CALL FABM_MIXING 
 # if defined(WET_DRY)
          END IF
 # endif
@@ -206,7 +206,7 @@ SUBROUTINE FABM_EXCHANGE
 #endif
   END SUBROUTINE FABM_EXCHANGE
 
-  SUBROUTINE FABM_MIXING(F)
+  SUBROUTINE FABM_MIXING
 !==============================================================================|
 !     vertical mixing adopted from FVCOM                                       !
 !==============================================================================|
@@ -214,75 +214,141 @@ SUBROUTINE FABM_EXCHANGE
 !   USE MOD_1D
    IMPLICIT NONE
    
-   INTEGER :: I,K,J,J1,KI, KVM1,KVM2
-   REAL(DP) :: GW,FKH
-   REAL(SP), DIMENSION(KB),INTENT (INOUT)     :: F
+   INTEGER :: I,K,J,J1,KI 
+   REAL(DP) :: FKH
 !   REAL(SPP), DIMENSION(KBV),INTENT (OUT)     :: FOUT
-   REAL(DP), DIMENSION(KB)     :: FF,VHF,VHPF
-   REAL(DP), DIMENSION(KB)         :: AF,CF 
+   REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF
+
+!   REAL(DP), DIMENSION(KB)     :: FF,VHF,VHPF
+!   REAL(DP), DIMENSION(KB)         :: AF,CF 
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_MIXING :"
-!------------------------------------------------------------------------------!
-!        the following section solves the equation                             !
-!         dti*(kh*f')'-f=-fb                                                   !
-!------------------------------------------------------------------------------!
-    KVM1=KB-1
-    KVM2=KB-2
-!    F(1:KBV,1:NTT)=BIO_VAR(1:KBV,1:NTT)
+     DO IFABM=1,size(model%state_variables)
 
-    DO K = 2, KVM1
-         FKH=KM_BIO(K)
-         AF(K-1)=-T_STEP*FKH/(DELTA_D(K-1)*DELTA_Z(K-1))
-         CF(K)=-T_STEP*FKH/(DELTA_D(K)*DELTA_Z(K-1))
-    END DO
 
+  !
+  !------------------------------------------------------------------------------!
+  !                                                                              !
+  !        the following section solves the equation                             !
+  !         dti*(kh*f')'-f=-fb                                                   !
+  !                                                                              !
+  !------------------------------------------------------------------------------!
+
+  DO K = 2, KBM1
+     DO I = 1, M
+#  if !defined (WET_DRY)
+        !       IF (D(I) > 0.0_SP) THEN
+#  else
+        IF(ISWETN(I) == 1)THEN
+#  endif
+           FKH = KH(I,K)
+
+           IF(K == KBM1) THEN
+              KHBOTTOM(I)=FKH
+           END IF
+
+           AF(I,K-1)=-DTI*(FKH+UMOLPR)/(DZ(I,K-1)*DZZ(I,K-1)*D(I)*D(I))
+           CF(I,K)=-DTI*(FKH+UMOLPR)/(DZ(I,K)*DZZ(I,K-1)*D(I)*D(I))
+# if defined(WET_DRY)
+        END IF
+# endif
+     END DO
+  END DO
   !------------------------------------------------------------------------------!
   !   surface bcs;                                                        !
   !------------------------------------------------------------------------------!
-
-       VHF(1) = AF(1) / (AF(1)-1.)
-       VHPF(1) = -F(1)(1) / (AF(1)-1.)
+   DO I = 1, M
+#  if !defined (WET_DRY)
+!     IF (D(I) > 0.0_SP) THEN
+#  else
+     IF(ISWETN(I) == 1)THEN
+#  endif
+       VHF(I,1) = AF(I,1) / (AF(I,1)-1.)
+       VHPF(I,1) = -FABM_ALL(I,1,IFABM) / (AF(I,1)-1.)
+#  if defined (WET_DRY)
+     END IF
+# endif
+   END DO
   !------------------------------------------------------------------------------!
   !   Interior;                                                        !
   !------------------------------------------------------------------------------!
-
-      DO K = 2, KVM2
-         VHPF(K)=1./ (AF(K)+CF(K)*(1.-VHF(K-1))-1.)
-         VHF(K) = AF(K) * VHPF(K)
-         VHPF(K) = (CF(K)*VHPF(K-1)-DBLE(F(K)) &
-                      )*VHPF(K)
-      END DO
-
-
-      DO  K = 1, KVM1
-         FF(K) = F(K) 
-      END DO
+   DO K = 2, KBM2
+     DO I = 1, M
+#  if !defined (WET_DRY)
+!       IF (D(I) > 0.0_SP) THEN
+#  else
+       IF(ISWETN(I) == 1)THEN
+#  endif
+         VHPF(I,K)=1./ (AF(I,K)+CF(I,K)*(1.-VHF(I,K-1))-1.)
+         VHF(I,K) = AF(I,K) * VHPF(I,K)
+         VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(FABM_ALL(I,K,IFABM)) &
+                     /(D(I)*DZ(I,K)))*VHPF(I,K)
+#  if defined (WET_DRY)
+       END IF
+# endif
+     END DO
+   END DO
+#  if !defined (WET_DRY)
+  FF(1:M,1:KBM1) = FABM_ALL(1:M,1:KBM1,IFABM)
+#  else
+  DO  K = 1, KBM1
+     DO  I = 1, M
+        IF(ISWETN(I) == 1)THEN
+           FF(I,K) = FABM_ALL(I,K,IFABM)
+        END IF
+     END DO
+  END DO
+#  endif
 
   !------------------------------------------------------------------------------!
   !   Bottom bcs;                                                        !
   !------------------------------------------------------------------------------!
 
+   DO I = 1, M
+#  if !defined (WET_DRY)
+#  else
+     IF(ISWETN(I) == 1)THEN
+#  endif
 
-       GW=0.0_SP
-       FF(KVM1) = ((CF(KVM1)*VHPF(KVM2)-FF(KVM1)-GW) &
-         /(CF(KVM1)*(1._SP-VHF(KVM2))-1._SP)) !GW IS GROUND FLUX
-
-
-       DO  K = 2, KVM1
-         KI = KB - K
-         FF(KI) = (VHF(KI)*FF(KI+1)+VHPF(KI))
-       END DO
-
-
-!This Do loop can be removed if no negative number control is needed.
-       DO K = 1, KVM1
-           F(K) = FF(K)
-! No negative number control here!
-!	   if (BIO_VAR(K,I) < 0.0_SPP) BIO_VAR(K,I)=0.0001	 
-       END DO
+       FF(I,KBM1) = ((CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1) &
+               /(D(I)*DZ(I,KBM1))) &
+                /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP))
+#  if defined (WET_DRY)
+     END IF
+# endif
+   END DO
 
 
-    RETURN
+    DO  K = 2, KBM1
+      KI = KB - K
+      DO  I = 1, M
+        IF(ISONB(I) /= 2) THEN
+#  if defined (WET_DRY)
+           IF(ISWETN(I) == 1)THEN
+#  endif
+              FF(I,KI) = (VHF(I,KI)*FF(I,KI+1)+VHPF(I,KI))
+#  if defined (WET_DRY)
+           END IF
+# endif
+        END IF
+      END DO
+    END DO
+
+    DO I = 1, M
+#  if defined (WET_DRY)
+       IF(ISWETN(I)*ISWETNT(I) == 1 )then
+#  endif
+          DO K = 1, KBM1
+             FABM_ALL(I,K,IFABM) = FF(I,K)
+          END DO
+#  if defined (WET_DRY)
+       END IF
+#  endif
+    END DO
+
+
+   END DO ! IFABM
+  RETURN
 END SUBROUTINE FABM_MIXING
 
   SUBROUTINE FABM_ADV()
