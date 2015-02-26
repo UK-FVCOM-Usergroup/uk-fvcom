@@ -59,9 +59,17 @@ CONTAINS
     ! Send environmental data to FABM
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:MT,:))
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:MT,:))
-    call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:MT,:)) ! JB check units: kg m-3?
+    call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:MT,:)) ! JB check units: kg m-3? No subtraction by 1000?
     call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:MT,:)) ! JB check units: m?
-    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:MT)) ! JB check units: W m-2?
+    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:MT))
+    call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:MT))
+    call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:MT))
+    call fabm_link_horizontal_data(model,standard_variables%bottom_depth,D(1:MT))
+    call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,H(1:MT))
+
+    ! TODO send bottom stress in Pa - we have TAUBM_N = (shear velocity)^2 = stress/rho, needs multiplication with density
+    ! TODO send wind speed in m s-1 - we have UUWIND, VVWIND - are these defined at nodes?
+    ! TODO send day of the year (including fraction indicating time)
 
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
