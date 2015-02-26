@@ -16,11 +16,11 @@ MODULE MOD_FABM_3D
 
    IMPLICIT NONE
 
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM STATE VARIABLES
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG(:,:,:)   ! 3D FABM DIAGNOSTIC VARIABLES
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM SURFACE/BOTTOM-BOUND STATE VARIABLES
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM SURFACE/BOTTOM-BOUND STATE VARIABLES
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG_HZ(:,:)  ! 2D FABM HORIZONTAL DIAGNOSTIC VARIABLES
+   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM state variables
+   REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG(:,:,:)   ! 3D FABM diagnostic variables
+   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM bottom-attached state variables
+   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
+   REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG_HZ(:,:)  ! 2D FABM horizontal diagnostic variables
    REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
    REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
    REAL(SP), ALLOCATABLE ::  KM_FABM(:)        ! VERTICAL MIXING COEFFICIENT
@@ -77,12 +77,16 @@ SUBROUTINE FABM_3D1D
      DO K=1,KBM1
         call fabm_do(model,1,M,K,SMS_PEL)
         IF (K==1) THEN
-           SMS_PEL = SMS_PEL + FLUX_SF/DZ(1:M,K)
+           DO IFABM=1,size(model%state_variables)
+              SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_SF(1:M,IFABM)/DZ(1:M,K)
+           END DO
         ELSEIF (K==KBM1) THEN
-           SMS_PEL = SMS_PEL + FLUX_BT/DZ(1:M,KBM1)
+           DO IFABM=1,size(model%state_variables)
+              SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_BT(1:M,IFABM)/DZ(1:M,KBM1)
+           END DO
         END IF
         ! Forward Euler time integration of sources-sinks:
-        FABM_ALL(1:N,K,:) = FABM_ALL(1:N,K,:) + DELTA_T*SMS_PEL
+        FABM_ALL(1:N,K,:) = FABM_ALL(1:N,K,:) + DTI*SMS_PEL
      END DO
 
      ! Forward Euler time integration of interface-attached state variables.
