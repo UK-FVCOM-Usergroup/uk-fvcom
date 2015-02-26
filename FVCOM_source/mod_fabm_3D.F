@@ -36,12 +36,16 @@ CONTAINS
    END SUBROUTINE FABM_FVCOM_INITIALIZE
 
    SUBROUTINE FABM_INITIAL()
+      INTEGER :: K
+
       CALL FABM_ALLOCATE
 
-      ! TODO: initialize all FABM fields
-      ! TODO: send pointers to environemntal variables to FABM
-      ! TODO: call fabm_set_domain
-      ! TODO: call fabm_check_ready
+      ! Allow FABM to perform its default initialization.
+      CALL fabm_initialize_surface_state(model,1,M,1)
+      CALL fabm_initialize_bottom_state (model,1,M,KBM1)
+      DO K=1,KBM1
+        CALL fabm_initialize_state(model,1,M,K)
+      END DO
    END SUBROUTINE FABM_INITIAL
 
    SUBROUTINE FABM_ALLOCATE()
@@ -52,6 +56,7 @@ CONTAINS
 
     !call fabm_set_mask(model,mask)
 
+    ! Send environmental data to FABM
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:MT,:))
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:MT,:))
     call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:MT,:))  ! JB: is RHO1 really density in kg m-3??
