@@ -131,7 +131,7 @@ CONTAINS
     USE MOD_1D, ONLY : NTT
 #   endif    
 #   if defined (FABM)
-    USE MOD_FABM_3D
+    USE MOD_FABM_DATA
 #   endif    
     IMPLICIT NONE
 

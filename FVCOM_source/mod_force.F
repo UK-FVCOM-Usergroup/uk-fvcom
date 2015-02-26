@@ -1623,7 +1623,7 @@ CONTAINS
   USE MOD_1D, ONLY : NTT,BIO_NAME
 # endif  
 # if defined (FABM)
-  USE MOD_FABM_3D
+  USE MOD_FABM_DATA
 # endif  
     IMPLICIT NONE
     INTEGER :: I, J,K, fcnt,rcnt,status, nfiles,nrs,IOS,NS
@@ -5230,7 +5230,7 @@ CONTAINS
   !================================================================
 # if defined (FABM)
   SUBROUTINE OBC_FABM
-    USE MOD_FABM_3D
+    USE MOD_FABM_DATA
     IMPLICIT NONE
     ! SOME NC POINTERS
     TYPE(NCATT), POINTER :: ATT, ATT_DATE
@@ -5379,7 +5379,7 @@ CONTAINS
 
        ALLOCATE(OBC_FABM_N(size(model%state_variables)))
        ALLOCATE(OBC_FABM_P(size(model%state_variables)))
-       ALLOCATE(FABM_OBC_MASK(size(model%state_variables));FABM_OBC_MASK=.FALSE.
+       ALLOCATE(FABM_OBC_MASK(size(model%state_variables)));FABM_OBC_MASK=.FALSE.
        DO IFABM=1,size(model%state_variables)
        VAR => FIND_VAR(OBC_F_FILE,model%state_variables(IFABM)%name,FOUND)
        IF(FOUND) THEN
@@ -10343,7 +10343,7 @@ CONTAINS
     USE MOD_1D, ONLY : NTT
 # endif  
 # if defined (FABM)
-    USE MOD_FABM_3D
+    USE MOD_FABM_DATA
 # endif  
 
     IMPLICIT NONE
@@ -13359,7 +13359,7 @@ CONTAINS
 
 # if defined (FABM)
   SUBROUTINE UPDATE_OBC_FABM(NOW,FABMO)
-    USE MOD_FABM_3D
+    USE MOD_FABM_DATA
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     REAL(SP), ALLOCATABLE :: FABMO(:,:,:)

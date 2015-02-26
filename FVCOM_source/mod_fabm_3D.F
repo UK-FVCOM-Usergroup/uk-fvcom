@@ -2,6 +2,7 @@ MODULE MOD_FABM_3D
 
    USE fabm
    USE fabm_config
+   USE MOD_FABM_DATA
    USE MOD_PREC
    USE ALL_VARS
    USE MOD_UTILS ! to USE DBG_SET for debugging screen output
@@ -14,8 +15,6 @@ MODULE MOD_FABM_3D
 # endif
 
    IMPLICIT NONE
-
-   TYPE (type_model) :: model
 
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM STATE VARIABLES
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG(:,:,:)   ! 3D FABM DIAGNOSTIC VARIABLES
@@ -214,10 +213,11 @@ SUBROUTINE FABM_EXCHANGE
 !   USE MOD_1D
    IMPLICIT NONE
    
-   INTEGER :: I,K,J,J1,KI 
-   REAL(DP) :: FKH
+   INTEGER :: I,K,J,J1,KI,IFABM
+   REAL(DP) :: FKH,UMOLPR
 !   REAL(SPP), DIMENSION(KBV),INTENT (OUT)     :: FOUT
    REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF
+   REAL(DP), DIMENSION(M)        :: KHBOTTOM
 
 !   REAL(DP), DIMENSION(KB)     :: FF,VHF,VHPF
 !   REAL(DP), DIMENSION(KB)         :: AF,CF 
@@ -225,6 +225,7 @@ SUBROUTINE FABM_EXCHANGE
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_MIXING :"
      DO IFABM=1,size(model%state_variables)
 
+   UMOLPR = UMOL*1.E0_SP
 
   !
   !------------------------------------------------------------------------------!

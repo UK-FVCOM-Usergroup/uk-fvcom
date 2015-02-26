@@ -1952,7 +1952,7 @@ CONTAINS
       DEALLOCATE(FABM_TMP_HZ)
    END DO
 
-    DO II = size(model%bottom_state_variables),size(model%bottom_state_variables)+size(model%surface_state_variables)
+    DO II = 1,size(model%surface_state_variables)
    ! READ THE DATA
       ALLOCATE(FABM_TMP_HZ(MT))
       FABM_TMP_HZ(:) = FABM_ALL_HZ(:,II)
@@ -1963,7 +1963,7 @@ CONTAINS
       CALL NC_CONNECT_AVAR(VAR, FABM_TMP_HZ)
       CALL NC_READ_VAR(VAR,STKCNT)
       CALL NC_DISCONNECT(VAR)
-      FABM_ALL_HZ(:,II) = FABM_TMP_HZ(:)
+      FABM_ALL_HZ(:,size(model%bottom_state_variables)+II) = FABM_TMP_HZ(:)
       DEALLOCATE(FABM_TMP_HZ)
     END DO
 
