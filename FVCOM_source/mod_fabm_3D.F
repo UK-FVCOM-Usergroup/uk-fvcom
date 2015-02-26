@@ -59,7 +59,9 @@ CONTAINS
     ! Send environmental data to FABM
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:MT,:))
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:MT,:))
-    call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:MT,:))  ! JB: is RHO1 really density in kg m-3??
+    call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:MT,:)) ! JB check units: kg m-3?
+    call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:MT,:)) ! JB check units: m?
+    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:MT)) ! JB check units: W m-2?
 
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
@@ -91,9 +93,35 @@ CONTAINS
    END SUBROUTINE
 
 SUBROUTINE FABM_3D1D
-     IMPLICIT NONE
      SAVE
-     INTEGER  :: I, K, IFABM
+
+     ! Integrate biogeochemical sources-sinks
+     CALL FABM_SOURCES
+
+     ! Vertical mixing
+     CALL FABM_MIXING 
+
+#    if !defined (ONE_D_MODEL)
+#    if defined (MULTIPROCESSOR)
+       CALL FABM_EXCHANGE
+#    endif
+      CALL FABM_ADV
+#    if defined (MULTIPROCESSOR)
+      CALL FABM_EXCHANGE
+#    endif
+      CALL FABM_BCOND
+      FABM_ALL=FABM_F                                   !UPDATE
+#    endif
+!    end if defined 1D
+
+      !WHERE (FABM_ALL < 0.001) FABM_ALL=0.001
+
+!      IF(MOD(IINT-1,CDF_INT)==0) CALL BIO_OUT_NETCDF
+
+END SUBROUTINE FABM_3D1D
+
+SUBROUTINE FABM_SOURCES
+     INTEGER  :: K, IFABM
      REAL(SP), DIMENSION(M,size(model%state_variables))         :: SMS_PEL,FLUX_SF,FLUX_BT
      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: SMS_BT
      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: SMS_SF
@@ -122,28 +150,7 @@ SUBROUTINE FABM_3D1D
      ! Forward Euler time integration of interface-attached state variables.
      FABM_ALL_SF(1:N,:) = FABM_ALL_SF(1:N,:) + DTI*SMS_SF
      FABM_ALL_BT(1:N,:) = FABM_ALL_BT(1:N,:) + DTI*SMS_BT
-
-     ! Vertical mixing
-     CALL FABM_MIXING 
-
-#    if !defined (ONE_D_MODEL)
-#    if defined (MULTIPROCESSOR)
-       CALL FABM_EXCHANGE
-#    endif
-      CALL FABM_ADV
-#    if defined (MULTIPROCESSOR)
-      CALL FABM_EXCHANGE
-#    endif
-      CALL FABM_BCOND
-      FABM_ALL=FABM_F                                   !UPDATE
-#    endif
-!    end if defined 1D
-
-      !WHERE (FABM_ALL < 0.001) FABM_ALL=0.001
-
-!      IF(MOD(IINT-1,CDF_INT)==0) CALL BIO_OUT_NETCDF
-
-END SUBROUTINE FABM_3D1D
+END SUBROUTINE
 
 SUBROUTINE FABM_EXCHANGE
 !==============================================================================!
