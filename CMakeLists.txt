@@ -41,6 +41,7 @@ add_library(fjulian
 
 find_path(FABM_BASE src/fabm.F90 DOC "Path to FABM source directory.")
 set(FABM_FORCED_HOST fvcom)
+set(FABM_REAL_KIND "SELECTED_REAL_KIND(6)")
 add_subdirectory(${FABM_BASE}/src fabm)
 
 add_library(FVCOM_C
