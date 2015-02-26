@@ -1940,7 +1940,7 @@ CONTAINS
     DO II = 1,size(model%bottom_state_variables)
    ! READ THE DATA
       ALLOCATE(FABM_TMP_HZ(MT))
-      FABM_TMP_HZ(:) = FABM_ALL_HZ(:,II)
+      FABM_TMP_HZ(:) = FABM_ALL_BT(:,II)
     ! LOAD BOTTOM-BOUND FABM STATE VARIABLES
       VAR => FIND_VAR(NC_START,TRIM(model%bottom_state_variables(II)%name),FOUND)
       IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
@@ -1948,14 +1948,14 @@ CONTAINS
       CALL NC_CONNECT_AVAR(VAR, FABM_TMP_HZ)
       CALL NC_READ_VAR(VAR,STKCNT)
       CALL NC_DISCONNECT(VAR)
-      FABM_ALL_HZ(:,II) = FABM_TMP_HZ(:)
+      FABM_ALL_BT(:,II) = FABM_TMP_HZ(:)
       DEALLOCATE(FABM_TMP_HZ)
    END DO
 
     DO II = 1,size(model%surface_state_variables)
    ! READ THE DATA
       ALLOCATE(FABM_TMP_HZ(MT))
-      FABM_TMP_HZ(:) = FABM_ALL_HZ(:,II)
+      FABM_TMP_HZ(:) = FABM_ALL_SF(:,II)
     ! LOAD SURFACE-BOUND FABM STATE VARIABLES
       VAR => FIND_VAR(NC_START,TRIM(model%surface_state_variables(II)%name),FOUND)
       IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
@@ -1963,7 +1963,7 @@ CONTAINS
       CALL NC_CONNECT_AVAR(VAR, FABM_TMP_HZ)
       CALL NC_READ_VAR(VAR,STKCNT)
       CALL NC_DISCONNECT(VAR)
-      FABM_ALL_HZ(:,size(model%bottom_state_variables)+II) = FABM_TMP_HZ(:)
+      FABM_ALL_SF(:,II) = FABM_TMP_HZ(:)
       DEALLOCATE(FABM_TMP_HZ)
     END DO
 

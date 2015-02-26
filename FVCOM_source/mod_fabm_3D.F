@@ -18,7 +18,8 @@ MODULE MOD_FABM_3D
 
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM STATE VARIABLES
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG(:,:,:)   ! 3D FABM DIAGNOSTIC VARIABLES
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_HZ(:,:)   ! 2D FABM SURFACE/BOTTOM-BOUND STATE VARIABLES
+   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM SURFACE/BOTTOM-BOUND STATE VARIABLES
+   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM SURFACE/BOTTOM-BOUND STATE VARIABLES
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG_HZ(:,:)  ! 2D FABM HORIZONTAL DIAGNOSTIC VARIABLES
    REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
    REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
@@ -44,9 +45,9 @@ CONTAINS
    END SUBROUTINE FABM_INITIAL
 
    SUBROUTINE FABM_ALLOCATE()
-    ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)))    ; FABM_ALL     =  0.001_SP
-    ALLOCATE(FABM_ALL_HZ(0:MT,size(model%bottom_state_variables)+&
-       & size(model%surface_state_variables)))    ; FABM_ALL_HZ     =  0.001_SP
+    ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
+    ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
+    ALLOCATE(FABM_ALL_SF(0:MT,size(model%surface_state_variables))); FABM_ALL_SF =  0.001_SP
     ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)))      ; FABM_F       =  0.001_SP
     ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)))  ; FABM_MEAN    =  0.001_SP
 
@@ -62,93 +63,35 @@ CONTAINS
 SUBROUTINE FABM_3D1D
      IMPLICIT NONE
      SAVE
-     INTEGER  :: I, IFABM
+     INTEGER  :: I, K, IFABM
+     REAL(SP), DIMENSION(M,size(model%state_variables))         :: SMS_PEL,FLUX_SF,FLUX_BT
+     REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: SMS_BT
+     REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: SMS_SF
 
-!
-!     SPCP  = 4.2174E3_SP                        !HEAT SPECIFIC CAPACITY
-!     ROSEA = 1.023E3_SP                         !RHO OF SEA WATER
-!     SPRO=SPCP*ROSEA
-!!     BIO_VAR_MEAN = 0.0_SP
-!!---------------------------                    !MAIN LOOP OVER ELEMENTS
-!
-#    if defined (ONE_D_MODEL)
-     DO I=M,M
-#    else
-     DO I=1,M
-#    endif
-!       DO K=1,KBM1                              !3D TO 1D FIELD
-!         DO J=1,NNN
-!            BIO_N(K,J)=BIO_ALL(I,K,J+INN-1)
-!         END DO
-!         DO J=1,NNP
-!            BIO_P(K,J)=BIO_ALL(I,K,J+INP-1)
-!         END DO
-!         DO J=1,NNZ
-!            BIO_Z(K,J)=BIO_ALL(I,K,J+INZ-1)
-!         END DO
-!         DO J=1,NNM
-!            BIO_DOM(K,J)=BIO_ALL(I,K,J+INM-1)
-!         END DO
-!         DO J=1,NNB
-!            BIO_B(K,J)=BIO_ALL(I,K,J+INB-1)
-!         END DO
-!         DO J=1,NND
-!            BIO_D(K,J)=BIO_ALL(I,K,J+IND-1)
-!         END DO
-!         DELTA_D(K)=DZ(I,K)*D(I)                   !LAYER THICKNESS
-!         DELTA_Z(K)=DZZ(I,K)*D(I)                  !DISTANCE BETWEEN LAYERS
-!         DEPTH_Z(K)=Z(I,K)*D(I)                    !LAYER CENTER DEPTH
-!         IRRAD0=-SWRAD(I)*PARFRAC*SPRO/RAMP      !PAR FRACTION
-!         L_NH4N=30._SPP                          !NITRIFICATION USE	 
-!         T_BIO(K)=T1(I,K)
-!       END DO                                    !K=1,KB
-!       T_STEP=DTI
-!       CALL ZOOPLANKTON
-!       CALL PHYTOPLANKTON
-!       CALL BACTERIA
-!       CALL DETRITUS
-!       CALL DOM
-!       CALL NUTRIENT
-!        DO K=1,KBM1                                !1D TO 3D FIELD
-!          DO J=1,NNN
-!             BIO_ALL(I,K,J+INN-1)=BIO_N(K,J)
-!          END DO
-!          DO J=1,NNP
-!             BIO_ALL(I,K,J+INP-1)=BIO_P(K,J)
-!          END DO
-!          DO J=1,NNZ
-!             BIO_ALL(I,K,J+INZ-1)=BIO_Z(K,J)
-!          END DO
-!          DO J=1,NNM
-!             BIO_ALL(I,K,J+INM-1)=BIO_DOM(K,J)
-!          END DO
-!          DO J=1,NNB
-!             BIO_ALL(I,K,J+INB-1)=BIO_B(K,J)
-!          END DO
-!          DO J=1,NND
-!             BIO_ALL(I,K,J+IND-1)=BIO_D(K,J)
-!          END DO
-!        END DO 
-      KM_FABM(:)=KH(I,:)
+     ! Get sources-sinks for interface-attached state variables, and cross-interface
+     ! fluxes (air-sea gas exchange, sedimentation, pelagic-benthic diffusion flux)
+     call fabm_do_surface(model,1,M,1,   FLUX_SF,SMS_SF)
+     call fabm_do_bottom (model,1,M,KBM1,FLUX_BT,SMS_BT)
 
-!      FABM_VAR(1:KB,1:size(model%state_variables))=FABM_ALL(I,1:KB,1:size(model%state_variables))
-! Loop here over individual variables for vertical mixing
-      DO IFABM=1,size(model%state_variables)
+     ! Integrate sources-sinks for the pelagic
+     DO K=1,KBM1
+        call fabm_do(model,1,M,K,SMS_PEL)
+        IF (K==1) THEN
+           SMS_PEL = SMS_PEL + FLUX_SF/DZ(1:M,K)
+        ELSEIF (K==KBM1) THEN
+           SMS_PEL = SMS_PEL + FLUX_BT/DZ(1:M,KBM1)
+        END IF
+        ! Forward Euler time integration of sources-sinks:
+        FABM_ALL(1:N,K,:) = FABM_ALL(1:N,K,:) + DELTA_T*SMS_PEL
+     END DO
 
-#  if !defined (WET_DRY)
-        !       IF (D(I) > 0.0_SP) THEN
-#  else
-         IF(ISWETN(I) == 1)THEN
-#  endif
-           CALL FABM_MIXING 
-# if defined(WET_DRY)
-         END IF
-# endif
-! Thin DAM treatment goes in here.... as all it does is some averaging over nodes affected by the thin dam
-! at least for the vertical mixing
-      ENDDO !IFABM
-      FABM_ALL(I,1:KB,1:size(model%state_variables))=FABM_VAR(1:KB,1:size(model%state_variables))
-      END DO !I=1,M 
+     ! Forward Euler time integration of interface-attached state variables.
+     FABM_ALL_SF(1:N,:) = FABM_ALL_SF(1:N,:) + DELTA_T*SMS_SF
+     FABM_ALL_BT(1:N,:) = FABM_ALL_BT(1:N,:) + DELTA_T*SMS_BT
+
+     ! Vertical mixing
+     CALL FABM_MIXING 
+
 #    if !defined (ONE_D_MODEL)
 #    if defined (MULTIPROCESSOR)
        CALL FABM_EXCHANGE
@@ -164,9 +107,7 @@ SUBROUTINE FABM_3D1D
 
       !WHERE (FABM_ALL < 0.001) FABM_ALL=0.001
 
-
 !      IF(MOD(IINT-1,CDF_INT)==0) CALL BIO_OUT_NETCDF
-
 
 END SUBROUTINE FABM_3D1D
 

@@ -5520,9 +5520,13 @@ CONTAINS
      IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL")
      FABM_ALL = 0.0_SP
 
-     ALLOCATE(FABM_ALL_HZ(MGL,size(model%bottom_state_variables)+size(model%surface_state_variables)),STAT=STATUS)
-     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_HZ")
-     FABM_ALL_HZ = 0.0_SP
+     ALLOCATE(FABM_ALL_BT(MGL,size(model%bottom_state_variables)),STAT=STATUS)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_BT")
+     FABM_ALL_BT = 0.0_SP
+
+     ALLOCATE(FABM_ALL_SF(MGL,size(model%surface_state_variables)),STAT=STATUS)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_SF")
+     FABM_ALL_SF = 0.0_SP
 
      ALLOCATE(FABM_DIAG(MGL,KB,size(model%diagnostic_variables)),STAT=STATUS)
      IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_DIAG")
@@ -5546,12 +5550,12 @@ CONTAINS
    END DO
 
    DO II=1,size(model%bottom_state_variables)
-     VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),data_hz=FABM_ALL_HZ(1:M,II))
+     VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),data_hz=FABM_ALL_BT(1:M,II))
      NCF  => ADD(NCF,VAR)
    END DO
 
    DO II=1,size(model%surface_state_variables)
-     VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),data_hz=FABM_ALL_HZ(1:M,size(model%bottom_state_variables)+II))
+     VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),data_hz=FABM_ALL_SF(1:M,II))
      NCF  => ADD(NCF,VAR)
    END DO
 
