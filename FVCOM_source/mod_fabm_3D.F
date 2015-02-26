@@ -90,8 +90,8 @@ SUBROUTINE FABM_3D1D
      END DO
 
      ! Forward Euler time integration of interface-attached state variables.
-     FABM_ALL_SF(1:N,:) = FABM_ALL_SF(1:N,:) + DELTA_T*SMS_SF
-     FABM_ALL_BT(1:N,:) = FABM_ALL_BT(1:N,:) + DELTA_T*SMS_BT
+     FABM_ALL_SF(1:N,:) = FABM_ALL_SF(1:N,:) + DTI*SMS_SF
+     FABM_ALL_BT(1:N,:) = FABM_ALL_BT(1:N,:) + DTI*SMS_BT
 
      ! Vertical mixing
      CALL FABM_MIXING 
