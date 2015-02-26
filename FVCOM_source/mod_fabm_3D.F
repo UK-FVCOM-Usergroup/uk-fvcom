@@ -45,11 +45,36 @@ CONTAINS
    END SUBROUTINE FABM_INITIAL
 
    SUBROUTINE FABM_ALLOCATE()
+    INTEGER :: IFABM
+
+    ! Tell FABM about the extents of the spatial domain.
+    call fabm_set_domain(model,MT,KB)
+
+    !call fabm_set_mask(model,mask)
+
+    call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:MT,:))
+    call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:MT,:))
+    call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:MT,:))  ! JB: is RHO1 really density in kg m-3??
+
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
     ALLOCATE(FABM_ALL_SF(0:MT,size(model%surface_state_variables))); FABM_ALL_SF =  0.001_SP
     ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)))      ; FABM_F       =  0.001_SP
     ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)))  ; FABM_MEAN    =  0.001_SP
+
+    ! Provide FABM with pointers to state variable data.
+    DO IFABM=1,size(model%state_variables)
+      CALL fabm_link_bulk_state_data(model,IFABM,FABM_ALL(1:MT,:,IFABM))
+    END DO
+    DO IFABM=1,size(model%bottom_state_variables)
+      CALL fabm_link_bottom_state_data(model,IFABM,FABM_ALL_BT(1:MT,IFABM))
+    END DO
+    DO IFABM=1,size(model%surface_state_variables)
+      CALL fabm_link_surface_state_data(model,IFABM,FABM_ALL_SF(1:MT,IFABM))
+    END DO
+
+    ! Make sure FABM has all required data
+    CALL fabm_check_ready(model)
 
     ALLOCATE(KM_FABM(KB))      ; KM_FABM       =  0.001_SP
 ! Potential not needed...
