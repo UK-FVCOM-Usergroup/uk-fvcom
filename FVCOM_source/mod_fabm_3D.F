@@ -73,9 +73,11 @@ CONTAINS
     call fabm_link_horizontal_data(model,standard_variables%bottom_depth,D(1:MT))
     call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,H(1:MT))
 
-    ! TODO send bottom stress in Pa - we have TAUBM_N = (shear velocity)^2 = stress/rho, needs multiplication with density
-    ! TODO send wind speed in m s-1 - we have UUWIND, VVWIND - are these defined at nodes?
-    ! TODO send day of the year (including fraction indicating time)
+    ! TODO send standard_variables%pressure in dbar [I,K]
+    ! TODO send standard_variables%bottom_stress in Pa [I] - we have TAUBM_N = (shear velocity)^2 = stress/rho, needs multiplication with density
+    ! TODO send standard_variables%wind_speed in m s-1 [I] - we have UUWIND, VVWIND - are these defined at nodes?
+    ! TODO send standard_variables%number_of_days_since_start_of_the_year [scalar!] - must be a real number with fraction indicating time of day
+    ! TODO send standard_variables%depth in m [I,K] - actual depth [including elevation] at cell center
 
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
