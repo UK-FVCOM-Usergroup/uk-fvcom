@@ -54,13 +54,19 @@ CONTAINS
     ! Tell FABM about the extents of the spatial domain.
     call fabm_set_domain(model,MT,KB)
 
+    ! TODO currently FABM wants a mask field describing the full domain (i.e., with dimension MT,KB)
+    ! FVCOM uses a horizontal mask ISWETN(MT) when flooding-drying is active. If there is no expanded
+    ! mask with depth dimension already available in FVCOM, we have to create and maintain this (at least until
+    ! FABM is updated to allow horizontla masks)
     !call fabm_set_mask(model,mask)
 
     ! Send environmental data to FABM
+    ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
+    ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:MT,:))
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:MT,:))
     call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:MT,:)) ! JB check units: kg m-3? No subtraction by 1000?
-    call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:MT,:)) ! JB check units: m?
+    call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:MT,:))
     call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:MT))
     call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:MT))
     call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:MT))
@@ -122,17 +128,48 @@ SUBROUTINE FABM_3D1D
 #    endif
 !    end if defined 1D
 
-      !WHERE (FABM_ALL < 0.001) FABM_ALL=0.001
+      CALL CHECK_STATE
 
 !      IF(MOD(IINT-1,CDF_INT)==0) CALL BIO_OUT_NETCDF
 
 END SUBROUTINE FABM_3D1D
 
+SUBROUTINE CHECK_STATE
+      LOGICAL, PARAMETER :: REPAIR_STATE = .FALSE.
+      LOGICAL :: VALID_STATE
+      INTEGER :: K
+
+      ! Check state variable values. On return, VALID_STATE will be true if the state has been found valid, .FALSE. if not.
+      ! If REPAIR_STATE is .TRUE., this routine will automatially clip invalid values to the nearest valid value.
+      ! In that case, the state will be valid after return even if VALID_STATE = .FALSE. [which is then indicative of
+      ! clipping having occured)
+      CALL fabm_check_surface_state(model,1,M,1,REPAIR_STATE,VALID_STATE)
+      if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) CALL FATAL_ERROR("FABM: invalid surface state")
+      CALL fabm_check_bottom_state(model,1,M,KBM1,REPAIR_STATE,VALID_STATE)
+      if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) CALL FATAL_ERROR("FABM: invalid bottom state")
+      DO K=1,KBM1
+         CALL fabm_check_state(model,1,M,K,REPAIR_STATE,VALID_STATE)
+         if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) CALL FATAL_ERROR("FABM: invalid pelagic state")
+      END DO
+END SUBROUTINE
+
 SUBROUTINE FABM_SOURCES
-     INTEGER  :: K, IFABM
+     INTEGER  :: I, K, IFABM
      REAL(SP), DIMENSION(M,size(model%state_variables))         :: SMS_PEL,FLUX_SF,FLUX_BT
      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: SMS_BT
      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: SMS_SF
+     REAL(SP), DIMENSION(size(model%state_variables))           :: DUMMY
+
+     ! Ensure that light attenuation, absoption, scattering fields are up to date in FABM.
+     DO K=1,KBM1
+        CALL fabm_get_light_extinction(model,1,M,K,DUMMY)
+     END DO
+
+     ! Allow light models in FABM to update.
+     ! NB this is the only operation in FABM that operates over K - everything else operates over I.
+     DO I=1,M
+        CALL fabm_get_light(model,1,KBM1,I)
+     END DO
 
      ! Get sources-sinks for interface-attached state variables, and cross-interface
      ! fluxes (air-sea gas exchange, sedimentation, pelagic-benthic diffusion flux)
