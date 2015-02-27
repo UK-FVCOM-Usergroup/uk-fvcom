@@ -338,6 +338,8 @@ CONTAINS
     if (dbg_set(dbg_log)) write(ipt,*) &
          & "! INITIALIZING FABM VARIABLES"
 
+    CALL FABM_ALLOCATE
+
 ! SET STARTUP VALUES FOR FABM VARIABLES
     SELECT CASE(STARTUP_FABM_TYPE)
     CASE(STARTUP_TYPE_OBSERVED) 
@@ -1916,8 +1918,6 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_FABM" 
 
     STKCNT = NC_START%FTIME%PREV_STKCNT
-! FABM ALLOCATE is already called in FABM_INITIAL... Do we need a second call?
-    CALL FABM_ALLOCATE
 
     DO II = 1,size(model%state_variables)
     ! READ THE DATA

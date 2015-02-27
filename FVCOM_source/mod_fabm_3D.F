@@ -35,19 +35,6 @@ CONTAINS
       CALL fabm_create_model_from_yaml_file(model)
    END SUBROUTINE FABM_FVCOM_INITIALIZE
 
-   SUBROUTINE FABM_INITIAL()
-      INTEGER :: K
-
-      CALL FABM_ALLOCATE
-
-      ! Allow FABM to perform its default initialization.
-      CALL fabm_initialize_surface_state(model,1,M,1)
-      CALL fabm_initialize_bottom_state (model,1,M,KBM1)
-      DO K=1,KBM1
-        CALL fabm_initialize_state(model,1,M,K)
-      END DO
-   END SUBROUTINE FABM_INITIAL
-
    SUBROUTINE FABM_ALLOCATE()
     INTEGER :: IFABM
 
@@ -107,6 +94,19 @@ CONTAINS
     !ALLOCATE(FABM_MEANN(0:NT,KB,size(model%state_variables)))  ; FABM_MEANN   =  0.001_SP
     !ALLOCATE(FABM_VAR_MEAN(0:MT,KB,size(model%state_variables))) ; FABM_VAR_MEAN   =  0.0_SP
    END SUBROUTINE
+
+   SUBROUTINE FABM_INITIAL()
+      INTEGER :: K
+
+      IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIAL called before FABM_ALLOCATE")
+
+      ! Allow FABM to perform its default initialization.
+      CALL fabm_initialize_surface_state(model,1,M,1)
+      CALL fabm_initialize_bottom_state (model,1,M,KBM1)
+      DO K=1,KBM1
+        CALL fabm_initialize_state(model,1,M,K)
+      END DO
+   END SUBROUTINE FABM_INITIAL
 
 SUBROUTINE FABM_3D1D
      SAVE
