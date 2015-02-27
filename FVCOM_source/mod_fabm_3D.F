@@ -41,11 +41,8 @@ CONTAINS
     ! Tell FABM about the extents of the spatial domain.
     call fabm_set_domain(model,MT,KB)
 
-    ! TODO currently FABM wants a mask field describing the full domain (i.e., with dimension MT,KB)
-    ! FVCOM uses a horizontal mask ISWETN(MT) when flooding-drying is active. If there is no expanded
-    ! mask with depth dimension already available in FVCOM, we have to create and maintain this (at least until
-    ! FABM is updated to allow horizontla masks)
-    !call fabm_set_mask(model,mask)
+    ! Provide FABM with pointer to the mask.
+    call fabm_set_mask(model,ISWETN)
 
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
