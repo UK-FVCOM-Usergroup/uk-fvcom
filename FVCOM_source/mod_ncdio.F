@@ -5586,7 +5586,7 @@ CONTAINS
        VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
            & values=pdata_hz, DIM1= DIM_node, DIM2=DIM_time)
      else
-        CALL FATAL_ERROR("ADD_FABM_VARIABLE: data/data_hz not provided")
+        CALL FATAL_ERROR("ADD_FABM_VARIABLE: pdata/pdata_hz not provided")
      end if
 
      ATT  => NC_MAKE_ATT(name='long_name',values=TRIM(variable%long_name)) 
