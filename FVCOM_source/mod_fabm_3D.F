@@ -46,7 +46,7 @@ CONTAINS
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:M,:))
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:M,:))
     call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:M,:)) ! JB check units: kg m-3? No subtraction by 1000?
-    call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:M,:))
+    !call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:M,:))    ! JB: DZ is dimensionless height in sigma units, needs multiplication with D
     call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
     call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:M))
     call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:M))
@@ -174,13 +174,13 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
         IF (K==1) THEN
            ! Top-most layer: include surface flux of pelagic state variables.
            DO IFABM=1,size(model%state_variables)
-              SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_SF(1:M,IFABM)/DZ(1:M,K)
+              SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_SF(1:M,IFABM)/(DZ(1:M,K)*D(1:M))
            END DO
         END IF
         IF (K==KBM1) THEN
            ! Bottom-most layer: include bottom flux of pelagic state variables.
            DO IFABM=1,size(model%state_variables)
-              SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_BT(1:M,IFABM)/DZ(1:M,KBM1)
+              SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_BT(1:M,IFABM)/(DZ(1:M,KBM1)*D(1:M))
            END DO
         END IF
 
@@ -313,6 +313,7 @@ SUBROUTINE FABM_EXCHANGE
 # endif
      END DO
    END DO
+
 #  if !defined (WET_DRY)
   FF(1:M,1:KBM1) = FABM_ALL(1:M,1:KBM1,IFABM)
 #  else
@@ -334,10 +335,8 @@ SUBROUTINE FABM_EXCHANGE
 #  else
      IF(ISWETN(I) == 1)THEN
 #  endif
-
-       FF(I,KBM1) = ((CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1) &
-               /(D(I)*DZ(I,KBM1))) &
-                /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP))
+       FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)) &
+                /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
 #  if defined (WET_DRY)
      END IF
 # endif
