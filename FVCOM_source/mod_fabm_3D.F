@@ -176,7 +176,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
            DO IFABM=1,size(model%state_variables)
               SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_SF(1:M,IFABM)/DZ(1:M,K)
            END DO
-        ELSEIF (K==KBM1) THEN
+        END IF
+        IF (K==KBM1) THEN
            ! Bottom-most layer: include bottom flux of pelagic state variables.
            DO IFABM=1,size(model%state_variables)
               SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_BT(1:M,IFABM)/DZ(1:M,KBM1)
