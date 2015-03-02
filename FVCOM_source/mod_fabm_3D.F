@@ -55,7 +55,7 @@ CONTAINS
 
     ! TODO send standard_variables%pressure in dbar [I,K]
     ! TODO send standard_variables%bottom_stress in Pa [I] - we have TAUBM_N = (shear velocity)^2 = stress/rho, needs multiplication with density
-    ! TODO send standard_variables%wind_speed in m s-1 [I] - we have UUWIND, VVWIND - are these defined at nodes?
+    ! TODO send standard_variables%wind_speed in m s-1 [I] - we have UUWIND, VVWIND, but these are defined at elements, not nodes
     ! TODO send standard_variables%number_of_days_since_start_of_the_year [scalar!] - must be a real number with fraction indicating time of day
     ! TODO send standard_variables%depth in m [I,K] - actual depth [including elevation] at cell center
 
@@ -149,7 +149,7 @@ SUBROUTINE FABM_SOURCES
      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: SMS_SF
      REAL(SP), DIMENSION(M)                                     :: DUMMY
 
-     ! Ensure that light attenuation, absoption, scattering fields are up to date in FABM.
+     ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
      DO K=1,KBM1
         CALL fabm_get_light_extinction(model,1,M,K,DUMMY)
      END DO
@@ -167,17 +167,22 @@ SUBROUTINE FABM_SOURCES
 
      ! Integrate sources-sinks for the pelagic
      DO K=1,KBM1
+        ! Retrieve sources-sinks for current layer K.
         call fabm_do(model,1,M,K,SMS_PEL)
+
         IF (K==1) THEN
+           ! Top-most layer: include surface flux of pelagic state variables.
            DO IFABM=1,size(model%state_variables)
               SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_SF(1:M,IFABM)/DZ(1:M,K)
            END DO
         ELSEIF (K==KBM1) THEN
+           ! Bottom-most layer: include bottom flux of pelagic state variables.
            DO IFABM=1,size(model%state_variables)
               SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_BT(1:M,IFABM)/DZ(1:M,KBM1)
            END DO
         END IF
-        ! Forward Euler time integration of sources-sinks:
+
+        ! Forward Euler time integration of pelagic state.
         FABM_ALL(1:M,K,:) = FABM_ALL(1:M,K,:) + DTI*SMS_PEL
      END DO
 
