@@ -246,9 +246,8 @@ SUBROUTINE FABM_EXCHANGE
 !   REAL(DP), DIMENSION(KB)         :: AF,CF 
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_MIXING :"
-     DO IFABM=1,size(model%state_variables)
 
-   UMOLPR = UMOL*1.E0_SP
+  UMOLPR = UMOL*1.E0_SP
 
   !
   !------------------------------------------------------------------------------!
@@ -278,6 +277,9 @@ SUBROUTINE FABM_EXCHANGE
 # endif
      END DO
   END DO
+
+  DO IFABM=1,size(model%state_variables)
+
   !------------------------------------------------------------------------------!
   !   surface bcs;                                                        !
   !------------------------------------------------------------------------------!
@@ -305,8 +307,7 @@ SUBROUTINE FABM_EXCHANGE
 #  endif
          VHPF(I,K)=1./ (AF(I,K)+CF(I,K)*(1.-VHF(I,K-1))-1.)
          VHF(I,K) = AF(I,K) * VHPF(I,K)
-         VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(FABM_ALL(I,K,IFABM)) &
-                     /(D(I)*DZ(I,K)))*VHPF(I,K)
+         VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(FABM_ALL(I,K,IFABM)))*VHPF(I,K)
 #  if defined (WET_DRY)
        END IF
 # endif
