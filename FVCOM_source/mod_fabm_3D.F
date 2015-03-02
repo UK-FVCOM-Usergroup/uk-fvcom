@@ -21,8 +21,6 @@ MODULE MOD_FABM_3D
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
    REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
    REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
-   REAL(SP), ALLOCATABLE ::  KM_FABM(:)        ! VERTICAL MIXING COEFFICIENT
-   REAL(SP), ALLOCATABLE :: FABM_VAR(:,:)     ! ENSEMBLE VARIABLES FOR MIXING
    REAL(SP), ALLOCATABLE :: XFLUX_OBCB(:,:,:)     ! !OPEN BOUNDARY FLUX
 
 
@@ -37,7 +35,7 @@ CONTAINS
     INTEGER :: IFABM
 
     ! Tell FABM about the extents of the spatial domain.
-    call fabm_set_domain(model,MT,KB)
+    call fabm_set_domain(model,M,KB)
 
     ! Provide FABM with pointer to the mask.
     call fabm_set_mask(model,ISWETN)
@@ -45,15 +43,15 @@ CONTAINS
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
     ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
-    call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:MT,:))
-    call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:MT,:))
-    call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:MT,:)) ! JB check units: kg m-3? No subtraction by 1000?
-    call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:MT,:))
-    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:MT))
-    call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:MT))
-    call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:MT))
-    call fabm_link_horizontal_data(model,standard_variables%bottom_depth,D(1:MT))
-    call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,H(1:MT))
+    call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:M,:))
+    call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:M,:))
+    call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:M,:)) ! JB check units: kg m-3? No subtraction by 1000?
+    call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:M,:))
+    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
+    call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:M))
+    call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:M))
+    call fabm_link_horizontal_data(model,standard_variables%bottom_depth,D(1:M))
+    call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,H(1:M))
 
     ! TODO send standard_variables%pressure in dbar [I,K]
     ! TODO send standard_variables%bottom_stress in Pa [I] - we have TAUBM_N = (shear velocity)^2 = stress/rho, needs multiplication with density
@@ -69,25 +67,19 @@ CONTAINS
 
     ! Provide FABM with pointers to state variable data.
     DO IFABM=1,size(model%state_variables)
-      CALL fabm_link_bulk_state_data(model,IFABM,FABM_ALL(1:MT,:,IFABM))
+      CALL fabm_link_bulk_state_data(model,IFABM,FABM_ALL(1:M,:,IFABM))
     END DO
     DO IFABM=1,size(model%bottom_state_variables)
-      CALL fabm_link_bottom_state_data(model,IFABM,FABM_ALL_BT(1:MT,IFABM))
+      CALL fabm_link_bottom_state_data(model,IFABM,FABM_ALL_BT(1:M,IFABM))
     END DO
     DO IFABM=1,size(model%surface_state_variables)
-      CALL fabm_link_surface_state_data(model,IFABM,FABM_ALL_SF(1:MT,IFABM))
+      CALL fabm_link_surface_state_data(model,IFABM,FABM_ALL_SF(1:M,IFABM))
     END DO
 
     ! Make sure FABM has all required data
     CALL fabm_check_ready(model)
 
-    ALLOCATE(KM_FABM(KB))      ; KM_FABM       =  0.001_SP
-! Potential not needed...
-    ALLOCATE(FABM_VAR(KB,size(model%state_variables))) ; FABM_VAR       =  0.001_SP   
-    !Following variables appear to be no longer used:
     ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%state_variables))) ; XFLUX_OBCB  =  0.0_SP
-    !ALLOCATE(FABM_MEANN(0:NT,KB,size(model%state_variables)))  ; FABM_MEANN   =  0.001_SP
-    !ALLOCATE(FABM_VAR_MEAN(0:MT,KB,size(model%state_variables))) ; FABM_VAR_MEAN   =  0.0_SP
    END SUBROUTINE
 
    SUBROUTINE FABM_INITIAL()
@@ -155,7 +147,7 @@ SUBROUTINE FABM_SOURCES
      REAL(SP), DIMENSION(M,size(model%state_variables))         :: SMS_PEL,FLUX_SF,FLUX_BT
      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: SMS_BT
      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: SMS_SF
-     REAL(SP), DIMENSION(size(model%state_variables))           :: DUMMY
+     REAL(SP), DIMENSION(M)                                     :: DUMMY
 
      ! Ensure that light attenuation, absoption, scattering fields are up to date in FABM.
      DO K=1,KBM1
