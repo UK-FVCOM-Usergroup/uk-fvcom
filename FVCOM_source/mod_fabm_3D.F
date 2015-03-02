@@ -99,7 +99,7 @@ SUBROUTINE FABM_3D1D
      SAVE
 
      ! Integrate biogeochemical sources-sinks
-     CALL FABM_SOURCES
+     CALL FABM_SOURCES(DTI)
 
      ! Vertical mixing
      CALL FABM_MIXING 
@@ -142,7 +142,8 @@ SUBROUTINE CHECK_STATE
       END DO
 END SUBROUTINE
 
-SUBROUTINE FABM_SOURCES
+SUBROUTINE FABM_SOURCES(DELTA_T)
+     REAL(SP), INTENT(IN) :: DELTA_T
      INTEGER  :: I, K, IFABM
      REAL(SP), DIMENSION(M,size(model%state_variables))         :: SMS_PEL,FLUX_SF,FLUX_BT
      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: SMS_BT
@@ -183,12 +184,12 @@ SUBROUTINE FABM_SOURCES
         END IF
 
         ! Forward Euler time integration of pelagic state.
-        FABM_ALL(1:M,K,:) = FABM_ALL(1:M,K,:) + DTI*SMS_PEL
+        FABM_ALL(1:M,K,:) = FABM_ALL(1:M,K,:) + DELTA_T*SMS_PEL
      END DO
 
      ! Forward Euler time integration of interface-attached state variables.
-     FABM_ALL_SF(1:M,:) = FABM_ALL_SF(1:M,:) + DTI*SMS_SF
-     FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DTI*SMS_BT
+     FABM_ALL_SF(1:M,:) = FABM_ALL_SF(1:M,:) + DELTA_T*SMS_SF
+     FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DELTA_T*SMS_BT
 END SUBROUTINE
 
 SUBROUTINE FABM_EXCHANGE
