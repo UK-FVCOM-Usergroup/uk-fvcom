@@ -5509,6 +5509,7 @@ CONTAINS
    TYPE(NCVAR),  POINTER :: VAR
    TYPE(NCATT),  POINTER :: ATT
    INTEGER :: II
+   REAL(SP), POINTER :: pdata(:,:), pdata_hz(:)
 
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START FABM_FILE_OBJECT"
 
@@ -5528,14 +5529,6 @@ CONTAINS
      IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_SF")
      FABM_ALL_SF = 0.0_SP
 
-     ALLOCATE(FABM_DIAG(MGL,KB,size(model%diagnostic_variables)),STAT=STATUS)
-     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_DIAG")
-     FABM_DIAG = 0.0_SP
-
-     ALLOCATE(FABM_DIAG_HZ(MGL,size(model%horizontal_diagnostic_variables)),STAT=STATUS)
-     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_DIAG_HZ")
-     FABM_DIAG_HZ = 0.0_SP
-
    END IF
 
   ! ALLOCATE THE NEW FILE OBJECT
@@ -5545,29 +5538,32 @@ CONTAINS
    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
    ! SHOULD HAVE THE SAME NAME A THOSE USED ON THE OTHER PROCESSORS!
-     VAR => ADD_FABM_VARIABLE(model%state_variables(II),data=FABM_ALL(1:M,1:KB,II))
+     pdata => FABM_ALL(1:M,1:KB,II)
+     VAR => ADD_FABM_VARIABLE(model%state_variables(II),pdata=pdata)
      NCF  => ADD(NCF,VAR)
    END DO
 
    DO II=1,size(model%bottom_state_variables)
-     VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),data_hz=FABM_ALL_BT(1:M,II))
+     pdata_hz => FABM_ALL_BT(1:M,II)
+     VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),pdata_hz=pdata_hz)
      NCF  => ADD(NCF,VAR)
    END DO
 
    DO II=1,size(model%surface_state_variables)
-     VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),data_hz=FABM_ALL_SF(1:M,II))
+     pdata_hz => FABM_ALL_SF(1:M,II)
+     VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),pdata_hz=pdata_hz)
      NCF  => ADD(NCF,VAR)
    END DO
 
    IF (ISET/=3) THEN
       ! Normal output, not restart, so include diagnostics.
       DO II=1,size(model%diagnostic_variables)
-        VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),data=FABM_DIAG(1:M,1:KB,II))
+        VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),pdata=fabm_get_bulk_diagnostic_data(model,II))
         NCF  => ADD(NCF,VAR)
       END DO
 
       DO II=1,size(model%horizontal_diagnostic_variables)
-        VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),data_hz=FABM_DIAG_HZ(1:M,II))
+        VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=fabm_get_horizontal_diagnostic_data(model,II))
         NCF  => ADD(NCF,VAR)
       END DO
    END IF
@@ -5575,21 +5571,18 @@ CONTAINS
 
   END FUNCTION FABM_FILE_OBJECT
 
-  FUNCTION ADD_FABM_VARIABLE(variable,data,data_hz) result(VAR)
+  FUNCTION ADD_FABM_VARIABLE(variable,pdata,pdata_hz) result(VAR)
      USE fabm 
      class (type_external_variable),intent(in) :: variable
-     REAL(SP), TARGET, OPTIONAL :: data(:,:)
-     REAL(SP), TARGET, OPTIONAL :: data_hz(:)
+     REAL(SP), POINTER, OPTIONAL :: pdata(:,:)
+     REAL(SP), POINTER, OPTIONAL :: pdata_hz(:)
      TYPE(NCVAR),  POINTER :: VAR
      TYPE(NCATT),  POINTER :: ATT
-     REAL(SP), POINTER :: pdata(:,:), pdata_hz(:)
 
-     if (present(data)) then
-       pdata => data
+     if (present(pdata)) then
        VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
            & values=pdata, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
-     elseif (present(data_hz)) then
-       pdata_hz => data_hz 
+     elseif (present(pdata_hz)) then
        VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
            & values=pdata_hz, DIM1= DIM_node, DIM2=DIM_time)
      else
@@ -5610,7 +5603,7 @@ CONTAINS
 
      ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
      VAR  => ADD(VAR,ATT)
-    
+
      ATT  => NC_MAKE_ATT(name='type',values='data') 
      VAR  => ADD(VAR,ATT)    
   END FUNCTION

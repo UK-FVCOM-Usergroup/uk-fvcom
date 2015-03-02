@@ -17,10 +17,8 @@ MODULE MOD_FABM_3D
    IMPLICIT NONE
 
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM state variables
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG(:,:,:)   ! 3D FABM diagnostic variables
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM bottom-attached state variables
    REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_DIAG_HZ(:,:)  ! 2D FABM horizontal diagnostic variables
    REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
    REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
    REAL(SP), ALLOCATABLE ::  KM_FABM(:)        ! VERTICAL MIXING COEFFICIENT
