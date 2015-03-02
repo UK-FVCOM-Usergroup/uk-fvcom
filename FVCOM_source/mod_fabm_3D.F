@@ -178,12 +178,12 @@ SUBROUTINE FABM_SOURCES
            END DO
         END IF
         ! Forward Euler time integration of sources-sinks:
-        FABM_ALL(1:N,K,:) = FABM_ALL(1:N,K,:) + DTI*SMS_PEL
+        FABM_ALL(1:M,K,:) = FABM_ALL(1:M,K,:) + DTI*SMS_PEL
      END DO
 
      ! Forward Euler time integration of interface-attached state variables.
-     FABM_ALL_SF(1:N,:) = FABM_ALL_SF(1:N,:) + DTI*SMS_SF
-     FABM_ALL_BT(1:N,:) = FABM_ALL_BT(1:N,:) + DTI*SMS_BT
+     FABM_ALL_SF(1:M,:) = FABM_ALL_SF(1:M,:) + DTI*SMS_SF
+     FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DTI*SMS_BT
 END SUBROUTINE
 
 SUBROUTINE FABM_EXCHANGE
