@@ -45,7 +45,7 @@ CONTAINS
     call fabm_set_domain(model,M,KB)
 
     ! Provide FABM with pointer to the mask.
-    call fabm_set_mask(model,ISWETN)
+    call fabm_set_mask(model,ISWETN(1:M))
 
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
