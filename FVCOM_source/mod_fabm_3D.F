@@ -2,6 +2,8 @@ MODULE MOD_FABM_3D
 
    USE fabm
    USE fabm_config
+   use fabm_driver, only: type_base_driver, driver
+
    USE MOD_FABM_DATA
    USE MOD_PREC
    USE ALL_VARS
@@ -23,11 +25,16 @@ MODULE MOD_FABM_3D
    REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
    REAL(SP), ALLOCATABLE :: XFLUX_OBCB(:,:,:)     ! !OPEN BOUNDARY FLUX
 
-
+   type,extends(type_base_driver) :: type_fvcom_driver
+   contains
+      procedure :: fatal_error => fvcom_driver_fatal_error
+      procedure :: log_message => fvcom_driver_log_message
+   end type
 
 CONTAINS
       
    SUBROUTINE FABM_FVCOM_INITIALIZE()
+      ALLOCATE(type_fvcom_driver::driver)
       CALL fabm_create_model_from_yaml_file(model)
    END SUBROUTINE FABM_FVCOM_INITIALIZE
 
@@ -956,6 +963,11 @@ FABM_FRESH=FABM_ALL(:,:,IFABM)
 !--SET CONDITIONS FOR FRESH WATER INFLOW for SPECIFIED CASE!!---------------------------------|
 !
    IF(RIVER_TS_SETTING == 'specified') THEN
+     ! Impact of rivers is accounted for by OVERWRITING concentrations at inflow nodes with
+     ! the concentrations in the river. Note: the alternative RIVER_TS_SETTING=='calculated'
+     ! updates the concentration at the inflow nodes by taking into account their volume, the
+     ! local concentration, the river concentration and the river flow rate. This scenario is
+     ! handled in FABM_ADV.
      IF(NUMQBC > 0) THEN
        IF(RIVER_INFLOW_LOCATION == 'node') THEN
          DO I=1,NUMQBC
@@ -1065,5 +1077,17 @@ FABM_FRESH=FABM_ALL(:,:,IFABM)
 
   END SUBROUTINE FABM_BCOND
 !==============================================================================!
+
+  SUBROUTINE fvcom_driver_fatal_error(self,location,message)
+     CLASS (type_fvcom_driver), INTENT(INOUT) :: self
+     CHARACTER(LEN=*),          INTENT(IN)    :: location,message
+     CALL FATAL_ERROR('FABM '//TRIM(location)//': '//TRIM(message))
+  END SUBROUTINE
+
+  SUBROUTINE fvcom_driver_log_message(self,message)
+     CLASS (type_fvcom_driver), INTENT(INOUT) :: self
+     CHARACTER(LEN=*),          INTENT(IN)    :: message
+     WRITE (IPT,*) TRIM(message)
+  END SUBROUTINE
 
 END MODULE MOD_FABM_3D
