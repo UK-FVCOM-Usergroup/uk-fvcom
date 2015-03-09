@@ -166,8 +166,13 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
      ! Allow light models in FABM to update.
      ! NB this is the only operation in FABM that operates over K - everything else operates over I.
      DO I=1,M
-        CALL fabm_get_light(model,1,KBM1,I)
+        !CALL fabm_get_light(model,1,KBM1,I)
      END DO
+
+     FLUX_SF = 0
+     FLUX_BT = 0
+     SMS_SF = 0
+     SMS_BT = 0
 
      ! Get sources-sinks for interface-attached state variables, and cross-interface
      ! fluxes (air-sea gas exchange, sedimentation, pelagic-benthic diffusion flux)
@@ -177,6 +182,7 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
      ! Integrate sources-sinks for the pelagic
      DO K=1,KBM1
         ! Retrieve sources-sinks for current layer K.
+        SMS_PEL = 0
         call fabm_do(model,1,M,K,SMS_PEL)
 
         IF (K==1) THEN
