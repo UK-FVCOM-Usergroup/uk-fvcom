@@ -1,38 +1,38 @@
 MODULE MOD_FABM_3D
 
-   USE fabm
-   USE fabm_config
-   use fabm_driver, only: type_base_driver, driver
+  USE fabm
+  USE fabm_config
+  USE fabm_driver, only: type_base_driver, driver
 
-   USE MOD_FABM_DATA
-   USE MOD_PREC
-   USE ALL_VARS
-   USE MOD_UTILS ! to USE DBG_SET for debugging screen output
+  USE MOD_FABM_DATA
+  USE ALL_VARS
+  USE MOD_UTILS
 #  if defined (WET_DRY)
-   USE MOD_WD
+  USE MOD_WD
 #  endif
+
 # if defined (THIN_DAM)
   USE MOD_DAM,only : NODE_DAM1_N,NODE_DAM2_N,NODE_DAM3_N&
                       &,I_NODE_DAM1_N,I_NODE_DAM2_N,I_NODE_DAM3_N,KDAM
 # endif
 
-   IMPLICIT NONE
+  IMPLICIT NONE
 
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM state variables
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM bottom-attached state variables
-   REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
-   REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
-   REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
-   REAL(SP), ALLOCATABLE :: XFLUX_OBCB(:,:,:)     ! !OPEN BOUNDARY FLUX
+  REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM state variables
+  REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM bottom-attached state variables
+  REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
+  REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
+  REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
+  REAL(SP), ALLOCATABLE :: XFLUX_OBCB(:,:,:)     ! !OPEN BOUNDARY FLUX
 
-   type,extends(type_base_driver) :: type_fvcom_driver
-   contains
-      procedure :: fatal_error => fvcom_driver_fatal_error
-      procedure :: log_message => fvcom_driver_log_message
-   end type
+  type,extends(type_base_driver) :: type_fvcom_driver
+  contains
+     procedure :: fatal_error => fvcom_driver_fatal_error
+     procedure :: log_message => fvcom_driver_log_message
+  end type
 
 CONTAINS
-      
+
    SUBROUTINE FABM_FVCOM_INITIALIZE()
       ALLOCATE(type_fvcom_driver::driver)
       CALL fabm_create_model_from_yaml_file(model)
@@ -238,25 +238,22 @@ SUBROUTINE FABM_EXCHANGE
 
   SUBROUTINE FABM_MIXING
 !==============================================================================|
-!     vertical mixing adopted from FVCOM                                       !
+!     vertical mixing adopted from FVCOM, VDIF_TS                              !
 !==============================================================================|
 
-!   USE MOD_1D
-   IMPLICIT NONE
-   
-   INTEGER :: I,K,J,J1,KI,IFABM
-   REAL(DP) :: FKH,UMOLPR,TMP,TMP1,TMP2,TMP3
-!   REAL(SPP), DIMENSION(KBV),INTENT (OUT)     :: FOUT
-   REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF
-   REAL(DP), DIMENSION(M)        :: KHBOTTOM
+  IMPLICIT NONE
+  INTEGER :: I,K,J,KI,IFABM
+  REAL(DP) :: FKH,UMOLPR,TMP,TMP1,TMP2,TMP3
+  REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF
+  REAL(DP), DIMENSION(M)        :: KHBOTTOM
 
-!   REAL(DP), DIMENSION(KB)     :: FF,VHF,VHPF
-!   REAL(DP), DIMENSION(KB)         :: AF,CF 
+# if defined (THIN_DAM)
+  REAL(DP) :: ftmp,stmp
+# endif
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_MIXING :"
 
   UMOLPR = UMOL*1.E0_SP
-
   !
   !------------------------------------------------------------------------------!
   !                                                                              !
@@ -291,36 +288,36 @@ SUBROUTINE FABM_EXCHANGE
   !------------------------------------------------------------------------------!
   !   surface bcs;                                                        !
   !------------------------------------------------------------------------------!
-   DO I = 1, M
+  DO I = 1, M
 #  if !defined (WET_DRY)
-!     IF (D(I) > 0.0_SP) THEN
+     !     IF (D(I) > 0.0_SP) THEN
 #  else
      IF(ISWETN(I) == 1)THEN
 #  endif
-       VHF(I,1) = AF(I,1) / (AF(I,1)-1.)
-       VHPF(I,1) = -FABM_ALL(I,1,IFABM) / (AF(I,1)-1.)
+        VHF(I,1) = AF(I,1) / (AF(I,1)-1.)
+        VHPF(I,1) = -FABM_ALL(I,1,IFABM) / (AF(I,1)-1.)
 #  if defined (WET_DRY)
      END IF
 # endif
-   END DO
+  END DO
   !------------------------------------------------------------------------------!
   !   Interior;                                                        !
   !------------------------------------------------------------------------------!
-   DO K = 2, KBM2
+  DO K = 2, KBM2
      DO I = 1, M
 #  if !defined (WET_DRY)
-!       IF (D(I) > 0.0_SP) THEN
+        !     IF (D(I) > 0.0_SP) THEN
 #  else
-       IF(ISWETN(I) == 1)THEN
+        IF(ISWETN(I) == 1)THEN
 #  endif
-         VHPF(I,K)=1./ (AF(I,K)+CF(I,K)*(1.-VHF(I,K-1))-1.)
-         VHF(I,K) = AF(I,K) * VHPF(I,K)
-         VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(FABM_ALL(I,K,IFABM)))*VHPF(I,K)
+           VHPF(I,K)=1./ (AF(I,K)+CF(I,K)*(1.-VHF(I,K-1))-1.)
+           VHF(I,K) = AF(I,K) * VHPF(I,K)
+           VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(FABM_ALL(I,K,IFABM)))*VHPF(I,K)
 #  if defined (WET_DRY)
-       END IF
+        END IF
 # endif
      END DO
-   END DO
+  END DO
 
 #  if !defined (WET_DRY)
   FF(1:M,1:KBM1) = FABM_ALL(1:M,1:KBM1,IFABM)
@@ -360,22 +357,22 @@ SUBROUTINE FABM_EXCHANGE
    END IF	   
            ! -------------------------------------------------------------------
 
-!       FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)) &
+!           FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)) &
 !                /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
 
-       FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)+DTI*(-TMP)/(D(I)*DZ(I,KBM1))) &
+           FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)+DTI*(-TMP)/(D(I)*DZ(I,KBM1))) &
                 /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
 
+
 #  if defined (WET_DRY)
-     END IF
+        END IF
 # endif
      END IF
-   END DO
+  END DO
 
-
-    DO  K = 2, KBM1
-      KI = KB - K
-      DO  I = 1, M
+  DO  K = 2, KBM1
+     KI = KB - K
+     DO  I = 1, M
         IF(ISONB(I) /= 2) THEN
 #  if defined (WET_DRY)
            IF(ISWETN(I) == 1)THEN
@@ -385,23 +382,70 @@ SUBROUTINE FABM_EXCHANGE
            END IF
 # endif
         END IF
-      END DO
-    END DO
 
-    DO I = 1, M
+
+     END DO
+  END DO
+
+  DO I = 1, M
 #  if defined (WET_DRY)
-       IF(ISWETN(I)*ISWETNT(I) == 1 )then
+     IF(ISWETN(I)*ISWETNT(I) == 1 )then
 #  endif
-          DO K = 1, KBM1
-             FABM_ALL(I,K,IFABM) = FF(I,K)
-          END DO
+        DO K = 1, KBM1
+           FABM_ALL(I,K,IFABM) = FF(I,K)
+        END DO
 #  if defined (WET_DRY)
+     END IF
+#  endif
+  END DO
+
+#  if defined (THIN_DAM)
+   DO K=1,KBM1
+     DO I=1,NODE_DAM1_N
+       IF(K<=KDAM(I_NODE_DAM1_N(I,1)).AND.K<=KDAM(I_NODE_DAM1_N(I,2)) )THEN
+          FTMP=FABM_ALL(I_NODE_DAM1_N(I,1),K,IFABM)*ART1(I_NODE_DAM1_N(I,1)) &
+            & +FABM_ALL(I_NODE_DAM1_N(I,2),K,IFABM)*ART1(I_NODE_DAM1_N(I,2))
+          STMP=ART1(I_NODE_DAM1_N(I,1))+ART1(I_NODE_DAM1_N(I,2))
+          FABM_ALL(I_NODE_DAM1_N(I,1),K,IFABM)=FTMP/STMP
+          FABM_ALL(I_NODE_DAM1_N(I,2),K,IFABM)=FTMP/STMP
        END IF
+     END DO
+
+     DO I=1,NODE_DAM2_N
+       IF(K<=KDAM(I_NODE_DAM2_N(I,1)).AND.K<=KDAM(I_NODE_DAM2_N(I,2)) &
+          & .AND.K<=KDAM(I_NODE_DAM2_N(I,2)) )THEN
+          FTMP= FABM_ALL(I_NODE_DAM2_N(I,1),K,IFABM)*ART1(I_NODE_DAM2_N(I,1)) &
+           &   +FABM_ALL(I_NODE_DAM2_N(I,2),K,IFABM)*ART1(I_NODE_DAM2_N(I,2)) &
+           &   +FABM_ALL(I_NODE_DAM2_N(I,3),K,IFABM)*ART1(I_NODE_DAM2_N(I,3)) 
+          STMP=ART1(I_NODE_DAM2_N(I,1))+ART1(I_NODE_DAM2_N(I,2)) &
+           &   +ART1(I_NODE_DAM2_N(I,3))
+          FABM_ALL(I_NODE_DAM2_N(I,1),K,IFABM)=FTMP/STMP
+          FABM_ALL(I_NODE_DAM2_N(I,2),K,IFABM)=FTMP/STMP
+          FABM_ALL(I_NODE_DAM2_N(I,3),K,IFABM)=FTMP/STMP
+       END IF
+     END DO
+
+     DO I=1,NODE_DAM3_N
+       IF(K<=KDAM(I_NODE_DAM3_N(I,1)).AND.K<=KDAM(I_NODE_DAM3_N(I,2)) &
+   & .AND.K<=KDAM(I_NODE_DAM3_N(I,3)).AND.K<=KDAM(I_NODE_DAM3_N(I,4)) )THEN
+          FTMP =FABM_ALL(I_NODE_DAM3_N(I,1),K,IFABM)*ART1(I_NODE_DAM3_N(I,1)) &
+           &   +FABM_ALL(I_NODE_DAM3_N(I,2),K,IFABM)*ART1(I_NODE_DAM3_N(I,2)) &
+           &   +FABM_ALL(I_NODE_DAM3_N(I,3),K,IFABM)*ART1(I_NODE_DAM3_N(I,3)) &
+           &   +FABM_ALL(I_NODE_DAM3_N(I,4),K,IFABM)*ART1(I_NODE_DAM3_N(I,4))  
+          STMP =ART1(I_NODE_DAM3_N(I,1)) + ART1(I_NODE_DAM3_N(I,2)) &
+           &  + ART1(I_NODE_DAM3_N(I,3)) + ART1(I_NODE_DAM3_N(I,4))
+          FABM_ALL(I_NODE_DAM3_N(I,1),K,IFABM)=FTMP/STMP
+          FABM_ALL(I_NODE_DAM3_N(I,2),K,IFABM)=FTMP/STMP
+          FABM_ALL(I_NODE_DAM3_N(I,3),K,IFABM)=FTMP/STMP
+          FABM_ALL(I_NODE_DAM3_N(I,4),K,IFABM)=FTMP/STMP
+       END IF
+     END DO
+   END DO
 #  endif
-    END DO
 
+  END DO ! IFABM
 
-   END DO ! IFABM
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_MIXING"
   RETURN
 END SUBROUTINE FABM_MIXING
 
