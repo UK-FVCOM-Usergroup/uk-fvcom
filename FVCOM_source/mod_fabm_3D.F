@@ -109,20 +109,21 @@ SUBROUTINE FABM_3D1D
      CALL FABM_SOURCES(DTI)
 
      ! Vertical mixing
-     CALL FABM_MIXING 
+     CALL FABM_MIXING    ! this operates on FABM_ALL not on FABM_F
 
 #    if !defined (ONE_D_MODEL)
 #    if defined (MULTIPROCESSOR)
        CALL FABM_EXCHANGE
 #    endif
-      CALL FABM_ADV
+!      CALL FABM_ADV  ! testing 
 #    if defined (MULTIPROCESSOR)
       CALL FABM_EXCHANGE
 #    endif
-      CALL FABM_BCOND
-      FABM_ALL=FABM_F                                   !UPDATE
+!      CALL FABM_BCOND
+!      FABM_ALL=FABM_F                                   !UPDATE
 #    endif
 !    end if defined 1D
+!     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_S       !Conservation Correction   !
 
       CALL CHECK_STATE
 
@@ -244,7 +245,7 @@ SUBROUTINE FABM_EXCHANGE
    IMPLICIT NONE
    
    INTEGER :: I,K,J,J1,KI,IFABM
-   REAL(DP) :: FKH,UMOLPR
+   REAL(DP) :: FKH,UMOLPR,TMP,TMP1,TMP2,TMP3
 !   REAL(SPP), DIMENSION(KBV),INTENT (OUT)     :: FOUT
    REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF
    REAL(DP), DIMENSION(M)        :: KHBOTTOM
@@ -337,16 +338,38 @@ SUBROUTINE FABM_EXCHANGE
   !   Bottom bcs;                                                        !
   !------------------------------------------------------------------------------!
 
-   DO I = 1, M
-#  if !defined (WET_DRY)
-#  else
-     IF(ISWETN(I) == 1)THEN
+  ! THIS PIECE OF CODE DESPERATELY NEEDS TO BE CLARIFIED
+  ! AND STREAMLINED
+
+  DO I = 1, M
+     IF (ISONB(I) /= 2) THEN
+#  if defined (WET_DRY)
+        IF(ISWETN(I) == 1)THEN
 #  endif
-       FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)) &
+           TMP1=PFPXB(I)*COS(SITA_GD(I))+PFPYB(I)*SIN(SITA_GD(I))
+           TMP2=AH_BOTTOM(I)*PHPN(I)
+           TMP3=KHBOTTOM(I)+UMOLPR+AH_BOTTOM(I)*PHPN(I)*PHPN(I)
+           TMP=TMP1*TMP2/TMP3*(KHBOTTOM(I)+UMOLPR)
+
+           ! -------------------------------------------------------------------
+   IF(NOFLUX_BOT_CONDITION)THEN
+       IF (TMP1 < 0.0_SP) TMP=0.0_SP
+       TMP = -TMP
+   ELSE	   
+           TMP = 0.0_SP
+   END IF	   
+           ! -------------------------------------------------------------------
+
+!       FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)) &
+!                /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
+
+       FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)+DTI*(-TMP)/(D(I)*DZ(I,KBM1))) &
                 /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
+
 #  if defined (WET_DRY)
      END IF
 # endif
+     END IF
    END DO
 
 
@@ -793,8 +816,8 @@ FABM_FRESH=FABM_ALL(:,:,IFABM)
          ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
          XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_ALL(I,K,IFABM)-FABM_ALL(I,K,IFABM)*DT(I)/DTFA(I) 
 
-         BETA(I,K)=0.5*(1.-SIGN(1.,XXXX)) * (WQMMAX-FABM_ALL(I,K,IFABM))/(ABS(XXXX)+1.E-10) &
-                  +0.5*(1.-SIGN(1.,-XXXX)) * (FABM_ALL(I,K,IFABM)-WQMMIN)/(ABS(XXXX)+1.E-10)
+         BETA(I,K)=0.5*(1.-SIGN(1.0_SP,XXXX)) * (WQMMAX-FABM_ALL(I,K,IFABM))/(ABS(XXXX)+1.E-10) &
+                  +0.5*(1.-SIGN(1.0_SP,-XXXX)) * (FABM_ALL(I,K,IFABM)-WQMMIN)/(ABS(XXXX)+1.E-10)
 
          WQM_SF(I,K)=FABM_ALL(I,K,IFABM)-MIN(1.,BETA(I,K))*XXXX
 
