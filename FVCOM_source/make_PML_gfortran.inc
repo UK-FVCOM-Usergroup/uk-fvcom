@@ -93,12 +93,12 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-#             IOLIBS       =  $(shell /home_nfs/jbr/opt/netcdf-4.3.2/bin/nf-config --flibs)
-#             IOINCS       =  -I$(shell /home_nfs/jbr/opt/netcdf-4.3.2/bin/nf-config --includedir)
+             IOLIBS       =  $(shell /home_nfs/jbr/opt/netcdf-4.3.2/bin/nf-config --flibs)
+             IOINCS       =  -I$(shell /home_nfs/jbr/opt/netcdf-4.3.2/bin/nf-config --includedir)
 #             IOLIBS       =   $(LIBDIR) -lnetcdf 
 #             IOINCS       =  $(INCDIR)
-             IOLIBS       =   -L/home_nfs/jbr/opt/netcdf-4.3.2/lib -lnetcdff  -L/home_nfs/jbr/opt/netcdf-4.3.2/lib64 -lnetcdf
-             IOINCS       =   -I/home_nfs/jbr/opt/netcdf-4.3.2/include
+#             IOLIBS       =   -L/home_nfs/jbr/opt/netcdf-4.3.2/lib -lnetcdff  -L/home_nfs/jbr/opt/netcdf-4.3.2/lib64 -lnetcdf
+#             IOINCS       =   -I/home_nfs/jbr/opt/netcdf-4.3.2/include
 
 #--------------------------------------------------------------------------
 
@@ -353,8 +353,8 @@ dashL= $(empty) -L
 #       GENERAL BIOLOGICAL MODEL:    UNCOMMENT TO INCLUDE MODEL
 #--------------------------------------------------------------------------
             FLAG_25 = -DFABM
-            BIOLIB       = -L/home_nfs/rito/models/FVCOM/src/FABM-FVCOM/build/ -lfabm
-            BIOINCS      = -I/home_nfs/rito/models/FVCOM/src/FABM-FVCOM/build/modules/
+            BIOLIB       = -L/home_nfs/rito/models/FVCOM/src/FABM-FVCOM/build-fabm/ -lfabm
+            BIOINCS      = -I/home_nfs/rito/models/FVCOM/src/FABM-FVCOM/build-fabm/modules/
 
 #--------------------------------------------------------------------------
 #         Dynamic/Thermodynamic Ice

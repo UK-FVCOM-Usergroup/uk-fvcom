@@ -110,9 +110,9 @@ COBJS = func_pointer.c
 
 
 #BIOGEN	= mod_bio_3D.F	mod_onedtide.F
-BIOGEN	= mod_fabm_data.F
-SRCS = $(BIOGEN) $(MODS)  $(MODS_W) $(MAIN) $(MAIN_W)
-# 
+BIOGEN	= 
+SRCS = $(BIOGEN) $(MODS) $(MODS_W) $(MAIN)  $(MAIN_W)
+
 # object list is composed of free (*.F) and fixed (*.F90) source
 FVCOM_OBJS = $(COBJS:.c=.o) $(SRCS:.F=.o) $(FIXED:.F90=.o) 
 
@@ -121,7 +121,8 @@ FVCOM_OBJS = $(COBJS:.c=.o) $(SRCS:.F=.o) $(FIXED:.F90=.o)
 #  Linking Directives
 #--------------------------------------------------------------------------
 
-$(EXEC):	$(FVCOM_OBJS)
+$(EXEC):	@echo ' running makefile with no arguments'
+		$(FVCOM_OBJS)
 		$(FC) $(FFLAGS) $(VISOPT) $(LDFLAGS) $(FVCOM_OBJS) $(LIBS) -o $(EXEC)
 		make libfvcom
 
