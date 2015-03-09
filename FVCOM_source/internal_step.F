@@ -1077,7 +1077,7 @@ SUBROUTINE INTERNAL_STEP
 #   endif
 
 #   if defined (FABM)
-  CALL FABM_3D1D
+  CALL FABM_UPDATE
 #   endif
 
   !==============================================================================!

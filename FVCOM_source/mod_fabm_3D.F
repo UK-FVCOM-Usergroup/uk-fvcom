@@ -102,7 +102,7 @@ CONTAINS
       END DO
    END SUBROUTINE FABM_INITIAL
 
-SUBROUTINE FABM_3D1D
+SUBROUTINE FABM_UPDATE
      SAVE
 
      ! Integrate biogeochemical sources-sinks
@@ -125,30 +125,30 @@ SUBROUTINE FABM_3D1D
 !    end if defined 1D
 !     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_S       !Conservation Correction   !
 
-      CALL CHECK_STATE
+      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_UPDATE')
 
 !      IF(MOD(IINT-1,CDF_INT)==0) CALL BIO_OUT_NETCDF
 
-END SUBROUTINE FABM_3D1D
+END SUBROUTINE FABM_UPDATE
 
-SUBROUTINE CHECK_STATE
-      LOGICAL, PARAMETER :: REPAIR_STATE = .FALSE.
+FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
+      LOGICAL, INTENT(IN) :: REPAIR_STATE
       LOGICAL :: VALID_STATE
       INTEGER :: K
 
-      ! Check state variable values. On return, VALID_STATE will be true if the state has been found valid, .FALSE. if not.
+      ! Check state variable values. On return, VALID_STATE will be .TRUE. if the state has been found valid, .FALSE. if not.
       ! If REPAIR_STATE is .TRUE., this routine will automatially clip invalid values to the nearest valid value.
       ! In that case, the state will be valid after return even if VALID_STATE = .FALSE. [which is then indicative of
       ! clipping having occured)
       CALL fabm_check_surface_state(model,1,M,1,REPAIR_STATE,VALID_STATE)
-      if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) CALL FATAL_ERROR("FABM: invalid surface state")
+      if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
       CALL fabm_check_bottom_state(model,1,M,KBM1,REPAIR_STATE,VALID_STATE)
-      if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) CALL FATAL_ERROR("FABM: invalid bottom state")
+      if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
       DO K=1,KBM1
          CALL fabm_check_state(model,1,M,K,REPAIR_STATE,VALID_STATE)
-         if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) CALL FATAL_ERROR("FABM: invalid pelagic state")
+         if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
       END DO
-END SUBROUTINE
+END FUNCTION CHECK_STATE
 
 SUBROUTINE FABM_SOURCES(DELTA_T)
      REAL(SP), INTENT(IN) :: DELTA_T
@@ -455,7 +455,9 @@ SUBROUTINE FABM_EXCHANGE
   RETURN
 END SUBROUTINE FABM_MIXING
 
-  SUBROUTINE FABM_ADV()
+
+!=============================================================================!
+   SUBROUTINE FABM_ADV  
 !=============================================================================!
 !                                                                             !
 !   This subroutine is used to calculate the horizontal advection and         !
@@ -471,7 +473,6 @@ END SUBROUTINE FABM_MIXING
 #  if defined (WET_DRY) 
    USE MOD_WD
 #  endif
-!   USE MOD_1D
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT, ONLY : IFCETA 
 # endif
@@ -511,7 +512,6 @@ END SUBROUTINE FABM_MIXING
    REAL(SP), DIMENSION(0:MT,KB)     :: FABM_FRESH    !! for source term
    INTEGER ITERA, NTERA
 #  endif
-
 
 !------------------------------------------------------------------------------
   SELECT CASE(HORIZONTAL_MIXING_TYPE)
@@ -1007,7 +1007,9 @@ END SUBROUTINE FABM_MIXING
    END DO !do IFABM=1,size(model%state_variables)
 
    RETURN
-  END SUBROUTINE
+   END SUBROUTINE FABM_ADV
+
+
 
   SUBROUTINE FABM_BCOND()
 !==============================================================================|
