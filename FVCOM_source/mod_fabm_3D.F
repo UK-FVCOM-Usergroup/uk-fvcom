@@ -696,7 +696,7 @@ END SUBROUTINE FABM_MIXING
     END DO
 
    DO IFABM=1,size(model%state_variables)
-#if !defined (MPDATA)
+#  if !defined (MPDATA)
 !
 !--Calculate the Vertical Terms------------------------------------------------
 !
@@ -769,16 +769,14 @@ END SUBROUTINE FABM_MIXING
 !   Physics, 54, 325-362, 1984
 !-----------------------------------------------------------------        
 
-FABM_FRESH=FABM_ALL(:,:,IFABM)
+	FABM_FRESH=FABM_ALL(:,:,IFABM)
 ! think this is wrong... BIODIS is 2D not 1D!!!
 
    IF(RIVER_TS_SETTING == 'calculated') THEN
 
      IF(RIVER_INFLOW_LOCATION == 'node') THEN
-
        IF(NUMQBC > 0) THEN
          DO J=1,NUMQBC
-
            JJ=INODEQ(J)
            STPOINT=FABMDIS(J,IFABM)
            DO K=1,KBM1
@@ -1076,22 +1074,22 @@ FABM_FRESH=FABM_ALL(:,:,IFABM)
      RAMP_BIO = TANH(FLOAT(IINT)/FLOAT(IRAMP+1))
      DO IFABM=1,size(model%state_variables)
        DO I=1,IOBCN
+         J=I_OBC_N(I)
          IF(UARD_OBCN(I) > 0.0_SP) THEN
-          J=I_OBC_N(I)
-          J1=NEXT_OBC(I)
-          T2D=0.0_SP
-          T2D_NEXT=0.0_SP
-          XFLUX2D=0.0_SP
-          DO K=1,KBM1
-           T2D=T2D+FABM_ALL(J,K,IFABM)*DZ(J,K)
-           T2D_NEXT=T2D_NEXT+FABM_F(J1,K,IFABM)*DZ(J1,K)
-           XFLUX2D=XFLUX2D+XFLUX_OBCB(I,K,IFABM)           !XFLUX_OBCB is set in ADVECTION routine
-          END DO
-          TMP=XFLUX2D+T2D*UARD_OBCN(I)
-          T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
-          DO K=1,KBM1
-            FABM_ALL(J,K,IFABM)=T2D_OBC+(FABM_ALL(J1,K,IFABM)-T2D_NEXT)
-          END DO
+           J1=NEXT_OBC(I)
+           T2D=0.0_SP
+           T2D_NEXT=0.0_SP
+           XFLUX2D=0.0_SP
+           DO K=1,KBM1
+            T2D=T2D+FABM_ALL(J,K,IFABM)*DZ(J,K)
+            T2D_NEXT=T2D_NEXT+FABM_F(J1,K,IFABM)*DZ(J1,K)
+            XFLUX2D=XFLUX2D+XFLUX_OBCB(I,K,IFABM)           !XFLUX_OBCB is set in ADVECTION routine
+           END DO
+           TMP=XFLUX2D+T2D*UARD_OBCN(I)
+           T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
+           DO K=1,KBM1
+             FABM_ALL(J,K,IFABM)=T2D_OBC+(FABM_ALL(J1,K,IFABM)-T2D_NEXT)
+           END DO
 
          DO K=1,KBM1
            WQMMAX = MAXVAL(FABM_ALL(NBSN(J,1:NTSN(J)),K,IFABM))
