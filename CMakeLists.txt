@@ -27,6 +27,7 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   if(WIN32)
     set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:134217728")
   endif()
 endif()
 
