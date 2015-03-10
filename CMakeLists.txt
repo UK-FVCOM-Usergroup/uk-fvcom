@@ -8,7 +8,27 @@ find_path(JULIAN_BASE fjulian.inc HINTS "${ROOT}/libs/julian" DOC "Source direct
 
 include_directories(${ROOT} ${JULIAN_BASE})
 
-add_definitions(-DWET_DRY -DLIMITED_2 -DGCY1 -DMPDATA -DFABM)
+add_definitions(-DLIMITED_2 -DGCY1 -DMPDATA -DFABM)
+
+option(FVCOM_USE_DOUBLE_PRECISION "Use double precision" OFF)
+if(FVCOM_USE_DOUBLE_PRECISION)
+  add_definitions(-DDOUBLE_PRECISION)
+  set(FABM_REAL_KIND "SELECTED_REAL_KIND(12)")
+else()
+  set(FABM_REAL_KIND "SELECTED_REAL_KIND(6)")
+endif()
+
+option(FVCOM_USE_WET_DRY "Enable wetting-drying" ON)
+add_definitions(-DWET_DRY)
+
+# Customize compiler flags
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Cray")
+elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+  if(WIN32)
+    set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /Od")
+  endif()
+endif()
 
 find_package(NetCDF REQUIRED)
 include_directories("${NetCDF_INCLUDE_DIRS}")
@@ -41,7 +61,6 @@ add_library(fjulian
 
 find_path(FABM_BASE src/fabm.F90 DOC "Path to FABM source directory.")
 set(FABM_FORCED_HOST fvcom)
-set(FABM_REAL_KIND "SELECTED_REAL_KIND(6)")
 add_subdirectory(${FABM_BASE}/src fabm)
 
 add_library(FVCOM_C
