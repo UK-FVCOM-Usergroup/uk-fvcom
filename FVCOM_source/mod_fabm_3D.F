@@ -1078,7 +1078,12 @@ END SUBROUTINE FABM_MIXING
        DO I=1,IOBCN
          J=I_OBC_N(I)
          IF(UARD_OBCN(I) > 0.0_SP) THEN
+           ! Outward flow over open boundary. Imposed boundary condition has no effect.
            J1=NEXT_OBC(I)
+
+           ! Depth-average mass at current boundary node and its interior neighbor (T2D, T2D_NEXT),
+           ! as well as mass flux over the boundary (XFLUX2D). Note that T2D_NEXT is the average of
+           ! the forecast field (i.e., after advection), whereas T2D is the average of the current field.
            T2D=0.0_SP
            T2D_NEXT=0.0_SP
            XFLUX2D=0.0_SP
@@ -1087,16 +1092,27 @@ END SUBROUTINE FABM_MIXING
             T2D_NEXT=T2D_NEXT+FABM_F(J1,K,IFABM)*DZ(J1,K)
             XFLUX2D=XFLUX2D+XFLUX_OBCB(I,K,IFABM)           !XFLUX_OBCB is set in ADVECTION routine
            END DO
+
+           ! Add flux across open boundary to exiting flux for this node [which presumably did not yet
+           ! include the flux over the boundary itself]
            TMP=XFLUX2D+T2D*UARD_OBCN(I)
+
+           ! Forecast depth-averaged tracer at the boundary based on previous value and flux TMP.
            T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
+
+           ! For the new depth-explicit value at the boundary, combine the forecast depth-averaged value
+           ! with the differences from the the depth-averaged value as forecast for the neighbouring node.
            DO K=1,KBM1
              FABM_ALL(J,K,IFABM)=T2D_OBC+(FABM_ALL(J1,K,IFABM)-T2D_NEXT)
            END DO
 
          DO K=1,KBM1
+           ! Minimum and maximum of the values at [horizontally] neighboring cell centers.
            WQMMAX = MAXVAL(FABM_ALL(NBSN(J,1:NTSN(J)),K,IFABM))
            WQMMIN = MINVAL(FABM_ALL(NBSN(J,1:NTSN(J)),K,IFABM))
-         
+
+           ! Minimum and maximum of the values at [vertically] neighbouring top and bottom interfaces of the cell.
+           ! Values at the interfaces are found through linear interpolation, accounting for differences in sigma height.
            IF(K == 1)THEN
             WQMMAX = MAX(WQMMAX,(FABM_ALL(J,K,IFABM)*DZ(J,K+1)+FABM_ALL(J,K+1,IFABM)*DZ(J,K))/  &
 	             (DZ(J,K)+DZ(J,K+1)))
@@ -1118,20 +1134,21 @@ END SUBROUTINE FABM_MIXING
 		     (DZ(J,K)+DZ(J,K+1)))
            END IF
  
+           ! Clip to extremes of all neighbours. The effect of this should be dampening of grid-scale oscillations.
            IF(WQMMIN-FABM_F(J,K,IFABM) > 0.0_SP)FABM_F(J,K,IFABM) = WQMMIN
            IF(FABM_F(J,K,IFABM)-WQMMAX > 0.0_SP)FABM_F(J,K,IFABM) = WQMMAX
 
          END DO
 
           ELSE
-
-           IF(OBC_FABM_NUDGING .AND. FABM_OBC_MASK(IFABM))  THEN
+           ! Inward flux over open boundary. Optionally nudge towards prescribed values.
+           IF(OBC_FABM_NUDGING .AND. FABM_OBC_PRESCRIBED(IFABM))  THEN
              DO K=1,KBM1
                FABM_F(J,K,IFABM) = FABM_ALL(J,K,IFABM) - OBC_FABM_NUDGING_TIMESCALE*RAMP_BIO*(FABM_ALL(J,K,IFABM)&
                       &-FABM_OBC(I,K,IFABM))
              END DO
            ELSE
-! No OBC information exist or no nudging is required. Keep interior values
+             ! No OBC information exist or no nudging is required. Keep previous interior values
              DO K=1,KBM1
                FABM_F(J,K,IFABM)=FABM_ALL(J,K,IFABM)
              END DO

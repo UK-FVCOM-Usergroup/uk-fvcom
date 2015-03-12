@@ -240,7 +240,7 @@ MODULE MOD_FORCE
   INTEGER :: OBC_F_TYPE
   INTEGER,PARAMETER :: OBC_F_SIGMA = 1
   TYPE (TYPE_NCVAR_POINTER),DIMENSION(:),ALLOCATABLE :: OBC_FABM_N,OBC_FABM_P
-  LOGICAL, PUBLIC, ALLOCATABLE ::  FABM_OBC_MASK(:)    ! 3D FABM STATE VARIABLES OBC MASK 
+  LOGICAL, PUBLIC, ALLOCATABLE ::  FABM_OBC_PRESCRIBED(:)    ! 3D FABM STATE VARIABLES OBC MASK 
 # endif
 
   ! =================================================================
@@ -5379,12 +5379,12 @@ CONTAINS
 
        ALLOCATE(OBC_FABM_N(size(model%state_variables)))
        ALLOCATE(OBC_FABM_P(size(model%state_variables)))
-       ALLOCATE(FABM_OBC_MASK(size(model%state_variables)));FABM_OBC_MASK=.FALSE.
+       ALLOCATE(FABM_OBC_PRESCRIBED(size(model%state_variables)));FABM_OBC_PRESCRIBED=.FALSE.
        DO IFABM=1,size(model%state_variables)
        VAR => FIND_VAR(OBC_F_FILE,model%state_variables(IFABM)%name,FOUND)
        IF(FOUND) THEN
           ! TODO: report which variables have OBC
-          FABM_OBC_MASK(IFABM)=.TRUE.
+          FABM_OBC_PRESCRIBED(IFABM)=.TRUE.
        ATT => FIND_ATT(VAR,'units',FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
