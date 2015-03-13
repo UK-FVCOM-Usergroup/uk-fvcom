@@ -957,6 +957,27 @@ END SUBROUTINE FABM_MIXING
         END DO
      END DO
 
+     ! JornB: added this section based on adv_s implementation
+     K=KBM1
+     DO I=1,M
+        WQMMAX = MAXVAL(FABM_ALL(NBSN(I,1:NTSN(I)),K,IFABM))
+        WQMMIN = MINVAL(FABM_ALL(NBSN(I,1:NTSN(I)),K,IFABM))
+        WQMMAX = MAX(WQMMAX,FABM_ALL(I,K-1,IFABM),FABM_ALL(I,K,IFABM),FABM_FRESH(I,K))
+        WQMMIN = MIN(WQMMIN,FABM_ALL(I,K-1,IFABM),FABM_ALL(I,K,IFABM),FABM_FRESH(I,K))
+
+        TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*WQM_S(I,K+1)-  &
+             (WWWS(I,K)-ABS(WWWS(I,K)))*WQM_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)
+        BETAIN(I,K)=(WQMMAX-WQM_S(I,K))/(TEMP+1.E-10)
+
+        TEMP=0.5*((WWWS(I,K)+ABS(WWWS(I,K)))*WQM_S(I,K)-        &
+             (WWWS(I,K+1)-ABS(WWWS(I,K+1)))*WQM_S(I,K))*(DTI/DTFA(I))/DZ(I,K)
+        BETAOUT(I,K)=(WQM_S(I,K)-WQMMIN)/(TEMP+1.E-10)
+
+        WWWSF(I,K)=0.5*MIN(1.,BETAIN(I,K-1),BETAOUT(I,K))*(WWWS(I,K)+ABS(WWWS(I,K))) + &
+             0.5*MIN(1.,BETAIN(I,K),BETAOUT(I,K-1))*(WWWS(I,K)-ABS(WWWS(I,K)))
+     END DO
+
+
      WWWS=WWWSF 
 
      DO K=1,KBM1
