@@ -8,6 +8,7 @@ find_path(JULIAN_BASE fjulian.inc HINTS "${ROOT}/libs/julian" DOC "Source direct
 
 include_directories(${ROOT} ${JULIAN_BASE})
 
+<<<<<<< Updated upstream
 add_definitions(-DLIMITED_2 -DGCY1 -DMPDATA -DFABM)
 
 option(FVCOM_USE_DOUBLE_PRECISION "Use double precision" OFF)
@@ -30,6 +31,9 @@ elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:134217728")
   endif()
 endif()
+=======
+add_definitions(-DWET_DRY -DLIMITED_2 -DGCY1 -DMPDATA -DFABM  -DGFORTRAN)
+>>>>>>> Stashed changes
 
 find_package(NetCDF REQUIRED)
 include_directories("${NetCDF_INCLUDE_DIRS}")
