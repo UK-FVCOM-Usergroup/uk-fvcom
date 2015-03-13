@@ -108,25 +108,28 @@ SUBROUTINE FABM_UPDATE
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI)
 
+#    if !defined (ONE_D_MODEL)
+     CALL FABM_ADV  ! testing This modifies FABM_F
+     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
+#    if defined (MULTIPROCESSOR)
+       CALL FABM_EXCHANGE
+#    endif
+#    endif
+!    end if defined 1D
+
      ! Vertical mixing
      write (*,*) 'before FABM_MIXING',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
      CALL FABM_MIXING    ! this operates on FABM_ALL not on FABM_F
      write (*,*) 'after FABM_MIXING ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
-#    if !defined (ONE_D_MODEL)
-#    if defined (MULTIPROCESSOR)
-       CALL FABM_EXCHANGE
-#    endif
-     CALL FABM_ADV  ! testing 
-     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 #    if defined (MULTIPROCESSOR)
       CALL FABM_EXCHANGE
 #    endif
+#    if !defined (ONE_D_MODEL)
       CALL FABM_BCOND
       write (*,*) 'after FABM_BCOND  ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
-      FABM_ALL=FABM_F                                   !UPDATE
 #    endif
-!    end if defined 1D
+      FABM_ALL=FABM_F                                   !UPDATE
 !     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_S       !Conservation Correction   !
 
       IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_UPDATE')
@@ -305,7 +308,7 @@ SUBROUTINE FABM_EXCHANGE
      IF(ISWETN(I) == 1)THEN
 #  endif
         VHF(I,1) = AF(I,1) / (AF(I,1)-1.)
-        VHPF(I,1) = -FABM_ALL(I,1,IFABM) / (AF(I,1)-1.)
+        VHPF(I,1) = -FABM_F(I,1,IFABM) / (AF(I,1)-1.)
 #  if defined (WET_DRY)
      END IF
 # endif
@@ -322,7 +325,7 @@ SUBROUTINE FABM_EXCHANGE
 #  endif
            VHPF(I,K)=1./ (AF(I,K)+CF(I,K)*(1.-VHF(I,K-1))-1.)
            VHF(I,K) = AF(I,K) * VHPF(I,K)
-           VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(FABM_ALL(I,K,IFABM)))*VHPF(I,K)
+           VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(FABM_F(I,K,IFABM)))*VHPF(I,K)
 #  if defined (WET_DRY)
         END IF
 # endif
@@ -330,12 +333,12 @@ SUBROUTINE FABM_EXCHANGE
   END DO
 
 #  if !defined (WET_DRY)
-  FF(1:M,1:KBM1) = FABM_ALL(1:M,1:KBM1,IFABM)
+  FF(1:M,1:KBM1) = FABM_F(1:M,1:KBM1,IFABM)
 #  else
   DO  K = 1, KBM1
      DO  I = 1, M
         IF(ISWETN(I) == 1)THEN
-           FF(I,K) = FABM_ALL(I,K,IFABM)
+           FF(I,K) = FABM_F(I,K,IFABM)
         END IF
      END DO
   END DO
@@ -402,7 +405,7 @@ SUBROUTINE FABM_EXCHANGE
      IF(ISWETN(I)*ISWETNT(I) == 1 )then
 #  endif
         DO K = 1, KBM1
-           FABM_ALL(I,K,IFABM) = FF(I,K)
+           FABM_F(I,K,IFABM) = FF(I,K)
         END DO
 #  if defined (WET_DRY)
      END IF
@@ -413,41 +416,41 @@ SUBROUTINE FABM_EXCHANGE
    DO K=1,KBM1
      DO I=1,NODE_DAM1_N
        IF(K<=KDAM(I_NODE_DAM1_N(I,1)).AND.K<=KDAM(I_NODE_DAM1_N(I,2)) )THEN
-          FTMP=FABM_ALL(I_NODE_DAM1_N(I,1),K,IFABM)*ART1(I_NODE_DAM1_N(I,1)) &
-            & +FABM_ALL(I_NODE_DAM1_N(I,2),K,IFABM)*ART1(I_NODE_DAM1_N(I,2))
+          FTMP=FABM_F(I_NODE_DAM1_N(I,1),K,IFABM)*ART1(I_NODE_DAM1_N(I,1)) &
+            & +FABM_F(I_NODE_DAM1_N(I,2),K,IFABM)*ART1(I_NODE_DAM1_N(I,2))
           STMP=ART1(I_NODE_DAM1_N(I,1))+ART1(I_NODE_DAM1_N(I,2))
-          FABM_ALL(I_NODE_DAM1_N(I,1),K,IFABM)=FTMP/STMP
-          FABM_ALL(I_NODE_DAM1_N(I,2),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM1_N(I,1),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM1_N(I,2),K,IFABM)=FTMP/STMP
        END IF
      END DO
 
      DO I=1,NODE_DAM2_N
        IF(K<=KDAM(I_NODE_DAM2_N(I,1)).AND.K<=KDAM(I_NODE_DAM2_N(I,2)) &
           & .AND.K<=KDAM(I_NODE_DAM2_N(I,2)) )THEN
-          FTMP= FABM_ALL(I_NODE_DAM2_N(I,1),K,IFABM)*ART1(I_NODE_DAM2_N(I,1)) &
-           &   +FABM_ALL(I_NODE_DAM2_N(I,2),K,IFABM)*ART1(I_NODE_DAM2_N(I,2)) &
-           &   +FABM_ALL(I_NODE_DAM2_N(I,3),K,IFABM)*ART1(I_NODE_DAM2_N(I,3)) 
+          FTMP= FABM_F(I_NODE_DAM2_N(I,1),K,IFABM)*ART1(I_NODE_DAM2_N(I,1)) &
+           &   +FABM_F(I_NODE_DAM2_N(I,2),K,IFABM)*ART1(I_NODE_DAM2_N(I,2)) &
+           &   +FABM_F(I_NODE_DAM2_N(I,3),K,IFABM)*ART1(I_NODE_DAM2_N(I,3)) 
           STMP=ART1(I_NODE_DAM2_N(I,1))+ART1(I_NODE_DAM2_N(I,2)) &
            &   +ART1(I_NODE_DAM2_N(I,3))
-          FABM_ALL(I_NODE_DAM2_N(I,1),K,IFABM)=FTMP/STMP
-          FABM_ALL(I_NODE_DAM2_N(I,2),K,IFABM)=FTMP/STMP
-          FABM_ALL(I_NODE_DAM2_N(I,3),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM2_N(I,1),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM2_N(I,2),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM2_N(I,3),K,IFABM)=FTMP/STMP
        END IF
      END DO
 
      DO I=1,NODE_DAM3_N
        IF(K<=KDAM(I_NODE_DAM3_N(I,1)).AND.K<=KDAM(I_NODE_DAM3_N(I,2)) &
    & .AND.K<=KDAM(I_NODE_DAM3_N(I,3)).AND.K<=KDAM(I_NODE_DAM3_N(I,4)) )THEN
-          FTMP =FABM_ALL(I_NODE_DAM3_N(I,1),K,IFABM)*ART1(I_NODE_DAM3_N(I,1)) &
-           &   +FABM_ALL(I_NODE_DAM3_N(I,2),K,IFABM)*ART1(I_NODE_DAM3_N(I,2)) &
-           &   +FABM_ALL(I_NODE_DAM3_N(I,3),K,IFABM)*ART1(I_NODE_DAM3_N(I,3)) &
-           &   +FABM_ALL(I_NODE_DAM3_N(I,4),K,IFABM)*ART1(I_NODE_DAM3_N(I,4))  
+          FTMP =FABM_F(I_NODE_DAM3_N(I,1),K,IFABM)*ART1(I_NODE_DAM3_N(I,1)) &
+           &   +FABM_F(I_NODE_DAM3_N(I,2),K,IFABM)*ART1(I_NODE_DAM3_N(I,2)) &
+           &   +FABM_F(I_NODE_DAM3_N(I,3),K,IFABM)*ART1(I_NODE_DAM3_N(I,3)) &
+           &   +FABM_F(I_NODE_DAM3_N(I,4),K,IFABM)*ART1(I_NODE_DAM3_N(I,4))  
           STMP =ART1(I_NODE_DAM3_N(I,1)) + ART1(I_NODE_DAM3_N(I,2)) &
            &  + ART1(I_NODE_DAM3_N(I,3)) + ART1(I_NODE_DAM3_N(I,4))
-          FABM_ALL(I_NODE_DAM3_N(I,1),K,IFABM)=FTMP/STMP
-          FABM_ALL(I_NODE_DAM3_N(I,2),K,IFABM)=FTMP/STMP
-          FABM_ALL(I_NODE_DAM3_N(I,3),K,IFABM)=FTMP/STMP
-          FABM_ALL(I_NODE_DAM3_N(I,4),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM3_N(I,1),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM3_N(I,2),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM3_N(I,3),K,IFABM)=FTMP/STMP
+          FABM_F(I_NODE_DAM3_N(I,4),K,IFABM)=FTMP/STMP
        END IF
      END DO
    END DO
