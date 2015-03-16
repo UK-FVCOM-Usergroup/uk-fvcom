@@ -532,9 +532,23 @@ END SUBROUTINE FABM_MIXING
           & TRIM(HORIZONTAL_MIXING_TYPE) )
   END SELECT
 
-#  if defined (SPHERICAL)
-     CALL FATAL_ERROR("SPHERICAL OPTION IS NOT SUPPORTED FOR FABM")
-#  endif
+# if defined (SPHERICAL)
+    CALL FATAL_ERROR("SPHERICAL OPTION NOT IMPLEMENTED IN FABM_ADV")
+# endif
+# if defined (THIN_DAM)
+    CALL FATAL_ERROR("THIN_DAM OPTION NOT IMPLEMENTED IN FABM_ADV")
+# endif
+# if !defined(MPDATA)
+#   if defined (SEMI_IMPLICIT)
+      CALL FATAL_ERROR("SEMI_IMPLICIT OPTION NOT IMPLEMENTED IN FABM_ADV")
+#   endif
+#   if defined (NH)
+      CALL FATAL_ERROR("NH OPTION NOT IMPLEMENTED IN FABM_ADV")
+#   endif
+#   if defined (LIMITER_VER_ADV)
+      CALL FATAL_ERROR("LIMITER_VER_ADV OPTION NOT IMPLEMENTED IN FABM_ADV")
+#   endif
+# endif
 
   !
   !--Initialize Fluxes-----------------------------------------------------------!
@@ -971,7 +985,7 @@ END SUBROUTINE FABM_MIXING
            ELSE IF(K == KBM1) THEN
               TEMP= WTS(I,K)*(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))
            ELSE
-              TEMP= WTS(I,K)*(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))-  &
+              TEMP= WTS(I,K)*(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))-&
                    WTS(I,K+1)*(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K+1))
            END IF
 
@@ -1030,7 +1044,7 @@ END SUBROUTINE FABM_MIXING
 #      if !defined (SEMI_IMPLICIT)
 
 #      if !defined (THIN_DAM)
-           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/D(I))
+           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      else
 #      endif
 
@@ -1059,7 +1073,7 @@ END SUBROUTINE FABM_MIXING
 #      if !defined (SEMI_IMPLICIT)
 
 #      if !defined (THIN_DAM)
-           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/D(I))
+        FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      else
 #      endif
 
