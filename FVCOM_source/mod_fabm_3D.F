@@ -24,6 +24,8 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
   REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
   REAL(SP), ALLOCATABLE :: XFLUX_OBCB(:,:,:)     ! !OPEN BOUNDARY FLUX
+  REAL(SP), ALLOCATABLE,TARGET :: PFABMPXB(:,:)        ! X gradient at bottom; set in FABM_ADV, used in FABM_MIXING
+  REAL(SP), ALLOCATABLE,TARGET :: PFABMPYB(:,:)        ! Y gradient at bottom; set in FABM_ADV, used in FABM_MIXING
 
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
@@ -87,6 +89,8 @@ CONTAINS
     CALL fabm_check_ready(model)
 
     ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%state_variables))) ; XFLUX_OBCB  =  0.0_SP
+    ALLOCATE(PFABMPXB(MT,size(model%state_variables)))        ; PFABMPXB    = ZERO
+    ALLOCATE(PFABMPYB(MT,size(model%state_variables)))        ; PFABMPYB    = ZERO
    END SUBROUTINE
 
    SUBROUTINE FABM_INITIAL()
@@ -356,7 +360,7 @@ SUBROUTINE FABM_EXCHANGE
 #  if defined (WET_DRY)
         IF(ISWETN(I) == 1)THEN
 #  endif
-           TMP1=PFPXB(I)*COS(SITA_GD(I))+PFPYB(I)*SIN(SITA_GD(I))
+           TMP1=PFABMPXB(I,IFABM)*COS(SITA_GD(I))+PFABMPYB(I,IFABM)*SIN(SITA_GD(I))
            TMP2=AH_BOTTOM(I)*PHPN(I)
            TMP3=KHBOTTOM(I)+UMOLPR+AH_BOTTOM(I)*PHPN(I)*PHPN(I)
            TMP=TMP1*TMP2/TMP3*(KHBOTTOM(I)+UMOLPR)
@@ -628,8 +632,8 @@ END SUBROUTINE FABM_MIXING
 
      IF(K == KBM1)THEN
         DO I=1,M
-           PFPXB(I) = PFPX(I)
-           PFPYB(I) = PFPY(I)
+           PFABMPXB(I,IFABM) = PFPX(I)
+           PFABMPYB(I,IFABM) = PFPY(I)
         END DO
      END IF
 
