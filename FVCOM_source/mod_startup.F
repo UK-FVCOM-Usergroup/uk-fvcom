@@ -50,6 +50,7 @@ MODULE MOD_STARTUP
 # endif
   
 # if defined (FABM)
+  USE MOD_FABM_DATA
   USE MOD_FABM_3D
 # endif
 

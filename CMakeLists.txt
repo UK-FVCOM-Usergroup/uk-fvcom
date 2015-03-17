@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 2.8)
+
 project(FVCOM Fortran C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/")
@@ -21,6 +23,15 @@ endif()
 option(FVCOM_USE_WET_DRY "Enable wetting-drying" ON)
 if(FVCOM_USE_WET_DRY)
   add_definitions(-DWET_DRY)
+endif()
+
+option(FVCOM_USE_MULTIPROCESSOR "Enable multi-processor use" OFF)
+if(FVCOM_USE_MULTIPROCESSOR)
+  find_package(MPI REQUIRED)
+  if(MPI_Fortran_INCLUDE_PATH)
+    include_directories("${MPI_Fortran_INCLUDE_PATH}")
+  endif()
+  add_definitions(-DMULTIPROCESSOR)
 endif()
 
 # Customize compiler flags
@@ -250,6 +261,7 @@ ${ROOT}/vertvl_edge.F
 ${ROOT}/viscofh.F
 ${ROOT}/visitsim.F
 ${ROOT}/wreal.F
+${MPI_Fortran_EXTRA_SOURCES}
 )
 if(MSVC)
   # Force Visual Studio to interpret .F as Fortran 90
@@ -262,4 +274,7 @@ target_link_libraries(FVCOM_exe FVCOM_C)
 target_link_libraries(FVCOM_exe "${NetCDF_LIBRARIES}")
 if (NetCDF_STATIC_MSVC_BUILD)
   set_property(TARGET FVCOM_exe PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmt\"")
+endif()
+if(FVCOM_USE_MULTIPROCESSOR AND MPI_Fortran_LIBRARIES)
+  target_link_libraries(FVCOM_exe ${MPI_Fortran_LIBRARIES})
 endif()

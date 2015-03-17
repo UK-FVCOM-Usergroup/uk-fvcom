@@ -7,25 +7,18 @@ MODULE MOD_FABM_3D
   USE MOD_FABM_DATA
   USE ALL_VARS
   USE MOD_UTILS
-#  if defined (WET_DRY)
   USE MOD_WD
-#  endif
-
-# if defined (THIN_DAM)
-  USE MOD_DAM,only : NODE_DAM1_N,NODE_DAM2_N,NODE_DAM3_N&
-                      &,I_NODE_DAM1_N,I_NODE_DAM2_N,I_NODE_DAM3_N,KDAM
-# endif
 
   IMPLICIT NONE
 
-  REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM state variables
-  REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM bottom-attached state variables
-  REAL(SP), ALLOCATABLE, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
-  REAL(SP), ALLOCATABLE ::  FABM_F(:,:,:)          !FORECASTED VARIABLES
-  REAL(SP), ALLOCATABLE ::  FABM_MEAN(:,:,:)       !MEAN VARIABLES
-  REAL(SP), ALLOCATABLE :: XFLUX_OBCB(:,:,:)     ! !OPEN BOUNDARY FLUX
-  REAL(SP), ALLOCATABLE,TARGET :: PFABMPXB(:,:)        ! X gradient at bottom; set in FABM_ADV, used in FABM_MIXING
-  REAL(SP), ALLOCATABLE,TARGET :: PFABMPYB(:,:)        ! Y gradient at bottom; set in FABM_ADV, used in FABM_MIXING
+  PRIVATE
+
+  PUBLIC FABM_FVCOM_INITIALIZE, FABM_ALLOCATE, FABM_INITIAL, FABM_UPDATE
+
+  REAL(SP), ALLOCATABLE :: FABM_F(:,:,:)          ! FORECASTED VARIABLES
+  REAL(SP), ALLOCATABLE :: XFLUX_OBCB(:,:,:)      ! advective flux into nodes at open boundary; set in FABM_ADV, used in FABM_BCOND
+  REAL(SP), ALLOCATABLE,TARGET :: PFABMPXB(:,:)   ! X gradient at bottom; set in FABM_ADV, used in FABM_MIXING
+  REAL(SP), ALLOCATABLE,TARGET :: PFABMPYB(:,:)   ! Y gradient at bottom; set in FABM_ADV, used in FABM_MIXING
 
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
@@ -107,7 +100,9 @@ CONTAINS
    END SUBROUTINE FABM_INITIAL
 
 SUBROUTINE FABM_UPDATE
-     SAVE
+     USE MOD_PAR
+
+     INTEGER :: IFABM
 
      write (*,*) 'at timestep start ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
@@ -235,9 +230,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
 END SUBROUTINE
 
 SUBROUTINE FABM_EXCHANGE(F)
-!==============================================================================!
-!     PERFORM DATA EXCHANGE FOR the Generalized biological model               |
-!==============================================================================!
+     USE MOD_PAR
+
      REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables)) :: F
 #if defined (MULTIPROCESSOR)
      INTEGER :: IFABM
@@ -254,13 +248,25 @@ SUBROUTINE FABM_EXCHANGE(F)
   END SUBROUTINE FABM_EXCHANGE
 
   SUBROUTINE FABM_MIXING(F)
-!==============================================================================|
-!     vertical mixing adopted from FVCOM, VDIF_TS                              !
-!==============================================================================|
+  !------------------------------------------------------------------------------|
+  !     vertical mixing adopted from FVCOM, VDIF_TS                              !
+  !------------------------------------------------------------------------------|
+  USE ALL_VARS
+  USE MOD_UTILS
+  USE BCS
+#  if defined (WET_DRY)
+  USE MOD_WD
+#  endif
+
+# if defined (THIN_DAM)
+  USE MOD_DAM,only : NODE_DAM1_N,NODE_DAM2_N,NODE_DAM3_N&
+                      &,I_NODE_DAM1_N,I_NODE_DAM2_N,I_NODE_DAM3_N,KDAM
+# endif
+
   IMPLICIT NONE
-  REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables)) :: F
   INTEGER :: I,K,J,KI,IFABM
-  REAL(DP) :: FKH,UMOLPR,TMP,TMP1,TMP2,TMP3
+  REAL(DP) :: TMP,TMP1,TMP2,TMP3,FKH,UMOLPR
+  REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables)) :: F
   REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF
   REAL(DP), DIMENSION(M)        :: KHBOTTOM
 

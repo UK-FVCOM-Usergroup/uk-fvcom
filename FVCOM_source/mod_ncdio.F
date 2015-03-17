@@ -5499,7 +5499,8 @@ CONTAINS
 !=============================================================
 # if defined (FABM)
   FUNCTION FABM_FILE_OBJECT(iset) RESULT(NCF)
-   USE MOD_FABM_3D
+   USE MOD_FABM_DATA
+   USE fabm, ONLY: fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
    IMPLICIT NONE
 
    INTEGER,INTENT(IN) :: iset
