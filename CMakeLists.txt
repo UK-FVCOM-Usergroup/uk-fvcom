@@ -143,6 +143,13 @@ add_library(FVCOM_C
    ${ROOT}/func_pointer.c
 )
 
+if(FVCOM_USE_HEATING_CALCULATED)
+  set(EXTRA_SOURCES ${EXTRA_SOURCES} ${ROOT}/mod_heatflux.F)
+endif()
+if(FVCOM_USE_HEATING_CALCULATED_GL)
+  set(EXTRA_SOURCES ${EXTRA_SOURCES} ${ROOT}/mod_heatflux_gl.F)
+endif()
+
 add_executable(FVCOM_exe
 ${ROOT}/adcor.F
 ${ROOT}/adjust2d3d.F
@@ -234,8 +241,6 @@ ${ROOT}/mod_fabm_3D.F
 ${ROOT}/FABM_source/mod_fabm_data.F
 ${ROOT}/mod_force.F
 ${ROOT}/mod_gotm.F
-${ROOT}/mod_heatflux.F
-${ROOT}/mod_heatflux_gl.F
 ${ROOT}/mod_ice.F
 ${ROOT}/mod_ice2d.F
 ${ROOT}/mod_input.F
@@ -322,6 +327,7 @@ ${ROOT}/vertvl_edge.F
 ${ROOT}/viscofh.F
 ${ROOT}/visitsim.F
 ${ROOT}/wreal.F
+${EXTRA_SOURCES}
 ${MPI_Fortran_EXTRA_SOURCES}
 )
 if(MSVC)
