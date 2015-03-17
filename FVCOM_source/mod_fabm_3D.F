@@ -109,36 +109,52 @@ CONTAINS
 SUBROUTINE FABM_UPDATE
      SAVE
 
-     ! Integrate biogeochemical sources-sinks
-     CALL FABM_SOURCES(DTI)
+     write (*,*) 'at timestep start ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
-#    if !defined (ONE_D_MODEL)
-     CALL FABM_ADV  ! testing This modifies FABM_F
+     ! Integrate biogeochemical sources-sinks
+     CALL FABM_SOURCES(DTI)  ! This operates on FABM_ALL
+     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
+
+# if !defined (ONE_D_MODEL)
+     CALL FABM_ADV  ! This operates on FABM_F
      write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
-#    if defined (MULTIPROCESSOR)
-       CALL FABM_EXCHANGE
-#    endif
-#    endif
-!    end if defined 1D
+
+#   if defined (MULTIPROCESSOR)
+     DO IFABM=1,size(model%state_variables)
+        IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
+     END DO
+#   endif
+
+!    IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_S       !Conservation Correction   !
+
+# endif
+! end if defined 1D
 
      ! Vertical mixing
-     write (*,*) 'before FABM_MIXING',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
-     CALL FABM_MIXING    ! this operates on FABM_ALL not on FABM_F
+# if !defined (ONE_D_MODEL)
+     CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
+     write (*,*) 'after FABM_MIXING ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
+# else
+     CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
      write (*,*) 'after FABM_MIXING ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
+# endif
 
-#    if defined (MULTIPROCESSOR)
-      CALL FABM_EXCHANGE
-#    endif
-#    if !defined (ONE_D_MODEL)
-      CALL FABM_BCOND
-      write (*,*) 'after FABM_BCOND  ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
-#    endif
-      FABM_ALL=FABM_F                                   !UPDATE
-!     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_S       !Conservation Correction   !
+# if defined (MULTIPROCESSOR)
+     IF(PAR)CALL FABM_EXCHANGE(FABM_F)
+# endif
 
-      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_UPDATE')
+     CALL FABM_BCOND  ! This operates on FABM_F
+     write (*,*) 'after FABM_BCOND  ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 
-!      IF(MOD(IINT-1,CDF_INT)==0) CALL BIO_OUT_NETCDF
+# if !defined (ONE_D_MODEL)
+     FABM_ALL=FABM_F                                       !Update to new time level  !
+# endif
+
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_UPDATE')
+
+# if defined (MULTIPROCESSOR)
+     IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
+# endif
 
 END SUBROUTINE FABM_UPDATE
 
@@ -218,47 +234,31 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
      FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DELTA_T*SMS_BT
 END SUBROUTINE
 
-SUBROUTINE FABM_EXCHANGE
+SUBROUTINE FABM_EXCHANGE(F)
 !==============================================================================!
 !     PERFORM DATA EXCHANGE FOR the Generalized biological model               |
 !==============================================================================!
+     REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables)) :: F
 #if defined (MULTIPROCESSOR)
-!     USE ALL_VARS
-     USE MOD_PAR
-     USE LIMS
-     USE CONTROL
-     IMPLICIT NONE
-     INTEGER :: I3
-     REAL(SP),ALLOCATABLE :: FABM_ALL_T(:,:),FABM_MEAN_T(:,:),FABM_F_T(:,:)
-     DO I3=1,NTT
-      ALLOCATE(FABM_ALL_T(0:MT,KB))
-      ALLOCATE(FABM_MEAN_T(0:MT,KB))
-      ALLOCATE(FABM_F_T(0:MT,KB))
+     INTEGER :: IFABM
+     REAL(SP),ALLOCATABLE :: F_T(:,:)
 
-      FABM_ALL_T(:,:)  = FABM_ALL(:,:,I3)
-      FABM_MEAN_T(:,:) = FABM_MEAN(:,:,I3)
-      FABM_F_T(:,:)    = FABM_F(:,:,I3)
-
-      IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,FABM_ALL_T)
-      IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,FABM_MEAN_T)
-      IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,FABM_F_T)
-
-      FABM_ALL(:,:,I3)  = FABM_ALL_T(:,:)  
-      FABM_MEAN(:,:,I3) = FABM_MEAN_T(:,:) 
-      FABM_F(:,:,I3)    = FABM_F_T(:,:)    
-
-      DEALLOCATE(FABM_ALL_T,FABM_MEAN_T,FABM_F_T)
+     ALLOCATE(F_T(0:MT,KB))
+     DO IFABM=1,size(model%state_variables)
+        F_T(:,:)  = F(:,:,IFABM)
+        CALL AEXCHANGE(NC,MYID,NPROCS,F_T)
+        F(:,:,IFABM)  = F_T(:,:)  
      END DO 
-   RETURN
+     DEALLOCATE(F_T)
 #endif
   END SUBROUTINE FABM_EXCHANGE
 
-  SUBROUTINE FABM_MIXING
+  SUBROUTINE FABM_MIXING(F)
 !==============================================================================|
 !     vertical mixing adopted from FVCOM, VDIF_TS                              !
 !==============================================================================|
-
   IMPLICIT NONE
+  REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables)) :: F
   INTEGER :: I,K,J,KI,IFABM
   REAL(DP) :: FKH,UMOLPR,TMP,TMP1,TMP2,TMP3
   REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF
@@ -312,7 +312,7 @@ SUBROUTINE FABM_EXCHANGE
      IF(ISWETN(I) == 1)THEN
 #  endif
         VHF(I,1) = AF(I,1) / (AF(I,1)-1.)
-        VHPF(I,1) = -FABM_F(I,1,IFABM) / (AF(I,1)-1.)
+        VHPF(I,1) = -F(I,1,IFABM) / (AF(I,1)-1.)
 #  if defined (WET_DRY)
      END IF
 # endif
@@ -329,7 +329,7 @@ SUBROUTINE FABM_EXCHANGE
 #  endif
            VHPF(I,K)=1./ (AF(I,K)+CF(I,K)*(1.-VHF(I,K-1))-1.)
            VHF(I,K) = AF(I,K) * VHPF(I,K)
-           VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(FABM_F(I,K,IFABM)))*VHPF(I,K)
+           VHPF(I,K) = (CF(I,K)*VHPF(I,K-1)-DBLE(F(I,K,IFABM)))*VHPF(I,K)
 #  if defined (WET_DRY)
         END IF
 # endif
@@ -337,12 +337,12 @@ SUBROUTINE FABM_EXCHANGE
   END DO
 
 #  if !defined (WET_DRY)
-  FF(1:M,1:KBM1) = FABM_F(1:M,1:KBM1,IFABM)
+  FF(1:M,1:KBM1) = F(1:M,1:KBM1,IFABM)
 #  else
   DO  K = 1, KBM1
      DO  I = 1, M
         IF(ISWETN(I) == 1)THEN
-           FF(I,K) = FABM_F(I,K,IFABM)
+           FF(I,K) = F(I,K,IFABM)
         END IF
      END DO
   END DO
@@ -377,6 +377,7 @@ SUBROUTINE FABM_EXCHANGE
 !           FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)) &
 !                /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
 
+
            FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)+DTI*(-TMP)/(D(I)*DZ(I,KBM1))) &
                 /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
 
@@ -409,7 +410,7 @@ SUBROUTINE FABM_EXCHANGE
      IF(ISWETN(I)*ISWETNT(I) == 1 )then
 #  endif
         DO K = 1, KBM1
-           FABM_F(I,K,IFABM) = FF(I,K)
+           F(I,K,IFABM) = FF(I,K)
         END DO
 #  if defined (WET_DRY)
      END IF
@@ -420,41 +421,41 @@ SUBROUTINE FABM_EXCHANGE
    DO K=1,KBM1
      DO I=1,NODE_DAM1_N
        IF(K<=KDAM(I_NODE_DAM1_N(I,1)).AND.K<=KDAM(I_NODE_DAM1_N(I,2)) )THEN
-          FTMP=FABM_F(I_NODE_DAM1_N(I,1),K,IFABM)*ART1(I_NODE_DAM1_N(I,1)) &
-            & +FABM_F(I_NODE_DAM1_N(I,2),K,IFABM)*ART1(I_NODE_DAM1_N(I,2))
+          FTMP=F(I_NODE_DAM1_N(I,1),K,IFABM)*ART1(I_NODE_DAM1_N(I,1)) &
+            & +F(I_NODE_DAM1_N(I,2),K,IFABM)*ART1(I_NODE_DAM1_N(I,2))
           STMP=ART1(I_NODE_DAM1_N(I,1))+ART1(I_NODE_DAM1_N(I,2))
-          FABM_F(I_NODE_DAM1_N(I,1),K,IFABM)=FTMP/STMP
-          FABM_F(I_NODE_DAM1_N(I,2),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM1_N(I,1),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM1_N(I,2),K,IFABM)=FTMP/STMP
        END IF
      END DO
 
      DO I=1,NODE_DAM2_N
        IF(K<=KDAM(I_NODE_DAM2_N(I,1)).AND.K<=KDAM(I_NODE_DAM2_N(I,2)) &
           & .AND.K<=KDAM(I_NODE_DAM2_N(I,2)) )THEN
-          FTMP= FABM_F(I_NODE_DAM2_N(I,1),K,IFABM)*ART1(I_NODE_DAM2_N(I,1)) &
-           &   +FABM_F(I_NODE_DAM2_N(I,2),K,IFABM)*ART1(I_NODE_DAM2_N(I,2)) &
-           &   +FABM_F(I_NODE_DAM2_N(I,3),K,IFABM)*ART1(I_NODE_DAM2_N(I,3)) 
+          FTMP= F(I_NODE_DAM2_N(I,1),K,IFABM)*ART1(I_NODE_DAM2_N(I,1)) &
+           &   +F(I_NODE_DAM2_N(I,2),K,IFABM)*ART1(I_NODE_DAM2_N(I,2)) &
+           &   +F(I_NODE_DAM2_N(I,3),K,IFABM)*ART1(I_NODE_DAM2_N(I,3)) 
           STMP=ART1(I_NODE_DAM2_N(I,1))+ART1(I_NODE_DAM2_N(I,2)) &
            &   +ART1(I_NODE_DAM2_N(I,3))
-          FABM_F(I_NODE_DAM2_N(I,1),K,IFABM)=FTMP/STMP
-          FABM_F(I_NODE_DAM2_N(I,2),K,IFABM)=FTMP/STMP
-          FABM_F(I_NODE_DAM2_N(I,3),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM2_N(I,1),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM2_N(I,2),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM2_N(I,3),K,IFABM)=FTMP/STMP
        END IF
      END DO
 
      DO I=1,NODE_DAM3_N
        IF(K<=KDAM(I_NODE_DAM3_N(I,1)).AND.K<=KDAM(I_NODE_DAM3_N(I,2)) &
    & .AND.K<=KDAM(I_NODE_DAM3_N(I,3)).AND.K<=KDAM(I_NODE_DAM3_N(I,4)) )THEN
-          FTMP =FABM_F(I_NODE_DAM3_N(I,1),K,IFABM)*ART1(I_NODE_DAM3_N(I,1)) &
-           &   +FABM_F(I_NODE_DAM3_N(I,2),K,IFABM)*ART1(I_NODE_DAM3_N(I,2)) &
-           &   +FABM_F(I_NODE_DAM3_N(I,3),K,IFABM)*ART1(I_NODE_DAM3_N(I,3)) &
-           &   +FABM_F(I_NODE_DAM3_N(I,4),K,IFABM)*ART1(I_NODE_DAM3_N(I,4))  
+          FTMP =F(I_NODE_DAM3_N(I,1),K,IFABM)*ART1(I_NODE_DAM3_N(I,1)) &
+           &   +F(I_NODE_DAM3_N(I,2),K,IFABM)*ART1(I_NODE_DAM3_N(I,2)) &
+           &   +F(I_NODE_DAM3_N(I,3),K,IFABM)*ART1(I_NODE_DAM3_N(I,3)) &
+           &   +F(I_NODE_DAM3_N(I,4),K,IFABM)*ART1(I_NODE_DAM3_N(I,4))  
           STMP =ART1(I_NODE_DAM3_N(I,1)) + ART1(I_NODE_DAM3_N(I,2)) &
            &  + ART1(I_NODE_DAM3_N(I,3)) + ART1(I_NODE_DAM3_N(I,4))
-          FABM_F(I_NODE_DAM3_N(I,1),K,IFABM)=FTMP/STMP
-          FABM_F(I_NODE_DAM3_N(I,2),K,IFABM)=FTMP/STMP
-          FABM_F(I_NODE_DAM3_N(I,3),K,IFABM)=FTMP/STMP
-          FABM_F(I_NODE_DAM3_N(I,4),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM3_N(I,1),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM3_N(I,2),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM3_N(I,3),K,IFABM)=FTMP/STMP
+          F(I_NODE_DAM3_N(I,4),K,IFABM)=FTMP/STMP
        END IF
      END DO
    END DO
@@ -1181,7 +1182,7 @@ END SUBROUTINE FABM_ADV
             XFLUX2D=XFLUX2D+XFLUX_OBCB(I,K,IFABM)           !XFLUX_OBCB is set in ADVECTION routine
            END DO
 
-           ! Add flux across open boundary to exiting flux for this node [which presumably did not yet
+           ! Add flux across open boundary to existing flux for this node [which presumably did not yet
            ! include the flux over the boundary itself]
            TMP=XFLUX2D+T2D*UARD_OBCN(I)
 
