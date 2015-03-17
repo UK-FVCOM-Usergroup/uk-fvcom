@@ -55,6 +55,67 @@ if (NetCDF_STATIC_MSVC_BUILD)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
 endif()
 
+set(METIS_BASE "${CMAKE_CURRENT_SOURCE_DIR}/METIS_source")
+add_library(metis
+  ${METIS_BASE}/coarsen.c
+  ${METIS_BASE}/fm.c
+  ${METIS_BASE}/initpart.c
+  ${METIS_BASE}/match.c
+  ${METIS_BASE}/ccgraph.c
+  ${METIS_BASE}/memory.c
+  ${METIS_BASE}/pmetis.c
+  ${METIS_BASE}/pqueue.c
+  ${METIS_BASE}/refine.c
+  ${METIS_BASE}/util.c
+  ${METIS_BASE}/timing.c
+  ${METIS_BASE}/debug.c
+  ${METIS_BASE}/bucketsort.c
+  ${METIS_BASE}/graph.c
+  ${METIS_BASE}/stat.c
+  ${METIS_BASE}/kmetis.c
+  ${METIS_BASE}/kwayrefine.c
+  ${METIS_BASE}/kwayfm.c
+  ${METIS_BASE}/balance.c
+  ${METIS_BASE}/ometis.c
+  ${METIS_BASE}/srefine.c
+  ${METIS_BASE}/sfm.c
+  ${METIS_BASE}/separator.c
+  ${METIS_BASE}/mincover.c
+  ${METIS_BASE}/mmd.c
+  ${METIS_BASE}/mesh.c
+  ${METIS_BASE}/meshpart.c
+  ${METIS_BASE}/frename.c
+  ${METIS_BASE}/fortran.c
+  ${METIS_BASE}/myqsort.c
+  ${METIS_BASE}/compress.c
+  ${METIS_BASE}/parmetis.c
+  ${METIS_BASE}/estmem.c
+  ${METIS_BASE}/mpmetis.c
+  ${METIS_BASE}/mcoarsen.c
+  ${METIS_BASE}/mmatch.c
+  ${METIS_BASE}/minitpart.c
+  ${METIS_BASE}/mbalance.c
+  ${METIS_BASE}/mrefine.c
+  ${METIS_BASE}/mutil.c
+  ${METIS_BASE}/mfm.c
+  ${METIS_BASE}/mkmetis.c
+  ${METIS_BASE}/mkwayrefine.c
+  ${METIS_BASE}/mkwayfmh.c
+  ${METIS_BASE}/mrefine2.c
+  ${METIS_BASE}/minitpart2.c
+  ${METIS_BASE}/mbalance2.c
+  ${METIS_BASE}/mfm2.c
+  ${METIS_BASE}/kvmetis.c
+  ${METIS_BASE}/kwayvolrefine.c
+  ${METIS_BASE}/kwayvolfm.c
+  ${METIS_BASE}/subdomains.c
+  ${METIS_BASE}/partition.c
+)
+target_include_directories(metis PRIVATE ${METIS_BASE})
+if(MSVC)
+  target_compile_definitions(metis PRIVATE __VC__)
+endif()
+
 add_library(julian
    ${JULIAN_BASE}/dates.c
    ${JULIAN_BASE}/format.c
@@ -268,7 +329,7 @@ if(MSVC)
   target_compile_options(FVCOM_exe PRIVATE /free)
 endif()
 target_include_directories(FVCOM_exe PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/fabm/modules)
-target_link_libraries(FVCOM_exe julian fjulian)
+target_link_libraries(FVCOM_exe julian fjulian metis)
 target_link_libraries(FVCOM_exe fabm)
 target_link_libraries(FVCOM_exe FVCOM_C)
 target_link_libraries(FVCOM_exe "${NetCDF_LIBRARIES}")
