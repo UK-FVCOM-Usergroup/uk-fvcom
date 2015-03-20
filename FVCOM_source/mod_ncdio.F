@@ -5501,6 +5501,7 @@ CONTAINS
   FUNCTION FABM_FILE_OBJECT(iset) RESULT(NCF)
    USE MOD_FABM_DATA
    USE fabm, ONLY: fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
+   USE fabm_types, ONLY: output_none
    IMPLICIT NONE
 
    INTEGER,INTENT(IN) :: iset
@@ -5539,33 +5540,43 @@ CONTAINS
    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
    ! SHOULD HAVE THE SAME NAME A THOSE USED ON THE OTHER PROCESSORS!
-     pdata => FABM_ALL(1:M,1:KB,II)
-     VAR => ADD_FABM_VARIABLE(model%state_variables(II),pdata=pdata)
-     NCF  => ADD(NCF,VAR)
+     IF (model%state_variables(II)%output/=output_none.or.ISET==3) THEN
+       pdata => FABM_ALL(1:M,1:KB,II)
+       VAR => ADD_FABM_VARIABLE(model%state_variables(II),pdata=pdata)
+       NCF  => ADD(NCF,VAR)
+     END IF
    END DO
 
    DO II=1,size(model%bottom_state_variables)
-     pdata_hz => FABM_ALL_BT(1:M,II)
-     VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),pdata_hz=pdata_hz)
-     NCF  => ADD(NCF,VAR)
+     IF (model%bottom_state_variables(II)%output/=output_none.or.ISET==3) THEN
+       pdata_hz => FABM_ALL_BT(1:M,II)
+       VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),pdata_hz=pdata_hz)
+       NCF  => ADD(NCF,VAR)
+     END IF
    END DO
 
    DO II=1,size(model%surface_state_variables)
-     pdata_hz => FABM_ALL_SF(1:M,II)
-     VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),pdata_hz=pdata_hz)
-     NCF  => ADD(NCF,VAR)
+     IF (model%surface_state_variables(II)%output/=output_none.or.ISET==3) THEN
+       pdata_hz => FABM_ALL_SF(1:M,II)
+       VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),pdata_hz=pdata_hz)
+       NCF  => ADD(NCF,VAR)
+     END IF
    END DO
 
    IF (ISET/=3) THEN
       ! Normal output, not restart, so include diagnostics.
       DO II=1,size(model%diagnostic_variables)
-        VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),pdata=fabm_get_bulk_diagnostic_data(model,II))
-        NCF  => ADD(NCF,VAR)
+        IF (model%diagnostic_variables(II)%save) THEN
+          VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),pdata=fabm_get_bulk_diagnostic_data(model,II))
+          NCF  => ADD(NCF,VAR)
+        END IF
       END DO
 
       DO II=1,size(model%horizontal_diagnostic_variables)
-        VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=fabm_get_horizontal_diagnostic_data(model,II))
-        NCF  => ADD(NCF,VAR)
+        IF (model%horizontal_diagnostic_variables(II)%save) THEN
+          VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=fabm_get_horizontal_diagnostic_data(model,II))
+          NCF  => ADD(NCF,VAR)
+        END IF
       END DO
    END IF
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END FABM_FILE_OBJECT"
