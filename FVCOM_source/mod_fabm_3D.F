@@ -20,6 +20,11 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE,TARGET :: PFABMPXB(:,:)   ! X gradient at bottom; set in FABM_ADV, used in FABM_MIXING
   REAL(SP), ALLOCATABLE,TARGET :: PFABMPYB(:,:)   ! Y gradient at bottom; set in FABM_ADV, used in FABM_MIXING
 
+  ! Environment
+  REAL(SP), ALLOCATABLE,TARGET :: CELL_THICKNESS(:,:)
+  REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
+  REAL(SP), ALLOCATABLE,TARGET :: DENSITY(:,:)
+
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
      procedure :: fatal_error => fvcom_driver_fatal_error
@@ -42,30 +47,36 @@ CONTAINS
     ! Provide FABM with pointer to the mask.
     call fabm_set_mask(model,ISWETN(1:M))
 
+    ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
+    ALLOCATE(CELL_THICKNESS(0:MT,KB)) ! Cell thickness in m (from D and DZ)
+    ALLOCATE(DENSITY(0:MT,KB))        ! Density in kg m-3 (from RHO1)
+    ALLOCATE(WIND_SPEED(0:MT))        ! Wind speed in m s-1 (from UUWIND, VVWIND)
+
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
     ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:M,:))
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:M,:))
-    call fabm_link_bulk_data(model,standard_variables%density,RHO1(1:M,:)) ! JB check units: kg m-3? No subtraction by 1000?
-    !call fabm_link_bulk_data(model,standard_variables%cell_thickness,DZ(1:M,:))    ! JB: DZ is dimensionless height in sigma units, needs multiplication with D
+    call fabm_link_bulk_data(model,standard_variables%density,DENSITY(1:M,:))
+    call fabm_link_bulk_data(model,standard_variables%cell_thickness,CELL_THICKNESS(1:M,:))
     call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
     call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:M))
     call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:M))
     call fabm_link_horizontal_data(model,standard_variables%bottom_depth,D(1:M))
     call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,H(1:M))
+    call fabm_link_horizontal_data(model,standard_variables%wind_speed,WIND_SPEED(1:M))
 
     ! TODO send standard_variables%pressure in dbar [I,K]
     ! TODO send standard_variables%bottom_stress in Pa [I] - we have TAUBM_N = (shear velocity)^2 = stress/rho, needs multiplication with density
-    ! TODO send standard_variables%wind_speed in m s-1 [I] - we have UUWIND, VVWIND, but these are defined at elements, not nodes
     ! TODO send standard_variables%number_of_days_since_start_of_the_year [scalar!] - must be a real number with fraction indicating time of day
     ! TODO send standard_variables%depth in m [I,K] - actual depth [including elevation] at cell center
 
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
     ALLOCATE(FABM_ALL_SF(0:MT,size(model%surface_state_variables))); FABM_ALL_SF =  0.001_SP
-    ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)))      ; FABM_F       =  0.001_SP
-    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)))  ; FABM_MEAN    =  0.001_SP
+    ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)));           FABM_F       =  0.001_SP
+    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)));        FABM_MEAN    =  0.001_SP
+    ALLOCATE(FABM_TOTALS(size(model%conserved_quantities)));         FABM_TOTALS = 0
 
     ! Provide FABM with pointers to state variable data.
     DO IFABM=1,size(model%state_variables)
@@ -86,16 +97,48 @@ CONTAINS
     ALLOCATE(PFABMPYB(MT,size(model%state_variables)))        ; PFABMPYB    = ZERO
    END SUBROUTINE
 
+   SUBROUTINE PREPARE_ENVIRONMENT()
+      INTEGER :: K
+      REAL(SP), DIMENSION(0:MT) :: UUWIND_N,VVWIND_N
+
+      ! Compute environmental fields that FVCOM does not provide
+
+      ! Cell thickness (m) from dimensionless sigma thickness DZ and column height D
+      DO K=1,KBM1
+         CELL_THICKNESS(:,K) = DZ(:,K)*D
+      END DO
+
+      ! Wind speed (m s-1)  by interpolating individual x,y wind components from elements to nodes
+      CALL E2N2D(UUWIND,UUWIND_N)
+      CALL E2N2D(VVWIND,VVWIND_N)
+      WIND_SPEED = SQRT(UUWIND_N**2 + VVWIND_N**2)
+
+      ! From sigma in CGS units (g cm-3) to actual density in MKS units (kg m-3)
+      DENSITY = (1+RHO1)*1000
+   END SUBROUTINE
+
    SUBROUTINE FABM_INITIAL()
       INTEGER :: K
+      REAL(SP), DIMENSION(M,size(model%state_variables))         :: DUMMY
+      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: DUMMY_BT
+      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: DUMMY_SF
 
       IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIAL called before FABM_ALLOCATE")
+
+      CALL PREPARE_ENVIRONMENT
 
       ! Allow FABM to perform its default initialization.
       CALL fabm_initialize_surface_state(model,1,M,1)
       CALL fabm_initialize_bottom_state (model,1,M,KBM1)
       DO K=1,KBM1
         CALL fabm_initialize_state(model,1,M,K)
+      END DO
+
+      ! Initialize all diagnostics
+      call fabm_do_surface(model,1,M,1,   DUMMY,DUMMY_SF)
+      call fabm_do_bottom (model,1,M,KBM1,DUMMY,DUMMY_BT)
+      DO K=1,KBM1
+         call fabm_do(model,1,M,K,DUMMY)
       END DO
    END SUBROUTINE FABM_INITIAL
 
@@ -151,6 +194,7 @@ SUBROUTINE FABM_UPDATE
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
 # endif
 
+     CALL CHECK_CONSERVATION
 END SUBROUTINE FABM_UPDATE
 
 FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
@@ -172,6 +216,27 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
       END DO
 END FUNCTION CHECK_STATE
 
+SUBROUTINE CHECK_CONSERVATION()
+     INTEGER  :: K, IFABM
+     REAL(SP), DIMENSION(M,SIZE(model%conserved_quantities)) :: LOCAL
+
+     FABM_TOTALS = 0
+     DO K=1,KBM1
+        CALL fabm_get_conserved_quantities(model,1,M,K,LOCAL)
+        DO IFABM=1,SIZE(model%conserved_quantities)
+           FABM_TOTALS(IFABM) = FABM_TOTALS(IFABM) + SUM(LOCAL(1:M,IFABM)*DZ(1:M,K)*D(1:M))
+        END DO
+     END DO
+     CALL fabm_get_horizontal_conserved_quantities(model,1,M,1,LOCAL)
+     DO IFABM=1,SIZE(model%conserved_quantities)
+        FABM_TOTALS(IFABM) = FABM_TOTALS(IFABM) + SUM(LOCAL(1:M,IFABM)*ART1(1:M))
+     END DO
+
+     DO IFABM=1,SIZE(model%conserved_quantities)
+        WRITE (*,*) 'Domain integral of '//TRIM(model%conserved_quantities(IFABM)%name),FABM_TOTALS(IFABM),TRIM(model%conserved_quantities(IFABM)%units)//'*m3'
+     END DO
+END SUBROUTINE CHECK_CONSERVATION
+
 SUBROUTINE FABM_SOURCES(DELTA_T)
      REAL(SP), INTENT(IN) :: DELTA_T
      INTEGER  :: I, K, IFABM
@@ -179,6 +244,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: SMS_BT
      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: SMS_SF
      REAL(SP), DIMENSION(M)                                     :: DUMMY
+
+     CALL PREPARE_ENVIRONMENT
 
      ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
      DO K=1,KBM1
@@ -188,7 +255,7 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
      ! Allow light models in FABM to update.
      ! NB this is the only operation in FABM that operates over K - everything else operates over I.
      DO I=1,M
-        !CALL fabm_get_light(model,1,KBM1,I)
+        CALL fabm_get_light(model,1,KBM1,I)
      END DO
 
      FLUX_SF = 0
