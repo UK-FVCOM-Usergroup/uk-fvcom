@@ -22,8 +22,11 @@ MODULE MOD_FABM_3D
 
   ! Environment
   REAL(SP), ALLOCATABLE,TARGET :: CELL_THICKNESS(:,:)
-  REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
   REAL(SP), ALLOCATABLE,TARGET :: DENSITY(:,:)
+  REAL(SP), ALLOCATABLE,TARGET :: PRESSURE(:,:)
+  REAL(SP), ALLOCATABLE,TARGET :: DEPTH(:,:)
+  REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
+  REAL(SP), ALLOCATABLE,TARGET :: BOTTOM_STRESS(:)
 
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
@@ -50,7 +53,10 @@ CONTAINS
     ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
     ALLOCATE(CELL_THICKNESS(0:MT,KB)) ! Cell thickness in m (from D and DZ)
     ALLOCATE(DENSITY(0:MT,KB))        ! Density in kg m-3 (from RHO1)
+    ALLOCATE(DEPTH(0:MT,KB))          ! Cell center depth in m (from D and ZZ)
+    ALLOCATE(PRESSURE(0:MT,KB))       ! From gravity, depth and reference density
     ALLOCATE(WIND_SPEED(0:MT))        ! Wind speed in m s-1 (from UUWIND, VVWIND)
+    ALLOCATE(BOTTOM_STRESS(0:MT))     ! Bottom stress in Pa (from square of bottom shear velocity)
 
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
@@ -59,17 +65,17 @@ CONTAINS
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:M,:))
     call fabm_link_bulk_data(model,standard_variables%density,DENSITY(1:M,:))
     call fabm_link_bulk_data(model,standard_variables%cell_thickness,CELL_THICKNESS(1:M,:))
+    call fabm_link_bulk_data(model,standard_variables%depth,DEPTH(1:M,:))
+    call fabm_link_bulk_data(model,standard_variables%pressure,PRESSURE(1:M,:))
     call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
     call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:M))
     call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:M))
     call fabm_link_horizontal_data(model,standard_variables%bottom_depth,D(1:M))
     call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,H(1:M))
     call fabm_link_horizontal_data(model,standard_variables%wind_speed,WIND_SPEED(1:M))
+    call fabm_link_horizontal_data(model,standard_variables%bottom_stress,BOTTOM_STRESS(1:M))
 
-    ! TODO send standard_variables%pressure in dbar [I,K]
-    ! TODO send standard_variables%bottom_stress in Pa [I] - we have TAUBM_N = (shear velocity)^2 = stress/rho, needs multiplication with density
     ! TODO send standard_variables%number_of_days_since_start_of_the_year [scalar!] - must be a real number with fraction indicating time of day
-    ! TODO send standard_variables%depth in m [I,K] - actual depth [including elevation] at cell center
 
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
@@ -103,9 +109,15 @@ CONTAINS
 
       ! Compute environmental fields that FVCOM does not provide
 
-      ! Cell thickness (m) from dimensionless sigma thickness DZ and column height D
       DO K=1,KBM1
+         ! Cell thickness (m) from dimensionless sigma thickness DZ and column height D
          CELL_THICKNESS(:,K) = DZ(:,K)*D
+
+         ! Cell center depth (m) from dimensionless sigma depth ZZ and column height D
+         DEPTH(:,K) = -ZZ(:,K)*D
+
+         ! Pressure (dbar) from gravity, depth, and reference density
+         PRESSURE(:,K) = GRAV_N(:)*1.025_SP*DEPTH(:,K)*0.1_SP
       END DO
 
       ! Wind speed (m s-1)  by interpolating individual x,y wind components from elements to nodes
@@ -115,6 +127,9 @@ CONTAINS
 
       ! From sigma in CGS units (g cm-3) to actual density in MKS units (kg m-3)
       DENSITY = (1+RHO1)*1000
+
+      ! Bottom stress from square of shear velocity - multiply with density
+      BOTTOM_STRESS = TAUBM_N*DENSITY(:,KBM1)
    END SUBROUTINE
 
    SUBROUTINE FABM_INITIAL()
