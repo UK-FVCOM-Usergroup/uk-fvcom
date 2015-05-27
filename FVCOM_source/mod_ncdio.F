@@ -5578,6 +5578,16 @@ CONTAINS
           NCF  => ADD(NCF,VAR)
         END IF
       END DO
+
+      DO II=1,size(model%conserved_quantities)
+        VAR  => NC_MAKE_AVAR(name=TRIM(model%conserved_quantities(II)%name),       &
+           & values=FABM_TOTALS(II), DIM1=DIM_time)
+        ATT  => NC_MAKE_ATT(name='long_name',values=TRIM(model%conserved_quantities(II)%long_name)) 
+        VAR  => ADD(VAR,ATT)
+        ATT  => NC_MAKE_ATT(name='units',values=TRIM(model%conserved_quantities(II)%units)//'*m3')
+        VAR  => ADD(VAR,ATT)
+        NCF  => ADD(NCF,VAR)
+      END DO
    END IF
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END FABM_FILE_OBJECT"
 

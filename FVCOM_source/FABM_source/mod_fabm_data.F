@@ -13,5 +13,6 @@ MODULE MOD_FABM_DATA
   REAL(SP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM bottom-attached state variables
   REAL(SP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
   REAL(SP), ALLOCATABLE, PUBLIC :: FABM_MEAN(:,:,:)            ! MEAN VARIABLES
+  REAL(SP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_TOTALS(:)     ! Domain integrals of conserved quantities
 
 END MODULE
