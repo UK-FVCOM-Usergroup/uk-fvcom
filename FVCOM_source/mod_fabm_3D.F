@@ -210,6 +210,9 @@ SUBROUTINE FABM_UPDATE
      CALL FABM_SOURCES(DTI)  ! This operates on FABM_ALL
      write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
+     CALL FABM_VERTICAL_MOVEMENT(DTI)
+     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
+
 # if !defined (ONE_D_MODEL)
      CALL FABM_ADV  ! This operates on FABM_F
      write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
@@ -260,7 +263,7 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
       INTEGER :: K
 
       ! Check state variable values. On return, VALID_STATE will be .TRUE. if the state has been found valid, .FALSE. if not.
-      ! If REPAIR_STATE is .TRUE., this routine will automatially clip invalid values to the nearest valid value.
+      ! If REPAIR_STATE is .TRUE., this routine will automatically clip invalid values to the nearest valid value.
       ! In that case, the state will be valid after return even if VALID_STATE = .FALSE. [which is then indicative of
       ! clipping having occured)
       CALL fabm_check_surface_state(model,1,M,1,REPAIR_STATE,VALID_STATE)
@@ -351,7 +354,56 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
      ! Forward Euler time integration of interface-attached state variables.
      FABM_ALL_SF(1:M,:) = FABM_ALL_SF(1:M,:) + DELTA_T*SMS_SF
      FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DELTA_T*SMS_BT
-END SUBROUTINE
+
+END SUBROUTINE FABM_SOURCES
+
+SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
+     REAL(SP), INTENT(IN) :: DELTA_T
+     INTEGER :: I,K,IFABM
+     REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
+     REAL(SP), DIMENSION(KBM1-1,size(model%state_variables)) :: w_if, flux_if
+     REAL(SP), DIMENSION(KBM1,  size(model%state_variables)) :: flux_ct
+
+     ! Get vertical velocities at layer centers
+     DO K=1,KBM1
+        CALL fabm_get_vertical_movement(model,1,M,K,w_ct(:,K,:))
+     END DO
+
+     DO I=1,M
+#  if defined (WET_DRY)
+       IF(ISWETN(I) == 1) THEN
+#  endif
+         ! Linearly interpolate to velocities at the interfaces between layers
+         ! TODO: account for differences in layer heights (now we simply use the unweighted average of center velocities)
+         w_if(1:KBM1-1,:) = (w_ct(I,1:KBM1-1,:)+w_ct(I,2:KBM1,:))/2
+
+         ! Convert velocities in m s-1 to mass fluxes (e.g., mol m-2 s-1) - both at interfaces between layers.
+         DO IFABM=1,SIZE(model%state_variables)
+            DO K=1,KBM1-1
+               IF (w_if(K,IFABM)<0) THEN
+                  ! Downward - use concentration from same level (velocity is defined on bottom interface)
+                  flux_if(K,IFABM) = w_if(K,IFABM)*FABM_ALL(I,K,IFABM)
+               ELSE
+                  ! Upward - use concentration from level below (velocity is defined on bottom interface)
+                  flux_if(K,IFABM) = w_if(K,IFABM)*FABM_ALL(I,K+1,IFABM)
+               END IF
+            END DO
+         END DO
+
+         ! Combine interfacial mass fluxes (top + bottom) into total fluxes per layer
+         flux_ct(1,       :) = flux_if(1,       :)
+         flux_ct(2:KBM1-1,:) = flux_if(2:KBM1-1,:) - flux_if(1:KBM1-2,:)
+         flux_ct(KBM1,    :) =                     - flux_if(KBM1-1,  :)
+
+         ! Convert mass fluxes (m-2) into source terms (m-3) by dividing by layer height
+         DO IFABM=1,SIZE(model%state_variables)
+            FABM_ALL(I,1:KBM1,IFABM) = FABM_ALL(I,1:KBM1,IFABM) + DELTA_T*flux_ct(1:KBM1,IFABM)/DZ(I,1:KBM1)/D(I)
+         END DO
+#  if defined (WET_DRY)
+      END IF
+#  endif
+   END DO  ! I=1:M
+END SUBROUTINE FABM_VERTICAL_MOVEMENT
 
 SUBROUTINE FABM_EXCHANGE(F)
      USE MOD_PAR
