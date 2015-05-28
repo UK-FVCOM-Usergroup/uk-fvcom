@@ -238,7 +238,7 @@ ${ROOT}/mod_enkf_ncd.F
 ${ROOT}/mod_enkf_obs.F
 ${ROOT}/mod_etkf.F
 ${ROOT}/mod_fabm_3D.F
-${ROOT}/FABM_source/mod_fabm_data.F
+${ROOT}/mod_fabm_data.F
 ${ROOT}/mod_force.F
 ${ROOT}/mod_gotm.F
 ${ROOT}/mod_ice.F
