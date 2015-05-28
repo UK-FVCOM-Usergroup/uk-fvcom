@@ -197,6 +197,9 @@ CONTAINS
       DO K=1,KBM1
          call fabm_do(model,1,M,K,DUMMY)
       END DO
+
+      ! Compute initial value of conserved quantity integrals
+      CALL CHECK_CONSERVATION
    END SUBROUTINE FABM_INITIAL
 
 SUBROUTINE FABM_UPDATE
@@ -382,10 +385,10 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
             DO K=1,KBM1-1
                IF (w_if(K,IFABM)<0) THEN
                   ! Downward - use concentration from same level (velocity is defined on bottom interface)
-                  flux_if(K,IFABM) = w_if(K,IFABM)*FABM_ALL(I,K,IFABM)
+                  flux_if(K,IFABM) = max(w_if(K,IFABM),-DZ(I,K)*D(I)/DELTA_T)*FABM_ALL(I,K,IFABM)
                ELSE
                   ! Upward - use concentration from level below (velocity is defined on bottom interface)
-                  flux_if(K,IFABM) = w_if(K,IFABM)*FABM_ALL(I,K+1,IFABM)
+                  flux_if(K,IFABM) = min(w_if(K,IFABM),DZ(I,K+1)*D(I)/DELTA_T)*FABM_ALL(I,K+1,IFABM)
                END IF
             END DO
          END DO
