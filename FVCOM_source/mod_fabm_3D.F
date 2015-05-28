@@ -50,32 +50,56 @@ CONTAINS
     ! Provide FABM with pointer to the mask.
     call fabm_set_mask(model,ISWETN(1:M))
 
-    ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
-    ALLOCATE(CELL_THICKNESS(0:MT,KB)) ! Cell thickness in m (from D and DZ)
-    ALLOCATE(DENSITY(0:MT,KB))        ! Density in kg m-3 (from RHO1)
-    ALLOCATE(DEPTH(0:MT,KB))          ! Cell center depth in m (from D and ZZ)
-    ALLOCATE(PRESSURE(0:MT,KB))       ! From gravity, depth and reference density
-    ALLOCATE(WIND_SPEED(0:MT))        ! Wind speed in m s-1 (from UUWIND, VVWIND)
-    ALLOCATE(BOTTOM_STRESS(0:MT))     ! Bottom stress in Pa (from square of bottom shear velocity)
-
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
     ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:M,:))
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:M,:))
-    call fabm_link_bulk_data(model,standard_variables%density,DENSITY(1:M,:))
-    call fabm_link_bulk_data(model,standard_variables%cell_thickness,CELL_THICKNESS(1:M,:))
-    call fabm_link_bulk_data(model,standard_variables%depth,DEPTH(1:M,:))
-    call fabm_link_bulk_data(model,standard_variables%pressure,PRESSURE(1:M,:))
     call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
     call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:M))
     call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:M))
     call fabm_link_horizontal_data(model,standard_variables%bottom_depth,D(1:M))
     call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,H(1:M))
-    call fabm_link_horizontal_data(model,standard_variables%wind_speed,WIND_SPEED(1:M))
-    call fabm_link_horizontal_data(model,standard_variables%bottom_stress,BOTTOM_STRESS(1:M))
 
     ! TODO send standard_variables%number_of_days_since_start_of_the_year [scalar!] - must be a real number with fraction indicating time of day
+
+    ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
+
+    ! Cell thickness in m (from D and DZ)
+    IF (model%variable_needs_values(standard_variables%cell_thickness)) THEN
+       ALLOCATE(CELL_THICKNESS(0:MT,KB))
+       call fabm_link_bulk_data(model,standard_variables%cell_thickness,CELL_THICKNESS(1:M,:))
+    END IF
+
+    ! Density in kg m-3 (from RHO1)
+    IF (model%variable_needs_values(standard_variables%density)) THEN
+       ALLOCATE(DENSITY(0:MT,KB))
+       call fabm_link_bulk_data(model,standard_variables%density,DENSITY(1:M,:))
+    END IF
+
+    ! Cell center depth in m (from D and ZZ)
+    IF (model%variable_needs_values(standard_variables%depth)) THEN
+       ALLOCATE(DEPTH(0:MT,KB))
+       call fabm_link_bulk_data(model,standard_variables%depth,DEPTH(1:M,:))
+    END IF
+
+    ! Pressure in dbar (from gravity, depth and reference density)
+    IF (model%variable_needs_values(standard_variables%pressure)) THEN
+       ALLOCATE(PRESSURE(0:MT,KB))
+       call fabm_link_bulk_data(model,standard_variables%pressure,PRESSURE(1:M,:))
+    END IF
+
+    ! Wind speed in m s-1 (from UUWIND, VVWIND)
+    IF (model%variable_needs_values(standard_variables%wind_speed)) THEN
+       ALLOCATE(WIND_SPEED(0:MT))
+       call fabm_link_horizontal_data(model,standard_variables%wind_speed,WIND_SPEED(1:M))
+    END IF
+
+    ! Bottom stress in Pa (from square of bottom shear velocity TAUBM_N)
+    IF (model%variable_needs_values(standard_variables%bottom_stress)) THEN
+       ALLOCATE(BOTTOM_STRESS(0:MT))
+       call fabm_link_horizontal_data(model,standard_variables%bottom_stress,BOTTOM_STRESS(1:M))
+    END IF
 
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
@@ -109,27 +133,45 @@ CONTAINS
 
       ! Compute environmental fields that FVCOM does not provide
 
-      DO K=1,KBM1
+      IF (ALLOCATED(CELL_THICKNESS)) THEN
          ! Cell thickness (m) from dimensionless sigma thickness DZ and column height D
-         CELL_THICKNESS(:,K) = DZ(:,K)*D
+         DO K=1,KBM1
+            CELL_THICKNESS(:,K) = DZ(:,K)*D
+         END DO
+      END IF
 
+      IF (ALLOCATED(DEPTH)) THEN
          ! Cell center depth (m) from dimensionless sigma depth ZZ and column height D
-         DEPTH(:,K) = -ZZ(:,K)*D
+         ! Note that ZZ is negative while we want positive depth; hence the - sign.
+         DO K=1,KBM1
+            DEPTH(:,K) = -ZZ(:,K)*D
+         END DO
+      END IF
 
+      IF (ALLOCATED(PRESSURE)) THEN
          ! Pressure (dbar) from gravity, depth, and reference density
-         PRESSURE(:,K) = GRAV_N(:)*1.025_SP*DEPTH(:,K)*0.1_SP
-      END DO
+         ! NB could be made more accurate by using actual density.
+         DO K=1,KBM1
+            PRESSURE(:,K) = -GRAV_N(:)*1.025_SP*ZZ(:,K)*D*0.1_SP
+         END DO
+      END IF
 
-      ! Wind speed (m s-1)  by interpolating individual x,y wind components from elements to nodes
-      CALL E2N2D(UUWIND,UUWIND_N)
-      CALL E2N2D(VVWIND,VVWIND_N)
-      WIND_SPEED = SQRT(UUWIND_N**2 + VVWIND_N**2)
+      IF (ALLOCATED(WIND_SPEED)) THEN
+         ! Wind speed (m s-1)  by interpolating individual x,y wind components from elements to nodes
+         CALL E2N2D(UUWIND,UUWIND_N)
+         CALL E2N2D(VVWIND,VVWIND_N)
+         WIND_SPEED = SQRT(UUWIND_N**2 + VVWIND_N**2)
+      END IF
 
-      ! From sigma in CGS units (g cm-3) to actual density in MKS units (kg m-3)
-      DENSITY = (1+RHO1)*1000
+      IF (ALLOCATED(DENSITY)) THEN
+         ! From sigma in CGS units (g cm-3) to actual density in MKS units (kg m-3)
+         DENSITY = (1+RHO1)*1000
+      END IF
 
-      ! Bottom stress from square of shear velocity - multiply with density
-      BOTTOM_STRESS = TAUBM_N*DENSITY(:,KBM1)
+      IF (ALLOCATED(BOTTOM_STRESS)) THEN
+         ! Bottom stress from square of shear velocity - multiply with density
+         BOTTOM_STRESS = TAUBM_N*(1+RHO1(:,KBM1))*1000
+      END IF
    END SUBROUTINE
 
    SUBROUTINE FABM_INITIAL()
