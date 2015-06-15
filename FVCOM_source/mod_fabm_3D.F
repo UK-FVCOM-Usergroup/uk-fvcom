@@ -280,24 +280,34 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
 END FUNCTION CHECK_STATE
 
 SUBROUTINE CHECK_CONSERVATION()
-     INTEGER  :: K, IFABM
+     INTEGER  :: K, IFABM, IERR
      REAL(SP), DIMENSION(M,SIZE(model%conserved_quantities)) :: LOCAL
+     REAL(DP), DIMENSION(SIZE(model%conserved_quantities))   :: TOTALS_LOC
 
-     FABM_TOTALS = 0
+     TOTALS_LOC = 0
      DO K=1,KBM1
         CALL fabm_get_conserved_quantities(model,1,M,K,LOCAL)
         DO IFABM=1,SIZE(model%conserved_quantities)
-           FABM_TOTALS(IFABM) = FABM_TOTALS(IFABM) + SUM(LOCAL(1:M,IFABM)*DZ(1:M,K)*D(1:M))
+           TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*DZ(1:M,K)*D(1:M)*ART1(1:M)))
         END DO
      END DO
      CALL fabm_get_horizontal_conserved_quantities(model,1,M,1,LOCAL)
      DO IFABM=1,SIZE(model%conserved_quantities)
-        FABM_TOTALS(IFABM) = FABM_TOTALS(IFABM) + SUM(LOCAL(1:M,IFABM)*ART1(1:M))
+        TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*ART1(1:M)))
      END DO
 
-     DO IFABM=1,SIZE(model%conserved_quantities)
-        WRITE (*,*) 'Domain integral of '//TRIM(model%conserved_quantities(IFABM)%name),FABM_TOTALS(IFABM),TRIM(model%conserved_quantities(IFABM)%units)//'*m3'
-     END DO
+     IF(PAR) THEN
+        ! NB: similar to logic in mod_report
+        CALL MPI_REDUCE(TOTALS_LOC,FABM_TOTALS,SIZE(TOTALS_LOC),MPI_DP,MPI_SUM,MSRID-1,MPI_FVCOM_GROUP,IERR)
+     ELSE
+        FABM_TOTALS = TOTALS_LOC
+     END IF
+
+     IF(MSR) THEN
+        DO IFABM=1,SIZE(model%conserved_quantities)
+           WRITE (IPT,'(A,E15.7,A)') 'Domain integral of '//TRIM(model%conserved_quantities(IFABM)%name),FABM_TOTALS(IFABM),' '//TRIM(model%conserved_quantities(IFABM)%units)//'*m3'
+        END DO
+     END IF
 END SUBROUTINE CHECK_CONSERVATION
 
 SUBROUTINE FABM_SOURCES(DELTA_T)
