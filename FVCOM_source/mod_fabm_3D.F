@@ -376,6 +376,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
      REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
      REAL(SP), DIMENSION(KBM1-1,size(model%state_variables)) :: w_if, flux_if
      REAL(SP), DIMENSION(KBM1,  size(model%state_variables)) :: flux_ct
+     REAL(SP), PARAMETER :: epsilon_w = 1e-7_SP
 
      ! Get vertical velocities at layer centers
      DO K=1,KBM1
@@ -395,10 +396,10 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
             DO K=1,KBM1-1
                IF (w_if(K,IFABM)<0) THEN
                   ! Downward - use concentration from same level (velocity is defined on bottom interface)
-                  flux_if(K,IFABM) = max(w_if(K,IFABM),-DZ(I,K)*D(I)/DELTA_T)*FABM_ALL(I,K,IFABM)
+                  flux_if(K,IFABM) = max(w_if(K,IFABM),min(-DZ(I,K)*D(I)/DELTA_T+epsilon_w,0._SP))*FABM_ALL(I,K,IFABM)
                ELSE
                   ! Upward - use concentration from level below (velocity is defined on bottom interface)
-                  flux_if(K,IFABM) = min(w_if(K,IFABM),DZ(I,K+1)*D(I)/DELTA_T)*FABM_ALL(I,K+1,IFABM)
+                  flux_if(K,IFABM) = min(w_if(K,IFABM),max(DZ(I,K+1)*D(I)/DELTA_T-epsilon_w,0._SP))*FABM_ALL(I,K+1,IFABM)
                END IF
             END DO
          END DO
