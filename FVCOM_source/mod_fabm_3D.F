@@ -424,10 +424,13 @@ END SUBROUTINE FABM_SOURCES
 
       !store depositional flux
 !      sed(ised)%dflx(i) = flux 
+         END DO
+#  if defined (WET_DRY)
+      ! no calculation when dry nodes
+       END IF
+#  endif
 
-    end do
-  end do
-
+     END DO
   End Subroutine CALC_VERTICAL_MOVEMENT
 
 Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,flux,deltat) 
