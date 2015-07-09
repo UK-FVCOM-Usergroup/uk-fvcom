@@ -384,6 +384,7 @@ END SUBROUTINE FABM_SOURCES
      REAL(SP), DIMENSION(KBM1,  size(model%state_variables)) :: flux_ct
      REAL(SP), DIMENSION(KBM1) :: C(KBM1),DX(KBM1)
      REAL(SP) :: eps,flux,DTmax,DTdep
+     REAL(SP),PARAMETER ::SETTLE_CFL = 1.0
 
      ! Get vertical velocities at layer centers
      DO K=1,KBM1
@@ -1581,9 +1582,10 @@ END SUBROUTINE FABM_ADV
 ! Calculate LED Limiter L(u,v) FOR vertical flux as per Sediment module - RJT2015  
 !==========================================================================
   FUNCTION Lim(a,b)
-  REAL(SP) :: lim,a,b
-  REAL(SP) :: q,R
-  REAL(SP) :: eps
+     REAL(SP) :: lim,a,b
+     REAL(SP) :: q,R
+     REAL(SP) :: eps
+     REAL(SP),PARAMETER ::qlim = 1.0
   eps = epsilon(eps)
   
  ! exponent
