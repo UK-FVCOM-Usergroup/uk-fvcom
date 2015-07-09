@@ -1,4 +1,5 @@
 MODULE MOD_FABM_3D
+# if defined(FABM)
 
   USE fabm
   USE fabm_config
@@ -207,18 +208,19 @@ SUBROUTINE FABM_UPDATE
 
      INTEGER :: IFABM
 
-     write (*,*) 'at timestep start ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
+    !     write (*,*) 'at timestep start ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI)  ! This operates on FABM_ALL
-     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
+    !     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
-     CALL FABM_VERTICAL_MOVEMENT(DTI)
-     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
+     CALL CALC_VERTICAL_MOVEMENT(DTI)
+!     CALL FABM_VERTICAL_MOVEMENT(DTI)
+    !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
 # if !defined (ONE_D_MODEL)
      CALL FABM_ADV  ! This operates on FABM_F
-     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
+    !     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 
 #   if defined (MULTIPROCESSOR)
      DO IFABM=1,size(model%state_variables)
@@ -234,10 +236,10 @@ SUBROUTINE FABM_UPDATE
      ! Vertical mixing
 # if !defined (ONE_D_MODEL)
      CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
-     write (*,*) 'after FABM_MIXING ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
+    !     write (*,*) 'after FABM_MIXING ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 # else
      CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
-     write (*,*) 'after FABM_MIXING ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
+    !     write (*,*) 'after FABM_MIXING ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # endif
 
 # if defined (MULTIPROCESSOR)
@@ -245,7 +247,7 @@ SUBROUTINE FABM_UPDATE
 # endif
 
      CALL FABM_BCOND  ! This operates on FABM_F
-     write (*,*) 'after FABM_BCOND  ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
+    !     write (*,*) 'after FABM_BCOND  ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 
 # if !defined (ONE_D_MODEL)
      FABM_ALL=FABM_F                                       !Update to new time level  !
@@ -369,6 +371,117 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
      FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DELTA_T*SMS_BT
 
 END SUBROUTINE FABM_SOURCES
+
+!==========================================================================
+! Calculate Depositional Flux and Update Concentration from Settling
+!==========================================================================
+  Subroutine CALC_VERTICAL_MOVEMENT(DELTA_T)
+     REAL(SP), INTENT(IN) :: DELTA_T
+     INTEGER :: I,K,IFABM
+     INTEGER  :: mcyc,ncyc
+     REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
+     REAL(SP), DIMENSION(KBM1-1,size(model%state_variables)) :: w_if, flux_if
+     REAL(SP), DIMENSION(KBM1,  size(model%state_variables)) :: flux_ct
+     REAL(SP), DIMENSION(KBM1) :: C(KBM1),DX(KBM1)
+     REAL(SP) :: eps,flux,DTmax,DTdep
+
+     ! Get vertical velocities at layer centers
+     DO K=1,KBM1
+        CALL fabm_get_vertical_movement(model,1,M,K,w_ct(:,K,:))
+     END DO
+
+
+  eps = epsilon(eps)
+  !Loop over Horizontal Domain       
+     DO I=1,M
+#  if defined (WET_DRY)
+      ! no calculation when dry nodes
+       IF(ISWETN(I) == 1) THEN
+#  endif
+  !Loop over FABM variables       
+         DO IFABM=1,SIZE(model%state_variables)
+      !initialize flux
+      flux = 0.0
+
+      !setup 1D concentration and grid arrays
+      c(1:kbm1) = FABM_ALL(I,1:KBM1,IFABM)
+      dx(1:kbm1) = DZ(I,1:KBM1)*D(I)
+      
+
+      !set up cycles (use max(CFL) == 1)
+      DTmax = Settle_CFL*minval(DX(1:KBM1)/w_ct(I,1:KBM1,IFABM))
+      mcyc = int(DELTA_T/DTmax + 1. - eps)
+      DTdep = DELTA_T/float(mcyc)
+
+      !call flux-limited settling equation
+      do ncyc = 1,mcyc
+          call SETTLE_FLUX_FABM(KBM1,C,DX,w_ct(:,K,:),flux,DTdep)
+      end do
+
+      !store solution in 3D array
+       FABM_ALL(I,1:KBM1,IFABM) = C(1:KBM1)
+
+      !store depositional flux
+!      sed(ised)%dflx(i) = flux 
+
+    end do
+  end do
+
+  End Subroutine CALC_VERTICAL_MOVEMENT
+
+Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,flux,deltat) 
+  implicit none
+  integer , intent(in   ) :: n
+	  real(sp), intent(inout) ::  c(n)
+	  real(sp), intent(in   ) :: dx(n)
+	  real(sp), intent(in   ) :: wset(n)
+	  real(sp), intent(inout) :: flux 
+	  real(sp), intent(in   ) :: deltat 
+	  real(sp) :: conv(n+1),diss(n+1)
+	  real(sp) :: cin(-1:n+2)
+	  real(sp) :: win(-1:n+2)
+	  real(sp) :: dis4,wvel
+  integer  :: i
+
+
+  !transfer to working array
+  cin(1:n) = c(1:n)
+  win(1:n) = wset(1:n) 
+
+  !surface bcs (no flux)
+  cin(0)  =  -cin(1) 
+  cin(-1) =  -cin(1)
+  win(0)  =  -wset(1)
+  win(-1) =  -wset(1)
+
+  !bottom bcs (extrapolate)
+  cin(n+1) = cin(n) 
+  cin(n+2) = cin(n)
+  win(n+1) = win(n)
+  win(n+2) = win(n)
+
+  !flux computation
+  do i=1,n+1
+    wvel    = .5*(win(i)+win(i-1))  !settle velocity at interface
+    dis4    = wvel/2.
+    conv(i) = wvel*(cin(i)+cin(i-1))/2. 
+    diss(i) = dis4*(cin(i)-cin(i-1)-lim(cin(i+1)-cin(i),cin(i-1)-cin(i-2))) 
+  end do
+
+  !zero out surface flux
+  conv(1) = 0. ; diss(1) = 0.
+
+  !update
+  do i=1,n
+    c(i) = cin(i) + (deltat/dx(i))*(-conv(i+1)+conv(i) + diss(i+1)-diss(i)) 
+  end do
+
+  !set bottom flux (> 0 = deposition)
+  flux = flux + deltat*(conv(n+1)-diss(n+1))
+
+
+ End Subroutine SETTLE_FLUX_FABM
+
 
 SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
      REAL(SP), INTENT(IN) :: DELTA_T
@@ -1464,5 +1577,25 @@ END SUBROUTINE FABM_ADV
      CHARACTER(LEN=*),          INTENT(IN)    :: message
      WRITE (IPT,*) TRIM(message)
   END SUBROUTINE
+!==========================================================================
+! Calculate LED Limiter L(u,v) FOR vertical flux as per Sediment module - RJT2015  
+!==========================================================================
+  FUNCTION Lim(a,b)
+  REAL(SP) :: lim,a,b
+  REAL(SP) :: q,R
+  REAL(SP) :: eps
+  eps = epsilon(eps)
+  
+ ! exponent
+ ! qlim = 0. !1st order
+ ! qlim = 1. !minmod
+ ! qlim = 2. !van leer
+
+  R = abs(   (a-b)/(abs(a)+abs(b)+eps) )**qlim
+  lim = .5*(1-R)*(a+b)
+
+  END FUNCTION Lim
+
+# endif
 
 END MODULE MOD_FABM_3D
