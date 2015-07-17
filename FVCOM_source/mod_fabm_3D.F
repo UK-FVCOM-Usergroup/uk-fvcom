@@ -416,7 +416,7 @@ END SUBROUTINE FABM_SOURCES
 
       !call flux-limited settling equation
       do ncyc = 1,mcyc
-          call SETTLE_FLUX_FABM(KBM1,C,DX,w_ct(:,K,:),flux,DTdep)
+          call SETTLE_FLUX_FABM(KBM1,C,DX,w_ct(I,:,IFABM),flux,DTdep)
       end do
 
       !store solution in 3D array
