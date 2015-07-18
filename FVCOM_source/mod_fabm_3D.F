@@ -380,9 +380,7 @@ END SUBROUTINE FABM_SOURCES
      INTEGER :: I,K,IFABM
      INTEGER  :: mcyc,ncyc
      REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
-     REAL(SP), DIMENSION(KBM1-1,size(model%state_variables)) :: w_if, flux_if
-     REAL(SP), DIMENSION(KBM1,  size(model%state_variables)) :: flux_ct
-     REAL(SP), DIMENSION(KBM1) :: C(KBM1),DX(KBM1)
+     REAL(SP), DIMENSION(KBM1) :: C,DX
      REAL(SP) :: eps,flux,DTmax,DTdep
      REAL(SP),PARAMETER ::SETTLE_CFL = 1.0
 
@@ -401,19 +399,19 @@ END SUBROUTINE FABM_SOURCES
 #  endif
   !Loop over FABM variables       
          DO IFABM=1,SIZE(model%state_variables)
-      !initialize flux
-      flux = 0.0
+          !initialize flux
+          flux = 0.0
 
-      !setup 1D concentration and grid arrays
-      c(1:kbm1) = FABM_ALL(I,1:KBM1,IFABM)
-      dx(1:kbm1) = DZ(I,1:KBM1)*D(I)
+          !setup 1D concentration and grid arrays
+          C(1:kbm1) = FABM_ALL(I,1:KBM1,IFABM)
+          DX(1:kbm1) = DZ(I,1:KBM1)*D(I)
       
 
       !set up cycles (use max(CFL) == 1)
       DTmax = Settle_CFL*minval(DX(1:KBM1)/w_ct(I,1:KBM1,IFABM))
       mcyc = int(DELTA_T/DTmax + 1. - eps)
       DTdep = DELTA_T/float(mcyc)
-
+         write (*,*) 'In FABM vertical with Mcyc and DTdep ',mcyc,DTdep
       !call flux-limited settling equation
       do ncyc = 1,mcyc
           call SETTLE_FLUX_FABM(KBM1,C,DX,w_ct(I,1:KBM1,IFABM),flux,DTdep)
@@ -423,7 +421,7 @@ END SUBROUTINE FABM_SOURCES
        FABM_ALL(I,1:KBM1,IFABM) = C(1:KBM1)
 
       !store depositional flux
-!      sed(ised)%dflx(i) = flux 
+         write (*,*) 'In FABM vertical, depositional flux', flux 
          END DO
 #  if defined (WET_DRY)
       ! no calculation when dry nodes
@@ -461,8 +459,11 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,flux,deltat)
   !bottom bcs (extrapolate)
   cin(n+1) = cin(n) 
   cin(n+2) = cin(n)
-  win(n+1) = win(n)
-  win(n+2) = win(n)
+  ! RJT Zero settling velocity at the bottom?
+    win(n+1) = 0.0_SP
+    win(n+2) = 0.0_SP  
+!  win(n+1) = win(n) In original code uncommented
+!  win(n+2) = win(n) In original code uncommented
 
   !flux computation
   do i=1,n+1
@@ -474,6 +475,7 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,flux,deltat)
 
   !zero out surface flux
   conv(1) = 0. ; diss(1) = 0.
+  ! Could also do zero out bottom? RJT
 
   !update
   do i=1,n
