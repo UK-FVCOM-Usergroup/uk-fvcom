@@ -214,10 +214,12 @@ SUBROUTINE FABM_UPDATE
      CALL FABM_SOURCES(DTI)  ! This operates on FABM_ALL
     !     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
+# if defined (ONE_D_MODEL)
+! vertical velocities added in FABM_ADV. Below is only used if model run in 1D
      CALL CALC_VERTICAL_MOVEMENT(DTI)
 !     CALL FABM_VERTICAL_MOVEMENT(DTI)
     !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
-
+# endif
 # if !defined (ONE_D_MODEL)
      CALL FABM_ADV  ! This operates on FABM_F
     !     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
@@ -433,7 +435,8 @@ END SUBROUTINE FABM_SOURCES
   End Subroutine CALC_VERTICAL_MOVEMENT
 
 Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,flux,deltat) 
-  implicit none
+    use mod_utils, only : LIMLED2
+    implicit none
   integer , intent(in   ) :: n
 	  real(sp), intent(inout) ::  c(n)
 	  real(sp), intent(in   ) :: dx(n)
@@ -802,6 +805,10 @@ END SUBROUTINE FABM_MIXING
 # endif
 
   IMPLICIT NONE
+! addition to include FABM vertical velocities to WTS - RJT2015
+  REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
+  REAL(SP), DIMENSION(MT,KB) :: W_FABM
+! RJT2015
   REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables))  :: XFLUX,XFLUX_ADV 
   REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY  
   REAL(SP), DIMENSION(M)           :: PFPX,PFPY,PFPXD,PFPYD,VISCOFF
@@ -894,12 +901,20 @@ END SUBROUTINE FABM_MIXING
      END DO
   END DO
 
+! addition to include FABM vertical velocities to WTS - RJT2015
+  ! calculate the vertical sedimentation of FABM variables
+     ! Get vertical velocities at layer centers
+     DO K=1,KBM1
+        CALL fabm_get_vertical_movement(model,1,M,K,w_ct(:,K,:))
+     END DO
+
   !
   !--Calculate the Advection and Horizontal Diffusion Terms----------------------!
   !
 
  DO IFABM=1,size(model%state_variables)
   DO K=1,KBM1
+
      PFPX  = 0.0_SP
      PFPY  = 0.0_SP
      PFPXD = 0.0_SP
@@ -1044,6 +1059,15 @@ END SUBROUTINE FABM_MIXING
  END DO
 
  DO IFABM=1,size(model%state_variables)
+  
+! RJT2015 Initialize W_FABM velocities
+  W_FABM=0._SP
+  DO I=1,M
+        ! Linearly interpolate to velocities at the interfaces between layers
+         ! TODO: account for differences in layer heights (now we simply use the unweighted average of center velocities)
+         W_FABM(I,1:KBM1-1) = (w_ct(I,1:KBM1-1,IFABM)+w_ct(I,2:KBM1,IFABM))/2
+  END DO
+  W_FABM = WTS - W_FABM
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
   !
 # if defined (MPDATA)
@@ -1121,18 +1145,19 @@ END SUBROUTINE FABM_MIXING
 #    if defined (WET_DRY)
         IF(ISWETN(I)*ISWETNT(I) == 1) THEN
 #    endif
+
            IF(K == 1) THEN
-              TEMP = -(WTS(I,K+1)-ABS(WTS(I,K+1)))*FABM_ALL(I,K,IFABM)   &
-                   -(WTS(I,K+1)+ABS(WTS(I,K+1)))*FABM_ALL(I,K+1,IFABM) &
-                   +(WTS(I,K)+ABS(WTS(I,K)))*FABM_ALL(I,K,IFABM)    
+              TEMP = -(W_FABM(I,K+1)-ABS(W_FABM(I,K+1)))*FABM_ALL(I,K,IFABM)   &
+                   -(W_FABM(I,K+1)+ABS(W_FABM(I,K+1)))*FABM_ALL(I,K+1,IFABM) &
+                   +(W_FABM(I,K)+ABS(W_FABM(I,K)))*FABM_ALL(I,K,IFABM)    
            ELSE IF(K == KBM1) THEN
-              TEMP = +(WTS(I,K)-ABS(WTS(I,K)))*FABM_ALL(I,K-1,IFABM)     &
-                   +(WTS(I,K)+ABS(WTS(I,K)))*FABM_ALL(I,K,IFABM)
+              TEMP = +(W_FABM(I,K)-ABS(W_FABM(I,K)))*FABM_ALL(I,K-1,IFABM)     &
+                   +(W_FABM(I,K)+ABS(W_FABM(I,K)))*FABM_ALL(I,K,IFABM)
            ELSE
-              TEMP = -(WTS(I,K+1)-ABS(WTS(I,K+1)))*FABM_ALL(I,K,IFABM)   &
-                   -(WTS(I,K+1)+ABS(WTS(I,K+1)))*FABM_ALL(I,K+1,IFABM) &
-                   +(WTS(I,K)-ABS(WTS(I,K)))*FABM_ALL(I,K-1,IFABM)     &
-                   +(WTS(I,K)+ABS(WTS(I,K)))*FABM_ALL(I,K,IFABM)
+              TEMP = -(W_FABM(I,K+1)-ABS(W_FABM(I,K+1)))*FABM_ALL(I,K,IFABM)   &
+                   -(W_FABM(I,K+1)+ABS(W_FABM(I,K+1)))*FABM_ALL(I,K+1,IFABM) &
+                   +(W_FABM(I,K)-ABS(W_FABM(I,K)))*FABM_ALL(I,K-1,IFABM)     &
+                   +(W_FABM(I,K)+ABS(W_FABM(I,K)))*FABM_ALL(I,K,IFABM)
            END IF
            TEMP = 0.5_SP*TEMP 
 
@@ -1172,7 +1197,7 @@ END SUBROUTINE FABM_MIXING
   NTERA = 4
   DO ITERA=1,NTERA   !! Smolaricizw Loop 
      IF(ITERA == 1)THEN
-        WWWSF  = WTS
+        WWWSF  = W_FABM
         WQM_S   = WQM_SF
         DTWWWS = DT
      ELSE
@@ -1301,13 +1326,13 @@ END SUBROUTINE FABM_MIXING
         DO K=1, KBM1
 
            IF(K == 1) THEN
-              TEMP=-WTS(I,K+1)*(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/   &
+              TEMP=-W_FABM(I,K+1)*(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/   &
                    (DZ(I,K)+DZ(I,K+1))
            ELSE IF(K == KBM1) THEN
-              TEMP= WTS(I,K)*(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))
+              TEMP= W_FABM(I,K)*(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))
            ELSE
-              TEMP= WTS(I,K)*(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))-&
-                   WTS(I,K+1)*(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K+1))
+              TEMP= W_FABM(I,K)*(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))-&
+                   W_FABM(I,K+1)*(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K+1))
            END IF
 
 !
