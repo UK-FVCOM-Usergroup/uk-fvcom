@@ -408,9 +408,10 @@ END SUBROUTINE FABM_SOURCES
       
 
       !set up cycles (use max(CFL) == 1)
-      DTmax = Settle_CFL*minval(DX(1:KBM1)/w_ct(I,1:KBM1,IFABM))
+      DTmax = Settle_CFL*minval(ABS(DX(1:KBM1)/w_ct(I,1:KBM1,IFABM)))
       mcyc = int(DELTA_T/DTmax + 1. - eps)
       DTdep = DELTA_T/float(mcyc)
+         write (*,*) 'In FABM vertical with w_ct ',w_ct(I,1:KBM1,IFABM)
          write (*,*) 'In FABM vertical with Mcyc and DTdep ',mcyc,DTdep
       !call flux-limited settling equation
       do ncyc = 1,mcyc
