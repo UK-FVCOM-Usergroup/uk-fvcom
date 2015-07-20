@@ -213,15 +213,17 @@ SUBROUTINE FABM_UPDATE
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI)  ! This operates on FABM_ALL
     !     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
-
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
 # if defined (ONE_D_MODEL)
 ! vertical velocities added in FABM_ADV. Below is only used if model run in 1D
      CALL CALC_VERTICAL_MOVEMENT(DTI)
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
 !     CALL FABM_VERTICAL_MOVEMENT(DTI)
     !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # endif
 # if !defined (ONE_D_MODEL)
      CALL FABM_ADV  ! This operates on FABM_F
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
     !     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 
 #   if defined (MULTIPROCESSOR)
@@ -238,9 +240,11 @@ SUBROUTINE FABM_UPDATE
      ! Vertical mixing
 # if !defined (ONE_D_MODEL)
      CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_MIXING')
     !     write (*,*) 'after FABM_MIXING ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 # else
      CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_MIXING')
     !     write (*,*) 'after FABM_MIXING ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # endif
 
@@ -383,14 +387,13 @@ END SUBROUTINE FABM_SOURCES
      INTEGER  :: mcyc,ncyc
      REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
      REAL(SP), DIMENSION(KBM1) :: C,DX
-     REAL(SP) :: eps,flux,DTmax,DTdep
-     REAL(SP),PARAMETER ::SETTLE_CFL = 1.0
+     REAL(SP) :: eps,DTmax,DTdep
+     REAL(SP),PARAMETER ::SETTLE_CFL = 1.0_SP
 
      ! Get vertical velocities at layer centers
      DO K=1,KBM1
         CALL fabm_get_vertical_movement(model,1,M,K,w_ct(:,K,:))
      END DO
-
 
   eps = epsilon(eps)
   !Loop over Horizontal Domain       
@@ -401,8 +404,6 @@ END SUBROUTINE FABM_SOURCES
 #  endif
   !Loop over FABM variables       
          DO IFABM=1,SIZE(model%state_variables)
-          !initialize flux
-          flux = 0.0
 
           !setup 1D concentration and grid arrays
           C(1:kbm1) = FABM_ALL(I,1:KBM1,IFABM)
@@ -410,21 +411,19 @@ END SUBROUTINE FABM_SOURCES
       
 
       !set up cycles (use max(CFL) == 1)
-      DTmax = Settle_CFL*minval(ABS(DX(1:KBM1)/w_ct(I,1:KBM1,IFABM)))
+      DTmax = Settle_CFL*minval(ABS(DX(1:KBM1)/w_c(1:KBM1,IFABM)))
       mcyc = int(DELTA_T/DTmax + 1. - eps)
       DTdep = DELTA_T/float(mcyc)
          write (*,*) 'In FABM vertical with w_ct ',w_ct(I,1:KBM1,IFABM)
          write (*,*) 'In FABM vertical with Mcyc and DTdep ',mcyc,DTdep
       !call flux-limited settling equation
       do ncyc = 1,mcyc
-          call SETTLE_FLUX_FABM(KBM1,C,DX,w_ct(I,1:KBM1,IFABM),flux,DTdep)
+          call SETTLE_FLUX_FABM(KBM1,C,DX,w_ct(I,1:KBM1,IFABM),DTdep)
       end do
 
       !store solution in 3D array
        FABM_ALL(I,1:KBM1,IFABM) = C(1:KBM1)
 
-      !store depositional flux
-         write (*,*) 'In FABM vertical, depositional flux', flux 
          END DO
 #  if defined (WET_DRY)
       ! no calculation when dry nodes
@@ -434,60 +433,59 @@ END SUBROUTINE FABM_SOURCES
      END DO
   End Subroutine CALC_VERTICAL_MOVEMENT
 
-Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,flux,deltat) 
+Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat) 
+! Adapted from mod_scal Calc_VFlux
+! Uses sigma layers velocities rather than interface velocities
+! Interface velocities are linearly interpolated here
     use mod_utils, only : LIMLED2
     implicit none
   integer , intent(in   ) :: n
 	  real(sp), intent(inout) ::  c(n)
 	  real(sp), intent(in   ) :: dx(n)
 	  real(sp), intent(in   ) :: wset(n)
-	  real(sp), intent(inout) :: flux 
 	  real(sp), intent(in   ) :: deltat 
 	  real(sp) :: conv(n+1),diss(n+1)
-	  real(sp) :: cin(-1:n+2)
-	  real(sp) :: win(-1:n+2)
-	  real(sp) :: dis4,wvel
+	  real(sp) :: cin(0:n+1)
+	  real(sp) :: win(0:n+1)
+	  real(sp) :: dis4,wvel,sl_u,sl_f
+          real(sp) :: sl_h(0:n+1)
   integer  :: i
 
 
   !transfer to working array
   cin(1:n) = c(1:n)
   win(1:n) = wset(1:n) 
+  sl_h(1:n) = dx(1:n)
 
   !surface bcs (no flux)
   cin(0)  =  -cin(1) 
-  cin(-1) =  -cin(1)
-  win(0)  =  -wset(1)
-  win(-1) =  -wset(1)
+  sl_h(0) = dx(1)
 
   !bottom bcs (extrapolate)
-  cin(n+1) = cin(n) 
-  cin(n+2) = cin(n)
-  ! RJT Zero settling velocity at the bottom?
-    win(n+1) = 0.0_SP
-    win(n+2) = 0.0_SP  
-!  win(n+1) = win(n) In original code uncommented
-!  win(n+2) = win(n) In original code uncommented
+  cin(n+1) = -cin(n) 
+  sl_h(n+1) = dx(n)
 
   !flux computation
-  do i=1,n+1
+  do i=2,n
     wvel    = .5*(win(i)+win(i-1))  !settle velocity at interface
     dis4    = wvel/2.
+    sl_u = 2.0_SP*(cin(i)-cin(n+1))/(dx(i)+dx(i+1))
+    sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(dx(i-2)+dx(i-1))
     conv(i) = wvel*(cin(i)+cin(i-1))/2. 
-    diss(i) = dis4*(cin(i)-cin(i-1)-lim(cin(i+1)-cin(i),cin(i-1)-cin(i-2))) 
+    diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(dx(i-1)+dx(i))) 
+!    diss(i) = dis4*(cin(i)-cin(i-1)-lim(cin(i+1)-cin(i),cin(i-1)-cin(i-2))) 
   end do
 
   !zero out surface flux
-  conv(1) = 0. ; diss(1) = 0.
-  ! Could also do zero out bottom? RJT
+  conv(1) = 0.0_SP ; diss(1) = 0.0_SP
+  ! zero out bottom flux
+  conv(n+1) = 0.0_SP
+  diss(n+1) = 0.0_SP
 
   !update
   do i=1,n
     c(i) = cin(i) + (deltat/dx(i))*(-conv(i+1)+conv(i) + diss(i+1)-diss(i)) 
   end do
-
-  !set bottom flux (> 0 = deposition)
-  flux = flux + deltat*(conv(n+1)-diss(n+1))
 
 
  End Subroutine SETTLE_FLUX_FABM
