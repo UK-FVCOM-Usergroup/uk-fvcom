@@ -482,7 +482,6 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 	  real(sp), intent(in   ) :: deltat 
 	  real(sp) :: conv(n+1),diss(n+1)
 	  real(sp) :: cin(0:n+1)
-	  real(sp) :: win(0:n+1)
 	  real(sp) :: dis4,wvel,sl_u,sl_f
           real(sp) :: sl_h(0:n+1)
   integer  :: i
@@ -491,20 +490,19 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 
   !transfer to working array
   cin(1:n) = c(1:n)
-  win(1:n) = wset(1:n) 
-  sl_h(1:n) = dx(1:n)
+  !sl_h(1:n) = dx(1:n)
 
-  !surface bcs (no flux)
+  !surface bcs (no flux - to achieve that, make sure mean of cin(1) and cin(0) is zero)
   cin(0)  =  -cin(1) 
-  sl_h(0) = dx(1)
+  !sl_h(0) = dx(1)
 
-  !bottom bcs (extrapolate)
+  !bottom bcs (no flux - to achieve that, make sure mean of cin(n) and cin(n+1) is zero)
   cin(n+1) = -cin(n) 
-  sl_h(n+1) = dx(n)
+  !sl_h(n+1) = dx(n)
 
   !flux computation
   do i=2,n
-    wvel    = .5*(win(i)+win(i-1))  !settle velocity at interface
+    wvel    = .5*(wset(i)+wset(i-1))  !settle velocity at interface
     dis4    = wvel/2.
     sl_u = 2.0_SP*(cin(i)-cin(i+1))/(sl_h(i)+sl_h(i+1))
     sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(sl_h(i-2)+sl_h(i-1))
