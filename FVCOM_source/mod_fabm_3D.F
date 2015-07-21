@@ -490,15 +490,15 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 
   !transfer to working array
   cin(1:n) = c(1:n)
-  !sl_h(1:n) = dx(1:n)
+  sl_h(1:n) = dx(1:n)
 
   !surface bcs (no flux - to achieve that, make sure mean of cin(1) and cin(0) is zero)
   cin(0)  =  -cin(1) 
-  !sl_h(0) = dx(1)
+  sl_h(0) = dx(1)
 
   !bottom bcs (no flux - to achieve that, make sure mean of cin(n) and cin(n+1) is zero)
   cin(n+1) = -cin(n) 
-  !sl_h(n+1) = dx(n)
+  sl_h(n+1) = dx(n)
 
   !flux computation
   do i=2,n
