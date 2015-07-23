@@ -466,10 +466,10 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
   do i=2,n
     wvel    = .5*(win(i)+win(i-1))  !settle velocity at interface
     dis4    = wvel/2.
-    sl_u = 2.0_SP*(cin(i)-cin(i+1))/(dx(i)+dx(i+1))
-    sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(dx(i-2)+dx(i-1))
+    sl_u = 2.0_SP*(cin(i)-cin(i+1))/(sl_h(i)+sl_h(i+1))
+    sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(sl_h(i-2)+sl_h(i-1))
     conv(i) = wvel*(cin(i)+cin(i-1))/2. 
-    diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(dx(i-1)+dx(i))) 
+    diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(sl_h(i-1)+sl_h(i))) 
 !    diss(i) = dis4*(cin(i)-cin(i-1)-lim(cin(i+1)-cin(i),cin(i-1)-cin(i-2))) 
   end do
 
@@ -481,7 +481,7 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 
   !update
   do i=1,n
-    c(i) = cin(i) + (deltat/dx(i))*(-conv(i+1)+conv(i) + diss(i+1)-diss(i)) 
+    c(i) = cin(i) + (deltat/sl_h(i))*(-conv(i+1)+conv(i) + diss(i+1)-diss(i)) 
   end do
 
 
