@@ -229,7 +229,7 @@ SUBROUTINE FABM_UPDATE
      END DO
 #   endif
 
-!    IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_S       !Conservation Correction   !
+    IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
 
 # endif
 ! end if defined 1D
@@ -466,7 +466,7 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
   do i=2,n
     wvel    = .5*(win(i)+win(i-1))  !settle velocity at interface
     dis4    = wvel/2.
-    sl_u = 2.0_SP*(cin(i)-cin(n+1))/(dx(i)+dx(i+1))
+    sl_u = 2.0_SP*(cin(i)-cin(i+1))/(dx(i)+dx(i+1))
     sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(dx(i-2)+dx(i-1))
     conv(i) = wvel*(cin(i)+cin(i-1))/2. 
     diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(dx(i-1)+dx(i))) 
@@ -1605,6 +1605,90 @@ END SUBROUTINE FABM_ADV
   lim = .5*(1-R)*(a+b)
 
   END FUNCTION Lim
+
+SUBROUTINE FCT_FABM
+!==============================================================================|
+!  FLUX CONTROL FOR FABM variables                                                        |
+!==============================================================================|
+  !#  if defined (WET_DRY)
+
+  !==============================================================================|
+  USE BCS
+  USE MOD_OBCS
+  IMPLICIT NONE
+  REAL(SP):: FMAX,FMIN
+  INTEGER :: I,J,K,K1
+  INTEGER :: IFABM
+!==============================================================================|
+
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: fct_FABM"
+
+  fabm: DO IFABM=1,size(model%state_variables)
+   nodes: DO I=1,M
+
+     ! SKIP OPEN BOUNDARY NODES
+     IF(IOBCN > 0)THEN
+        DO J=1,IOBCN
+           IF(I == I_OBC_N(J)) CYCLE nodes
+        END DO
+     END IF
+
+     ! SKIP RIVER INFLOW POINTS
+     IF(NUMQBC > 0)THEN
+        DO J=1,NUMQBC
+           IF(RIVER_INFLOW_LOCATION == 'node')THEN
+              IF(I == INODEQ(J)) CYCLE nodes
+           END IF
+           IF(RIVER_INFLOW_LOCATION == 'edge')THEN
+              IF(I == N_ICELLQ(J,1) .OR. I == N_ICELLQ(J,2)) CYCLE nodes
+           END IF
+        END DO
+     END IF
+
+     ! SKIP GROUND WATER INFLOW POINTS
+     IF(BFWDIS(I) .GT. 0.0_SP .and. GROUNDWATER_SALT_ON) CYCLE nodes
+
+     K1 = 1
+     IF(PRECIPITATION_ON) K1 = 2
+!     DO K=1,KBM1
+     DO K=K1,KBM1
+        FMAX = MAXVAL(FABM_ALL(NBSN(I,1:NTSN(I)),K,IFABM))
+        FMIN = MINVAL(FABM_ALL(NBSN(I,1:NTSN(I)),K,IFABM))
+
+        IF(K == 1)THEN
+           FMAX = MAX(FMAX,(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/  &
+                (DZ(I,K)+DZ(I,K+1)))
+           FMIN = MIN(FMIN,(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/  &
+                (DZ(I,K)+DZ(I,K+1)))
+        ELSE IF(K == KBM1)THEN
+           FMAX = MAX(FMAX,(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/  &
+                (DZ(I,K)+DZ(I,K-1)))
+           FMIN = MIN(FMIN,(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/  &
+                (DZ(I,K)+DZ(I,K-1)))
+        ELSE
+           FMAX = MAX(FMAX,(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/  &
+                (DZ(I,K)+DZ(I,K-1)),                             &
+                (FABM_ALL(I,K)*DZ(I,K+1,IFABM)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/           &
+                (DZ(I,K)+DZ(I,K+1)))
+           FMIN = MIN(FMIN,(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/  &
+                (DZ(I,K)+DZ(I,K-1)),                             &
+                (FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/           &
+                (DZ(I,K)+DZ(I,K+1)))
+        END IF
+
+        IF(FMIN-FABM_F(I,K,IFABM) > 0.0_SP)FABM_F(I,K,IFABM) = FMIN
+        IF(FABM_F(I,K,IFABM)-FMAX > 0.0_SP)FABM_F(I,K,IFABM) = FMAX
+
+     END DO
+   END DO nodes
+  END DO fabm
+
+!  WHERE(SF1 < 0.0_SP)SF1=0.0_SP TRying to avoid brute force clipping...
+  
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: fct_fabm"
+  !#  endif
+END SUBROUTINE FCT_FABM
+!==============================================================================|
 
 # endif
 
