@@ -214,9 +214,10 @@ SUBROUTINE FABM_UPDATE
      CALL FABM_SOURCES(DTI)  ! This operates on FABM_ALL
     !     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
-     CALL CALC_VERTICAL_MOVEMENT(DTI)
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
-!     CALL FABM_VERTICAL_MOVEMENT(DTI)
+!     CALL CALC_VERTICAL_MOVEMENT(DTI)
+!     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
+     CALL FABM_VERTICAL_MOVEMENT(DTI)
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_VERTICAL_MOVEMENT')
     !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # if !defined (ONE_D_MODEL)
      CALL FABM_ADV  ! This operates on FABM_F
