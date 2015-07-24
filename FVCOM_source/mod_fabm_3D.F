@@ -220,6 +220,8 @@ SUBROUTINE FABM_UPDATE
     !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # if !defined (ONE_D_MODEL)
      CALL FABM_ADV  ! This operates on FABM_F
+    IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
+
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
     !     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 
@@ -229,7 +231,6 @@ SUBROUTINE FABM_UPDATE
      END DO
 #   endif
 
-    IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
 
 # endif
 ! end if defined 1D
@@ -323,6 +324,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: SMS_SF
      REAL(SP), DIMENSION(M)                                     :: DUMMY
 
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_SOURCES :"
+
      CALL PREPARE_ENVIRONMENT
 
      ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
@@ -386,6 +389,7 @@ END SUBROUTINE FABM_SOURCES
      REAL(SP), DIMENSION(KBM1) :: C,DX
      REAL(SP) :: eps,DTmax,DTdep
      REAL(SP),PARAMETER ::SETTLE_CFL = 1.0_SP
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: CALC_VERTICAL_MOVEMENT :"
 
      ! Get vertical velocities at layer centers
      DO K=1,KBM1
@@ -428,6 +432,7 @@ END SUBROUTINE FABM_SOURCES
 #  endif
 
      END DO
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: CALC_VERTICAL_MOVEMENT :"
   End Subroutine CALC_VERTICAL_MOVEMENT
 
 Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat) 
@@ -448,6 +453,7 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
           real(sp) :: sl_h(0:n+1)
   integer  :: i
 
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: SETTLE_FLUX_FABM :"
 
   !transfer to working array
   cin(1:n) = c(1:n)
@@ -484,6 +490,7 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
     c(i) = cin(i) + (deltat/sl_h(i))*(-conv(i+1)+conv(i) + diss(i+1)-diss(i)) 
   end do
 
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: SETTLE_FLUX_FABM :"
 
  End Subroutine SETTLE_FLUX_FABM
 
@@ -495,6 +502,8 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
      REAL(SP), DIMENSION(KBM1-1,size(model%state_variables)) :: w_if, flux_if
      REAL(SP), DIMENSION(KBM1,  size(model%state_variables)) :: flux_ct
      REAL(SP), PARAMETER :: epsilon_w = 1e-7_SP
+
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_VERTICAL_MOVEMENT :"
 
      ! Get vertical velocities at layer centers
      DO K=1,KBM1
@@ -535,6 +544,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
       END IF
 #  endif
    END DO  ! I=1:M
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_VERTICAL_MOVEMENT :"
 END SUBROUTINE FABM_VERTICAL_MOVEMENT
 
 SUBROUTINE FABM_EXCHANGE(F)
@@ -545,6 +555,8 @@ SUBROUTINE FABM_EXCHANGE(F)
      INTEGER :: IFABM
      REAL(SP),ALLOCATABLE :: F_T(:,:)
 
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_EXCHANGE :"
+
      ALLOCATE(F_T(0:MT,KB))
      DO IFABM=1,size(model%state_variables)
         F_T(:,:)  = F(:,:,IFABM)
@@ -552,6 +564,8 @@ SUBROUTINE FABM_EXCHANGE(F)
         F(:,:,IFABM)  = F_T(:,:)  
      END DO 
      DEALLOCATE(F_T)
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_EXCHANGE :"
+
 #endif
   END SUBROUTINE FABM_EXCHANGE
 
@@ -1432,6 +1446,8 @@ END SUBROUTINE FABM_ADV
    INTEGER  :: I,J,K,J1,J11,J22,NCON2,IFABM
    REAL(SP) ::WQMMAX,WQMMIN
 
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_BCOND :"
+
 !   ALLOCATE(WDIS(NUMQBC,ntt))     ;WDIS      = ZERO
 !------------------------------------------------------------------------------|
 
@@ -1570,6 +1586,8 @@ END SUBROUTINE FABM_ADV
 !--SET BOUNDARY CONDITIONS-----------------------------------------------------|
 !
        FABM_ALL(0,:,:)=ZERO ! don't know what this is doing here
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_BCOND :"
+
    RETURN
 
   END SUBROUTINE FABM_BCOND
@@ -1668,7 +1686,7 @@ SUBROUTINE FCT_FABM
         ELSE
            FMAX = MAX(FMAX,(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/  &
                 (DZ(I,K)+DZ(I,K-1)),                             &
-                (FABM_ALL(I,K)*DZ(I,K+1,IFABM)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/           &
+                (FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/           &
                 (DZ(I,K)+DZ(I,K+1)))
            FMIN = MIN(FMIN,(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/  &
                 (DZ(I,K)+DZ(I,K-1)),                             &
