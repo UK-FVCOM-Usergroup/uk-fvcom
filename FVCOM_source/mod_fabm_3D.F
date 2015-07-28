@@ -303,13 +303,16 @@ SUBROUTINE CHECK_CONSERVATION()
         TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*ART1(1:M)))
      END DO
 
-     IF(PAR) THEN
+! changes needed for serial runs
+#   if defined (MULTIPROCESSOR) 
+!     IF(PAR) THEN
         ! NB: similar to logic in mod_report
         CALL MPI_REDUCE(TOTALS_LOC,FABM_TOTALS,SIZE(TOTALS_LOC),MPI_DP,MPI_SUM,MSRID-1,MPI_FVCOM_GROUP,IERR)
-     ELSE
+!     ELSE
+# else
         FABM_TOTALS = TOTALS_LOC
-     END IF
-
+!     END IF
+# endif
      IF(MSR) THEN
         DO IFABM=1,SIZE(model%conserved_quantities)
            WRITE (IPT,'(A,E15.7,A)') 'Domain integral of '//TRIM(model%conserved_quantities(IFABM)%name),FABM_TOTALS(IFABM),' '//TRIM(model%conserved_quantities(IFABM)%units)//'*m3'
