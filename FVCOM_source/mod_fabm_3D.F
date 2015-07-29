@@ -177,9 +177,6 @@ CONTAINS
 
    SUBROUTINE FABM_INITIAL()
       INTEGER :: K
-      REAL(SP), DIMENSION(M,size(model%state_variables))         :: DUMMY
-      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: DUMMY_BT
-      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: DUMMY_SF
 
       IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIAL called before FABM_ALLOCATE")
 
@@ -191,6 +188,13 @@ CONTAINS
       DO K=1,KBM1
         CALL fabm_initialize_state(model,1,M,K)
       END DO
+   END SUBROUTINE FABM_INITIAL
+
+   SUBROUTINE FABM_INITIAL_DIAG()
+      INTEGER :: K
+      REAL(SP), DIMENSION(M,size(model%state_variables))         :: DUMMY
+      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: DUMMY_BT
+      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: DUMMY_SF
 
       ! Initialize all diagnostics
       call fabm_do_surface(model,1,M,1,   DUMMY,DUMMY_SF)
@@ -201,7 +205,7 @@ CONTAINS
 
       ! Compute initial value of conserved quantity integrals
       CALL CHECK_CONSERVATION
-   END SUBROUTINE FABM_INITIAL
+   END SUBROUTINE FABM_INITIAL_DIAG
 
 SUBROUTINE FABM_UPDATE
      USE MOD_PAR
