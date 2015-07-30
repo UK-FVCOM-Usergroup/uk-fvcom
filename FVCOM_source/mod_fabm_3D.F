@@ -44,12 +44,14 @@ CONTAINS
 
    SUBROUTINE FABM_ALLOCATE()
     INTEGER :: IFABM
+    INTEGER, DIMENSION(M)  :: DUMMY
 
+    DUMMY=1
     ! Tell FABM about the extents of the spatial domain.
     call fabm_set_domain(model,M,KB)
 
     ! Provide FABM with pointer to the mask.
-    call fabm_set_mask(model,ISWETN(1:M))
+    call fabm_set_mask(model,DUMMY(1:M))
 
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
@@ -177,8 +179,13 @@ CONTAINS
 
    SUBROUTINE FABM_INITIAL()
       INTEGER :: K
+      INTEGER, DIMENSION(M)  :: DUMMY
+
+      DUMMY=1
 
       IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIAL called before FABM_ALLOCATE")
+    ! Provide FABM with pointer to the dummy mask.
+      call fabm_set_mask(model,DUMMY(1:M))
 
       CALL PREPARE_ENVIRONMENT
 
@@ -188,6 +195,10 @@ CONTAINS
       DO K=1,KBM1
         CALL fabm_initialize_state(model,1,M,K)
       END DO
+
+    ! Provide FABM with pointer to the real mask.
+      call fabm_set_mask(model,ISWETN(1:M))
+
    END SUBROUTINE FABM_INITIAL
 
    SUBROUTINE FABM_INITIAL_DIAG()
@@ -195,6 +206,9 @@ CONTAINS
       REAL(SP), DIMENSION(M,size(model%state_variables))         :: DUMMY
       REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: DUMMY_BT
       REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: DUMMY_SF
+      INTEGER, DIMENSION(M)  :: DUMMY_MSK
+
+      DUMMY_MSK=1
 
       ! Initialize all diagnostics
       call fabm_do_surface(model,1,M,1,   DUMMY,DUMMY_SF)
@@ -204,13 +218,20 @@ CONTAINS
       END DO
 
       ! Compute initial value of conserved quantity integrals
+    ! Provide FABM with pointer to the dummy mask.
+      call fabm_set_mask(model,DUMMY_MSK(1:M))
       CALL CHECK_CONSERVATION
+    ! Provide FABM with pointer to the real mask.
+      call fabm_set_mask(model,ISWETN(1:M))
    END SUBROUTINE FABM_INITIAL_DIAG
 
 SUBROUTINE FABM_UPDATE
      USE MOD_PAR
 
      INTEGER :: IFABM
+     INTEGER, DIMENSION(M)  :: DUMMY_MSK
+
+      DUMMY_MSK=1
 
     !     write (*,*) 'at timestep start ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
@@ -268,7 +289,12 @@ SUBROUTINE FABM_UPDATE
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
 # endif
 
-     CALL CHECK_CONSERVATION
+      ! Compute initial value of conserved quantity integrals
+    ! Provide FABM with pointer to the dummy mask.
+      call fabm_set_mask(model,DUMMY_MSK(1:M))
+      CALL CHECK_CONSERVATION
+    ! Provide FABM with pointer to the real mask.
+      call fabm_set_mask(model,ISWETN(1:M))
 END SUBROUTINE FABM_UPDATE
 
 FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
