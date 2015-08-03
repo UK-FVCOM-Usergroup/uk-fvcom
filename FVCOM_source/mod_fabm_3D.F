@@ -206,6 +206,8 @@ CONTAINS
       REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: DUMMY_BT
       REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: DUMMY_SF
 
+      CALL PREPARE_ENVIRONMENT
+
       ! Initialize all diagnostics
       call fabm_do_surface(model,1,M,1,   DUMMY,DUMMY_SF)
       call fabm_do_bottom (model,1,M,KBM1,DUMMY,DUMMY_BT)
