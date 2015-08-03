@@ -527,7 +527,7 @@
 !
 !     MMT     input    number of frequency points
 !
-      INTEGER   MMT
+      INTEGER, INTENT(IN)::   MMT
 !
 !     CG      output   group velocity
 !     D       input    local depth
@@ -537,8 +537,8 @@
 !     SIG     input    rel. frequency for which wave parameters
 !                      must be determined
 !
-      REAL      CG(MMT), D,                                    &
-                K(MMT), N(MMT), ND(MMT), SIG(MMT)
+      REAL, INTENT(OUT)::     CG(MMT), K(MMT), N(MMT), ND(MMT)
+      REAL, INTENT(IN) :: D,SIG(MMT)
 !
 !  6. Local variables
 !
