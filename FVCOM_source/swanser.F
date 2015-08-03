@@ -554,7 +554,7 @@
 !     SND       dimensionless frequency
 !     SND2      = SND*SND
 !
-      INTEGER   IENT, IS
+      INTEGER   IENT
       REAL      KND, ROOTDG, SND, WGD, SND2, C, FAC1, FAC2, FAC3
 !
 !  8. Subroutines used
@@ -599,37 +599,37 @@
 !
     ROOTDG = SQRT(D/GRAV_W)                                               
     WGD    = ROOTDG*GRAV_W                                                
-    DO IS = 1, MMT
+
 !     SND is dimensionless frequency
-      SND = SIG(IS) * ROOTDG
+      SND = SIG * ROOTDG
       IF(SND >= 2.5)THEN
 !     ******* deep water *******
-        K(IS)  = SIG(IS) * SIG(IS) / GRAV_W                               
-        CG(IS) = 0.5 * GRAV_W / SIG(IS)                                   
-        N(IS)  = 0.5
-        ND(IS) = 0.
+        K  = SIG * SIG / GRAV_W                               
+        CG = 0.5 * GRAV_W / SIG                                  
+        N  = 0.5
+        ND = 0.
       ELSE IF(SND < 1.E-6)THEN
 !     *** very shallow water ***  
 !        print*,'IN VERY SHALLOW WATER'
 !	stop                                      
-        K(IS)  = SND/D                                                  
-        CG(IS) = WGD
-        N(IS)  = 1.
-        ND(IS) = 0.
+        K  = SND/D                                                  
+        CG = WGD
+        N  = 1.
+        ND = 0.
       ELSE
         SND2  = SND*SND                                                 
         C     = SQRT(GRAV_W*D/(SND2+1./(1.+0.666*SND2+0.445*SND2**2      &
 	        -0.105*SND2**3+0.272*SND2**4)))   
-        K(IS) = SIG(IS)/C                                               
-        KND   = K(IS)*D                                                 
+        K = SIG/C                                               
+        KND   = K*D                                                 
         FAC1  = 2.*KND/SINH(2.*KND)                                     
-        N(IS) = 0.5*(1.+FAC1)                                           
-        CG(IS)= N(IS)*C                                                 
+        N = 0.5*(1.+FAC1)                                           
+        CG= N*C                                                 
         FAC2  = SND2/KND                                                
         FAC3  = 2.*FAC2/(1.+FAC2*FAC2)                                  
-        ND(IS)= FAC1*(0.5/D - K(IS)/FAC3)                               
+        ND= FAC1*(0.5/D - K/FAC3)                               
       ENDIF
-    END DO  
+  
 
     RETURN
     END SUBROUTINE KSCIP1
