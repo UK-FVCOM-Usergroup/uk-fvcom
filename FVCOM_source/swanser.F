@@ -537,6 +537,153 @@
 !     SIG     input    rel. frequency for which wave parameters
 !                      must be determined
 !
+      REAL, INTENT(OUT)::     CG, K, N, ND
+      REAL, INTENT(IN) :: D,SIG
+!
+!  6. Local variables
+!
+!     C         phase velocity
+!     FAC1      auxiliary factor
+!     FAC2      auxiliary factor
+!     FAC3      auxiliary factor
+!     IENT      number of entries
+!     IS        counter in frequency (sigma-space)
+!     KND       dimensionless wave number
+!     ROOTDG    square root of D/GRAV
+!     WGD       square root of GRAV*D
+!     SND       dimensionless frequency
+!     SND2      = SND*SND
+!
+      INTEGER   IENT, IS
+      REAL      KND, ROOTDG, SND, WGD, SND2, C, FAC1, FAC2, FAC3
+!
+!  8. Subroutines used
+!
+!     --
+!
+!  9. Subroutines calling
+!
+!     SWOEXA, SWOEXF (Swan/Output)
+!
+! 10. Error messages
+!
+!     --
+!
+! 11. Remarks
+!
+!     --
+!
+! 12. Structure
+!
+!     -----------------------------------------------------------------
+!      Compute non-dimensional frequency SND
+!      IF SND >= 2.5, then
+!        Compute wave number K, group velocity CGO, ratio of group
+!        and phase velocity N and its derivative ND according to
+!        deep water theory
+!      ELSE IF SND =< 1.e-6
+!        Compute wave number K, group velocity CGO, ratio of group
+!        and phase velocity N and its derivative ND
+!        according to extremely shallow water
+!      ELSE
+!        Compute wave number K, group velocity CGO and the ratio of
+!        group and phase velocity N by Pade and other simple formulas.
+!        Compute the derivative of N w.r.t. D = ND.
+!     -----------------------------------------------------------------
+!
+! 13. Source text
+!
+!    SAVE IENT
+!    DATA IENT /0/
+!    IF (LTRACE) CALL STRACE (IENT, 'KSCIP1')
+!
+    ROOTDG = SQRT(D/GRAV_W)                                               
+    WGD    = ROOTDG*GRAV_W                                                
+    DO IS = 1, MMT
+!     SND is dimensionless frequency
+      SND = SIG(IS) * ROOTDG
+      IF(SND >= 2.5)THEN
+!     ******* deep water *******
+        K(IS)  = SIG(IS) * SIG(IS) / GRAV_W                               
+        CG(IS) = 0.5 * GRAV_W / SIG(IS)                                   
+        N(IS)  = 0.5
+        ND(IS) = 0.
+      ELSE IF(SND < 1.E-6)THEN
+!     *** very shallow water ***  
+!        print*,'IN VERY SHALLOW WATER'
+!	stop                                      
+        K(IS)  = SND/D                                                  
+        CG(IS) = WGD
+        N(IS)  = 1.
+        ND(IS) = 0.
+      ELSE
+        SND2  = SND*SND                                                 
+        C     = SQRT(GRAV_W*D/(SND2+1./(1.+0.666*SND2+0.445*SND2**2      &
+	        -0.105*SND2**3+0.272*SND2**4)))   
+        K(IS) = SIG(IS)/C                                               
+        KND   = K(IS)*D                                                 
+        FAC1  = 2.*KND/SINH(2.*KND)                                     
+        N(IS) = 0.5*(1.+FAC1)                                           
+        CG(IS)= N(IS)*C                                                 
+        FAC2  = SND2/KND                                                
+        FAC3  = 2.*FAC2/(1.+FAC2*FAC2)                                  
+        ND(IS)= FAC1*(0.5/D - K(IS)/FAC3)                               
+      ENDIF
+    END DO  
+
+    RETURN
+    END SUBROUTINE KSCIP1
+
+!***********************************************************************
+!                                                                      *
+    SUBROUTINE KSCIP(MMT,SIG,D,K,CG,N,ND)
+!                                                                      *
+!***********************************************************************
+!
+    USE OCPCOMM4                                                        
+    USE SWCOMM3                                                         
+!
+    IMPLICIT NONE
+!
+!   --|-----------------------------------------------------------|--
+!     | Delft University of Technology                            |
+!     | Faculty of Civil Engineering                              |
+!     | Environmental Fluid Mechanics Section                     |
+!     | P.O. Box 5048, 2600 GA  Delft, The Netherlands            |
+!     |                                                           |
+!     | Programmers: R.C. Ris, N. Booij,                          |
+!     |              IJ.G. Haagsma, A.T.M.M. Kieftenburg,         |
+!     |              M. Zijlema, E.E. Kriezi,                     |
+!     |              R. Padilla-Hernandez, L.H. Holthuijsen       |
+!   --|-----------------------------------------------------------|--
+!
+!  0. Authors
+!
+!  1. Updates
+!
+!  2. Purpose
+!
+!     Calculation of the wave number, group velocity, group number N
+!     and the derivative of N w.r.t. depth (=ND)
+!
+!  3. Method
+!
+!     --
+!
+!  4. Argument variables
+!
+!     MMT     input    number of frequency points
+!
+      INTEGER, INTENT(IN)::   MMT
+!
+!     CG      output   group velocity
+!     D       input    local depth
+!     K       output   wave number
+!     N       output   ratio of group and phase velocity
+!     ND      output   derivative of N with respect to D
+!     SIG     input    rel. frequency for which wave parameters
+!                      must be determined
+!
       REAL, INTENT(OUT)::     CG(MMT), K(MMT), N(MMT), ND(MMT)
       REAL, INTENT(IN) :: D,SIG(MMT)
 !
@@ -632,7 +779,9 @@
     END DO  
 
     RETURN
-    END SUBROUTINE KSCIP1
+    END SUBROUTINE KSCIP
+
+
 
 !****************************************************************
 !
