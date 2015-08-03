@@ -5250,6 +5250,10 @@ CONTAINS
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "START OBC_FABM"
 
+    ! Initialize field with variable-specific nudging flags (NB must be done even if .not. FABM_OBC_PRESCRIBED!)
+    ALLOCATE(FABM_OBC_PRESCRIBED(size(model%state_variables)))
+    FABM_OBC_PRESCRIBED=.FALSE.
+
     IF (.NOT. OBC_FABM_NUDGING) THEN
        IF(DBG_SET(DBG_LOG)) write(IPT,*) "! OPEN BOUNDARY FABM NUDGING IS OFF!"
        OBC_F_COMMENTS="OPEN BOUNDARY FABM NUDGING IS OFF!"
@@ -5379,7 +5383,6 @@ CONTAINS
 
        ALLOCATE(OBC_FABM_N(size(model%state_variables)))
        ALLOCATE(OBC_FABM_P(size(model%state_variables)))
-       ALLOCATE(FABM_OBC_PRESCRIBED(size(model%state_variables)));FABM_OBC_PRESCRIBED=.FALSE.
        DO IFABM=1,size(model%state_variables)
        VAR => FIND_VAR(OBC_F_FILE,model%state_variables(IFABM)%name,FOUND)
        IF(FOUND) THEN

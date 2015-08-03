@@ -1593,7 +1593,7 @@ END SUBROUTINE FABM_ADV
 
           ELSE
            ! Inward flux over open boundary. Optionally nudge towards prescribed values.
-           IF(OBC_FABM_NUDGING .AND. FABM_OBC_PRESCRIBED(IFABM))  THEN
+           IF(FABM_OBC_PRESCRIBED(IFABM))  THEN
              DO K=1,KBM1
                FABM_F(J,K,IFABM) = FABM_ALL(J,K,IFABM) - OBC_FABM_NUDGING_TIMESCALE*RAMP_BIO*(FABM_ALL(J,K,IFABM)&
                       &-FABM_OBC(I,K,IFABM))
