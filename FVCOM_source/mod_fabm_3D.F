@@ -44,14 +44,12 @@ CONTAINS
 
    SUBROUTINE FABM_ALLOCATE()
     INTEGER :: IFABM
-    INTEGER, DIMENSION(M)  :: DUMMY
 
-    DUMMY=1
     ! Tell FABM about the extents of the spatial domain.
     call fabm_set_domain(model,M,KB)
 
     ! Provide FABM with pointer to the mask.
-    call fabm_set_mask(model,DUMMY(1:M))
+    call fabm_set_mask(model,ISWETN(1:M))
 
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
@@ -179,15 +177,16 @@ CONTAINS
 
    SUBROUTINE FABM_INITIAL()
       INTEGER :: K
-      INTEGER, DIMENSION(M)  :: DUMMY
+      INTEGER, DIMENSION(M), TARGET  :: DUMMY_MSK
 
-      DUMMY=1
+      DUMMY_MSK=1
 
       IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIAL called before FABM_ALLOCATE")
-    ! Provide FABM with pointer to the dummy mask.
-      call fabm_set_mask(model,DUMMY(1:M))
 
       CALL PREPARE_ENVIRONMENT
+
+      ! Provide FABM with pointer to the dummy mask ("nothign masked") to include dry points in initialization.
+      call fabm_set_mask(model,DUMMY_MSK(1:M))
 
       ! Allow FABM to perform its default initialization.
       CALL fabm_initialize_surface_state(model,1,M,1)
@@ -206,9 +205,6 @@ CONTAINS
       REAL(SP), DIMENSION(M,size(model%state_variables))         :: DUMMY
       REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: DUMMY_BT
       REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: DUMMY_SF
-      INTEGER, DIMENSION(M)  :: DUMMY_MSK
-
-      DUMMY_MSK=1
 
       ! Initialize all diagnostics
       call fabm_do_surface(model,1,M,1,   DUMMY,DUMMY_SF)
@@ -218,20 +214,13 @@ CONTAINS
       END DO
 
       ! Compute initial value of conserved quantity integrals
-    ! Provide FABM with pointer to the dummy mask.
-      call fabm_set_mask(model,DUMMY_MSK(1:M))
       CALL CHECK_CONSERVATION
-    ! Provide FABM with pointer to the real mask.
-      call fabm_set_mask(model,ISWETN(1:M))
    END SUBROUTINE FABM_INITIAL_DIAG
 
 SUBROUTINE FABM_UPDATE
      USE MOD_PAR
 
      INTEGER :: IFABM
-     INTEGER, DIMENSION(M)  :: DUMMY_MSK
-
-      DUMMY_MSK=1
 
     !     write (*,*) 'at timestep start ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
@@ -240,9 +229,8 @@ SUBROUTINE FABM_UPDATE
     !     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
 !     CALL CALC_VERTICAL_MOVEMENT(DTI)
-!     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
      CALL FABM_VERTICAL_MOVEMENT(DTI)
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_VERTICAL_MOVEMENT')
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
     !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # if !defined (ONE_D_MODEL)
      CALL FABM_ADV  ! This operates on FABM_F
@@ -290,11 +278,7 @@ SUBROUTINE FABM_UPDATE
 # endif
 
       ! Compute initial value of conserved quantity integrals
-    ! Provide FABM with pointer to the dummy mask.
-      call fabm_set_mask(model,DUMMY_MSK(1:M))
       CALL CHECK_CONSERVATION
-    ! Provide FABM with pointer to the real mask.
-      call fabm_set_mask(model,ISWETN(1:M))
 END SUBROUTINE FABM_UPDATE
 
 FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
@@ -320,6 +304,12 @@ SUBROUTINE CHECK_CONSERVATION()
      INTEGER  :: K, IFABM, IERR
      REAL(SP), DIMENSION(M,SIZE(model%conserved_quantities)) :: LOCAL
      REAL(DP), DIMENSION(SIZE(model%conserved_quantities))   :: TOTALS_LOC
+     INTEGER, DIMENSION(M), TARGET :: DUMMY_MSK
+
+     DUMMY_MSK=1
+
+     ! Provide FABM with pointer to the dummy mask ("nothing masked") to include dry regions when computing conserved quantity totals.
+     call fabm_set_mask(model,DUMMY_MSK(1:M))
 
      TOTALS_LOC = 0
      DO K=1,KBM1
@@ -332,6 +322,9 @@ SUBROUTINE CHECK_CONSERVATION()
      DO IFABM=1,SIZE(model%conserved_quantities)
         TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*ART1(1:M)))
      END DO
+
+     ! Provide FABM with pointer to the real mask.
+     call fabm_set_mask(model,ISWETN(1:M))
 
 ! changes needed for serial runs
 #   if defined (MULTIPROCESSOR) 
@@ -420,7 +413,7 @@ END SUBROUTINE FABM_SOURCES
      INTEGER :: I,K,IFABM
      INTEGER  :: mcyc,ncyc
      REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
-     REAL(SP), DIMENSION(KBM1) :: C,DX
+     REAL(SP), DIMENSION(KBM1) :: C,DX,W
      REAL(SP) :: eps,DTmax,DTdep
      REAL(SP),PARAMETER ::SETTLE_CFL = 1.0_SP
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: CALC_VERTICAL_MOVEMENT :"
@@ -443,17 +436,18 @@ END SUBROUTINE FABM_SOURCES
           !setup 1D concentration and grid arrays
           C(1:kbm1) = FABM_ALL(I,1:KBM1,IFABM)
           DX(1:kbm1) = DZ(I,1:KBM1)*D(I)
+          W(1:kbm1) = w_ct(I,1:KBM1,IFABM)
       
 
       !set up cycles (use max(CFL) == 1)
-      DTmax = Settle_CFL*minval(ABS(DX(1:KBM1)/w_ct(I,1:KBM1,IFABM)))
+      DTmax = Settle_CFL*minval(ABS(DX(1:KBM1)/W(1:KBM1)))
       mcyc = int(DELTA_T/DTmax + 1. - eps)
       DTdep = DELTA_T/float(mcyc)
 !         write (*,*) 'In FABM vertical with w_ct ',w_ct(I,1:KBM1,IFABM)
 !         write (*,*) 'In FABM vertical with Mcyc and DTdep ',mcyc,DTdep
       !call flux-limited settling equation
       do ncyc = 1,mcyc
-          call SETTLE_FLUX_FABM(KBM1,C,DX,w_ct(I,1:KBM1,IFABM),DTdep)
+          call SETTLE_FLUX_FABM(KBM1,C,DX,W,DTdep)
       end do
 
       !store solution in 3D array
@@ -507,8 +501,8 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
     sl_u = 2.0_SP*(cin(i)-cin(i+1))/(sl_h(i)+sl_h(i+1))
     sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(sl_h(i-2)+sl_h(i-1))
     conv(i) = wvel*(cin(i)+cin(i-1))/2. 
-    diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(sl_h(i-1)+sl_h(i))) 
-!    diss(i) = dis4*(cin(i)-cin(i-1)-lim(cin(i+1)-cin(i),cin(i-1)-cin(i-2))) 
+!    diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(sl_h(i-1)+sl_h(i))) 
+    diss(i) = dis4*(cin(i)-cin(i-1)-lim(cin(i+1)-cin(i),cin(i-1)-cin(i-2))) 
   end do
 
   !zero out surface flux
@@ -533,7 +527,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
      REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
      REAL(SP), DIMENSION(KBM1-1,size(model%state_variables)) :: w_if, flux_if
      REAL(SP), DIMENSION(KBM1,  size(model%state_variables)) :: flux_ct
-     REAL(SP), PARAMETER :: epsilon_w = 1e-7_SP
+     REAL(SP), PARAMETER :: max_courant = 0.99_SP
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_VERTICAL_MOVEMENT :"
 
@@ -555,10 +549,10 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
             DO K=1,KBM1-1
                IF (w_if(K,IFABM)<0) THEN
                   ! Downward - use concentration from same level (velocity is defined on bottom interface)
-                  flux_if(K,IFABM) = max(w_if(K,IFABM),min(-DZ(I,K)*D(I)/DELTA_T+epsilon_w,0._SP))*FABM_ALL(I,K,IFABM)
+                  flux_if(K,IFABM) = max(w_if(K,IFABM),min(-DZ(I,K)*D(I)/DELTA_T*max_courant,0._SP))*FABM_ALL(I,K,IFABM)
                ELSE
                   ! Upward - use concentration from level below (velocity is defined on bottom interface)
-                  flux_if(K,IFABM) = min(w_if(K,IFABM),max(DZ(I,K+1)*D(I)/DELTA_T-epsilon_w,0._SP))*FABM_ALL(I,K+1,IFABM)
+                  flux_if(K,IFABM) = min(w_if(K,IFABM),max(DZ(I,K+1)*D(I)/DELTA_T*max_courant,0._SP))*FABM_ALL(I,K+1,IFABM)
                END IF
             END DO
          END DO
