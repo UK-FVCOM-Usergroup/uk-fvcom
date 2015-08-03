@@ -258,6 +258,7 @@ CONTAINS
     NC_GRID_METRICS = .False.
     NC_FILE_DATE    = .False.   
     NC_VELOCITY     = .False.
+    NC_OFFLINE      = .False.
     NC_SALT_TEMP    = .False.
     NC_TURBULENCE   = .False.
     NC_AVERAGE_VEL  = .False.
@@ -292,6 +293,7 @@ CONTAINS
     NCAV_GRID_METRICS = .False.
     NCAV_FILE_DATE    = .False.   
     NCAV_VELOCITY     = .False.
+    NCAV_OFFLINE      = .False.
     NCAV_SALT_TEMP    = .False.
     NCAV_TURBULENCE   = .False.
     NCAV_AVERAGE_VEL  = .False.
@@ -493,6 +495,9 @@ CONTAINS
     SEDIMENT_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # if defined (OFFLINE_SEDIMENT)
     OFFLINE_SEDIMENT_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+# endif
+# if defined (OFFLINE_FABM)
+    OFFLINE_FABM_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # endif
     SEDIMENT_PARAMETER_TYPE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     SEDIMENT_PARAMETER_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
@@ -1535,6 +1540,28 @@ CONTAINS
 
 # endif
 
+# if defined (OFFLINE_FABM)
+    ! Check FABM file and open
+ 
+       ! TEST FILE NAME
+       charnum = index (OFFLINE_FABM_FILE,".nc",back)
+       if (charnum /= len_trim(OFFLINE_FABM_FILE)-2)&
+            & CALL WARNING("OFFLINE FABM FILE does not end in .nc", &
+            & trim(OFFLINE_FABM_FILE))
+       
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(OFFLINE_FABM_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+       
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+           FILEHEAD => ADD(FILEHEAD,NCF)
+        end if
+
+# endif
+
     !Check RIVER files and open
     
     do i =1, river_number
@@ -1652,6 +1679,31 @@ CONTAINS
             FILEHEAD => ADD(FILEHEAD,NCF)
          end if
       end if
+
+!! --- ADDITION FOR FABM BOUNDARY CONDITIONS
+#   if defined (FABM)
+       if (OBC_FABM_NUDGING) then
+         
+         ! TEST FILE NAME
+         charnum = index (OBC_FABM_FILE,".nc",back)
+         if (charnum /= len_trim(OBC_FABM_FILE)-2)&
+              & CALL WARNING("OBC_FABM_FILE does not end in .nc", &
+              & trim(OBC_FABM_FILE))
+         
+         ! INITIALIZE TYPE TO HOLD FILE METADATA
+         pathnfile= trim(INPUT_DIR)//trim(OBC_FABM_FILE)
+         CALL  NC_INIT(NCF,pathnfile)
+         
+         ! OPEN THE FILE AND LOAD METADATA
+         if(.not. NCF%OPEN) then
+            Call NC_OPEN(NCF)
+            CALL NC_LOAD(NCF)
+            FILEHEAD => ADD(FILEHEAD,NCF)
+         end if
+      end if
+!!
+#   endif    
+
       
       if (OBC_MEANFLOW) then
          
