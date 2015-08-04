@@ -1,4 +1,5 @@
 MODULE MOD_FABM_DATA
+# if defined(FABM)
 
   USE fabm
   USE MOD_PREC
@@ -14,5 +15,6 @@ MODULE MOD_FABM_DATA
   REAL(SP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
   REAL(SP), ALLOCATABLE, PUBLIC :: FABM_MEAN(:,:,:)            ! MEAN VARIABLES
   REAL(DP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_TOTALS(:)     ! Domain integrals of conserved quantities
+# endif
 
 END MODULE

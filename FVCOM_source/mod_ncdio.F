@@ -457,6 +457,7 @@ CONTAINS
           NCF2 => OFFLINE_FILE_OBJECT()
           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,VELOCITY_FILE_OBJECT() )
+       END IF
        
        IF(NC_VERTICAL_VEL) THEN
           NCF2 => VERTICAL_VEL_FILE_OBJECT()
@@ -690,6 +691,12 @@ CONTAINS
        NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$       NC_AVG_DATA => ADD(NC_AVG_DATA,VELOCITY_FILE_OBJECT() )
     END IF
+! RJT 2015       
+       IF(NCAV_OFFLINE) THEN
+          NCF_TMP => OFFLINE_FILE_OBJECT()
+          NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+!!$       NC_AVG_DATA => ADD(NC_AVG_DATA,VELOCITY_FILE_OBJECT() )
+       END IF
 
     IF(NCAV_VERTICAL_VEL) THEN
        NCF_TMP => VERTICAL_VEL_FILE_OBJECT()
@@ -2649,6 +2656,198 @@ CONTAINS
 
   END FUNCTION VELOCITY_FILE_OBJECT
 !=============================================================  
+  FUNCTION OFFLINE_FILE_OBJECT() RESULT(NCF)
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START OFFLINE_FILE_OBJECT"
+    
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+
+       allocate(U(NGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:U")
+       U = 0.0_sp
+
+       allocate(V(NGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:V")
+       V = 0.0_sp
+
+       allocate(KH(MGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:KH")
+       KH = 0.0_SP
+
+       allocate(WTS(MGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WTS")
+       WTS = 0.0_SP
+    END IF
+
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+
+    ! U
+    VAR  => NC_MAKE_AVAR(name='u',&
+         & values=U, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+# if defined(UCF)
+    ATT  => NC_MAKE_ATT(name='long_name',values='East Velocity Component') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='eastward_sea_water_velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='grid5') 
+    VAR  => ADD(VAR,ATT)
+
+!!$    ATT  => NC_MAKE_ATT(name='grid_location',values='center') 
+    ATT  => NC_MAKE_ATT(name='location',values='face') 
+    VAR  => ADD(VAR,ATT)
+
+!!$    ATT  => NC_MAKE_ATT(name='coordinates',values='latc lonc siglay_center') 
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
+    VAR  => ADD(VAR,ATT)
+
+# else
+    ATT  => NC_MAKE_ATT(name='long_name',values='Eastward Water Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='eastward_sea_water_velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='face') 
+    VAR  => ADD(VAR,ATT)
+# endif
+
+    NCF  => ADD(NCF,VAR)
+
+
+
+    ! V
+    VAR  => NC_MAKE_AVAR(name='v',&
+         & values=V, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+# if defined(UCF)
+    ATT  => NC_MAKE_ATT(name='long_name',values='North Velocity Component') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='Northward_sea_water_velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='grid5') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid_location',values='center') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values='latc lonc siglay_center') 
+    VAR  => ADD(VAR,ATT)
+
+# else
+    ATT  => NC_MAKE_ATT(name='long_name',values='Northward Water Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='Northward_sea_water_velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='face') 
+    VAR  => ADD(VAR,ATT)
+# endif
+
+    NCF  => ADD(NCF,VAR)
+
+    ! KH
+    VAR  => NC_MAKE_AVAR(name='kh',&
+         & values=kh, DIM1= DIM_node, DIM2= DIM_siglev, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Turbulent Eddy Viscosity For Scalars') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! WTS
+    VAR  => NC_MAKE_AVAR(name='omega',&
+         & values=WTS, DIM1= DIM_node, DIM2= DIM_siglev, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Vertical Sigma Coordinate Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END VELOCITY_FILE_OBJECT"
+
+  END FUNCTION OFFLINE_FILE_OBJECT
   FUNCTION VORTICITY_FILE_OBJECT() RESULT(NCF)
     IMPLICIT NONE
 
