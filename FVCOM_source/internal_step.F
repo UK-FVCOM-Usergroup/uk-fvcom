@@ -121,41 +121,42 @@ SUBROUTINE INTERNAL_STEP
 
 !----OFFLINE FABM UPDATE
 # if defined (OFFLINE_FABM)
+  IF (FABM_MODEL) 
   !----SPECIFY THE SURFACE FORCING OF INTERNAL MODES-----------------------------!
 # if defined (GCN)
-  CALL BCOND_GCN(8)
+    CALL BCOND_GCN(8)
 #   else
-  CALL BCOND_GCY(8)
+    CALL BCOND_GCY(8)
 # endif
 
-  U   = OFFLINEB_U
-  V   = OFFLINEB_V 
-  WTS = OFFLINEB_W
-  S1  = OFFLINEB_S1
-  T1  = OFFLINEB_T1
-  KH  = OFFLINEB_KH
-  EL  = OFFLINEB_EL
-  iswetn = INT(OFFLINEB_WN)
-  iswetnt = iswetn
-  iswetc = INT(OFFLINEB_WC)
-  iswetct = iswetc
-  D = H + EL
-  DT = D
-  DTFA = D
-  CALL N2E2D(D,D1)
-  CALL N2E2D(DT,DT1)
+    U   = OFFLINEB_U
+    V   = OFFLINEB_V 
+    WTS = OFFLINEB_W
+    S1  = OFFLINEB_S1
+    T1  = OFFLINEB_T1
+    KH  = OFFLINEB_KH
+    EL  = OFFLINEB_EL
+    iswetn = INT(OFFLINEB_WN)
+    iswetnt = iswetn
+    iswetc = INT(OFFLINEB_WC)
+    iswetct = iswetc
+    D = H + EL
+    DT = D
+    DTFA = D
+    CALL N2E2D(D,D1)
+    CALL N2E2D(DT,DT1)
 
 # if defined(MULTIPROCESSOR)
-  IF(PAR)THEN
-    CALL AEXCHANGE(EC,MYID,NPROCS,U,V)
-    CALL AEXCHANGE(NC,MYID,NPROCS,S1,KH,WTS)
-    CALL AEXCHANGE(NC,MYID,NPROCS,T1)
-    CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
-    CALL AEXCHANGE(NC,MYID,NPROCS,EL,D,DT)
-    CALL AEXCHANGE(NC,MYID,NPROCS,DTFA)
-    CALL AEXCHANGE(EC,MYID,NPROCS,D1,DT1)
-    CALL AEXCHANGE(EC,MYID,NPROCS,iswetc,iswetct)
-  END IF
+    IF(PAR)THEN
+      CALL AEXCHANGE(EC,MYID,NPROCS,U,V)
+      CALL AEXCHANGE(NC,MYID,NPROCS,S1,KH,WTS)
+      CALL AEXCHANGE(NC,MYID,NPROCS,T1)
+      CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
+      CALL AEXCHANGE(NC,MYID,NPROCS,EL,D,DT)
+      CALL AEXCHANGE(NC,MYID,NPROCS,DTFA)
+      CALL AEXCHANGE(EC,MYID,NPROCS,D1,DT1)
+      CALL AEXCHANGE(EC,MYID,NPROCS,iswetc,iswetct)
+    END IF
 # endif
 
 !# if defined (WET_DRY)
@@ -164,22 +165,26 @@ SUBROUTINE INTERNAL_STEP
 !# endif
 
 # if defined (THIN_DAM)
-  CALL GET_KDAM
-  CALL GET_KDAM_INTERNAL
+    CALL GET_KDAM
+    CALL GET_KDAM_INTERNAL
 # endif
 
 
 
-  CALL BOTTOM_ROUGHNESS
+    CALL BOTTOM_ROUGHNESS
 
 !==============================================================================!
 !    FABM MODEL SECTION  
 !      Advance FABM Model (FABM time evolution and integration)      
 !==============================================================================!
 #  if defined (FABM)
-   CALL FABM_UPDATE
+    CALL FABM_UPDATE
 #  endif
+  ELSE 
+CALL FATAL_ERROR("YOU CAN'T RUN FABM OFFLINE WITHOUT A FABM_MODEL")
+  ENDIF
 # endif
+!----END IF OFFLINE FABM
 !----loop end for offline FABM
 
 
@@ -1143,7 +1148,7 @@ SUBROUTINE INTERNAL_STEP
 #   endif
 
 #   if defined (FABM)
-  CALL FABM_UPDATE
+  IF (FABM_MODEL) CALL FABM_UPDATE
 #   endif
 
   !==============================================================================!

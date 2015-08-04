@@ -452,6 +452,11 @@ CONTAINS
           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,VELOCITY_FILE_OBJECT() )
        END IF
+! RJT 2015 Opens the OFFLINE NC object to store the variables needed for offline forcing of sediments and fabm
+       IF(NC_OFFLINE) THEN
+          NCF2 => OFFLINE_FILE_OBJECT()
+          NCF => ADD(NCF,NCF2)
+!!$          NCF => ADD(NCF,VELOCITY_FILE_OBJECT() )
        
        IF(NC_VERTICAL_VEL) THEN
           NCF2 => VERTICAL_VEL_FILE_OBJECT()
