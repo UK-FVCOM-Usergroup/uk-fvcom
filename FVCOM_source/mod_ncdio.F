@@ -456,6 +456,13 @@ CONTAINS
        IF(NC_OFFLINE) THEN
           NCF2 => OFFLINE_FILE_OBJECT()
           NCF => ADD(NCF,NCF2)
+! Add temperature and salinity objects. Elevation is always in the output for some reason.
+         IF(.not. NC_SALT_TEMP) THEN
+            NCF2 => SALT_TEMP_FILE_OBJECT()
+            NCF => ADD(NCF,NCF2)
+         END IF
+       END IF
+
 !!$          NCF => ADD(NCF,VELOCITY_FILE_OBJECT() )
        END IF
        
