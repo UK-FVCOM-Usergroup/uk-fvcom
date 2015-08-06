@@ -457,6 +457,7 @@ CONTAINS
           NCF2 => OFFLINE_FILE_OBJECT()
           NCF => ADD(NCF,NCF2)
 ! Add temperature and salinity objects. Elevation is always in the output for some reason.
+! Wetting and drying is always written if the model runs with wet and dry
          IF(.not. NC_SALT_TEMP) THEN
             NCF2 => SALT_TEMP_FILE_OBJECT()
             NCF => ADD(NCF,NCF2)
@@ -703,6 +704,10 @@ CONTAINS
           NCF_TMP => OFFLINE_FILE_OBJECT()
           NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$       NC_AVG_DATA => ADD(NC_AVG_DATA,VELOCITY_FILE_OBJECT() )
+         IF(.not. NCAV_SALT_TEMP) THEN
+           NCF_TMP => SALT_TEMP_FILE_OBJECT()
+           NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+         END IF
        END IF
 
     IF(NCAV_VERTICAL_VEL) THEN
