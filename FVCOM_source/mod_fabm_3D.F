@@ -1695,7 +1695,7 @@ SUBROUTINE FCT_FABM
      IF(BFWDIS(I) .GT. 0.0_SP .and. GROUNDWATER_SALT_ON) CYCLE nodes
 
      K1 = 1
-     IF(PRECIPITATION_ON) K1 = 2
+!     IF(PRECIPITATION_ON) K1 = 2 RJT 2015 seeing if this makes a difference... 
 !     DO K=1,KBM1
      DO K=K1,KBM1
         FMAX = MAXVAL(FABM_ALL(NBSN(I,1:NTSN(I)),K,IFABM))
