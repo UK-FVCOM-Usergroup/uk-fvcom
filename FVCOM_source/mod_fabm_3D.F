@@ -235,8 +235,13 @@ SUBROUTINE FABM_UPDATE
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
     !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # if !defined (ONE_D_MODEL)
+
+# if defined (MULTIPROCESSOR)
+! RJT just to check this is needed...
+     IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
+# endif
+
      CALL FABM_ADV  ! This operates on FABM_F
-    IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
 
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
     !     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
@@ -246,6 +251,7 @@ SUBROUTINE FABM_UPDATE
         IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
      END DO
 #   endif
+    IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
 
 
 # endif
@@ -263,6 +269,8 @@ SUBROUTINE FABM_UPDATE
 # endif
 
 # if defined (MULTIPROCESSOR)
+! RJT just to check this is needed...only the call to FABM_ALL is mine
+     IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
      IF(PAR)CALL FABM_EXCHANGE(FABM_F)
 # endif
 

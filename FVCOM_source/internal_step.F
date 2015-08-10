@@ -177,12 +177,16 @@ SUBROUTINE INTERNAL_STEP
 !    FABM MODEL SECTION  
 !      Advance FABM Model (FABM time evolution and integration)      
 !==============================================================================!
+! FOR THIS TO WORK IT REQUIRES POPULATING UARD_OBCN WHICH IS DONE IN EXTERNAL_STEP BUT IS NOT
+! SAVED. THE PROBLEM IS THAT IT REQUIRES ET - PREVIOUS TIME STEP ELEVATION... AND XFLUX_OBCN
+! ONLY SOLUTION IS TO SAVE UARD_OBCN AS PART OF THE OFFLINE FORCING OPTION
 #  if defined (FABM)
     CALL FABM_UPDATE
 #  endif
   ELSE 
      CALL FATAL_ERROR("YOU CAN'T RUN FABM OFFLINE WITHOUT A FABM_MODEL")
   ENDIF
+
 # endif
 !----END IF OFFLINE FABM
 !----loop end for offline FABM
@@ -978,7 +982,7 @@ SUBROUTINE INTERNAL_STEP
     CALL UPDATES_SEMI
     DO I=1,IOBCN            ! do linear T/S case, must redo this part, carefule!
       J=I_OBC_N(I)
-      UARD_OBCN(I)=-(EL(J)-ET(J))*ART1(J)/DTI-XFLUX_OBCN(I)
+      UARD_OBCN(I)=-(EL(J)-ET(J))*ART1(J)/DTI-XFLUX_OBCN(I) ! this over writes the UARD_OBCN values set in external_Step! RJT2015
     END DO
 
 #  endif
