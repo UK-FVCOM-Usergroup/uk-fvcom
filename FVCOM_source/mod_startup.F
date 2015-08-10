@@ -1927,7 +1927,7 @@ CONTAINS
 
     DO II = 1,size(model%state_variables)
     ! READ THE DATA
-      ALLOCATE(FABM_TMP(MT,KB))
+      ALLOCATE(FABM_TMP(0:MT,KB))
       FABM_TMP(:,:) = FABM_ALL(:,:,II)
     ! LOAD FABM PELAGIC STATE VARIABLES
       VAR => FIND_VAR(NC_START,TRIM(model%state_variables(II)%name),FOUND)
@@ -1945,7 +1945,7 @@ CONTAINS
 
     DO II = 1,size(model%bottom_state_variables)
    ! READ THE DATA
-      ALLOCATE(FABM_TMP_HZ(MT))
+      ALLOCATE(FABM_TMP_HZ(0:MT))
       FABM_TMP_HZ(:) = FABM_ALL_BT(:,II)
     ! LOAD BOTTOM-BOUND FABM STATE VARIABLES
       VAR => FIND_VAR(NC_START,TRIM(model%bottom_state_variables(II)%name),FOUND)
@@ -1960,7 +1960,7 @@ CONTAINS
 
     DO II = 1,size(model%surface_state_variables)
    ! READ THE DATA
-      ALLOCATE(FABM_TMP_HZ(MT))
+      ALLOCATE(FABM_TMP_HZ(0:MT))
       FABM_TMP_HZ(:) = FABM_ALL_SF(:,II)
     ! LOAD SURFACE-BOUND FABM STATE VARIABLES
       VAR => FIND_VAR(NC_START,TRIM(model%surface_state_variables(II)%name),FOUND)
