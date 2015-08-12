@@ -1562,7 +1562,7 @@ END SUBROUTINE FABM_ADV
            ! For the new depth-explicit value at the boundary, combine the forecast depth-averaged value
            ! with the differences from the the depth-averaged value as forecast for the neighbouring node.
            DO K=1,KBM1
-             FABM_ALL(J,K,IFABM)=T2D_OBC+(FABM_ALL(J1,K,IFABM)-T2D_NEXT)
+             FABM_F(J,K,IFABM)=T2D_OBC+(FABM_F(J1,K,IFABM)-T2D_NEXT)
            END DO
 
          DO K=1,KBM1
