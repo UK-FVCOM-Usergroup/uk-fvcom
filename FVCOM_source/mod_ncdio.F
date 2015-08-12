@@ -5844,6 +5844,9 @@ CONTAINS
 
      ATT  => NC_MAKE_ATT(name='type',values='data') 
      VAR  => ADD(VAR,ATT)    
+
+     ATT  => NC_MAKE_ATT(name='_FillValue',values=variable%missing_value)
+     VAR  => ADD(VAR,ATT)
   END FUNCTION
 # endif
 !=============================================================
