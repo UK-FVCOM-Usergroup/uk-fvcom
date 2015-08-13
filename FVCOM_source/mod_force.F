@@ -343,6 +343,7 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: FABM_KH_N, FABM_KH_P ! KM
   TYPE(NCVAR), POINTER :: FABM_WN_N, FABM_WN_P ! WET NODES
   TYPE(NCVAR), POINTER :: FABM_WC_N, FABM_WC_P ! WET CELLS
+  TYPE(NCVAR), POINTER :: FABM_UA_N, FABM_UA_P ! UARD_OBCN
 
 # endif
 
@@ -545,7 +546,8 @@ CONTAINS
          & FABM_EL_N,    FABM_EL_P,     &
          & FABM_KH_N,    FABM_KH_P,     &
          & FABM_WN_N,    FABM_WN_P,     &
-         & FABM_WC_N,    FABM_WC_P      )
+         & FABM_WC_N,    FABM_WC_P,     &
+         & FABM_UA_N,    FABM_UA_P      )
 # endif
 
 
@@ -9232,6 +9234,32 @@ CONTAINS
        CALL NC_CONNECT_PVAR(FABM_WC_P,STORAGE_INT)
        NULLIFY(STORAGE_INT)
 
+
+       ! UARD_OBCN OF OFFLINE UARD_OBCN
+       VAR => FIND_VAR(FABM_FILE,"wet_cells",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"UARD_OBCN",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'UARD_OBCN' or 'uard_obcn'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_UA_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(IOBCN+1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_UA_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_UA_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(IOBCN+1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_UA_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OFFLINE_FABM_FORCING"
   END SUBROUTINE OFFLINE_FABM_FORCING
 
@@ -12784,13 +12812,14 @@ CONTAINS
   !==============================================================================|
   SUBROUTINE UPDATE_OFFLINE_FABM_FORCING(NOW,offlineb_u,  offlineb_v, offlineb_w&
                                         &,offlineb_s1,offlineb_t1, offlineb_el,offlineb_kh&
-                                        &,offlineb_wn, offlineb_wc)
+                                        &,offlineb_wn, offlineb_wc, offlineb_uard_obcn)
 
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: WTIME
     REAL(SP), ALLOCATABLE  :: offlineb_u(:,:),offlineb_v(:,:),offlineb_w(:,:),offlineb_s1(:,:)
     REAL(SP), ALLOCATABLE  :: offlineb_el(:), offlineb_kh(:,:),offlineb_t1(:,:)
+    REAL(SP), ALLOCATABLE  :: offlineb_uard_obcn(:)
     INTEGER , ALLOCATABLE  :: offlineb_wn(:), offlineb_wc(:)
 
     REAL(SP), POINTER :: VNP(:), VPP(:)
@@ -12818,6 +12847,8 @@ CONTAINS
          &("THE offlineb_wn VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
     IF(.NOT. ALLOCATED(offlineb_wc)) CALL FATAL_ERROR &
          &("THE offlineb_wc VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_uard_obcn)) CALL FATAL_ERROR &
+         &("THE offlineb_uard_obcn VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
 
 !===================================================
 
@@ -12924,6 +12955,15 @@ CONTAINS
     DO I=1,MT
       offlineb_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
+    ! THE UARD_OBCN
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_UA_P,FABM_UA_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_UA BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_UA_N,VNP)
+    CALL NC_POINT_VAR(FABM_UA_P,VPP)   
+    offlineb_uard_obcn = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
   END SUBROUTINE UPDATE_OFFLINE_FABM_FORCING
 # endif

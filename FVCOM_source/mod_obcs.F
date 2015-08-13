@@ -115,6 +115,11 @@ MODULE MOD_OBCS
   REAL(SP), ALLOCATABLE :: XFLUX_OBCN(:)
   REAL(SP), ALLOCATABLE :: UARD_OBCN(:)
   REAL(SP), ALLOCATABLE :: XFLUX_OBC(:,:)
+# if defined (OFFLINE_FABM)
+! allocate offline_UARD_OBCN here 
+  REAL(SP), ALLOCATABLE  :: offlineb_uard_obcn(:)
+#  endif
+
 
 
 CONTAINS
@@ -156,6 +161,11 @@ CONTAINS
 #   if defined (FABM)
     ALLOCATE(FABM_OBC(IOBCN,KBM1,size(model%state_variables)));FABM_OBC = ZERO
 #   endif
+# if defined (OFFLINE_FABM)
+! allocate offline_UARD_OBCN here 
+    ALLOCATE(offlineb_uard_obcn(IOBCN+1)     ;offlineb_uard_obcn  = ZERO 
+#  endif
+
 
     IF(TYPE_TSOBC == 4)THEN
        ALLOCATE(T1M1(0:MT,KBM1))        ;T1M1       = ZERO 

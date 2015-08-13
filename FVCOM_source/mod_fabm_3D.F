@@ -243,7 +243,6 @@ SUBROUTINE FABM_UPDATE
 
      CALL FABM_ADV  ! This operates on FABM_F
 
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
     !     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 
 #   if defined (MULTIPROCESSOR)
@@ -252,7 +251,7 @@ SUBROUTINE FABM_UPDATE
      END DO
 #   endif
     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
-
+    IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
 
 # endif
 ! end if defined 1D

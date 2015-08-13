@@ -2703,6 +2703,10 @@ CONTAINS
        allocate(WTS(MGL,KB),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WTS")
        WTS = 0.0_SP
+
+       ALLOCATE(UARD_OBCN(IOBCN+1),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UARD_OBCN")
+       UARD_OBCN = 0.0_SP
     END IF
 
 
@@ -2845,6 +2849,24 @@ CONTAINS
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='units',values='s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! UARD_OBCN
+    VAR  => NC_MAKE_AVAR(name='Boundary_velocity',&
+         & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Normal Velocity at boundaries') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
