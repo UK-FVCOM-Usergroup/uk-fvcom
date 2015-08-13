@@ -2862,7 +2862,7 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! UARD_OBCN
-    VAR  => NC_MAKE_AVAR(name='Boundary_velocity',&
+    VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
          & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Normal Velocity at boundaries') 
