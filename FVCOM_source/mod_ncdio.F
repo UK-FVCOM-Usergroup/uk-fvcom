@@ -2669,6 +2669,8 @@ CONTAINS
   END FUNCTION VELOCITY_FILE_OBJECT
 !=============================================================  
   FUNCTION OFFLINE_FILE_OBJECT() RESULT(NCF)
+    USE MOD_OBCS, ONLY: UARD_OBCN
+    USE BCS, ONLY: IOBCN
     IMPLICIT NONE
 
     INTEGER :: status
