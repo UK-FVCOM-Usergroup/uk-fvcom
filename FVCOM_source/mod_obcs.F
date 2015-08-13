@@ -163,7 +163,7 @@ CONTAINS
 #   endif
 # if defined (OFFLINE_FABM)
 ! allocate offline_UARD_OBCN here 
-    ALLOCATE(offlineb_uard_obcn(IOBCN+1)     ;offlineb_uard_obcn  = ZERO 
+    ALLOCATE(offlineb_uard_obcn(IOBCN)     ;offlineb_uard_obcn  = ZERO ! I don't know why it needed to be IOBCN+1
 #  endif
 
 
