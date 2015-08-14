@@ -641,7 +641,7 @@
 # if defined (OFFLINE_FABM)
       IF (FABM_MODEL) CALL UPDATE_OFFLINE_FABM_FORCING(IntTime,offlineb_u,  offlineb_v, offlineb_w&
                                         &,offlineb_s1,offlineb_t1, offlineb_el,offlineb_kh&
-                                        &,offlineb_wn, offlineb_wc)
+                                        &,offlineb_wn, offlineb_wc,offlineb_uard_obcn)
 # endif
 # endif
 

@@ -5869,7 +5869,12 @@ CONTAINS
      ATT  => NC_MAKE_ATT(name='type',values='data') 
      VAR  => ADD(VAR,ATT)    
 
+#if defined DOUBLE_PRECISION && SINGLE_OUTPUT
+     ATT  => NC_MAKE_ATT(name='_FillValue',values=REAL(variable%missing_value,SPA))
+#else
      ATT  => NC_MAKE_ATT(name='_FillValue',values=variable%missing_value)
+#endif
+!     ATT  => NC_MAKE_ATT(name='_FillValue',values=variable%missing_value)
      VAR  => ADD(VAR,ATT)
   END FUNCTION
 # endif

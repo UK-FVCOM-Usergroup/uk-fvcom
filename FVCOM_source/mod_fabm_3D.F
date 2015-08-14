@@ -552,7 +552,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
          ! Linearly interpolate to velocities at the interfaces between layers
          ! TODO: account for differences in layer heights (now we simply use the unweighted average of center velocities)
          w_if(1:KBM1-1,:) = (w_ct(I,1:KBM1-1,:)+w_ct(I,2:KBM1,:))/2
-
+         write (*,*) 'Vertical velocities    ',maxval(w_if(1:KBM1-1,:)),minval(w_if(1:KBM1-1,:))         
          ! Convert velocities in m s-1 to mass fluxes (e.g., mol m-2 s-1) - both at interfaces between layers.
          DO IFABM=1,SIZE(model%state_variables)
             DO K=1,KBM1-1
@@ -1631,6 +1631,8 @@ END SUBROUTINE FABM_ADV
   SUBROUTINE fvcom_driver_fatal_error(self,location,message)
      CLASS (type_fvcom_driver), INTENT(INOUT) :: self
      CHARACTER(LEN=*),          INTENT(IN)    :: location,message
+    
+     WRITE (IPT,*) TRIM(location),TRIM(message)
      CALL FATAL_ERROR('FABM '//TRIM(location)//': '//TRIM(message))
   END SUBROUTINE
 
