@@ -230,8 +230,8 @@ SUBROUTINE FABM_UPDATE
      CALL FABM_SOURCES(DTI)  ! This operates on FABM_ALL
     !     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
-!     CALL CALC_VERTICAL_MOVEMENT(DTI)
-     CALL FABM_VERTICAL_MOVEMENT(DTI)
+     CALL CALC_VERTICAL_MOVEMENT(DTI)
+!     CALL FABM_VERTICAL_MOVEMENT(DTI)
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
     !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # if !defined (ONE_D_MODEL)
@@ -280,7 +280,7 @@ SUBROUTINE FABM_UPDATE
      FABM_ALL=FABM_F                                       !Update to new time level  !
 # endif
 
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_UPDATE')
+     IF (.NOT.CHECK_STATE(.TRUE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_UPDATE')
 
 # if defined (MULTIPROCESSOR)
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
@@ -552,7 +552,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
          ! Linearly interpolate to velocities at the interfaces between layers
          ! TODO: account for differences in layer heights (now we simply use the unweighted average of center velocities)
          w_if(1:KBM1-1,:) = (w_ct(I,1:KBM1-1,:)+w_ct(I,2:KBM1,:))/2
-         write (*,*) 'Vertical velocities    ',maxval(w_if(1:KBM1-1,:)),minval(w_if(1:KBM1-1,:))         
+!         write (*,*) 'Vertical velocities    ',maxval(w_if(1:KBM1-1,:)),minval(w_if(1:KBM1-1,:))         
          ! Convert velocities in m s-1 to mass fluxes (e.g., mol m-2 s-1) - both at interfaces between layers.
          DO IFABM=1,SIZE(model%state_variables)
             DO K=1,KBM1-1
