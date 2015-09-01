@@ -248,8 +248,8 @@ dashL= $(empty) -L
 #            FLAG_11 = -DGOTM
 #            GOTMLIB       = -L../GOTM_source/PML/gotm-4.0.0/lib/IFORT/ -lturbulence_prod -lutil_prod -lmeanflow_prod
 #            GOTMINCS      = -I../GOTM_source/PML/gotm-4.0.0/modules/IFORT/
-#            #GOTMLIB       = -L$(HOME)/src/FVCOM/gotm-4.0.0/lib/IFORT/  -lturbulence_prod -lutil_prod -lmeanflow_prod
-#            #GOTMINCS      = -I$(HOME)/src/FVCOM/gotm-4.0.0/modules/IFORT/
+            #GOTMLIB       = -L$(HOME)/src/FVCOM/gotm-4.0.0/lib/IFORT/  -lturbulence_prod -lutil_prod -lmeanflow_prod
+            #GOTMINCS      = -I$(HOME)/src/FVCOM/gotm-4.0.0/modules/IFORT/
 
 #--------------------------------------------------------------------------
 #       EQUILIBRIUM TIDE
