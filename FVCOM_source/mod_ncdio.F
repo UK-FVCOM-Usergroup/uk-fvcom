@@ -464,9 +464,6 @@ CONTAINS
          END IF
        END IF
 
-!!$          NCF => ADD(NCF,VELOCITY_FILE_OBJECT() )
-       END IF
-       
        IF(NC_VERTICAL_VEL) THEN
           NCF2 => VERTICAL_VEL_FILE_OBJECT()
           NCF => ADD(NCF,NCF2)
