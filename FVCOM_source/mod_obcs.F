@@ -136,7 +136,7 @@ CONTAINS
     ALLOCATE(FLUXOBN(1:NT))          ;FLUXOBN    = ZERO
     ALLOCATE(IUCP(0:NT))             ;IUCP       = 1
     ALLOCATE(XFLUX_OBCN(IOBCN+1))    ;XFLUX_OBCN = ZERO
-    ALLOCATE(UARD_OBCN(IOBCN+1))     ;UARD_OBCN  = ZERO
+    ALLOCATE(UARD_OBCN(IOBCN))     ;UARD_OBCN  = ZERO  ! changed dimensions from IOBCN+1 RJT 2015
     ALLOCATE(XFLUX_OBC(IOBCN+1,KBM1));XFLUX_OBC  = ZERO
 
     ALLOCATE(TEMP_OBC(IOBCN,KBM1))   ;TEMP_OBC   = ZERO
@@ -453,7 +453,9 @@ CONTAINS
 #  if defined (AIR_PRESSURE)
 !==============================================================================|
    USE ALL_VARS
+#   if defined (MULTIPROCESSOR)
    USE MOD_PAR, ONLY : NC,AEXCHANGE
+# endif
    IMPLICIT NONE
 
    TYPE(TIME) :: NOW
@@ -473,8 +475,10 @@ CONTAINS
 !==============================================================================|
    CALL UPDATE_AIRPRESSURE(NOW,PA_AIR)
 
-   IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,PA_AIR)         
+#   if defined (MULTIPROCESSOR)
 
+   IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,PA_AIR)         
+# endif
 !!$   ELF_AIR = -(PA_AIR-SLP0)/(1025._SP*GRAV_N)
    ELF_AIR(1:MT) = -(PA_AIR(1:MT)-SLP0)/(1025._SP*GRAV_N(1:MT))
 

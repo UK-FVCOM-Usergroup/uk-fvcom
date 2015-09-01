@@ -258,6 +258,7 @@ CONTAINS
     NC_GRID_METRICS = .False.
     NC_FILE_DATE    = .False.   
     NC_VELOCITY     = .False.
+    NC_OFFLINE      = .False.
     NC_SALT_TEMP    = .False.
     NC_TURBULENCE   = .False.
     NC_AVERAGE_VEL  = .False.
@@ -289,6 +290,7 @@ CONTAINS
     NCAV_GRID_METRICS = .False.
     NCAV_FILE_DATE    = .False.   
     NCAV_VELOCITY     = .False.
+    NCAV_OFFLINE      = .False.
     NCAV_SALT_TEMP    = .False.
     NCAV_TURBULENCE   = .False.
     NCAV_AVERAGE_VEL  = .False.

@@ -904,7 +904,7 @@ SUBROUTINE INTERNAL_STEP
     CALL UPDATES_SEMI
     DO I=1,IOBCN            ! do linear T/S case, must redo this part, carefule!
       J=I_OBC_N(I)
-      UARD_OBCN(I)=-(EL(J)-ET(J))*ART1(J)/DTI-XFLUX_OBCN(I)
+      UARD_OBCN(I)=-(EL(J)-ET(J))*ART1(J)/DTI-XFLUX_OBCN(I) ! this over writes the UARD_OBCN values set in external_Step! RJT2015
     END DO
 
 #  endif
