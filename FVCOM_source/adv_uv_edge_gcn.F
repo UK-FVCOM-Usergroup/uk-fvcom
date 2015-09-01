@@ -74,6 +74,9 @@
    REAL(SP) :: DIJ,ELIJ,TMPA,TMPB,TMP,XFLUXV,YFLUXV
    REAL(SP) :: FACT,FM1,EXFLUX,ISWETTMP
    INTEGER  :: I,IA,IB,J1,J2,K1,K2,K3,K4,K5,K6,K,II,J,I1,I2
+!HP + SPEED OPTIMISATIONS
+   real(sp) :: myISWETTMP(1:N)
+!HP -
 
 #  if defined (SPHERICAL)
    REAL(DP) :: XTMP,XTMP1
@@ -102,6 +105,9 @@
    INTEGER  :: J11,J12,J21,J22,E1,E2,ISBCE1,ISBC_TMP,IB_TMP
    LOGICAL  :: ISMATCH
 !#  endif
+!HP + SPEED OPTIMISATION
+   real(sp) recipART(0:NT)
+!HP -
 
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "Start: adv_uv_edge_gcn.F"
 
@@ -849,25 +855,34 @@
 
 #  endif
 
-      DO I=1,N
+!HP + SPEED OPTIMISATION
+#       if !defined (SEMI_IMPLICIT)
+       myISWETTMP(1:N) = ISWETCT(1:N)*ISWETC(1:N)
+#       endif
+      DO K=1,KBM1
+        DO I=1,N
 #     if defined (WET_DRY)
 #       if !defined (SEMI_IMPLICIT)
-       ISWETTMP = ISWETCT(I)*ISWETC(I)
+!       ISWETTMP = ISWETCT(I)*ISWETC(I)
+	 XFLUX(I,K)  = XFLUX(I,K)*myISWETTMP(I)
+	 YFLUX(I,K)  = YFLUX(I,K)*myISWETTMP(I)
+         PSTX_TM(I,K)= PSTX_TM(I,K)*myISWETTMP(I)
+         PSTY_TM(I,K)= PSTY_TM(I,K)*myISWETTMP(I)
 #       else
         ISWETTMP = ISWETCT(I)
-#       endif
-        DO K=1,KBM1
 	 XFLUX(I,K)  = XFLUX(I,K)*ISWETTMP
 	 YFLUX(I,K)  = YFLUX(I,K)*ISWETTMP
          PSTX_TM(I,K)= PSTX_TM(I,K)*ISWETTMP
          PSTY_TM(I,K)= PSTY_TM(I,K)*ISWETTMP
-        END DO
+#       endif
+!        END DO
 #     endif
-       DO K=1,KBM1
+!       DO K=1,KBM1
         XFLUX(I,K)=XFLUX(I,K)+PSTX_TM(I,K)
         YFLUX(I,K)=YFLUX(I,K)+PSTY_TM(I,K)
-       END DO
+        END DO
       END DO
+!HP -
 
 !
 !-------ADD VERTICAL CONVECTIVE FLUX, CORIOLIS TERM AND BAROCLINIC PG TERM----!
@@ -1092,21 +1107,31 @@
 #  endif
 
    
-   DO I =1,N
-     DO K=1,KBM1
+!HP + SPEED OPTIMISATION
+   DO K=1,KBM1
+     DO I =1,N
+!HP -
 #      if !defined (SEMI_IMPLICIT)
 !       UF(I,K)=U(I,K)*DT1(I,K)/D1(I,K)-DTI*XFLUX(I,K)/ART(I)/D1(I,K)
 !       VF(I,K)=V(I,K)*DT1(I,K)/D1(I,K)-DTI*YFLUX(I,K)/ART(I)/D1(I,K)
-       UF(I,K)=U(I,K)*DT1(I)/D1(I)-DTI*XFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
-       VF(I,K)=V(I,K)*DT1(I)/D1(I)-DTI*YFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
+!HP +
+!       UF(I,K)=U(I,K)*DT1(I)/D1(I)-DTI*XFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
+!       VF(I,K)=V(I,K)*DT1(I)/D1(I)-DTI*YFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
+       UF(I,K)=U(I,K)*DT1(I)/D1(I)-DTI*XFLUX(I,K)/(ART(I)*D1(I)*DZ1(I,K))
+       VF(I,K)=V(I,K)*DT1(I)/D1(I)-DTI*YFLUX(I,K)/(ART(I)*D1(I)*DZ1(I,K))
+!HP -
        IF(ADCOR_ON) THEN
          UBETA(I,K)=XFLUX(I,K) +COR(I)*V(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
          VBETA(I,K)=YFLUX(I,K) -COR(I)*U(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
        ENDIF
 #      else
        IF(STAGE<KSTAGE_UV) THEN
-         UF(I,K)=UC(I,K)-RK_UV(STAGE)*DTI*XFLUX(I,K)/ART(I)/(DT1(I)*DZ1(I,K))-BEDF*U_N(I,K)
-         VF(I,K)=VC(I,K)-RK_UV(STAGE)*DTI*YFLUX(I,K)/ART(I)/(DT1(I)*DZ1(I,K))-BEDF*V_N(I,K)
+!HP +
+!         UF(I,K)=UC(I,K)-RK_UV(STAGE)*DTI*XFLUX(I,K)/ART(I)/(DT1(I)*DZ1(I,K))-BEDF*U_N(I,K)
+!         VF(I,K)=VC(I,K)-RK_UV(STAGE)*DTI*YFLUX(I,K)/ART(I)/(DT1(I)*DZ1(I,K))-BEDF*V_N(I,K)
+         UF(I,K)=UC(I,K)-RK_UV(STAGE)*DTI*XFLUX(I,K)/(ART(I)*DT1(I)*DZ1(I,K))-BEDF*U_N(I,K)
+         VF(I,K)=VC(I,K)-RK_UV(STAGE)*DTI*YFLUX(I,K)/(ART(I)*DT1(I)*DZ1(I,K))-BEDF*V_N(I,K)
+!HP -
        ELSE
          XFLUX3(I,K)=XFLUX(I,K)
          YFLUX3(I,K)=YFLUX(I,K)
@@ -1130,8 +1155,12 @@
         V_TMP = -V(I,K)*SIN(XC(I)*DEG2RAD)+U(I,K)*COS(XC(I)*DEG2RAD)
         !       UF_TMP=U_TMP*DT1(I,K)/D1(I,K)-DTI*XFLUX(I,K)/ART(I)/D1(I,K)
         !       VF_TMP=V_TMP*DT1(I,K)/D1(I,K)-DTI*YFLUX(I,K)/ART(I)/D1(I,K)
-        UF_TMP=U_TMP*DT1(I)/D1(I)-DTI*XFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
-        VF_TMP=V_TMP*DT1(I)/D1(I)-DTI*YFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
+!HP + SPEED OPTIMISATION
+!        UF_TMP=U_TMP*DT1(I)/D1(I)-DTI*XFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
+!        VF_TMP=V_TMP*DT1(I)/D1(I)-DTI*YFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
+        UF_TMP=U_TMP*DT1(I)/D1(I)-DTI*XFLUX(I,K)/(ART(I)*D1(I)*DZ1(I,K))
+        VF_TMP=V_TMP*DT1(I)/D1(I)-DTI*YFLUX(I,K)/(ART(I)*D1(I)*DZ1(I,K))
+!HP -
         
        IF(ADCOR_ON)THEN
          UF(I,K)  = UF_TMP
@@ -1147,8 +1176,12 @@
          U_TMP = -VC(I,K)*COS(XC(I)*DEG2RAD)-UC(I,K)*SIN(XC(I)*DEG2RAD)
          V_TMP = -VC(I,K)*SIN(XC(I)*DEG2RAD)+UC(I,K)*COS(XC(I)*DEG2RAD)
 
-         UF_TMP=U_TMP-RK_UV(STAGE)*DTI*XFLUX3_NP(I,K)/ART(I)/(DT1(I)*DZ1(I,K))
-         VF_TMP=V_TMP-RK_UV(STAGE)*DTI*YFLUX3_NP(I,K)/ART(I)/(DT1(I)*DZ1(I,K))
+!HP + SPEED OPTIMISATION
+!         UF_TMP=U_TMP-RK_UV(STAGE)*DTI*XFLUX3_NP(I,K)/ART(I)/(DT1(I)*DZ1(I,K))
+!         VF_TMP=V_TMP-RK_UV(STAGE)*DTI*YFLUX3_NP(I,K)/ART(I)/(DT1(I)*DZ1(I,K))
+         UF_TMP=U_TMP-RK_UV(STAGE)*DTI*XFLUX3_NP(I,K)/(ART(I)*DT1(I)*DZ1(I,K))
+         VF_TMP=V_TMP-RK_UV(STAGE)*DTI*YFLUX3_NP(I,K)/(ART(I)*DT1(I)*DZ1(I,K))
+!HP -
          UF(I,K)  = VF_TMP*COS(XC(I)*DEG2RAD)-UF_TMP*SIN(XC(I)*DEG2RAD)
          VF(I,K)  = UF_TMP*COS(XC(I)*DEG2RAD)+VF_TMP*SIN(XC(I)*DEG2RAD)
          VF(I,K)  = -VF(I,K)
@@ -1189,9 +1222,13 @@
    END DO
 #  endif
 
+!HP + SPEED OPTIMISATION
+   recipART(:)=1.0_SP/ART(:)
    DO K=1,KB
-    VISCOFM(:,K) = VISCOFM(:,K)/ART(:)
+!    VISCOFM(:,K) = VISCOFM(:,K)/ART(:)
+    VISCOFM(:,K) = VISCOFM(:,K)*recipART(:)
    END DO 
+!HP -
 
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "End: adv_uv_edge_gcn"
 

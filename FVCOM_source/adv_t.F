@@ -62,6 +62,13 @@ SUBROUTINE ADV_T
   REAL(SP) :: FACT,FM1
   INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,K,JTMP,JJ,II
   REAL(SP) :: T1MIN, T1MAX, T2MIN, T2MAX
+!HP + SPEED OPTIMISATIONS
+  ! THIS TEMPORARY VARIABLE ONLY EVER NEEDS TO STORE
+  ! THE NUMBER OF ELEMENTS/NODES SURROUNDING ANOTHER 
+  ! ELEMENT/NODE, SO NO NEED FOR IT TO BE ENORMOUS.
+  real(sp), dimension(1024) :: myvals
+  integer :: myl
+!HP -
 
 !!$#  if defined (SPHERICAL)
 !!$  REAL(DP) TY,TXPI,TYPI
@@ -128,19 +135,21 @@ SUBROUTINE ADV_T
   !--Loop Over Control Volume Sub-Edges And Calculate Normal Velocity------------!
   !
 !!#  if !defined (WET_DRY)
-  DO I=1,NCV
+!HP + SPEED OPTIMISATIONS
+  DO K=1,KBM1
+     DO I=1,NCV
      I1=NTRG(I)
      !     DTIJ(I)=DT1(I1)
-     DO K=1,KBM1
         DTIJ(I,K) = DT1(I1)*DZ1(I1,K)
         ! USE U,V
-        UVN(I,K)  = V(I1,K)*DLTXE(I) - U(I1,K)*DLTYE(I) 
+        UVN(I,K)  = V(I1,K)*DLTXE(I) - U(I1,K)*DLTYE(I)
 #      if defined (SEMI_IMPLICIT)
        DTIJ1(I,K) = D1(I1)*DZ1(I1,K)
        UVN1(I,K) = VF(I1,K)*DLTXE(I) - UF(I1,K)*DLTYE(I)
 #      endif
      END DO
   END DO
+!HP -
 !!#  else
 !!  DO I=1,NCV
 !!     I1=NTRG(I)
@@ -390,15 +399,28 @@ SUBROUTINE ADV_T
         FIJ1=T1(IA,K)+DLTXNCVE(I,1)*PTPX(IA)+DLTYNCVE(I,1)*PTPY(IA)
         FIJ2=T1(IB,K)+DLTXNCVE(I,2)*PTPX(IB)+DLTYNCVE(I,2)*PTPY(IB)
 
-
-        T1MIN=MINVAL(T1(NBSN(IA,1:NTSN(IA)-1),K))
+!HP + SPEED OPTIMISATIONS
+         ! ORIGINAL FVCOM
+        !T1MIN=MINVAL(T1(NBSN(IA,1:NTSN(IA)-1),K))
+        !T1MAX=MAXVAL(T1(NBSN(IA,1:NTSN(IA)-1),K))
+        do myl=1,NTSN(IA)-1
+          myvals(myl)=T1(NBSN(IA,myl),K)
+        enddo
+        T1MIN=MINVAL(myvals(1:NTSN(IA)-1))
+        T1MAX=MAXVAL(myvals(1:NTSN(IA)-1))
         T1MIN=MIN(T1MIN, T1(IA,K))
-        T1MAX=MAXVAL(T1(NBSN(IA,1:NTSN(IA)-1),K))
         T1MAX=MAX(T1MAX, T1(IA,K))
-        T2MIN=MINVAL(T1(NBSN(IB,1:NTSN(IB)-1),K))
+        ! ORIGINAL FVCOM
+        !T2MIN=MINVAL(T1(NBSN(IB,1:NTSN(IB)-1),K))
+        !T2MAX=MAXVAL(T1(NBSN(IB,1:NTSN(IB)-1),K))
+        do myl=1,NTSN(IB)-1
+          myvals(myl)=T1(NBSN(IB,myl),K)
+        enddo
+        T2MIN=MINVAL(myvals(1:NTSN(IB)-1))
+        T2MAX=MAXVAL(myvals(1:NTSN(IB)-1))
         T2MIN=MIN(T2MIN, T1(IB,K))
-        T2MAX=MAXVAL(T1(NBSN(IB,1:NTSN(IB)-1),K))
         T2MAX=MAX(T2MAX, T1(IB,K))
+!HP -
         IF(FIJ1 < T1MIN) FIJ1=T1MIN
         IF(FIJ1 > T1MAX) FIJ1=T1MAX
         IF(FIJ2 < T2MIN) FIJ2=T2MIN
@@ -608,8 +630,16 @@ SUBROUTINE ADV_T
               TMAX = MAX(TMAX,T1(I,K-1),T1(I,K),T1_FRESH(I,K))
               TMIN = MIN(TMIN,T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            ELSE
-              TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
-              TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
+!HP + SPEED OPTIMISATIONS
+              ! ORIGINAL FVCOM
+              !TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
+              !TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
+              do myl=1,NTSN(I)
+                myvals(myl)=T1(NBSN(I,myl),K)
+              enddo
+              TMAX=MAXVAL(myvals(1:NTSN(I)))
+              TMIN=MINVAL(myvals(1:NTSN(I)))
+!HP -
               TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
               TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            END IF
@@ -675,8 +705,15 @@ SUBROUTINE ADV_T
 
      DO K=2,KBM1-1
         DO I=1,M
-           TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
-           TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
+!HP + SPEED OPTIMISATIONS
+           !TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
+           !TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
+           do myl=1,NTSN(I)
+             myvals(myl)=T1(NBSN(I,myl),K)
+           enddo
+           TMAX=MAXVAL(myvals(1:NTSN(I)))
+           TMIN=MINVAL(myvals(1:NTSN(I)))
+!HP -
            TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
 
