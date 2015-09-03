@@ -58,19 +58,19 @@
 MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	mod_main.F	mod_spherical.F	mod_utils.F	mod_clock.F	\
 	eqs_of_state.F	mod_bulk.F	mod_interp.F	mod_par.F	\
-	mod_ncll.F	mod_nctools.F	mod_wd.F	mod_sng.F	\
-	mod_heatflux.F	mod_solar.F	mod_input.F	mod_force.F	\
-	mod_obcs.F	mod_petsc.F	mod_semi_implicit.F		\
-	mod_non_hydro.F	mod_set_time.F	ice_kinds_mod.F	ice_model_size.F\
-	ice_domain.F	ice_constants.F	ice_fileunits.F	ice_state.F	\
-	ice_work.F	ice_grid.F	ice_albedo.F	ice_calendar.F	\
-	ice_flux.F	ice_flux_in.F	ice_itd.F	ice_mechred.F	\
-	ice_itd_linear.F		ice_scaling.F	ice_atmo.F	\
-	ice_ocean.F	ice_therm_vertical.F		ice_init.F	\
-	ice_therm_itd.F	mod_ice2d.F	mod_ice.F	mod_startup.F	\
-	mod_wqm.F	mod_ncdio.F	mod_setup.F	mod_newinp.F	\
-	particle.F	linklist.F	mod_lag.F	mod_northpole.F \
-	mod_pwp.F	mod_dye.F	mod_optimal_interpolation.F	\
+	mod_par_special.F		mod_ncll.F	mod_nctools.F	\
+	mod_wd.F	mod_sng.F	mod_heatflux.F	mod_solar.F	\
+	mod_input.F	mod_force.F	mod_obcs.F	mod_petsc.F	\
+	mod_semi_implicit.F		mod_non_hydro.F	mod_set_time.F	\
+	ice_kinds_mod.F	ice_model_size.F		ice_domain.F	\
+	ice_constants.F	ice_fileunits.F	ice_state.F	ice_work.F	\
+	ice_grid.F	ice_albedo.F	ice_calendar.F	ice_flux.F	\
+	ice_flux_in.F	ice_itd.F	ice_mechred.F	ice_itd_linear.F\
+	ice_scaling.F	ice_atmo.F	ice_ocean.F	ice_therm_vertical.F\
+	ice_init.F	ice_therm_itd.F	mod_ice2d.F	mod_ice.F	\
+	mod_startup.F	mod_wqm.F	mod_ncdio.F	mod_setup.F	\
+	mod_newinp.F	particle.F	linklist.F	mod_lag.F	\
+	mod_northpole.F mod_pwp.F	mod_dye.F	mod_optimal_interpolation.F\
 	mod_report.F	mod_probe.F	mod_gotm.F	mod_balance_2d.F\
 	mod_tridiag.F	mod_scal.F	mod_meanflow.F	mod_obcs2.F	\
 	mod_obcs3.F	mod_sed.F	mod_enkf.F	mod_etkf.F	\

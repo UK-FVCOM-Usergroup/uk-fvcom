@@ -199,21 +199,21 @@ MODULE MOD_SOLAR
 !..................................................................
 
   IMPLICIT NONE
-      REAL, INTENT(IN) :: TA,DP,WS,CC,TWAT,CH,CD,RLATD,RLONG,HR
+      REAL(SP), INTENT(IN) :: TA,DP,WS,CC,TWAT,CH,CD,RLATD,RLONG,HR
       INTEGER, INTENT(IN) :: IJD0,MONTH
-      REAL, INTENT(OUT) :: SURFLX,Q0
+      REAL(SP), INTENT(OUT) :: SURFLX,Q0
       LOGICAL DEW
-      REAL :: CP, CW, SIGMA
-      REAL :: SOLC,PHASE,TWOPI
-      REAL :: DEG
-      REAL :: ES, ED
+      REAL(SP) :: CP, CW, SIGMA
+      REAL(SP) :: SOLC,PHASE,TWOPI
+      REAL(SP) :: DEG
+      REAL(SP) :: ES, ED
       INTEGER,DIMENSION(12) :: IMON
-      REAL,DIMENSION(12,2) :: A0
-      REAL,DIMENSION(2) :: A1,A2,A3
-      REAL :: C0,C1,C2,C3
-      REAL :: SC,SST,TAK,DPK,TWK,RHLAT,RHOA,ETW,EDP,QW,QA,HL,HS,RLN,GMT,DAY
-      REAL :: ANGD,SIG,STHETA,ARCS,CTHETA,RM,HRANG,SINLAT,COSLAT,CST,SOL
-      REAL :: SRCS,CLD,ALB,ALBEDO
+      REAL(SP),DIMENSION(12,2) :: A0
+      REAL(SP),DIMENSION(2) :: A1,A2,A3
+      REAL(SP) :: C0,C1,C2,C3
+      REAL(SP) :: SC,SST,TAK,DPK,TWK,RHLAT,RHOA,ETW,EDP,QW,QA,HL,HS,RLN,GMT,DAY
+      REAL(SP) :: ANGD,SIG,STHETA,ARCS,CTHETA,RM,HRANG,SINLAT,COSLAT,CST,SOL
+      REAL(SP) :: SRCS,CLD,ALB,ALBEDO
       INTEGER :: JD,MONTHR,M,N
 !
       DATA CP, CW, SIGMA/1005., 4186., 5.6697E-08/
@@ -370,7 +370,7 @@ MODULE MOD_SOLAR
 !.  'T' IS IN DEGREES KELVIN
 !.
      IMPLICIT NONE
-     REAL :: T
+     REAL(SP) :: T
 
      VAP=.01*EXP(26.25 - 5418./T)
 !.
@@ -405,12 +405,12 @@ MODULE MOD_SOLAR
       IMPLICIT NONE
       SAVE
 
-      REAL,INTENT(IN) :: WS, TD
-      REAL,INTENT(OUT) :: CD, CH
+      REAL(SP),INTENT(IN) :: WS, TD
+      REAL(SP),INTENT(OUT) :: CD, CH
 
-      REAL CD10(51,101),CH10(51,101)
+      REAL(SP) CD10(51,101),CH10(51,101)
       INTEGER :: INIT,I,J
-      REAL :: Z,WSX,TDX,Z0,FL,WI,WJ
+      REAL(SP) :: Z,WSX,TDX,Z0,FL,WI,WJ
 
       DATA INIT /0/
       IF(INIT.EQ.0) THEN
@@ -489,12 +489,12 @@ MODULE MOD_SOLAR
 !                CALLING PARAMETERS (U) WHEN U < 0.001
 
       IMPLICIT NONE
-      REAL,INTENT(IN) :: U, ZM, TD
-      REAL,INTENT(OUT) :: CD, CH, Z0, FL
-      REAL :: C1, C2, C3
-      REAL :: B1, B2, B3
-      REAL :: EPS,UM,FK,TBAR,ALPHA,BETA,GAMM,GAMT,UST1,H,DTHETA
-      REAL :: S,X,FLI,X1,ARG1,ARG2,A,B,AA,BB,CC,ROOT,X2,TSTAR,USTAR,Z0NEW
+      REAL(SP),INTENT(IN) :: U, ZM, TD
+      REAL(SP),INTENT(OUT) :: CD, CH, Z0, FL
+      REAL(SP) :: C1, C2, C3
+      REAL(SP) :: B1, B2, B3
+      REAL(SP) :: EPS,UM,FK,TBAR,ALPHA,BETA,GAMM,GAMT,UST1,H,DTHETA
+      REAL(SP) :: S,X,FLI,X1,ARG1,ARG2,A,B,AA,BB,CC,ROOT,X2,TSTAR,USTAR,Z0NEW
       INTEGER :: ITER,I
 
       DATA C1, C2, C3 /.684E-4, 4.28E-3, -4.43E-4/
@@ -518,13 +518,21 @@ MODULE MOD_SOLAR
       Z0 = .00459 * UST1 * UST1
       S = UM * UM * TBAR / (9.8*DTHETA)
       IF (ABS(S) .GT. 1.E6) S = SIGN(1.E6,S)
+# if defined (DOUBLE_PRECISION)
+      X = DLOG(H/Z0)
+# else
       X = ALOG(H/Z0)
+# endif      
 !
 !       INITIAL GUESS FOR L
 !
       FL = S / X
       DO 60 ITER = 1, 20
+# if defined (DOUBLE_PRECISION)
+        X = DLOG(H/Z0)
+# else
         X = ALOG(H/Z0)
+# endif      
         IF (ABS(FL) .GT. 500.) FL = SIGN(500.,FL)
         IF (FL .GT. 0.) GO TO 20
 !
@@ -574,8 +582,12 @@ MODULE MOD_SOLAR
         DO 40 I = 1, 5
           ARG1 = FL / Z0
           X1 = LOG(ARG1)
+# if defined (DOUBLE_PRECISION)
+          X2 = DLOG(H/FL)
+# else
           X2 = ALOG(H/FL)
-          ARG1 = 1. - 1. / ARG1
+# endif      
+         ARG1 = 1. - 1. / ARG1
           A = .74 * X1 + 4.7 * ARG1 + 5.44 * X2
           B = X1 + 4.7 * ARG1 + 5.7 * X2
           FL = A * S / (B*B)

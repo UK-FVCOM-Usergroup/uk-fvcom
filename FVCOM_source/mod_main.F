@@ -630,6 +630,7 @@ MODULE CONTROL
     LOGICAL OBC_LONGSHORE_FLOW_ON
     CHARACTER(LEN=80) OBC_LONGSHORE_FLOW_FILE
     INTEGER OBC_TIDEOUT_INITIAL,OBC_TIDEOUT_INTERVAL
+    LOGICAL OBC_DEPTH_CONTROL_ON
 
     NAMELIST /NML_OPEN_BOUNDARY_CONTROL/    &
          & OBC_ON,                          &
@@ -657,8 +658,9 @@ MODULE CONTROL
          & OBC_MEANFLOW_FILE,               &
          & OBC_TIDEOUT_INITIAL,             &
          & OBC_TIDEOUT_INTERVAL,            &
-         & OBC_LONGSHORE_FLOW_ON,       &
-         & OBC_LONGSHORE_FLOW_FILE
+         & OBC_LONGSHORE_FLOW_ON,           &
+         & OBC_LONGSHORE_FLOW_FILE,         &
+         & OBC_DEPTH_CONTROL_ON
 
 
     !--Parameters in NameList GRID_COORDINATES
