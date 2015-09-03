@@ -581,15 +581,15 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  ARCHER Intel/MPI Compiler
 #--------------------------------------------------------------------------
-         CPP      = /usr/bin/cpp
-         COMPILER = -DIFORT  
-         CC       = cc
-         CXX      = CC
-         CFLAGS   = -O3 
-         FC       = ftn
-#         DEBFLGS  = -check all
-         OPT      = -O3
-         COPTIONS = -c89
+#         CPP      = /usr/bin/cpp
+#         COMPILER = -DIFORT  
+#         CC       = cc
+#         CXX      = CC
+#         CFLAGS   = -O3 
+#         FC       = ftn
+##         DEBFLGS  = -check all
+#         OPT      = -O3
+#         COPTIONS = -c89
 #--------------------------------------------------------------------------
 #==========================================================================
 #  END USER DEFINITION SECTION
