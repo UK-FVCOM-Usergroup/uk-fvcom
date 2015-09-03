@@ -47,7 +47,7 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-           TOPDIR        = /fs4/n01/n01/pica/src/uk-fvcom/FVCOM_source
+           TOPDIR        = $(HOME)/src/uk-fvcom/FVCOM_source
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
