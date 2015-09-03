@@ -47,8 +47,7 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-
-           TOPDIR        =  $(HOME)/src/UK-FVCOM/FVCOM/PML/src/FVCOM_source/
+           TOPDIR        = /fs4/n01/n01/pica/src/uk-fvcom/FVCOM_source
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
@@ -58,7 +57,7 @@
             INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -P -C -traditional
+            DEF_FLAGS     = -C
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -80,10 +79,10 @@ dashL= $(empty) -L
 
 
 #--------------------------------------------------------------------------
-#	STANDARD LIBRARIES FOR DATA AND TIME IN fVCOM:
+#  STANDARD LIBRARIES FOR DATA AND TIME IN fVCOM:
 #
-	    DTLIBS	= -ljulian
-	    DTINCS	=
+             DTLIBS       = -ljulian
+             DTINCS       =
 #
 #--------------------------------------------------------------------------
 #        NETCDF OUTPUT      NETCDF IS NOW REQUIRED TO COMPILE FVCOM
@@ -244,11 +243,9 @@ dashL= $(empty) -L
 #              do_turbulence interface and will not work.
 #--------------------------------------------------------------------------
 
-            FLAG_11 = -DGOTM
-            GOTMLIB       = -L../GOTM_source/PML/gotm-4.0.0/lib/IFORT/ -lturbulence_prod -lutil_prod -lmeanflow_prod
-            GOTMINCS      = -I../GOTM_source/PML/gotm-4.0.0/modules/IFORT/
-            #GOTMLIB       = -L$(HOME)/src/FVCOM/gotm-4.0.0/lib/IFORT/  -lturbulence_prod -lutil_prod -lmeanflow_prod
-            #GOTMINCS      = -I$(HOME)/src/FVCOM/gotm-4.0.0/modules/IFORT/
+#            FLAG_11 = -DGOTM
+#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil -lmeanflow
+#            GOTMINCS      = -I../GOTM_source/
 
 #--------------------------------------------------------------------------
 #       EQUILIBRIUM TIDE
@@ -362,7 +359,7 @@ dashL= $(empty) -L
 #         CALCULATE THE NET HEAT FLUX IN MODEL
 #--------------------------------------------------------------------------
 
-#             FLAG_27 = -DHEATING_CALCULATED
+             FLAG_27 = -DHEATING_CALCULATED
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
@@ -415,7 +412,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #        THIN-DAM MODEL
 #--------------------------------------------------------------------------
-             FLAG_38 = -DTHIN_DAM
+#             FLAG_38 = -DTHIN_DAM
 
 #--------------------------------------------------------------------------
 #        PWP MIXED LAYER MODEL:
@@ -437,6 +434,12 @@ dashL= $(empty) -L
 #             FLAG_41 = -DOLD_PETSC
 
 #--------------------------------------------------------------------------
+#        SPECIAL PARTITION
+#        This flag can make sure the identical repeat run for same amount of CPUs
+#--------------------------------------------------------------------------
+#             FLAG_42 = -DPARTITION_SPECIAL
+
+#--------------------------------------------------------------------------
 #        DEVELOPMENT FLAGS
 #            FOR BETA WORK ONLY
 #--------------------------------------------------------------------------
@@ -446,8 +449,6 @@ dashL= $(empty) -L
 #             FLAG_103 = -DDEVELOP3
 #             FLAG_104 = -DDEVELOP4
 #             FLAG_105 = -DDEVELOP5
-#-- !da -------------- use it adv_t.F to activate rivers temperature use
-             FLAG_42  = -DRIVERTS
 
 #--------------------------------------------------------------------------
 #        SELECT COMPILER/PLATFORM SPECIFIC DEFINITIONS
@@ -458,7 +459,6 @@ dashL= $(empty) -L
 #          OPT:  COMPILER OPTIONS
 #       MPILIB:  PATH TO MPI LIBRARIES (IF NOT LINKED THROUGH COMPILE SCRIPT)
 #--------------------------------------------------------------------------
-
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
@@ -522,7 +522,6 @@ dashL= $(empty) -L
 # Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
 #         OPT      = -O0 -g
 #         OPT      = -xP
-
 # Do not set static for use with visit!
 #         VISOPT   = -Wl,--export-dynamic
 #         LDFLAGS  = $(VISITLIBPATH)
@@ -542,7 +541,6 @@ dashL= $(empty) -L
 #         OPT      = -O0 -g
 #         OPT      = -axN -xN
 #         OPT      = -O3
-
 # Do not set static for use with visit!
 #         VISOPT   = -Wl,--export-dynamic
 #         LDFLAGS  =  $(VISITLIBPATH)
@@ -581,13 +579,18 @@ dashL= $(empty) -L
 #         DEBFLGS  =  # -qcheck -C -g
 #         OPT      = -O5 -qarch=g5 -qtune=g5  -qhot -qmaxmem=8096 -qunroll=yes -Wl,-stack_size,10000000
 #--------------------------------------------------------------------------
-#  OTHER
+#  ARCHER Intel/MPI Compiler
 #--------------------------------------------------------------------------
-#         COMPILER =
-#         CPP      =
-#         FC       =
-#         DEBFLGS  =
-#         OPT      =
+         CPP      = /usr/bin/cpp
+         COMPILER = -DIFORT  
+         CC       = cc
+         CXX      = CC
+         CFLAGS   = -O3 
+         FC       = ftn
+#         DEBFLGS  = -check all
+         OPT      = -O3
+         COPTIONS = -c89
+#--------------------------------------------------------------------------
 #==========================================================================
 #  END USER DEFINITION SECTION
 #==========================================================================

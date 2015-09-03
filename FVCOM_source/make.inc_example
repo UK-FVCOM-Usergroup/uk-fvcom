@@ -364,7 +364,7 @@ dashL= $(empty) -L
 #         3. CALCULATE THE NET HEAT FLUX USING SOLAR HEATING MODULE                          
 #--------------------------------------------------------------------------
 
-            FLAG_27 = -DHEATING_CALCULATED  
+#            FLAG_27 = -DHEATING_CALCULATED  
 #            FLAG_27 = -DHEATING_CALCULATED_GL  
 #            FLAG_27 = -DHEATING_SOLAR  
 
@@ -439,6 +439,12 @@ dashL= $(empty) -L
 #        If your PETSc is 2.3.2 or older, uncomment this flag
 #--------------------------------------------------------------------------
              FLAG_41 = -DOLD_PETSC
+
+#--------------------------------------------------------------------------
+#        SPECIAL PARTITION
+#        This flag can make sure the identical repeat run for same amount of CPUs 
+#--------------------------------------------------------------------------
+#             FLAG_42 = -DPARTITION_SPECIAL
 
 #--------------------------------------------------------------------------
 #        DEVELOPMENT FLAGS

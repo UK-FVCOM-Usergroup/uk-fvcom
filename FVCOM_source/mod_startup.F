@@ -1371,6 +1371,7 @@ CONTAINS
    SUBROUTINE SET_WATER_DEPTH         
 !------------------------------------------------------------------------------|
    USE MOD_OBCS
+   USE MOD_NESTING
    IMPLICIT NONE
    REAL(SP) :: TEMP
    INTEGER  :: I,K,J1,J2
@@ -1390,7 +1391,11 @@ CONTAINS
 !
 
 #  if !defined (PLBC)
-   IF(IOBCN > 0) THEN
+   IF(IOBCN > 0 .AND. OBC_DEPTH_CONTROL_ON) THEN
+     IF(.NOT. NESTING_ON)THEN
+#  if defined (WAVE_CURRENT_INTERACTION)     
+     IF(.NOT. NESTING_ON_WAVE)THEN
+#  endif      
      DO I = 1,IOBCN
        J1 = I_OBC_N(I)
        J2 = NEXT_OBC(I)
@@ -1405,6 +1410,10 @@ CONTAINS
          DZZ(J1,K) = DZZ(J2,K)
        END DO	 
      END DO
+#  if defined (WAVE_CURRENT_INTERACTION)     
+     END IF
+#  endif      
+     END IF
    END IF
 #  endif
 

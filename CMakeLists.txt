@@ -7,6 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Mo
 set(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/FVCOM_source")
 
 find_path(JULIAN_BASE fjulian.inc HINTS "${ROOT}/libs/julian" DOC "Source directory of julian")
+find_path(METIS_BASE metis.h HINTS "${ROOT}/libs/metis" DOC "Source directory of METIS")
 
 include_directories(${ROOT} ${JULIAN_BASE})
 
@@ -59,7 +60,6 @@ if (NetCDF_STATIC_MSVC_BUILD)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
 endif()
 
-set(METIS_BASE "${CMAKE_CURRENT_SOURCE_DIR}/METIS_source")
 add_library(metis
   ${METIS_BASE}/coarsen.c
   ${METIS_BASE}/fm.c
@@ -139,9 +139,13 @@ add_library(fjulian
    ${JULIAN_BASE}/fstrings.for
 )
 
-find_path(FABM_BASE src/fabm.F90 DOC "Path to FABM source directory.")
-set(FABM_FORCED_HOST fvcom)
-add_subdirectory(${FABM_BASE}/src fabm)
+option(FVCOM_USE_FABM "Enable FABM" OFF)
+if(FVCOM_USE_FABM)
+  find_path(FABM_BASE src/fabm.F90 DOC "Path to FABM source directory.")
+  set(FABM_FORCED_HOST fvcom)
+  add_subdirectory(${FABM_BASE}/src fabm)
+  set(EXTRA_SOURCES ${EXTRA_SOURCES} ${ROOT}/mod_fabm_3D.F ${ROOT}/mod_fabm_data.F)
+endif()
 
 add_library(FVCOM_C
    ${ROOT}/func_pointer.c
@@ -241,8 +245,6 @@ ${ROOT}/mod_enkfassim.F
 ${ROOT}/mod_enkf_ncd.F
 ${ROOT}/mod_enkf_obs.F
 ${ROOT}/mod_etkf.F
-${ROOT}/mod_fabm_3D.F
-${ROOT}/mod_fabm_data.F
 ${ROOT}/mod_force.F
 ${ROOT}/mod_gotm.F
 ${ROOT}/mod_ice.F
@@ -334,18 +336,16 @@ ${ROOT}/wreal.F
 ${EXTRA_SOURCES}
 ${MPI_Fortran_EXTRA_SOURCES}
 )
-if(MSVC)
-  # Force Visual Studio to interpret .F as Fortran 90
-  target_compile_options(FVCOM_exe PRIVATE /free)
-endif()
-if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-  target_compile_options(FVCOM_exe PRIVATE -ffree-form)
-endif()
-target_include_directories(FVCOM_exe PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/fabm/modules)
+set_property(TARGET FVCOM_exe PROPERTY Fortran_FORMAT FREE)
 target_link_libraries(FVCOM_exe julian fjulian metis)
-target_link_libraries(FVCOM_exe fabm)
 target_link_libraries(FVCOM_exe FVCOM_C)
 target_link_libraries(FVCOM_exe "${NetCDF_LIBRARIES}")
+
+if(FVCOM_USE_FABM)
+  target_include_directories(FVCOM_exe PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/fabm/modules)
+  target_link_libraries(FVCOM_exe fabm)
+endif()
+
 if (NetCDF_STATIC_MSVC_BUILD)
   set_property(TARGET FVCOM_exe PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmt\"")
 endif()

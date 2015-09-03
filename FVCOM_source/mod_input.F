@@ -446,6 +446,7 @@ CONTAINS
     OBC_LONGSHORE_FLOW_FILE = trim(casename)//"_lsf.dat"
     OBC_TIDEOUT_INITIAL  = 0       !TIME STEPS
     OBC_TIDEOUT_INTERVAL = 0       !TIME STEPS
+    OBC_DEPTH_CONTROL_ON = .TRUE.
 
     !--Parameters in NameList GRID_COORDINATES
     GRID_FILE = trim(casename)//"_grd.dat"
