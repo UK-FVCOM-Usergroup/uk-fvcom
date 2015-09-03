@@ -7,6 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Mo
 set(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/FVCOM_source")
 
 find_path(JULIAN_BASE fjulian.inc HINTS "${ROOT}/libs/julian" DOC "Source directory of julian")
+find_path(METIS_BASE metis.h HINTS "${ROOT}/libs/metis" DOC "Source directory of METIS")
 
 include_directories(${ROOT} ${JULIAN_BASE})
 
@@ -59,7 +60,6 @@ if (NetCDF_STATIC_MSVC_BUILD)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
 endif()
 
-set(METIS_BASE "${CMAKE_CURRENT_SOURCE_DIR}/METIS_source")
 add_library(metis
   ${METIS_BASE}/coarsen.c
   ${METIS_BASE}/fm.c
