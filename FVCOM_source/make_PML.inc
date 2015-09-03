@@ -57,7 +57,7 @@
             INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -P -C -traditional
+            DEF_FLAGS     = -C
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -146,7 +146,6 @@ dashL= $(empty) -L
 
              FLAG_4 = -DMULTIPROCESSOR
              PARLIB = -L$(INSTALLDIR)/lib -lmetis
-#             PARLIB = -L../METIS_source -lmetis  #-L/usr/local/lib -lmetis
 
 #--------------------------------------------------------------------------
 #        WATER_QUALITY      INCLUDE EPA WATER QUALITY MOD
@@ -245,10 +244,8 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
 #            FLAG_11 = -DGOTM
-#            GOTMLIB       = -L../GOTM_source/PML/gotm-4.0.0/lib/IFORT/ -lturbulence_prod -lutil_prod -lmeanflow_prod
-#            GOTMINCS      = -I../GOTM_source/PML/gotm-4.0.0/modules/IFORT/
-            #GOTMLIB       = -L$(HOME)/src/FVCOM/gotm-4.0.0/lib/IFORT/  -lturbulence_prod -lutil_prod -lmeanflow_prod
-            #GOTMINCS      = -I$(HOME)/src/FVCOM/gotm-4.0.0/modules/IFORT/
+#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil -lmeanflow
+#            GOTMINCS      = -I../GOTM_source/
 
 #--------------------------------------------------------------------------
 #       EQUILIBRIUM TIDE
@@ -525,7 +522,6 @@ dashL= $(empty) -L
 # Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
 #         OPT      = -O0 -g
 #         OPT      = -xP
-
 # Do not set static for use with visit!
 #         VISOPT   = -Wl,--export-dynamic
 #         LDFLAGS  = $(VISITLIBPATH)
@@ -545,7 +541,6 @@ dashL= $(empty) -L
 #         OPT      = -O0 -g
 #         OPT      = -axN -xN
 #         OPT      = -O3
-
 # Do not set static for use with visit!
 #         VISOPT   = -Wl,--export-dynamic
 #         LDFLAGS  =  $(VISITLIBPATH)
