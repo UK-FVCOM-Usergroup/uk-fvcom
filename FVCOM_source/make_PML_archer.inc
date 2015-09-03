@@ -462,15 +462,15 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
-         COMPILER = -DIFORT
-         CPP      = /lib/cpp
-         CPPFLAGS = $(DEF_FLAGS) -DINTEL -P -I/opt/mpi/mpibull2-current/include
-         FC       = ifort
-         DEBFLGS  = #-check all
-         OPT      = -xP -I/opt/mpi/mpibull2-current/include  -g -no-prec-div -no-prec-sqrt -traceback  -warn
-         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -lrt -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-         CC       = icc
-         CFLAGS   = -O3  -xS -I/opt/mpi/mpibull2-current/include
+#         COMPILER = -DIFORT
+#         CPP      = /lib/cpp
+#         CPPFLAGS = $(DEF_FLAGS) -DINTEL -P -I/opt/mpi/mpibull2-current/include
+#         FC       = ifort
+#         DEBFLGS  = #-check all
+#         OPT      = -xP -I/opt/mpi/mpibull2-current/include  -g -no-prec-div -no-prec-sqrt -traceback  -warn
+#         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -lrt -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
+#         CC       = icc
+#         CFLAGS   = -O3  -xS -I/opt/mpi/mpibull2-current/include
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML) Debugging
 #--------------------------------------------------------------------------
