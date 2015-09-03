@@ -579,13 +579,18 @@ dashL= $(empty) -L
 #         DEBFLGS  =  # -qcheck -C -g
 #         OPT      = -O5 -qarch=g5 -qtune=g5  -qhot -qmaxmem=8096 -qunroll=yes -Wl,-stack_size,10000000
 #--------------------------------------------------------------------------
-#  OTHER
+#  ARCHER Intel/MPI Compiler
 #--------------------------------------------------------------------------
-#         COMPILER =
-#         CPP      =
-#         FC       =
-#         DEBFLGS  =
-#         OPT      =
+         CPP      = /usr/bin/cpp
+         COMPILER = -DIFORT  
+         CC       = cc
+         CXX      = CC
+         CFLAGS   = -O3 
+         FC       = ftn
+#         DEBFLGS  = -check all
+         OPT      = -O3
+         COPTIONS = -c89
+#--------------------------------------------------------------------------
 #==========================================================================
 #  END USER DEFINITION SECTION
 #==========================================================================
