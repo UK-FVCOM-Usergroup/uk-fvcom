@@ -201,19 +201,8 @@ CONTAINS
    END SUBROUTINE FABM_INITIAL
 
    SUBROUTINE FABM_INITIAL_DIAG()
-      INTEGER :: K
-      REAL(SP), DIMENSION(M,size(model%state_variables))         :: DUMMY
-      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: DUMMY_BT
-      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: DUMMY_SF
-
-      CALL PREPARE_ENVIRONMENT
-
-      ! Initialize all diagnostics
-      call fabm_do_surface(model,1,M,1,   DUMMY,DUMMY_SF)
-      call fabm_do_bottom (model,1,M,KBM1,DUMMY,DUMMY_BT)
-      DO K=1,KBM1
-         call fabm_do(model,1,M,K,DUMMY)
-      END DO
+      ! Initialize all diagnostics (but skip time integration)
+      CALL FABM_SOURCES(DTI,UPDATE=.FALSE.)
 
       ! Compute initial value of conserved quantity integrals
       CALL CHECK_CONSERVATION
@@ -227,7 +216,7 @@ SUBROUTINE FABM_UPDATE
     !     write (*,*) 'at timestep start ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 
      ! Integrate biogeochemical sources-sinks
-     CALL FABM_SOURCES(DTI)  ! This operates on FABM_ALL
+     CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
     !     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
      CALL CALC_VERTICAL_MOVEMENT(DTI)
@@ -241,7 +230,7 @@ SUBROUTINE FABM_UPDATE
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
 # endif
 
-     CALL FABM_ADV  ! This operates on FABM_F
+     CALL FABM_ADV  ! This applies advection and horizontal diffusion operators to FABM_ALL to compute forecast field FABM_F
 
     !     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 
@@ -352,8 +341,9 @@ SUBROUTINE CHECK_CONSERVATION()
      END IF
 END SUBROUTINE CHECK_CONSERVATION
 
-SUBROUTINE FABM_SOURCES(DELTA_T)
+SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
      REAL(SP), INTENT(IN) :: DELTA_T
+     LOGICAL,  INTENT(IN) :: UPDATE
      INTEGER  :: I, K, IFABM
      REAL(SP), DIMENSION(M,size(model%state_variables))         :: SMS_PEL,FLUX_SF,FLUX_BT
      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: SMS_BT
@@ -405,12 +395,14 @@ SUBROUTINE FABM_SOURCES(DELTA_T)
         END IF
 
         ! Forward Euler time integration of pelagic state.
-        FABM_ALL(1:M,K,:) = FABM_ALL(1:M,K,:) + DELTA_T*SMS_PEL
+        IF (UPDATE) FABM_ALL(1:M,K,:) = FABM_ALL(1:M,K,:) + DELTA_T*SMS_PEL
      END DO
 
      ! Forward Euler time integration of interface-attached state variables.
-     FABM_ALL_SF(1:M,:) = FABM_ALL_SF(1:M,:) + DELTA_T*SMS_SF
-     FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DELTA_T*SMS_BT
+     IF (UPDATE) THEN
+        FABM_ALL_SF(1:M,:) = FABM_ALL_SF(1:M,:) + DELTA_T*SMS_SF
+        FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DELTA_T*SMS_BT
+     END IF
 
 END SUBROUTINE FABM_SOURCES
 
