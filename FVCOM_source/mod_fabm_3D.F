@@ -1517,12 +1517,12 @@ END SUBROUTINE FABM_ADV
    END IF
 
        
+   IF(OBC_FABM_NUDGING) CALL UPDATE_OBC_FABM(IntTime,FABM_OBC)
    IF(IOBCN > 0) THEN
 !
 !  SET CONDITIONS ON OUTER BOUNDARY
 ! Variables presence is a function of variable presence in NETCDF file
 ! different handling is only needed when tracers come into the domain
-     IF(OBC_FABM_NUDGING) CALL UPDATE_OBC_FABM(IntTime,FABM_OBC)
      RAMP_BIO = TANH(FLOAT(IINT)/FLOAT(IRAMP+1))
      DO IFABM=1,size(model%state_variables)
        DO I=1,IOBCN
