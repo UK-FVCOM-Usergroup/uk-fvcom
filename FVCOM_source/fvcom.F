@@ -580,6 +580,14 @@ PROGRAM FVCOM
   CALL SETUP_DOMAIN
 
   !==============================================================================!
+  !  GET THE PARAMETERS OF FABM                                      !
+  !==============================================================================!
+#  if defined (FABM)
+   IF (FABM_MODEL) CALL FABM_FVCOM_INITIALIZE
+!   RIVER_TS_SETTING = 'NONE' !No bio river yet
+#  endif
+
+  !==============================================================================!
   !   ALLOCATE ALL DOMAIN SIZE VARIABLES HERE                                    !
   !==============================================================================!
   CALL ALLOCATE_ALL
@@ -619,14 +627,6 @@ PROGRAM FVCOM
 #  if defined (BioGen)
    KBV=KB
    CALL GET_PARAMETER
-!   RIVER_TS_SETTING = 'NONE' !No bio river yet
-#  endif
-
-  !==============================================================================!
-  !  GET THE PARAMETERS OF FABM                                      !
-  !==============================================================================!
-#  if defined (FABM)
-   IF (FABM_MODEL) CALL FABM_FVCOM_INITIALIZE
 !   RIVER_TS_SETTING = 'NONE' !No bio river yet
 #  endif
 
