@@ -1555,7 +1555,7 @@ END SUBROUTINE FABM_ADV
            ! For the new depth-explicit value at the boundary, combine the forecast depth-averaged value
            ! with the differences from the the depth-averaged value as forecast for the neighbouring node.
            DO K=1,KBM1
-             FABM_F(J,K,IFABM)=T2D_OBC+(FABM_F(J1,K,IFABM)-T2D_NEXT)
+             FABM_F(J,K,IFABM)=T2D_OBC+FTMP(I,K) 
            END DO
 
          DO K=1,KBM1
@@ -1608,6 +1608,7 @@ END SUBROUTINE FABM_ADV
          END IF
        END DO
      END DO !!OUTER LOOP OVER BIO-VARIABLES IFABM=1,size(model%state_variables)
+     DEALLOCATE(FTMP)
 
    END IF
 
@@ -1898,6 +1899,79 @@ SUBROUTINE FCT_FABM
   !#  endif
 END SUBROUTINE FCT_FABM
 !==============================================================================|
+SUBROUTINE BCOND_FABM_PERTURBATION(S2D_NEXT,S2D,STMP,I,J,J1)
+  !==============================================================================|
+  ! Calculate the OBC for salinity perturbation                                  |
+  !==============================================================================|
+  USE ALL_VARS
+  IMPLICIT NONE
+
+  INTEGER :: I,J,J1,J2,K
+  REAL(SP):: CC,CP,MU,CL
+  REAL(SP):: PERT_NEXT,PERT,S2D_NEXT,S2D
+  REAL(SP):: S2D_NEXT1,SM12D_NEXT2,SM12D_NEXT1,SM22D_NEXT1
+  REAL(SP):: STMP(IOBCN,KBM1)
+
+  SELECT CASE(TYPE_TSOBC)
+
+  CASE(1)
+     DO K=1,KBM1
+        STMP(I,K) = SF1(J1,K) - S2D_NEXT
+     END DO
+  CASE(2)
+     CC = SQRT(GRAV_N(J)*H(J))*DTI/DLTN_OBC(I)
+     CP = CC + 1.0_SP
+     DO K=1,KBM1
+        PERT_NEXT = SF1(J1,K) - S2D_NEXT
+        PERT      = S1(J,K) - S2D
+        STMP(I,K) = (CC*PERT_NEXT + PERT)/CP
+     END DO
+  CASE(3)
+     CC = SQRT(GRAV_N(J)*H(J))*DTI/DLTN_OBC(I)
+     CP = CC + 1.0_SP
+     DO K=1,KBM1
+        PERT_NEXT = SF1(J1,K) - S2D_NEXT
+        PERT      = S1(J,K) - S2D
+        STMP(I,K) = (CC*PERT_NEXT + PERT*(1.0_SP - DTI/10800.0_SP))/CP
+     END DO
+  CASE(4)
+     J2 = NEXT_OBC2(I)
+     S2D_NEXT1  =0.0_SP
+     SM12D_NEXT2=0.0_SP
+     SM12D_NEXT1=0.0_SP
+     SM22D_NEXT1=0.0_SP
+     DO K=1,KBM1
+        S2D_NEXT1  =S2D_NEXT1  +S1(J1,K)*DZ(J1,K)
+        SM12D_NEXT2=SM12D_NEXT2+S1M1(J2,K)*DZ(J2,K)
+        SM12D_NEXT1=SM12D_NEXT1+S1M1(J,K)*DZ(J,K)
+        SM22D_NEXT1=SM22D_NEXT1+S1M2(J1,K)*DZ(J1,K)
+     END DO
+
+     DO K=1,KBM1
+        CL = ((S1M2(J1,K)-SM22D_NEXT1)-(S1(J1,K)-S2D_NEXT1))/   &
+             ((S1(J1,K)-S2D_NEXT1)+(S1M2(J1,K)-SM22D_NEXT1)     &
+             -2.0*(S1M1(J2,K)-SM12D_NEXT2))
+        IF(CL >= 1.0)THEN
+           MU = 1.0
+        ELSE IF(CL > 0.0 .AND. CL < 1.0)THEN
+           MU = CL
+        ELSE
+           MU = 0.0
+        END IF
+
+        STMP(I,K)=((S1M1(J,K)-SM12D_NEXT1)*(1.0-MU)     &
+             +2.0*MU*(S1(J1,K)-S2D_NEXT1))/(1.0+MU)
+     END DO
+
+  CASE DEFAULT
+     CALL FATAL_ERROR("INVALID OBC_TS_TYPE IN NML_OPEN_BOUNDARY_CONTROL"&
+          &, "See mod_obcs.F")
+
+  END SELECT
+
+  RETURN
+END SUBROUTINE BCOND_FABM_PERTURBATION
+!========================================================================
 
 # endif
 
