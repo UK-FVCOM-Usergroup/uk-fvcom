@@ -1616,7 +1616,7 @@ END SUBROUTINE FABM_ADV
 !--SET BOUNDARY CONDITIONS-----------------------------------------------------|
 !
        FABM_ALL(0,:,:)=ZERO ! don't know what this is doing here
-   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_BCOND :"
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_BCOND2 :"
 
    RETURN
 
@@ -1904,6 +1904,7 @@ SUBROUTINE BCOND_FABM_PERTURBATION(S2D_NEXT,S2D,STMP,I,J,J1)
   ! Calculate the OBC for salinity perturbation                                  |
   !==============================================================================|
   USE ALL_VARS
+  USE MOD_OBCS
   IMPLICIT NONE
 
   INTEGER :: I,J,J1,J2,K
