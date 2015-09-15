@@ -213,16 +213,15 @@ SUBROUTINE FABM_UPDATE
 
      INTEGER :: IFABM
 
-    !     write (*,*) 'at timestep start ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
-
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
-    !     write (*,*) 'after FABM sources',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
-     CALL CALC_VERTICAL_MOVEMENT(DTI)
-!     CALL FABM_VERTICAL_MOVEMENT(DTI)
+
+     ! Vertical movement (e.g., sinking or floating)
+!     CALL CALC_VERTICAL_MOVEMENT(DTI)
+     CALL FABM_VERTICAL_MOVEMENT(DTI)
      IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
-    !     write (*,*) 'after FABM vertical movement',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
+
 # if !defined (ONE_D_MODEL)
 
 # if defined (MULTIPROCESSOR)
@@ -230,15 +229,21 @@ SUBROUTINE FABM_UPDATE
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
 # endif
 
+     ! Advection and horizontal diffusion
      CALL FABM_ADV  ! This applies advection and horizontal diffusion operators to FABM_ALL to compute forecast field FABM_F
 
-    !     write (*,*) 'after FABM_ADV    ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
+     ! Redirect FABM to forecast pelagic state FABM_F to ensure that any further FABM calls (check_state, check_conservation)
+     ! operate on the right data.
+     DO IFABM=1,size(model%state_variables)
+       CALL fabm_link_bulk_state_data(model,IFABM,FABM_F(1:M,:,IFABM))
+     END DO
 
 #   if defined (MULTIPROCESSOR)
      DO IFABM=1,size(model%state_variables)
         IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
      END DO
 #   endif
+
     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
 
@@ -248,13 +253,10 @@ SUBROUTINE FABM_UPDATE
      ! Vertical mixing
 # if !defined (ONE_D_MODEL)
      CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_MIXING')
-    !     write (*,*) 'after FABM_MIXING ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
 # else
      CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_MIXING')
-    !     write (*,*) 'after FABM_MIXING ',maxval(FABM_ALL(1:M,1:KBM1,1))-minval(FABM_ALL(1:M,1:KBM1,1))
 # endif
+     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_MIXING')
 
 # if defined (MULTIPROCESSOR)
 ! RJT just to check this is needed...only the call to FABM_ALL is mine
@@ -262,20 +264,27 @@ SUBROUTINE FABM_UPDATE
      IF(PAR)CALL FABM_EXCHANGE(FABM_F)
 # endif
 
+     ! Process open boundaries (and depending on RIVER_TS_SETTING, also rivers)
      CALL FABM_BCOND  ! This operates on FABM_F
-    !     write (*,*) 'after FABM_BCOND  ',maxval(FABM_F(1:M,1:KBM1,1))-minval(FABM_F(1:M,1:KBM1,1))
+
+     ! Check validity of state variables and "correct" (typicalyl: clip) where needed.
+     ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
+     IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_BCOND'
 
 # if !defined (ONE_D_MODEL)
-     FABM_ALL=FABM_F                                       !Update to new time level  !
+     FABM_ALL = FABM_F      ! Update to new time level
 # endif
 
-     IF (.NOT.CHECK_STATE(.TRUE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_UPDATE')
+     ! Redirect FABM to new pelagic state FABM_ALL to ensure that any future FABM calls operate on the right data.
+     DO IFABM=1,size(model%state_variables)
+       CALL fabm_link_bulk_state_data(model,IFABM,FABM_ALL(1:M,:,IFABM))
+     END DO
 
 # if defined (MULTIPROCESSOR)
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
 # endif
 
-      ! Compute initial value of conserved quantity integrals
+      ! Compute conserved quantity integrals
       CALL CHECK_CONSERVATION
 END SUBROUTINE FABM_UPDATE
 
@@ -606,6 +615,7 @@ SUBROUTINE FABM_EXCHANGE(F)
 #  if defined (WET_DRY)
   USE MOD_WD
 #  endif
+!DIR$ ATTRIBUTES NOINLINE :: FABM_MIXING
 
 # if defined (THIN_DAM)
   USE MOD_DAM,only : NODE_DAM1_N,NODE_DAM2_N,NODE_DAM3_N&
@@ -1635,6 +1645,7 @@ END SUBROUTINE FABM_ADV
    REAL(SP) :: T2D,T2D_NEXT,T2D_OBC,XFLUX2D,TMP,RAMP_BIO
    INTEGER  :: I,J,K,J1,J11,J22,NCON2,IFABM
    REAL(SP) ::WQMMAX,WQMMIN
+!DIR$ ATTRIBUTES NOINLINE :: FABM_BCOND
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_BCOND :"
 
@@ -1830,6 +1841,7 @@ SUBROUTINE FCT_FABM
   INTEGER :: I,J,K,K1
   INTEGER :: IFABM
 !==============================================================================|
+!DIR$ ATTRIBUTES NOINLINE :: FCT_FABM
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: fct_FABM"
 
