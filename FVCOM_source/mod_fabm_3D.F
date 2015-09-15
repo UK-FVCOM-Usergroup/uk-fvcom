@@ -47,6 +47,8 @@ CONTAINS
 
     ! Tell FABM about the extents of the spatial domain.
     call fabm_set_domain(model,M,KB)
+    call model%set_surface_index(1)
+    call model%set_bottom_index(KBM1)
 
     ! Provide FABM with pointer to the mask.
     call fabm_set_mask(model,ISWETN(1:M))
@@ -189,8 +191,8 @@ CONTAINS
       call fabm_set_mask(model,DUMMY_MSK(1:M))
 
       ! Allow FABM to perform its default initialization.
-      CALL fabm_initialize_surface_state(model,1,M,1)
-      CALL fabm_initialize_bottom_state (model,1,M,KBM1)
+      CALL fabm_initialize_surface_state(model,1,M)
+      CALL fabm_initialize_bottom_state (model,1,M)
       DO K=1,KBM1
         CALL fabm_initialize_state(model,1,M,K)
       END DO
@@ -297,9 +299,9 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
       ! If REPAIR_STATE is .TRUE., this routine will automatically clip invalid values to the nearest valid value.
       ! In that case, the state will be valid after return even if VALID_STATE = .FALSE. [which is then indicative of
       ! clipping having occured)
-      CALL fabm_check_surface_state(model,1,M,1,REPAIR_STATE,VALID_STATE)
+      CALL fabm_check_surface_state(model,1,M,REPAIR_STATE,VALID_STATE)
       if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
-      CALL fabm_check_bottom_state(model,1,M,KBM1,REPAIR_STATE,VALID_STATE)
+      CALL fabm_check_bottom_state(model,1,M,REPAIR_STATE,VALID_STATE)
       if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
       DO K=1,KBM1
          CALL fabm_check_state(model,1,M,K,REPAIR_STATE,VALID_STATE)
@@ -325,7 +327,7 @@ SUBROUTINE CHECK_CONSERVATION()
            TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*DZ(1:M,K)*D(1:M)*ART1(1:M)))
         END DO
      END DO
-     CALL fabm_get_horizontal_conserved_quantities(model,1,M,1,LOCAL)
+     CALL fabm_get_horizontal_conserved_quantities(model,1,M,LOCAL)
      DO IFABM=1,SIZE(model%conserved_quantities)
         TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*ART1(1:M)))
      END DO
@@ -381,8 +383,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
 
      ! Get sources-sinks for interface-attached state variables, and cross-interface
      ! fluxes (air-sea gas exchange, sedimentation, pelagic-benthic diffusion flux)
-     call fabm_do_surface(model,1,M,1,   FLUX_SF,SMS_SF)
-     call fabm_do_bottom (model,1,M,KBM1,FLUX_BT,SMS_BT)
+     call fabm_do_surface(model,1,M,FLUX_SF,SMS_SF)
+     call fabm_do_bottom (model,1,M,FLUX_BT,SMS_BT)
 
      ! Integrate sources-sinks for the pelagic
      DO K=1,KBM1
