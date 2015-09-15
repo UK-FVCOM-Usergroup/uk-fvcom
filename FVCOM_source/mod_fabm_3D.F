@@ -29,6 +29,8 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
   REAL(SP), ALLOCATABLE,TARGET :: BOTTOM_STRESS(:)
 
+  INTEGER, ALLOCATABLE, TARGET :: MASK_NONE(:)
+
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
      procedure :: fatal_error => fvcom_driver_fatal_error
@@ -128,6 +130,8 @@ CONTAINS
     ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%state_variables))) ; XFLUX_OBCB  =  0.0_SP
     ALLOCATE(PFABMPXB(MT,size(model%state_variables)))        ; PFABMPXB    = ZERO
     ALLOCATE(PFABMPYB(MT,size(model%state_variables)))        ; PFABMPYB    = ZERO
+
+    ALLOCATE(MASK_NONE(M)); MASK_NONE = 1
    END SUBROUTINE
 
    SUBROUTINE PREPARE_ENVIRONMENT()
@@ -179,16 +183,13 @@ CONTAINS
 
    SUBROUTINE FABM_INITIAL()
       INTEGER :: K
-      INTEGER, DIMENSION(M), TARGET  :: DUMMY_MSK
-
-      DUMMY_MSK=1
 
       IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIAL called before FABM_ALLOCATE")
 
       CALL PREPARE_ENVIRONMENT
 
       ! Provide FABM with pointer to the dummy mask ("nothign masked") to include dry points in initialization.
-      call fabm_set_mask(model,DUMMY_MSK(1:M))
+      call fabm_set_mask(model,MASK_NONE)
 
       ! Allow FABM to perform its default initialization.
       CALL fabm_initialize_surface_state(model,1,M)
@@ -295,6 +296,9 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
       LOGICAL :: VALID_STATE
       INTEGER :: K
 
+      ! Provide FABM with pointer to the dummy mask ("nothing masked") to include dry regions when checking/overriding state.
+      call fabm_set_mask(model,MASK_NONE)
+
       ! Check state variable values. On return, VALID_STATE will be .TRUE. if the state has been found valid, .FALSE. if not.
       ! If REPAIR_STATE is .TRUE., this routine will automatically clip invalid values to the nearest valid value.
       ! In that case, the state will be valid after return even if VALID_STATE = .FALSE. [which is then indicative of
@@ -307,18 +311,18 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
          CALL fabm_check_state(model,1,M,K,REPAIR_STATE,VALID_STATE)
          if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
       END DO
+
+      ! Provide FABM with pointer to the real mask.
+      call fabm_set_mask(model,ISWETN(1:M))
 END FUNCTION CHECK_STATE
 
 SUBROUTINE CHECK_CONSERVATION()
      INTEGER  :: K, IFABM, IERR
      REAL(SP), DIMENSION(M,SIZE(model%conserved_quantities)) :: LOCAL
      REAL(DP), DIMENSION(SIZE(model%conserved_quantities))   :: TOTALS_LOC
-     INTEGER, DIMENSION(M), TARGET :: DUMMY_MSK
-
-     DUMMY_MSK=1
 
      ! Provide FABM with pointer to the dummy mask ("nothing masked") to include dry regions when computing conserved quantity totals.
-     call fabm_set_mask(model,DUMMY_MSK(1:M))
+     call fabm_set_mask(model,MASK_NONE)
 
      TOTALS_LOC = 0
      DO K=1,KBM1
