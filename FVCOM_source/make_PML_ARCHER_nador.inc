@@ -48,7 +48,7 @@
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
 
-           TOPDIR        =  $(HOME)/src/FVCOM-FABM/FVCOM/PML/src/FVCOM_source
+           TOPDIR        =  $(HOME)/src/uk-fvcom/FVCOM_source/
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
@@ -245,8 +245,8 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
             FLAG_11 = -DGOTM
-            GOTMLIB       = -L../GOTM_source/PML/gotm-4.0.0/lib/FTN/ -lturbulence_prod -lutil_prod -lmeanflow_prod
-            GOTMINCS      = -I../GOTM_source/PML/gotm-4.0.0/modules/FTN/
+            GOTMLIB       = -L/home/n01/n01/rito/src/GOTM/gotm-git/lib/IFORT/ -lturbulence_prod -lutil_prod -lmeanflow_prod
+            GOTMINCS      = -I/home/n01/n01/rito/src/GOTM/gotm-git/modules/IFORT/
 #            GOTMLIB       = -L$(HOME)/src/FVCOM/gotm-4.0.0/lib/IFORT/  -lturbulence_prod -lutil_prod -lmeanflow_prod
 #            GOTMINCS      = -I$(HOME)/src/FVCOM/gotm-4.0.0/modules/IFORT/
 

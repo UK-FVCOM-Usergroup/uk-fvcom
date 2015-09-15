@@ -215,15 +215,16 @@ SUBROUTINE FABM_UPDATE
      USE MOD_PAR
 
      INTEGER :: IFABM
+     LOGICAL :: RES
 
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
+!     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
 
      ! Vertical movement (e.g., sinking or floating)
 !     CALL CALC_VERTICAL_MOVEMENT(DTI)
      CALL FABM_VERTICAL_MOVEMENT(DTI)
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
+!     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
 
 # if !defined (ONE_D_MODEL)
 
@@ -248,7 +249,7 @@ SUBROUTINE FABM_UPDATE
 #   endif
 
     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
-    IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
+!    IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
 
 # endif
 ! end if defined 1D
@@ -259,7 +260,7 @@ SUBROUTINE FABM_UPDATE
 # else
      CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
 # endif
-     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_MIXING')
+!     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_MIXING')
 
 # if defined (MULTIPROCESSOR)
 ! RJT just to check this is needed...only the call to FABM_ALL is mine
@@ -272,7 +273,7 @@ SUBROUTINE FABM_UPDATE
 
      ! Check validity of state variables and "correct" (typicalyl: clip) where needed.
      ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
-     IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_BCOND'
+    RES= CHECK_STATE(.TRUE.)
 
 # if !defined (ONE_D_MODEL)
      FABM_ALL = FABM_F      ! Update to new time level
