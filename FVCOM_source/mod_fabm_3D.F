@@ -229,7 +229,6 @@ SUBROUTINE FABM_UPDATE
      USE MOD_PAR
 
      INTEGER :: IFABM
-     LOGICAL :: RES
 
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
@@ -287,7 +286,7 @@ SUBROUTINE FABM_UPDATE
 
      ! Check validity of state variables and "correct" (typicalyl: clip) where needed.
      ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
-    RES= CHECK_STATE(.TRUE.)
+     IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_BCOND'
 
 # if !defined (ONE_D_MODEL)
      FABM_ALL = FABM_F      ! Update to new time level
