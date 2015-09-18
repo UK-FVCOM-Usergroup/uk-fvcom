@@ -28,6 +28,8 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE,TARGET :: DEPTH(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
   REAL(SP), ALLOCATABLE,TARGET :: BOTTOM_STRESS(:)
+  REAL(SP) :: DAYS_SINCE_YEAR_START
+  LOGICAL :: COMPUTE_DAYS_SINCE_YEAR_START
 
   INTEGER, ALLOCATABLE, TARGET :: MASK_NONE(:)
 
@@ -106,6 +108,9 @@ CONTAINS
        call fabm_link_horizontal_data(model,standard_variables%bottom_stress,BOTTOM_STRESS(1:M))
     END IF
 
+    COMPUTE_DAYS_SINCE_YEAR_START = model%variable_needs_values(standard_variables%number_of_days_since_start_of_the_year)
+    IF (COMPUTE_DAYS_SINCE_YEAR_START) call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,DAYS_SINCE_YEAR_START)
+
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
     ALLOCATE(FABM_ALL_SF(0:MT,size(model%surface_state_variables))); FABM_ALL_SF =  0.001_SP
@@ -137,6 +142,9 @@ CONTAINS
    SUBROUTINE PREPARE_ENVIRONMENT()
       INTEGER :: K
       REAL(SP), DIMENSION(0:MT) :: UUWIND_N,VVWIND_N
+      TYPE(TIME) :: Time_yearstart
+      CHARACTER(LEN=120) :: string_local
+      integer :: status
 
       ! Compute environmental fields that FVCOM does not provide
 
@@ -178,6 +186,12 @@ CONTAINS
       IF (ALLOCATED(BOTTOM_STRESS)) THEN
          ! Bottom stress from square of shear velocity - multiply with density
          BOTTOM_STRESS = TAUBM_N*(1+RHO1(:,KBM1))*1000
+      END IF
+
+      IF (COMPUTE_DAYS_SINCE_YEAR_START) THEN
+         string_local = WRITE_DATETIME(IntTime,3,'UTC')
+         Time_yearstart = READ_DATETIME(string_local(1:4)//'-01-01T00:00:00.000Z','ymd','UTC',status)
+         DAYS_SINCE_YEAR_START = DAYS(IntTime-Time_yearstart)
       END IF
    END SUBROUTINE
 
@@ -1805,7 +1819,7 @@ END SUBROUTINE FABM_ADV
      CLASS (type_fvcom_driver), INTENT(INOUT) :: self
      CHARACTER(LEN=*),          INTENT(IN)    :: location,message
     
-     WRITE (IPT,*) TRIM(location),TRIM(message)
+     WRITE (IPT,*) 'FABM '//TRIM(location)//': '//TRIM(message)
      CALL FATAL_ERROR('FABM '//TRIM(location)//': '//TRIM(message))
   END SUBROUTINE
 
