@@ -481,6 +481,18 @@ CONTAINS
           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,VORTICITY_FILE_OBJECT() )
        END IF
+	   
+	   IF(NC_KBTT) THEN
+          NCF2 => KBTT_FILE_OBJECT()
+          NCF => ADD(NCF,NCF2)
+!!$          NCF => ADD(NCF,KBTT_FILE_OBJECT() )
+       END IF
+	   
+       IF(NC_CT) THEN
+          NCF2 => CT_FILE_OBJECT()
+          NCF => ADD(NCF,NCF2)
+!!$          NCF => ADD(NCF,CT_FILE_OBJECT() )
+       END IF 
        
        IF(NC_SALT_TEMP) THEN
           NCF2 => SALT_TEMP_FILE_OBJECT()
@@ -2988,6 +3000,116 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END AVERAGE_VEL_FILE_OBJECT"
 
   END FUNCTION AVERAGE_VEL_FILE_OBJECT
+
+!=============================================================  
+  FUNCTION KBTT_FILE_OBJECT() RESULT(NCF)
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START KBTT_FILE_OBJECT"
+    
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+
+       allocate(UA(NGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UA")
+       CBC = 0.0_SP
+
+    END IF
+
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+
+    ! CBC
+    VAR  => NC_MAKE_AVAR(name='KBTT',&
+         & values=KBTT, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='tidal turbine sigma layer fractions') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='n/a') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END KBTT_FILE_OBJECT"
+
+  END FUNCTION KBTT_FILE_OBJECT
+   
+!=============================================================  
+  FUNCTION CT_FILE_OBJECT() RESULT(NCF)
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START CT_FILE_OBJECT"
+    
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+
+       allocate(UA(NGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UA")
+       CBC = 0.0_SP
+
+    END IF
+
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+
+    ! CBC
+    VAR  => NC_MAKE_AVAR(name='CT',&
+         & values=CT, DIM1= DIM_nele, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='tidal turbine thrust coefficient') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='n/a') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END CT_FILE_OBJECT"
+
+  END FUNCTION CT_FILE_OBJECT
   
 !=============================================================  
   FUNCTION VERTICAL_VEL_FILE_OBJECT() RESULT(NCF)

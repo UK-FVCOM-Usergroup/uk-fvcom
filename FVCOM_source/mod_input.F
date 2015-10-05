@@ -332,6 +332,8 @@ CONTAINS
          &//TRIM(BR_GOTM)//"'; Select your bottom roughness equation (brough.F)"
     BOTTOM_ROUGHNESS_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)
     BOTTOM_ROUGHNESS_FILE =trim(casename)//"_brf.nc"
+	TIDAL_TURBINE_KIND = .FALSE.
+    TIDAL_TURBINE_FILE = trim(casename)//"_tt.nc"
     
     CONVECTIVE_OVERTURNING     = .FALSE.  
     SCALAR_POSITIVITY_CONTROL  = .FALSE.
@@ -1774,6 +1776,28 @@ CONTAINS
        end if
        
     END IF
+	
+	! LOAD TIDAL TURBINE PARAMETERS
+    IF (TIDAL_TURBINE_KIND) THEN
+
+       ! TEST FILE NAME
+       charnum = index (TIDAL_TURBINE_FILE,".nc",back)
+       if (charnum /= len_trim(TIDAL_TURBINE_FILE)-2)&
+            & CALL WARNING("Tidal Turbine File does not end in .nc", &
+            & trim(TIDAL_TURBINE_FILE))
+       
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(TIDAL_TURBINE_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+       
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+       
+    END IF
 
 # if defined (SEDIMENT)
     !LOAD BEDFLAG FLAG
@@ -1919,6 +1943,67 @@ CONTAINS
 
     
   END SUBROUTINE LOAD_BOTTOM_ROUGHNESS
+  
+  SUBROUTINE LOAD_TIDAL_TURBINE_PARAMETERS(TTSIGMA, TTAREA, TTNUMBER)
+    USE CONTROL
+    IMPLICIT NONE
+    REAL(SP),ALLOCATABLE  :: TTSIGMA(:,:)
+    REAL(SP),ALLOCATABLE  :: TTAREA(:)
+	REAL(SP),ALLOCATABLE  :: TTNUMBER(:)
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM1
+    integer status,I,IERR
+    
+    LOGICAL FOUND
+
+    ! FIND THE Tidal Turbine FILE OBJECT
+    NCF => FIND_FILE(FILEHEAD,trim(TIDAL_TURBINE_FILE),FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND TIDAL_TURBINE_FILE FILE OBJECT",&
+         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+
+    DIM1 => FIND_DIM(NCF,'nele',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND TIDAL_TURBINE_FILE DIMENSION 'nele' in:",&
+         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+    IF (DIM1%DIM /= NGL)CALL FATAL_ERROR &
+         & ("Dimension 'nele' in the TIDAL_TURBINE_FILE does not match NGL for this model?",&
+         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE)) 
+
+
+    ! FIND THE 'turbine_sigma_layer' variable
+    VAR => FIND_VAR(NCF,'turbine_sigma_layer',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'turbine_sigma_layer' in:",&
+         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,TTSIGMA)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+
+
+    ! FIND THE rotor swept area variable
+    VAR => FIND_VAR(NCF,'swept_area',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'swept_area' in:",&
+         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,TTAREA)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+	
+	! FIND THE NUMBER OF TURBINES VARIABLE
+    VAR => FIND_VAR(NCF,'turbine_number',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'turbine_number' in:",&
+         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,TTNUMBER)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+
+  END SUBROUTINE LOAD_TIDAL_TURBINE_PARAMETERS
 
 # if defined (SEDIMENT)
 

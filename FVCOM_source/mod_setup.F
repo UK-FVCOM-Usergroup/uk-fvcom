@@ -362,6 +362,35 @@ CONTAINS
     
     
   END SUBROUTINE SETUP_BOTTOM_ROUGHNESS
+  
+  !==============================================================================|
+  !   SET TIDAL TURBINE PARAMETERS                                                       |
+  !==============================================================================|
+  SUBROUTINE SETUP_TIDAL_TURBINES
+    IMPLICIT NONE
+  
+    IF (TIDAL_TURBINE_KIND) THEN
+  
+       if(DBG_SET(DBG_LOG)) then
+          write(IPT,*) "! "
+          write(IPT,*) "! Setting tidal turbine parameters"
+       end if
+
+       CALL LOAD_TIDAL_TURBINE_PARAMETERS(KBTT, ATT, NTT)
+              
+    else
+       
+       KBTT      = 0.0
+       KBTT(0,1) = 0.0
+       NTT	 = 0.0
+       NTT(0)    = 0.0
+       ATT	 = 0.0
+       ATT(0)	 = 0.0
+
+    end if
+    
+  END SUBROUTINE SETUP_TIDAL_TURBINES
+  
   !==============================================================================|
   !   SET UP LOCAL MESH (BATHYMETRIC DEPTH)                                      |
   !==============================================================================|
