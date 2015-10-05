@@ -56,7 +56,7 @@
    INTEGER, INTENT(IN) :: K
    REAL(SP), DIMENSION(0:NT) :: RESX,RESY,TMP
    REAL(SP) :: UAFT,VAFT
-   INTEGER  :: I
+   INTEGER  :: I, J
 
 !==============================================================================|
 
@@ -119,6 +119,23 @@
        RESY(I) = ADY2D(I)+ADVVA(I)+DRY2D(I)+PSTY(I)+COR(I)*UA(I)*D1(I)*ART(I)  &
                  -(WVSURF2(I)+WVBOT(I))*ART(I)+NHQ2DY(I)
 #      endif
+
+   !ADD TIDAL ENERGY EXTRACTION IN THE 'J' SIGMA LAYER
+   !NTT(I) is the number of tidal turbines in element I
+   !CT(I) is the speed dependent thrust coefficient for element I, and is updated every time step in the TT_THRUST_UPDATE subroutine
+   !ATT(I) is the rotor swept area of turbines in element I
+   !KBTT(I,J) contains the fraction of the turbine(s) in sigma layer J and element I
+   !Note that this extra term only includes a momentum sink contribution due to the thrust of the turbine(s), CT.
+   !Use U,V if 3D model is run and sum over sigma layers, otherwise use UA,VA if 2D model is used.
+#  if !defined (TWO_D_MODEL)   
+   DO J=1,KBM1
+	RESX(I) = RESX(I) + 0.5*KBTT(I,J)*NTT(I)*CT(I)*ATT(I)*((U(I,J)**2 + V(I,J)**2)**(0.5))*U(I,J)
+   	RESY(I) = RESY(I) + 0.5*KBTT(I,J)*NTT(I)*CT(I)*ATT(I)*((U(I,J)**2 + V(I,J)**2)**(0.5))*V(I,J)
+   END DO
+#  else
+   RESX(I) = RESX(I) + 0.5*NTT(I)*CT(I)*ATT(I)*((UA(I)**2 + VA(I)**2)**(0.5))*UA(I)
+   RESY(I) = RESY(I) + 0.5*NTT(I)*CT(I)*ATT(I)*((UA(I)**2 + VA(I)**2)**(0.5))*VA(I)
+#  endif
 
 #  if defined (SPHERICAL)
        RESX(I) = RESX(I)     &

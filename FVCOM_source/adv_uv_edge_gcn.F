@@ -986,6 +986,15 @@
        YFLUX(I,K) = YFLUX(I,K) + WAVESTRY_3D(I,K)
 #  endif   
 
+	   !ADD TIDAL ENERGY EXTRACTION IN THE 'K' SIGMA LAYER
+	   !NTT(I) is the number of tidal turbines in element I
+	   !CT(I) is the speed dependent thrust coefficient for element I, and is updated every time step in the TT_THRUST_UPDATE subroutine
+	   !ATT(I) is the rotor swept area of turbines in element I
+	   !KBTT(I,K) contains the fraction of the turbine(s) in sigma layer K and element I
+	   !Note that this extra term only includes a momentum sink contribution due to the thrust of the turbine(s), CT.
+	   XFLUX(I,K) = XFLUX(I,K) + 0.5*KBTT(I,K)*NTT(I)*CT(I)*ATT(I)*((U(I,K)**2 + V(I,K)**2)**0.5)*U(I,K)
+	   YFLUX(I,K) = YFLUX(I,K) + 0.5*KBTT(I,K)*NTT(I)*CT(I)*ATT(I)*((U(I,K)**2 + V(I,K)**2)**0.5)*V(I,K)
+	   
      END DO
 #  if defined (WET_DRY)
     END IF
