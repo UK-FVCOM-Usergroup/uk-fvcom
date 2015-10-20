@@ -84,7 +84,7 @@ PROGRAM wrf2fvcom
      CASE('netcdf')
         
         FTM%NEXT_STKCNT = FTM%NEXT_STKCNT + 1
-        CALL UPDATE_IODATA(NOW)
+        CALL UPDATE_IODATA(NC_OUT,NOW)
         CALL NC_WRITE_FILE(NC_OUT)
 
      CASE('both')
@@ -93,7 +93,7 @@ PROGRAM wrf2fvcom
         !CALL DUMP_BINARY_FORCE(NOW)
         
         FTM%NEXT_STKCNT = FTM%NEXT_STKCNT + 1
-        CALL UPDATE_IODATA(NOW)
+        CALL UPDATE_IODATA(NC_OUT,NOW)
         CALL NC_WRITE_FILE(NC_OUT)
         
 
