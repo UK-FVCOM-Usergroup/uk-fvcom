@@ -144,8 +144,8 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO INCLUDE MPI PARALLEL CAPABILITY
 #--------------------------------------------------------------------------
 
-             FLAG_4 = -DMULTIPROCESSOR
-             PARLIB = -L$(INSTALLDIR)/lib -lmetis
+#             FLAG_4 = -DMULTIPROCESSOR
+#             PARLIB = -L$(INSTALLDIR)/lib -lmetis
 
 #--------------------------------------------------------------------------
 #        WATER_QUALITY      INCLUDE EPA WATER QUALITY MOD
@@ -359,7 +359,7 @@ dashL= $(empty) -L
 #         CALCULATE THE NET HEAT FLUX IN MODEL
 #--------------------------------------------------------------------------
 
-             FLAG_27 = -DHEATING_CALCULATED
+#             FLAG_27 = -DHEATING_CALCULATED
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
