@@ -77,9 +77,9 @@ PROGRAM wrf2fvcom
      CALL UPDATE_HEAT(NOW,SWRAD_WATTS,WTSURF_WATTS)
 
      SELECT CASE(OUT_FILE_TYPE)
-     CASE('binary')
+     !CASE('binary')
 
-        CALL DUMP_BINARY_FORCE(NOW)
+     !   CALL DUMP_BINARY_FORCE(NOW)
 
      CASE('netcdf')
         
@@ -90,7 +90,7 @@ PROGRAM wrf2fvcom
      CASE('both')
 
         
-        CALL DUMP_BINARY_FORCE(NOW)
+        !CALL DUMP_BINARY_FORCE(NOW)
         
         FTM%NEXT_STKCNT = FTM%NEXT_STKCNT + 1
         CALL UPDATE_IODATA(NOW)
