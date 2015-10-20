@@ -280,13 +280,13 @@ CONTAINS
     INTEGER(ITIME) :: dummy
     CHARACTER(LEN=4) :: FLAG
     
-    CALL READ_TIME_STRING(START_DATE,DATE_FORMAT,StartTime,status)
+    StartTime = READ_DATETIME(START_DATE,DATE_FORMAT,'UTC',status)
     if (.not. status) &
          & Call Fatal_Error("Could not read the date string START_DATE: ",&
          & trim(START_DATE))
     
     ! GET THE END TIME
-    CALL READ_TIME_STRING(END_DATE,DATE_FORMAT,EndTime,status)
+    EndTime = READ_DATETIME(END_DATE,DATE_FORMAT,'UTC',status)
     if (.not. status) &
          & Call Fatal_Error("Could not read the date string END_DATE:",&
          & trim(END_DATE))
