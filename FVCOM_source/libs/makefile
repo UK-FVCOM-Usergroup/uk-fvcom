@@ -6,19 +6,21 @@
 
 MYINSTALLDIR = $(INSTALLDIR)
 
-PACKAGES =	proj	fproj	julian	metis	netcdf	
+PACKAGES =	proj	fproj	julian	metis	hdf5-1.8.15-patch1	netcdf-4.1.3
 
 
 all:
 	for item in $(PACKAGES); do (./untar.sh $$item ) || exit 1; done
-	cd proj && ./configure CC=$(CC) CFLAGS=-O3 CXX=$(CC) CXXFLAGS=-O3 F77=$(FC) FFLAGS=-O3 --prefix=$(MYINSTALLDIR)
-	cd proj && make install
+	cd proj && ./configure CC=$(CC) CFLAGS=-O3 CXX=$(CC) CXXFLAGS=-O3 F77=$(FC) FFLAGS=-O3 --prefix=$(MYINSTALLDIR) --disable-shared
+	cd proj && make -j install
 	cd fproj && ./configure CPPFLAGS='$(COMPILER)' CC=$(CC) CFLAGS=-O3 CXX=$(CXX) CXXFLAGS=-O3 FC=$(FC) FFLAGS=-O3 --with-proj4=$(MYINSTALLDIR) --prefix=$(MYINSTALLDIR)
 	cd fproj && make install
-	cd netcdf && ./configure CC=$(CC) CFLAGS=-O3 CXX=$(CC) CXXFLAGS=-O3 F77=$(FC) F90=$(FC) FFLAGS=-O3 --prefix=$(MYINSTALLDIR) --build=$(MACHTYPE)
-	cd netcdf && make install
-	cd metis && make install
-	cd julian && make install
+	cd hdf5-1.8.15-patch1 && ./configure CC=$(CC) CFLAGS=-O3 CXX=$(CC) CXXFLAGS=-O3 F77=$(FC) FFLAGS=-O3 --prefix=$(MYINSTALLDIR) 
+	cd hdf5-1.8.15-patch1 && make -j install
+	cd netcdf-4.1.3 && ./configure CC=$(CC) CFLAGS=-O3 CXX=$(CC) CXXFLAGS=-O3 F77=$(FC) F90=$(FC) FFLAGS=-O3 --prefix=$(MYINSTALLDIR) --build=$(MACHTYPE) CPPFLAGS=-I$(MYINSTALLDIR)/include LDFLAGS=-L$(MYINSTALLDIR)/lib
+	cd netcdf-4.1.3 && make -j install
+	cd metis && make -j install
+	cd julian && make -j install
 
 
 
