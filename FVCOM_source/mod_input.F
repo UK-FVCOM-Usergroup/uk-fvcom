@@ -332,7 +332,7 @@ CONTAINS
          &//TRIM(BR_GOTM)//"'; Select your bottom roughness equation (brough.F)"
     BOTTOM_ROUGHNESS_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)
     BOTTOM_ROUGHNESS_FILE =trim(casename)//"_brf.nc"
-	TIDAL_TURBINE_KIND = .FALSE.
+	TIDAL_TURBINE_ON = .FALSE.
     TIDAL_TURBINE_FILE = trim(casename)//"_tt.nc"
     
     CONVECTIVE_OVERTURNING     = .FALSE.  
@@ -1778,7 +1778,7 @@ CONTAINS
     END IF
 	
 	! LOAD TIDAL TURBINE PARAMETERS
-    IF (TIDAL_TURBINE_KIND) THEN
+    IF (TIDAL_TURBINE_ON) THEN
 
        ! TEST FILE NAME
        charnum = index (TIDAL_TURBINE_FILE,".nc",back)
