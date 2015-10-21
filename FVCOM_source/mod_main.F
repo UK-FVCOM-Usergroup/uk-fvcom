@@ -408,6 +408,11 @@ MODULE CONTROL
 
     LOGICAL TIDAL_TURBINE_ON
     CHARACTER(LEN=80) TIDAL_TURBINE_FILE
+    CHARACTER(LEN=80) TIDAL_TURBINE_KIND
+
+    ! TIDAL TURBINE KINDS
+    CHARACTER(LEN=80),parameter:: TTMSINK  = "momentum_sink"
+    CHARACTER(LEN=80),parameter:: TTBROUGH = "bottom_roughness"
 
     REAL(SP) CBCMIN ! FVCOM NAME
 
@@ -466,8 +471,8 @@ MODULE CONTROL
 	 & EQUATOR_BETA_PLANE,           &
          & NOFLUX_BOT_CONDITION,         &
 	 & TIDAL_TURBINE_ON,             &
-	 & TIDAL_TURBINE_FILE
-
+	 & TIDAL_TURBINE_FILE,           &
+	 & TIDAL_TURBINE_KIND
 
     !--Parameters in NameList NML_SURFACE_FORCING
   

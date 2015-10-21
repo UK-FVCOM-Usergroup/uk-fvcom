@@ -334,6 +334,7 @@ CONTAINS
     BOTTOM_ROUGHNESS_FILE =trim(casename)//"_brf.nc"
 	TIDAL_TURBINE_ON = .FALSE.
     TIDAL_TURBINE_FILE = trim(casename)//"_tt.nc"
+    TIDAL_TURBINE_KIND = "Options:"//TRIM(TTMSINK)//","//TRIM(TTBROUGH)
     
     CONVECTIVE_OVERTURNING     = .FALSE.  
     SCALAR_POSITIVITY_CONTROL  = .FALSE.
