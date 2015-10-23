@@ -27,9 +27,9 @@ all:
 	$(FC) $(FFLAGS) $(LIBS) -o $(EXEC)
 
 clean:
-	for item in $(PACKAGES); do (cd $$item && make clean) || exit 1; done
+	rm -rf libs $(EXEC)
 
 clobber:
-	for item in $(PACKAGES); do (rm -rf $$item) || exit 1; done
+	rm -rf libs $(EXEC)
 	rm -rf $(INSTALLDIR)/*
 
