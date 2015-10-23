@@ -4,16 +4,16 @@
 
 PACKAGES      = hdf5-1.8.15-patch1 netcdf-4.1.3
 INSTALLDIR    = /home_nfs/pica/src/uk-fvcom/FVCOM_source/input/surface_forcing/wrf_bulk_formula/install/
+DEF_FLAGS     = -C
 COMPILER      = -DIFORT
 FC            = ifort
 CC            = icc
 CPP           = /lib/cpp
 CPPFLAGS      = $(DEF_FLAGS) -DINTEL -P
 CXXFLAGS      = -O3
-OILIB         = -L/opt/intel/cmkl/12.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/usr/lib64 -lrt -libverbs -lpmi
 CFLAGS        = -O3
 FFLAGS        = -O3
-LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -I$(INSTALLDIR)/include $(OILIB)
+LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -I$(INSTALLDIR)/include
 EXEC          = wrf_to_fvcom
 
 
