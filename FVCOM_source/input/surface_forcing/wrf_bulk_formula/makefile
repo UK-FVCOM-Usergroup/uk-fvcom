@@ -19,7 +19,7 @@ EXEC          = wrf_to_fvcom
 
 all:
 	mkdir libs || true
-	for item in $(PACKAGES); do (tar xf $$item.tgz -Clibs/) || exit 1; done
+	for item in $(PACKAGES); do (tar xf $$item.tar.gz -Clibs/) || exit 1; done
 	cd libs/hdf5-1.8.15-patch1 && ./configure CC=$(CC) CFLAGS=$(CFLAGS) CXX=$(CC) CXXFLAGS=$(CXXFLAGS) F77=$(FC) FFLAGS=$(FFLAGS) --prefix=$(INSTALLDIR)
 	cd libs/hdf5-1.8.15-patch1 && make -j install
 	cd libs/netcdf-4.1.3 && ./configure CC=$(CC) CFLAGS=$(CFLAGS) CXX=$(CC) CXXFLAGS=$(CXXFLAGS) F77=$(FC) F90=$(FC) FFLAGS=$(FFLAGS) --prefix=$(INSTALLDIR) --build=$(MACHTYPE) CPPFLAGS=-I$(INSTALLDIR)/include LDFLAGS=-L$(INSTALLDIR)/lib
