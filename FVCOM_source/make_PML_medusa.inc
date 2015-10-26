@@ -124,7 +124,7 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO SELECT SPHERICAL COORDINATES
 #--------------------------------------------------------------------------
 
-            FLAG_2 = -DSPHERICAL
+#            FLAG_2 = -DSPHERICAL
 
 #--------------------------------------------------------------------------
 #        FLOODYING/DRYING   INCLUDE WET/DRY TREATMENT OF DOMAIN
@@ -144,8 +144,8 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO INCLUDE MPI PARALLEL CAPABILITY
 #--------------------------------------------------------------------------
 
-#             FLAG_4 = -DMULTIPROCESSOR
-#             PARLIB = -L$(INSTALLDIR)/lib -lmetis
+             FLAG_4 = -DMULTIPROCESSOR
+             PARLIB = -L$(INSTALLDIR)/lib -lmetis
 
 #--------------------------------------------------------------------------
 #        WATER_QUALITY      INCLUDE EPA WATER QUALITY MOD
