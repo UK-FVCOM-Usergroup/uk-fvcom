@@ -6,6 +6,10 @@
 !
 !==========================================================================
 !! This program read a WRF netcdf file and create forcing data for fvcom 
+!  Pierre Cazenave (Plymouth Marine Laboratory):
+!  version 0.14             2015/10/26
+!  Undo the change converting from Pa to mb to output Pa for SLP (FVCOM
+!  wants Pa not mb anyway).
 !! version 0.13             2007/06/15
 !! updated using  coare26sn
 !! version 0.12             2007/06/14
@@ -664,8 +668,7 @@
 	
 	urxx=sqrt(u10(i,j,k,1)**2+v10(i,j,k,1)**2)	! wind speed	
         taxx=t2(i,j,k,1)-273.16                         ! air temperature
-        paxx=(pbtemp(i,j,k,1)+ptemp(i,j,k,1))/100.      ! pressure(mb)
-	pressure_slp(i,j,k)=paxx
+        pressure_slp(i,j,k)=(pbtemp(i,j,k,1)+ptemp(i,j,k,1)).          ! pressure(Pa)
         tsxx=sst(i,j,k,1)-273.16                        ! sst
         zuxx=10.                                        ! wind height (10m)
 	ztxx=2.                                         ! air t height (2m)
@@ -872,7 +875,7 @@
 
        rcall = nf90_def_var(nc_ofid,"SLP",nf90_float,force3m,pressure_slp_id)
        rcall=nf90_put_att(nc_ofid,pressure_slp_id,"description","Sea level pressure only for ocean")
-       rcall=nf90_put_att(nc_ofid,pressure_slp_id,"units","mb")
+       rcall=nf90_put_att(nc_ofid,pressure_slp_id,"units","Pa")
        rcall=nf90_put_att(nc_ofid,pressure_slp_id,"coordinates","XLONG XLAT")
 
        rcall = nf90_def_var(nc_ofid,"RH",nf90_float,force3m,rh_gen_id)
