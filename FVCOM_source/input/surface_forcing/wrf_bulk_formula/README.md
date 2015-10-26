@@ -9,7 +9,9 @@
 
 1. From a terminal, run the binary:
 
-    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(readlink -f ./install/lib) ./wrf_to_fvcom -i /path/to/your/wrf/output.nc -o /path/to/your/fvcom/input/forcing.nc -hindcast
+```
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(readlink -f ./install/lib) ./wrf_to_fvcom -i /path/to/your/wrf/output.nc -o /path/to/your/fvcom/input/forcing.nc -hindcast
+```
 
 Adjust `-hindcast` to `-forecast` as appropriate. The output of `-help` is:
 
