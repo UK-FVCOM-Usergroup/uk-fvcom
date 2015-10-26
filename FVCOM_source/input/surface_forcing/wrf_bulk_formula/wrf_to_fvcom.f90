@@ -825,13 +825,13 @@
        rcall=nf90_copy_att(cdfid,temp_id,'units',nc_ofid,v10_id)
        rcall=nf90_copy_att(cdfid,temp_id,'coordinates',nc_ofid,v10_id)
   
-       rcall = nf90_def_var(nc_ofid,"Stress_U",nf90_float,force3m,stress_u_id)
+       rcall = nf90_def_var(nc_ofid,"uwind_stress",nf90_float,force3m,stress_u_id)
        rcall=nf90_put_att(nc_ofid,stress_u_id,"description","U Wind stress at sea surface, westward is negative")
        rcall=nf90_put_att(nc_ofid,stress_u_id,"units","Pa")
        rcall=nf90_put_att(nc_ofid,stress_u_id,"coordinates","XLONG XLAT")
   
   
-       rcall = nf90_def_var(nc_ofid,"Stress_V",nf90_float,force3m,stress_v_id)
+       rcall = nf90_def_var(nc_ofid,"vwind_stress",nf90_float,force3m,stress_v_id)
        rcall=nf90_put_att(nc_ofid,stress_v_id,"description","V Wind stress at sea surface, southward is negative")
        rcall=nf90_put_att(nc_ofid,stress_v_id,"units","Pa")
        rcall=nf90_put_att(nc_ofid,stress_v_id,"coordinates","XLONG XLAT")
@@ -873,7 +873,7 @@
        rcall=nf90_put_att(nc_ofid,prec_id,"units","m s-1")
        rcall=nf90_put_att(nc_ofid,prec_id,"coordinates","XLONG XLAT")
 
-       rcall = nf90_def_var(nc_ofid,"SLP",nf90_float,force3m,pressure_slp_id)
+       rcall = nf90_def_var(nc_ofid,"air_pressure",nf90_float,force3m,pressure_slp_id)
        rcall=nf90_put_att(nc_ofid,pressure_slp_id,"description","Sea level pressure only for ocean")
        rcall=nf90_put_att(nc_ofid,pressure_slp_id,"units","Pa")
        rcall=nf90_put_att(nc_ofid,pressure_slp_id,"coordinates","XLONG XLAT")
