@@ -2,7 +2,7 @@
 
 # Compile the libraries in serial for the WRF bulk conversion tool.
 
-PACKAGES      = hdf5-1.8.15-patch1 netcdf-4.3.3
+PACKAGES      = hdf5-1.8.15-patch1 netcdf-4.1.3
 INSTALLDIR    = /home_nfs/pica/src/uk-fvcom/FVCOM_source/input/surface_forcing/wrf_bulk_formula/install/
 DEF_FLAGS     = -C
 COMPILER      = -DIFORT
@@ -24,8 +24,8 @@ libs:
 	for item in $(PACKAGES); do (tar xf $$item.tar.gz -Clibs/) || exit 7; done
 	cd libs/hdf5-1.8.15-patch1 && ./configure CC=$(CC) CFLAGS=$(CFLAGS) CXX=$(CC) CXXFLAGS=$(CXXFLAGS) F77=$(FC) FFLAGS=$(FFLAGS) --prefix=$(INSTALLDIR)
 	cd libs/hdf5-1.8.15-patch1 && make -j install
-	cd libs/netcdf-4.3.3 && ./configure CC=$(CC) CFLAGS=$(CFLAGS) CXX=$(CC) CXXFLAGS=$(CXXFLAGS) F77=$(FC) F90=$(FC) FFLAGS=$(FFLAGS) --prefix=$(INSTALLDIR) --build=$(MACHTYPE) CPPFLAGS=-I$(INSTALLDIR)/include LDFLAGS=-L$(INSTALLDIR)/lib
-	cd libs/netcdf-4.3.3 && make -j install
+	cd libs/netcdf-4.1.3 && ./configure CC=$(CC) CFLAGS=$(CFLAGS) CXX=$(CC) CXXFLAGS=$(CXXFLAGS) F77=$(FC) F90=$(FC) FFLAGS=$(FFLAGS) --prefix=$(INSTALLDIR) --build=$(MACHTYPE) CPPFLAGS=-I$(INSTALLDIR)/include LDFLAGS=-L$(INSTALLDIR)/lib
+	cd libs/netcdf-4.1.3 && make -j install
 
 clean:
 	rm -rf libs $(EXEC)
