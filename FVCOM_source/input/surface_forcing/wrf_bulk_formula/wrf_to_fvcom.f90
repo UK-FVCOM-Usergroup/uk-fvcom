@@ -764,7 +764,7 @@
        if(k==1)then
        precipitation(i,j,k)=0.
        else
-       precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))*1000./3600.            ! units (m/s)
+       precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))/1000./3600.            ! units (m/s)
        endif
 
        evaporation(i,j,k)=hlbxx/ ((2.501-0.00237*(sst(i,j,k,1)-273.16))/(1.0E-9))  ! units(m/s)
