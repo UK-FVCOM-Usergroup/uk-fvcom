@@ -13,7 +13,7 @@ CPPFLAGS      = $(DEF_FLAGS) -DINTEL -P
 CXXFLAGS      = -O3
 CFLAGS        = -O3
 FFLAGS        = -O3
-LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -lnetcdff -I$(INSTALLDIR)/include
+LIBS          = -L$(INSTALLDIR)lib -lnetcdf -lnetcdff -I$(INSTALLDIR)include
 EXEC          = wrf_to_fvcom
 
 all:
