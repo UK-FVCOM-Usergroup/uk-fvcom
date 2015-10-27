@@ -670,7 +670,7 @@
 	
 	urxx=sqrt(u10(i,j,k,1)**2+v10(i,j,k,1)**2)	! wind speed	
         taxx=t2(i,j,k,1)-273.16                         ! air temperature
-        pressure_slp(i,j,k)=(pbtemp(i,j,k,1)+ptemp(i,j,k,1)).          ! pressure(Pa)
+        pressure_slp(i,j,k)=(pbtemp(i,j,k,1)+ptemp(i,j,k,1))          ! pressure(Pa)
         tsxx=sst(i,j,k,1)-273.16                        ! sst
         zuxx=10.                                        ! wind height (10m)
 	ztxx=2.                                         ! air t height (2m)
