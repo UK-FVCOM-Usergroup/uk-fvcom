@@ -1030,8 +1030,9 @@
                i = i+1
                call getarg(i,dummy)         ! read latitude for heat flux
                read(dummy,*) gb_lat ! convert to real
-               if ((gb_lat .lt. -90) .or. (gb_lat .gt. 90)) then
-                    call handle_err ("ERROR Specified value for -latitude is invalid", 100)
+               if ((gb_lat .lt. -90.) .or. (gb_lat .gt. 90.)) then
+                    write(*,*) "ERROR: specified value for -latitude is invalid:", gb_lat
+                    STOP
                endif
 	  CASE ("-forecast")
 		history = "Output from WRF 2.2 Forecast"
