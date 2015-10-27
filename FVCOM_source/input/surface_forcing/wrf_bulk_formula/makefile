@@ -32,5 +32,5 @@ clean:
 
 clobber:
 	rm -rf libs $(EXEC)
-	rm -rf $(INSTALLDIR)/*
+	rm -rf $(INSTALLDIR)*
 
