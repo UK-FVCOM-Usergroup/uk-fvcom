@@ -9,7 +9,8 @@
 !  Pierre Cazenave (Plymouth Marine Laboratory):
 !  version 0.14             2015/10/26
 !  Undo the change converting from Pa to mb to output Pa for SLP (FVCOM
-!  wants Pa not mb anyway).
+!  wants Pa not mb anyway). Also add new argument to specify latitude for
+!  surface forcing (-latitude); if omitted, defaults to +42N.
 !! version 0.13             2007/06/15
 !! updated using  coare26sn
 !! version 0.12             2007/06/14
@@ -36,6 +37,7 @@
 !   -forecast : flag for forecast data
 !   -hindcast : flag for hindcast data
 !   -noglobal : don't save global attributes   
+!   -latitude : latitude for heat flux calculations
 !
 !==========================================================================
 !
@@ -181,7 +183,7 @@
 !--------------------for coare 2.6 bulk-------------------------------------------------------------------------------------------
 	real                                                :: urxx,taxx,paxx,tsxx,zuxx,ztxx,zqxx,rh_valxx
 	real                                                :: dswxx, dlwxx, tauxx,hsbxx, hlbxx
-	real                                                :: theta, AG, gb_lat,gb_zi
+	real                                                :: theta, AG, gb_lat=42., gb_zi
 !-----------------END OF VARIABLE DEFINITION---------------------------------------------------------------------------------------
 
 
@@ -199,7 +201,7 @@
 
 ! GET INPUT FILE AND OUTPUT CASE NAME FOR COMMAND LINE
 	if (debug) write(*,*) "READ arguments from command line "
-	call read_args(input_file,case,debug,small,output,save_file,history,noglobal)
+	call read_args(input_file,case,debug,small,output,save_file,history,noglobal,gb_lat)
 
 !! OPEN THE INPUT FILE
 	if (debug) write(*,*) "OPENING netcdf input file "//trim(input_file)
@@ -687,7 +689,6 @@
 
 
 ! -------------calculate wind stress and heat flux
-	gb_lat=42.          ! for latitude of Georges Bank regions
 	gb_zi=600.          ! default for PBL height
 
 	call coare26sn(urxx,zuxx,taxx,ztxx,rh_valxx,zqxx,paxx,tsxx,dswxx,dlwxx,gb_lat,gb_zi,tauxx,hsbxx,hlbxx)
@@ -970,7 +971,7 @@
 
 
 !------------------------------------------------------------------------------
-  subroutine read_args(input_file,case,debug,small,output,save_file,history,noglobal)
+  subroutine read_args(input_file,case,debug,small,output,save_file,history,noglobal,gb_lat)
 
   implicit none
   character (len=200)   :: input_file,save_file,history
@@ -982,6 +983,7 @@
   integer, external     :: iargc
   integer               :: numarg, i
   character (len=80)    :: dummy
+  real                  :: gb_lat
 
 
 ! set up some defaults first
@@ -1023,6 +1025,13 @@
                save_file = dummy
           CASE ("-debug")
                debug = .TRUE.
+          CASE ("-latitude")
+               i = i+1
+               call getarg(i,dummy)         ! read latitude for heat flux
+               read(dummy,*) gb_lat ! convert to real
+               if ((gb_lat .lt. -90) .or. (gb_lat .gt. 90)) then
+                    call handle_err ("ERROR Specified value for -latitude is invalid", 100)
+               endif
 	  CASE ("-forecast")
 		history = "Output from WRF 2.2 Forecast"
 	  CASE ("-hindcast")
@@ -1081,7 +1090,7 @@
 !    ts = water temperature (degC)
 !    Rs = downward shortwave radiation (W/m^2) (default = 150)
 !    Rl = downward longwave radiation (W/m^2) (default = 370)
-!   lat = latitude (default = +45 N)
+!   lat = latitude (default = +42 N)
 !    zi = PBL height (m) (default = 600m)
 !
 ! Output:  A = [usr,tau,qsen,qlat,Cd,Ch,Ce,L,zet,dter,tkt] where
