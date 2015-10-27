@@ -190,7 +190,7 @@
 
 !-------------Generate source information-----------------------------------------------------------
 	call date_and_time(gti)
-        source ="wrf2fvcom version 0.13 (2007-06-27) (Bulk method: COARE 2.6SN)"
+        source ="wrf2fvcom version 0.14 (2015-10-26) (Bulk method: COARE 2.6SN)"
 	institute = "School of Marine Science and Technology, UMASSD, at time of "//trim(gti) 
         write(*,*) "  "
         write(*,*) "================================================ "
@@ -964,6 +964,7 @@
   print*," -forecast : flag for forecast data"
   print*," -hindcast : flag for hindcast data"
   print*," -noglobal : don't save global attributes"
+  print*," -latitude : the heat flux calculation latitude (+42N by default)"
   STOP
 
   end subroutine help_info
