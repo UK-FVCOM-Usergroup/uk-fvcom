@@ -20,7 +20,7 @@ Adjust `-hindcast` to `-forecast` as appropriate. The output of `-help` is:
 
 ```
  ================================================
- wrf2fvcom version 0.13 (2007-06-27) (Bulk method: COARE 2.6SN)
+ wrf2fvcom version 0.14 (2015-10-26) (Bulk method: COARE 2.6SN)
 
   wrf2fvcom -i wrf_netcdf_input_file -o fvcom_forcing_file \
   -forecast -s surface_meterological_variables_file
@@ -35,4 +35,5 @@ Adjust `-hindcast` to `-forecast` as appropriate. The output of `-help` is:
   -forecast : flag for forecast data
   -hindcast : flag for hindcast data
   -noglobal : don't save global attributes
+  -latitude : the heat flux calculation latitude (+42N by default)
 ```
