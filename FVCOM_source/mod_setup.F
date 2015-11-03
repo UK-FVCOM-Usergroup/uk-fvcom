@@ -376,7 +376,7 @@ CONTAINS
           write(IPT,*) "! Setting tidal turbine parameters"
        end if
 
-       CALL LOAD_TIDAL_TURBINE_PARAMETERS(KBTT, ATT, NTT)
+       CALL LOAD_TIDAL_TURBINE_PARAMETERS(KBTT, ATT, NTT, CT)
               
     else
        

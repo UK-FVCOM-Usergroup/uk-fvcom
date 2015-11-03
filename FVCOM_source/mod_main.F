@@ -409,10 +409,13 @@ MODULE CONTROL
     LOGICAL TIDAL_TURBINE_ON
     CHARACTER(LEN=80) TIDAL_TURBINE_FILE
     CHARACTER(LEN=80) TIDAL_TURBINE_KIND
+    CHARACTER(LEN=80) TIDAL_TURBINE_CT
 
     ! TIDAL TURBINE KINDS
     CHARACTER(LEN=80),parameter:: TTMSINK  = "momentum_sink"
     CHARACTER(LEN=80),parameter:: TTBROUGH = "bottom_roughness"
+    CHARACTER(LEN=80),parameter:: TTCNSTNT = "constant"
+    CHARACTER(LEN=80),parameter:: TTVRBL   = "variable"
 
     REAL(SP) CBCMIN ! FVCOM NAME
 
@@ -472,7 +475,8 @@ MODULE CONTROL
          & NOFLUX_BOT_CONDITION,         &
 	 & TIDAL_TURBINE_ON,             &
 	 & TIDAL_TURBINE_FILE,           &
-	 & TIDAL_TURBINE_KIND
+	 & TIDAL_TURBINE_KIND,           &
+         & TIDAL_TURBINE_CT
 
     !--Parameters in NameList NML_SURFACE_FORCING
   
