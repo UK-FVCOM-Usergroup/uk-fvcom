@@ -37,3 +37,13 @@ Adjust `-hindcast` to `-forecast` as appropriate. The output of `-help` is:
   -noglobal : don't save global attributes
   -latitude : the heat flux calculation latitude (+42N by default)
 ```
+
+# Batch conversion
+
+For converting a lot of files, I created a simple batch script to do that called `convert.sh`. Run it as:
+
+```
+ $ ./convert.sh "wrfout_d03_2003-01-01_00:00:00" "wrfout_d03_2003-02-01_00:00:00" ... "wrfout_d03_2003-12-01_00:00:00"
+```
+
+The converted files are put in the output/$year/$month directory corresponding to each WRF output file (the year and month are taken from the WRF file names).
