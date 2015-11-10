@@ -54,7 +54,7 @@
 #========== INSTALLDIR =====================================================
 # INSTALLDIR is the directory where you wish to install external libraries
 # The default is in the $(TOPDIR)/libs/install, but you can choose...
-            INSTALLDIR    = $(TOPDIR)/libs/install
+            INSTALLDIR    = $(HOME)/models/FVCOM/pml-aquaculture/run/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
             DEF_FLAGS     = -C
@@ -92,8 +92,8 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -lnetcdf
-             IOINCS       =
+             IOLIBS       =  -L$(INSTALLDIR)/lib -lnetcdff -lnetcdf
+             IOINCS       =  -I$(INSTALLDIR)/include
 #--------------------------------------------------------------------------
 
 
@@ -365,7 +365,7 @@ dashL= $(empty) -L
 #         AIR_PRESSURE FROM SURFACE FORCING
 #--------------------------------------------------------------------------
 
-#             FLAG_28 = -DAIR_PRESSURE
+             FLAG_28 = -DAIR_PRESSURE
 
 #--------------------------------------------------------------------------
 # Visit online simulation mode
