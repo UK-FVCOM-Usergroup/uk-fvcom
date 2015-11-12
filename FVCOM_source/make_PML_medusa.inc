@@ -54,7 +54,7 @@
 #========== INSTALLDIR =====================================================
 # INSTALLDIR is the directory where you wish to install external libraries
 # The default is in the $(TOPDIR)/libs/install, but you can choose...
-            INSTALLDIR    = $(HOME)/models/FVCOM/pml-aquaculture/run/install
+            INSTALLDIR    = $(HOME)/models/FVCOM/pml-channel/run/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
             DEF_FLAGS     = -C
