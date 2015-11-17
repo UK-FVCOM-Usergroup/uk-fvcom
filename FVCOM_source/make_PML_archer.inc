@@ -47,14 +47,14 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-           TOPDIR        = $(HOME)/src/uk-fvcom/FVCOM_source
+           TOPDIR        = /fs4/n01/n01/pica/src/uk-fvcom/FVCOM_source
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
 #========== INSTALLDIR =====================================================
 # INSTALLDIR is the directory where you wish to install external libraries
 # The default is in the $(TOPDIR)/libs/install, but you can choose...
-            INSTALLDIR    = $(HOME)/models/FVCOM/pml-channel/run/install
+            INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
             DEF_FLAGS     = -C
@@ -92,8 +92,8 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -L$(INSTALLDIR)/lib -lnetcdff -lnetcdf
-             IOINCS       =  -I$(INSTALLDIR)/include
+             IOLIBS       =  -lnetcdf
+             IOINCS       =
 #--------------------------------------------------------------------------
 
 
@@ -124,7 +124,7 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO SELECT SPHERICAL COORDINATES
 #--------------------------------------------------------------------------
 
-#            FLAG_2 = -DSPHERICAL
+             FLAG_2 = -DSPHERICAL
 
 #--------------------------------------------------------------------------
 #        FLOODYING/DRYING   INCLUDE WET/DRY TREATMENT OF DOMAIN
@@ -462,15 +462,15 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
-         COMPILER = -DIFORT
-         CPP      = /lib/cpp
-         CPPFLAGS = $(DEF_FLAGS) -DINTEL -P -I/opt/mpi/mpibull2-current/include
-         FC       = ifort
-         DEBFLGS  = #-check all
-         OPT      = -xP -I/opt/mpi/mpibull2-current/include  -g -no-prec-div -no-prec-sqrt -traceback  -warn
-         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -lrt -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-         CC       = icc
-         CFLAGS   = -O3  -xS -I/opt/mpi/mpibull2-current/include
+#         COMPILER = -DIFORT
+#         CPP      = /lib/cpp
+#         CPPFLAGS = $(DEF_FLAGS) -DINTEL -P -I/opt/mpi/mpibull2-current/include
+#         FC       = ifort
+#         DEBFLGS  = #-check all
+#         OPT      = -xP -I/opt/mpi/mpibull2-current/include  -g -no-prec-div -no-prec-sqrt -traceback  -warn
+#         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -lrt -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
+#         CC       = icc
+#         CFLAGS   = -O3  -xS -I/opt/mpi/mpibull2-current/include
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML) Debugging
 #--------------------------------------------------------------------------
@@ -581,15 +581,15 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  ARCHER Intel/MPI Compiler
 #--------------------------------------------------------------------------
-#         CPP      = /usr/bin/cpp
-#         COMPILER = -DIFORT  
-#         CC       = cc
-#         CXX      = CC
-#         CFLAGS   = -O3 
-#         FC       = ftn
-##         DEBFLGS  = -check all
-#         OPT      = -O3
-#         COPTIONS = -c89
+         CPP      = /usr/bin/cpp
+         COMPILER = -DIFORT  
+         CC       = cc
+         CXX      = CC
+         CFLAGS   = -O3 
+         FC       = ftn
+#         DEBFLGS  = -check all
+         OPT      = -O3
+         COPTIONS = -c89
 #--------------------------------------------------------------------------
 #==========================================================================
 #  END USER DEFINITION SECTION

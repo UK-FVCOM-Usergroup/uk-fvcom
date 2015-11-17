@@ -11,7 +11,12 @@ find_path(METIS_BASE metis.h HINTS "${ROOT}/libs/metis" DOC "Source directory of
 
 include_directories(${ROOT} ${JULIAN_BASE})
 
-add_definitions(-DLIMITED_2 -DGCY1 -DMPDATA -DFABM)
+add_definitions(-DLIMITED_2 -DGCY1 -DMPDATA)
+
+option(FVCOM_USE_FABM "Enable FABM" OFF)
+if(FVCOM_USE_FABM)
+  add_definitions(-DFABM)
+endif()
 
 option(FVCOM_USE_DOUBLE_PRECISION "Use double precision" OFF)
 if(FVCOM_USE_DOUBLE_PRECISION)
@@ -139,7 +144,6 @@ add_library(fjulian
    ${JULIAN_BASE}/fstrings.for
 )
 
-option(FVCOM_USE_FABM "Enable FABM" OFF)
 if(FVCOM_USE_FABM)
   find_path(FABM_BASE src/fabm.F90 DOC "Path to FABM source directory.")
   set(FABM_FORCED_HOST fvcom)
