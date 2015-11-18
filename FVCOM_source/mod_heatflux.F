@@ -287,11 +287,11 @@ MODULE MOD_HEATFLUX
    RIBCU=-ZU/(ZI*0.004_SP*(BETA**3))
    RIBU=-GRAV*ZU*((DT-DTER*JCOOL)+.61_SP*TA*DQ)/(TA*(UT**2))
 !       same as edson
-   NITS=6._SP   
+   NITS=3._SP   
    IF(RIBU < 0)THEN
      ZETU=CC*RIBU/(1._SP+RIBU/RIBCU)
    ELSE
-     ZETU=CC*RIBU/(1._SP+27._SP/(9*RIBU*CC))
+     ZETU=CC*RIBU*(1._SP+27._SP/9*RIBU/CC)
    END IF
 
    L10=ZU/ZETU
