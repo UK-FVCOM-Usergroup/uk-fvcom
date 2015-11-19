@@ -2305,7 +2305,7 @@ WRITE(IPT,*)''
 WRITE(IPT,*)'!===============================================================================!'
 WRITE(IPT,*)'!                                                                               !'
 WRITE(IPT,*)'!================== DOMAIN DECOMPOSITION USING: METIS 4.0.1 ====================!'
-WRITE(IPT,*)'!==============Copyright 1998, Regents of University of Minnesota===============!'
+WRITE(IPT,*)'!============= Copyright 1998, Regents of University of Minnesota ==============!'
 WRITE(IPT,*)'!                                                                               !'
 IF(PAR) THEN
    WRITE(chr_np,'(I3.3)') NP
