@@ -310,7 +310,7 @@ dashL= $(empty) -L
 #           dye release
 #---------------------------------------------------------------------------
 
-#            FLAG_20 = -DDYE_RELEASE
+            FLAG_20 = -DDYE_RELEASE
 
 #--------------------------------------------------------------------------
 #        SUSPENDED SEDIMENT MODEL:   UNCOMMENT TO INCLUDE MODEL
