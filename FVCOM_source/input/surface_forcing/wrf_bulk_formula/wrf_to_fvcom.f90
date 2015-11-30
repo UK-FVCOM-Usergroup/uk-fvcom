@@ -1061,7 +1061,7 @@
       subroutine handle_err(message,nf_status)
       include "netcdf.inc"
       integer                 :: nf_status
-      character (len=80)      :: message
+      character (len=*)      :: message
       if (nf_status .ne. nf_noerr) then
          write(*,*)  'ERROR: ', trim(message)
          STOP
