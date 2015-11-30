@@ -982,7 +982,7 @@
   logical               :: small
   logical               :: output
   logical               :: noglobal
-  integer, external     :: iargc
+  integer, intrinsic    :: iargc
   integer               :: numarg, i
   character (len=80)    :: dummy
   real                  :: gb_lat
