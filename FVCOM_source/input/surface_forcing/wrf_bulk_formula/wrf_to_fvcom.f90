@@ -69,7 +69,7 @@
 
 !--------------Variable for reading input netcdf file--------------------------------------------------------------------------------------
 	integer                                             :: cdfid                       ! id of input file
-	real                                                :: rcall                       ! status code for netcdf
+	integer                                             :: rcall                       ! status code for netcdf
 	character (len=200)                                 :: attname                     ! name of attributes
 	integer                                             :: ndims, nvars, natts         ! number of dims, var and att in file
 	integer                                             :: south_north,west_east       ! dimension of horizontal grids
@@ -1151,10 +1151,10 @@
 	real rns,rnl
 	real qsat26sea,qsat26air,grv,ts,p,t,rs,rl,zu,zt,rh,zq,tau,qsen,qlat
 	real DU,DT,DQ,TA,UG,DTER,UT,U10,USR,ZO10,CD10,CH10,CT10,ZOT10
-	real CD,CT,CC,RIBCU,RIBU,ZETU,L10,NITS,PSIU_26,TSR,PSIT_26,QSR,TKT,CHARN
+	real CD,CT,CC,RIBCU,RIBU,ZETU,L10,PSIU_26,TSR,PSIT_26,QSR,TKT,CHARN
 	real ZET, ZO, RR, L, ZOQ, ZOT, BF, HSB, HLB, QOUT, DELS, QCOL, ALQ, XLAMX, DQER
 	real ch,ce
-	integer i
+	integer i, nits
 
 !------------------------------------------------------------------------------
 
