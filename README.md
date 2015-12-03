@@ -8,7 +8,7 @@ This repository is for the UK FVCOM Users' code development.
 Register
 --------
 
-Users of FVCOM must [register first](http://fvcom.smast.umassd.edu/wp-login.php?action=register) with Dr Changsheng Chen at the University of Massachusetts School of Marine Science.
+Users of FVCOM must [register first](http://fvcom.smast.umassd.edu/wp-login.php?action=register) with Dr Changsheng Chen at the University of Massachusetts School of Marine Science. Users must agree to the [licence terms](LICENSE).
 
 Download
 --------
