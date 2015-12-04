@@ -54,7 +54,7 @@
 #========== INSTALLDIR =====================================================
 # INSTALLDIR is the directory where you wish to install external libraries
 # The default is in the $(TOPDIR)/libs/install, but you can choose...
-            INSTALLDIR    = $(HOME)/models/FVCOM/pml-channel/run/install
+            INSTALLDIR    = $(HOME)/models/FVCOM/pml-aquaculture/run/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
             DEF_FLAGS     = -C
@@ -310,7 +310,7 @@ dashL= $(empty) -L
 #           dye release
 #---------------------------------------------------------------------------
 
-            FLAG_20 = -DDYE_RELEASE
+#            FLAG_20 = -DDYE_RELEASE
 
 #--------------------------------------------------------------------------
 #        SUSPENDED SEDIMENT MODEL:   UNCOMMENT TO INCLUDE MODEL
@@ -359,7 +359,7 @@ dashL= $(empty) -L
 #         CALCULATE THE NET HEAT FLUX IN MODEL
 #--------------------------------------------------------------------------
 
-             FLAG_27 = -DHEATING_CALCULATED
+#             FLAG_27 = -DHEATING_CALCULATED
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
