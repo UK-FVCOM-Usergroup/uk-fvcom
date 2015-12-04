@@ -764,6 +764,10 @@
        if(k==1)then
        precipitation(i,j,k)=0.
        else
+       !precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))/1000./3600.            ! units (m/s)
+       ! To convert units from mm to m/s, we need to know the output frequency
+       ! from the WRF output and divide by that (in seconds), then convert to
+       ! metres.
        precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))/1000./3600.            ! units (m/s)
        endif
 
