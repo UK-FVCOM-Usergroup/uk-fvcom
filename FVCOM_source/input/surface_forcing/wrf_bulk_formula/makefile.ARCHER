@@ -3,7 +3,11 @@
 # Compile the libraries in serial for the WRF bulk conversion tool.
 
 PACKAGES      = hdf5-1.8.15-patch1 netcdf-4.1.3
-INSTALLDIR    = /fs4/n01/n01/pica/src/uk-fvcom/FVCOM_source/input/surface_forcing/wrf_bulk_formula/install/
+FVCOM         = /fs4/n01/n01/pica/src/uk-fvcom/FVCOM_source/
+FVCOMLIBS     = $(FVCOM)/libs/install/
+INSTALLDIR    = $(FVCOM)/input/surface_forcing/wrf_bulk_formula/install/
+# for mod_time stuff.
+MODS          = $(FVCOM)
 DEF_FLAGS     = -C
 COMPILER      = -DIFORT
 FC            = ifort
@@ -17,7 +21,7 @@ LIBS          = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff -I$(NETCDF_DIR)/include
 EXEC          = wrf_to_fvcom
 
 all:
-	$(FC) $(EXEC).f90 $(FFLAGS) $(LIBS) -o $(EXEC)
+	$(FC) -I$(MODS) $(MODS)/mod_time.o $(EXEC).f90 $(FFLAGS) $(LIBS) -o $(EXEC)
 
 libs:
 	mkdir libs || true
