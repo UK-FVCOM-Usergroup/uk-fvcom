@@ -64,6 +64,8 @@
 	program wrf2fvcom 
 
 	use netcdf
+	use Mod_Time
+
 	implicit none
 	include 'netcdf.inc'
 
@@ -160,6 +162,10 @@
         character (len=80)                                  :: output_M                       ! forcing file name
         character (len=200), allocatable, dimension(:)      :: M_vars                      ! variables to forcing
 	integer                                             :: time_index                  ! time dimension
+	integer                                             :: status                      ! for checking the read_datetime result
+	type(time)                                          :: time_one, time_two          ! times for WRF output increment (numeric)
+	character (len=19)                                  :: timestr_one, timestr_two    ! times for WRF output increment (strings)
+	real                                                :: wrf_interval                ! the WRF input time increment
 	integer,dimension(3)                                :: force3m                     ! forcing file dimension
 	integer,dimension(2)                                :: force2m                     ! forcing file dimension
 	integer,dimension(2)                                :: force1m                     ! forcing file dimension
@@ -762,13 +768,28 @@
 
 !----------precipitation and evaportion (Units: m/s)
        if(k==1)then
-       precipitation(i,j,k)=0.
+         precipitation(i,j,k)=0.
+         ! To convert units from mm to m/s, we need to know the output frequency
+         ! from the WRF output and divide by that (in seconds), then convert to
+         ! metres. We're using RAINC (ACCUMULATED TOTAL CUMULUS
+         ! PRECIPITATION, units mm). Turns out, getting the increment between
+         ! time steps in FORTRAN is a pain. We'll use FVCOM's approach with the
+         ! julian library.
+         if(i==1 .and. j==1) then
+           if (debug) write(*,*) 'FIND: time increment from WRF time strings.'
+           do jjj=1,19
+               timestr_one(jjj:jjj) = Times(jjj,k)
+               timestr_two(jjj:jjj) = Times(jjj,k+1)
+           enddo
+           time_one = READ_DATETIME(trim(timestr_one),'YMD','UTC',status)
+           time_two = READ_DATETIME(trim(timestr_two),'YMD','UTC',status)
+           ! Inverval in seconds (from days)
+           wrf_interval = days(time_two-time_one)*(24.*60.*60.)
+         endif
        else
-       !precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))/1000./3600.            ! units (m/s)
-       ! To convert units from mm to m/s, we need to know the output frequency
-       ! from the WRF output and divide by that (in seconds), then convert to
-       ! metres.
-       precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))/1000./3600.            ! units (m/s)
+         ! Divide by wrf_interval to get instantaneous values. Divide by 1000
+         ! to go from mm  to m. Final units are m/s.
+         precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))/1000./wrf_interval
        endif
 
        evaporation(i,j,k)=hlbxx/ ((2.501-0.00237*(sst(i,j,k,1)-273.16))/(1.0E-9))  ! units(m/s)
