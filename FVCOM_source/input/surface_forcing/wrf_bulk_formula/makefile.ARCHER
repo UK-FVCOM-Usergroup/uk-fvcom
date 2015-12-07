@@ -17,7 +17,7 @@ CPPFLAGS      = $(DEF_FLAGS) -DINTEL -P
 CXXFLAGS      = -O3
 CFLAGS        = -O3
 FFLAGS        = -O3
-LIBS          = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff -I$(NETCDF_DIR)/include
+LIBS          = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff -I$(NETCDF_DIR)/include -L$(FVCOMLIBS)/lib -ljulian
 EXEC          = wrf_to_fvcom
 
 all:
