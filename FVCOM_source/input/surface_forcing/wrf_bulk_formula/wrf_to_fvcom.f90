@@ -154,7 +154,7 @@
 !------------for read arguments part------------------------------------------------------------------------------------------------------------
 	logical                                             :: noglobal                    ! for global attributes
 	logical                                             :: debug                       ! for debug
-	logical                                             :: small                       ! for save small meteorological data
+	logical                                             :: small=.FALSE.               ! for save small meteorological data
 	logical                                             :: output                      ! for output of forcing
 
 !----------------------forcing---------coare2.6 part-----------------------------------------------------------------------------
