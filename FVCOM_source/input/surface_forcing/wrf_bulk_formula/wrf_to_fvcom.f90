@@ -7,6 +7,10 @@
 !==========================================================================
 !! This program read a WRF netcdf file and create forcing data for fvcom 
 !  Pierre Cazenave (Plymouth Marine Laboratory):
+!  version 0.15             2015/12/07
+!  Add better conversion of precipitation which supports non-hourly
+!  outputs from WRF. This change requires the main FVCOM mod_time
+!  module.
 !  version 0.14             2015/10/26
 !  Undo the change converting from Pa to mb to output Pa for SLP (FVCOM
 !  wants Pa not mb anyway). Also add new argument to specify latitude for
