@@ -1,9 +1,10 @@
 # Compiling the FVCOM WRF bulk formula code
 
+0. Compile the main FVCOM source code.
 1. Run `get_libs.sh`.
-2. Edit the `makefile`, changing `INSTALLDIR` to the current directory.
+2. Edit the `makefile`, changing `FVCOM` to the root of the FVCOM source code.
 3. Edit the `makefile` to reflect your compiler definitions.
-4. Type `make`.
+4. Type `make libs` to compile the HDF5 and netCDF4 libraries. If you prefer to use your own versions, edit the paths in the relevant makefile to reflect the location of those libraries. See the `makefile.ARCHER` for an example of how to do this.
 
 # Running the resulting code.
 
@@ -13,7 +14,7 @@
 LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(readlink -f ./install/lib) \
                 ./wrf_to_fvcom -i /path/to/your/wrf/output.nc \
                 -o /path/to/your/fvcom/input/forcing.nc \
-                -hindcast
+                -hindcast -latitude 50.0
 ```
 
 Adjust `-hindcast` to `-forecast` as appropriate. The output of `-help` is:
@@ -34,7 +35,7 @@ Adjust `-hindcast` to `-forecast` as appropriate. The output of `-help` is:
   -debug    : Print some debug information
   -forecast : flag for forecast data
   -hindcast : flag for hindcast data
-  -noglobal : don't save global attributes
+  -noglobal : do not save global attributes
   -latitude : the heat flux calculation latitude (+42N by default)
 ```
 
