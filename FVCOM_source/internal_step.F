@@ -184,6 +184,7 @@ SUBROUTINE INTERNAL_STEP
 ! UARD_OBCN is now part of the offline_file_object
 #  if defined (FABM)
     CALL FABM_UPDATE
+    CALL FABM_UPDATE_DEPTH
 #  endif
   ELSE 
      CALL FATAL_ERROR("YOU CAN'T RUN FABM OFFLINE WITHOUT A FABM_MODEL")
@@ -1154,7 +1155,10 @@ SUBROUTINE INTERNAL_STEP
 #   endif
 
 #   if defined (FABM)
-  IF (FABM_MODEL) CALL FABM_UPDATE
+  IF (FABM_MODEL) THEN
+     CALL FABM_UPDATE
+     CALL FABM_UPDATE_DEPTH
+  END IF
 #   endif
 
   !==============================================================================!
@@ -1388,6 +1392,9 @@ SUBROUTINE INTERNAL_STEP
   END IF
 #   endif   
   
+#   if defined (FABM)
+  IF (FABM_MODEL) CALL FABM_UPDATE_SALINITY
+#   endif
 
 #   if defined (WATER_QUALITY)
   !==============================================================================!

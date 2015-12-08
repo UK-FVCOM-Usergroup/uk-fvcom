@@ -3,7 +3,9 @@ MODULE MOD_FABM_3D
 
   USE fabm
   USE fabm_config
+  USE fabm_types, only: domain_bottom
   USE fabm_driver, only: type_base_driver, driver
+  USE fabm_standard_variables
 
   USE MOD_FABM_DATA
   USE ALL_VARS
@@ -15,6 +17,7 @@ MODULE MOD_FABM_3D
   PRIVATE
 
   PUBLIC FABM_FVCOM_INITIALIZE, FABM_ALLOCATE, FABM_INITIAL, FABM_INITIAL_DIAG, FABM_UPDATE
+  PUBLIC FABM_UPDATE_SALINITY, FABM_UPDATE_DEPTH
 
   REAL(SP), ALLOCATABLE :: FABM_F(:,:,:)          ! FORECASTED VARIABLES
   REAL(SP), ALLOCATABLE :: XFLUX_OBCB(:,:,:)      ! advective flux into nodes at open boundary; set in FABM_ADV, used in FABM_BCOND
@@ -28,8 +31,21 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE,TARGET :: DEPTH(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
   REAL(SP), ALLOCATABLE,TARGET :: BOTTOM_STRESS(:)
+  REAL(SP), ALLOCATABLE        :: DELTA_H(:)
+  REAL(SP), ALLOCATABLE        :: FABM_OLD_BOTTOM_THICKNESS(:)
   REAL(SP) :: DAYS_SINCE_YEAR_START
   LOGICAL :: COMPUTE_DAYS_SINCE_YEAR_START
+
+  LOGICAL :: USE_FABM_SALINITY = .TRUE.
+  LOGICAL :: USE_FABM_BOTTOM_THICKNESS = .TRUE.
+
+  TYPE (type_bulk_standard_variable),PARAMETER :: mass_concentration_of_solute &
+     = type_bulk_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
+  TYPE (type_bulk_standard_variable),PARAMETER :: volume_fraction_of_particulates &
+     = type_bulk_standard_variable(name='volume_fraction_of_particulates',units='-', aggregate_variable=.true.)
+
+  REAL(SP), POINTER :: FABM_SALT_DENSITY(:,:)
+  REAL(SP), POINTER :: FABM_BOTTOM_THICKNESS(:)
 
   INTEGER, ALLOCATABLE, TARGET :: MASK_NONE(:)
 
@@ -43,7 +59,10 @@ CONTAINS
 
    SUBROUTINE FABM_FVCOM_INITIALIZE()
       ALLOCATE(type_fvcom_driver::driver)
-      CALL fabm_create_model_from_yaml_file(model)
+      CALL fabm_create_model_from_yaml_file(model,do_not_initialize=.true.)
+      IF (USE_FABM_SALINITY) CALL model%require_data(mass_concentration_of_solute)
+      IF (USE_FABM_BOTTOM_THICKNESS) CALL model%require_data(volume_fraction_of_particulates,domain=domain_bottom)
+      CALL fabm_initialize(model)
    END SUBROUTINE FABM_FVCOM_INITIALIZE
 
    SUBROUTINE FABM_ALLOCATE()
@@ -131,6 +150,17 @@ CONTAINS
 
     ! Make sure FABM has all required data
     CALL fabm_check_ready(model)
+
+    IF (USE_FABM_SALINITY) THEN
+       FABM_SALT_DENSITY => model%get_data(model%get_bulk_variable_id(mass_concentration_of_solute))
+       IF (.NOT.ASSOCIATED(FABM_SALT_DENSITY)) CALL FATAL_ERROR("BUG: FABM failed to created mass_concentration_of_solute variable.")
+    END IF
+    IF (USE_FABM_BOTTOM_THICKNESS) THEN
+       FABM_BOTTOM_THICKNESS => model%get_data(model%get_horizontal_variable_id('volume_fraction_of_particulates_at_bottom'))
+       IF (.NOT.ASSOCIATED(FABM_BOTTOM_THICKNESS)) CALL FATAL_ERROR("BUG: FABM failed to created volume_fraction_of_particulates variable.")
+       ALLOCATE(FABM_OLD_BOTTOM_THICKNESS(1:M))
+       FABM_OLD_BOTTOM_THICKNESS = 0
+    END IF
 
     ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%state_variables))) ; XFLUX_OBCB  =  0.0_SP
     ALLOCATE(PFABMPXB(MT,size(model%state_variables)))        ; PFABMPXB    = ZERO
@@ -304,6 +334,56 @@ SUBROUTINE FABM_UPDATE
       ! Compute conserved quantity integrals
       CALL CHECK_CONSERVATION
 END SUBROUTINE FABM_UPDATE
+
+SUBROUTINE FABM_UPDATE_SALINITY
+   ! Note that FABM salinity is expressed in g/L, NOT in g/kg as absolute salinity (TEOS 2010), which would come closer to PSU.
+   ! Hence, we here divide by density in kg/L to get g/kg.
+   ! [NB density residual rho will be the density computed previously for the old salinity value]
+   IF (USE_FABM_SALINITY) S1(1:M,1:KB) = FABM_SALT_DENSITY(1:M,1:KB)/(1+RHO1(1:M,1:KB))
+END SUBROUTINE FABM_UPDATE_SALINITY
+
+SUBROUTINE FABM_UPDATE_DEPTH
+   ! Logic in this routine was taken from UPDATE_DEPTH in mod_sed.F
+   USE MOD_OBCS
+   USE MOD_PAR
+
+   INTEGER  :: I,I1,J1,J2
+   LOGICAL  :: ISONB2
+
+   IF (.NOT.USE_FABM_BOTTOM_THICKNESS) RETURN
+   
+   IF(DBG_SET(DBG_SBR)) write(ipt,*) "START: FABM_UPDATE_DEPTH"
+
+   DO I = 1,M
+!
+!   DEPTHS ON OPEN BOUNADY NODES AND THE NODES NEXT TO THOSE NODES ARE KEPT INVARIANT
+!
+     ISONB2=.FALSE.
+     DO I1 = 1,IOBCN
+       J1 = I_OBC_N(I1)
+       J2 = NEXT_OBC(I1)
+       IF(I==J1 .OR. I==J2) ISONB2=.TRUE.
+     END DO
+     IF(.NOT. ISONB2) H(I) = H(I) - (FABM_BOTTOM_THICKNESS(I)-FABM_OLD_BOTTOM_THICKNESS(I))
+     DELTA_H(I) = 0.0
+   END DO
+
+# if defined (MULTIPROCESSOR)
+   IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,H )
+# endif
+
+   CALL N2E2D(H,H1)
+
+   D   = H + EL
+   DT  = H + ET
+   D1  = H1+EL1
+   DT1 = H1+ET1
+
+   IF(DBG_SET(DBG_SBR)) write(ipt,*) "END: FABM_UPDATE_DEPTH"
+
+   FABM_OLD_BOTTOM_THICKNESS = FABM_BOTTOM_THICKNESS
+
+END SUBROUTINE FABM_UPDATE_DEPTH
 
 FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
       LOGICAL, INTENT(IN) :: REPAIR_STATE
