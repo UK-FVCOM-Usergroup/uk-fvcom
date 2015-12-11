@@ -177,7 +177,7 @@
 !----------------------------id of forcing variables----------------------
         integer                                             :: stress_u_id,stress_v_id
         integer                                             :: netheat_id,shortwave_id,longwave_id,sensible_id,latent_id,evap_id,prec_id
-        integer                                             :: pressure_slp_id, rh_gen_id
+        integer                                             :: pressure_slp_id, rh_gen_id, air_temp_id
 !---------------------------array of forcing variables-------------------
         real,               allocatable, dimension(:,:,:)   :: stress_u                    ! stress u
         real,               allocatable, dimension(:,:,:)   :: stress_v                    ! stress v
@@ -914,6 +914,10 @@
        rcall=nf90_put_att(nc_ofid,rh_gen_id,"units","percent")
        rcall=nf90_put_att(nc_ofid,rh_gen_id,"coordinates","XLONG XLAT")
 
+       rcall = nf90_def_var(nc_ofid,"temp",nf90_float,force3m,air_temp_id)
+       rcall=nf90_put_att(nc_ofid,rh_gen_id,"description","2m air temperature")
+       rcall=nf90_put_att(nc_ofid,rh_gen_id,"units","celsius")
+       rcall=nf90_put_att(nc_ofid,rh_gen_id,"coordinates","XLONG XLAT")
 
 
        rcall=nf90_def_var(nc_ofid,"Times",nf90_char,force1m,time_id)
@@ -957,6 +961,7 @@
       rcall =nf90_put_var(nc_ofid,prec_id,precipitation)
       rcall =nf90_put_var(nc_ofid,pressure_slp_id,pressure_slp)     
       rcall =nf90_put_var(nc_ofid,rh_gen_id,rh_gen)
+      rcall =nf90_put_var(nc_ofid,air_temp_id,taxx)
       vstart(1)=1
       vstart(2)=1
       vcount(1)=19

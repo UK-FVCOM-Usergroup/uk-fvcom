@@ -17,7 +17,7 @@ CPPFLAGS      = $(DEF_FLAGS) -DGFORTRAN
 CXXFLAGS      = -O3
 CFLAGS        = -O3
 FFLAGS        = "-O3 -ffree-line-length-none"
-LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -lnetcdff -I$(INSTALLDIR)/include -I$(FVCOMLIBS)/include -L$(FVCOMLIBS)/lib -ljulian
+LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -lnetcdff -I$(INSTALLDIR)/include -I$(FVCOMLIBS)include -L$(FVCOMLIBS)lib -ljulian
 EXEC          = wrf_to_fvcom
 
 all:
