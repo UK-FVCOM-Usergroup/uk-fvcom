@@ -338,7 +338,12 @@ SUBROUTINE FABM_UPDATE_SALINITY
    ! Note that FABM salinity is expressed in g/L, NOT in g/kg as absolute salinity (TEOS 2010), which would come closer to PSU.
    ! Hence, we here divide by density in kg/L to get g/kg.
    ! [NB density residual rho will be the density computed previously for the old salinity value]
-   IF (USE_FABM_SALINITY) S1(1:M,1:KB) = FABM_SALT_DENSITY(1:M,1:KB)/(1+RHO1(1:M,1:KB))
+   IF (.NOT.USE_FABM_SALINITY) RETURN
+
+   S1(1:M,1:KB) = FABM_SALT_DENSITY(1:M,1:KB)/(1+RHO1(1:M,1:KB))
+
+   ! Use updated salinity also on elements
+   CALL N2E3D(S1,S)
 END SUBROUTINE FABM_UPDATE_SALINITY
 
 SUBROUTINE FABM_UPDATE_DEPTH
