@@ -1,7 +1,7 @@
 MODULE MOD_FABM_3D
 # if defined(FABM)
 
-  USE fabm
+  USE fabm, fabm_initialize_interior_state => fabm_initialize_state
   USE fabm_config
   USE fabm_types, only: domain_bottom
   USE fabm_driver, only: type_base_driver, driver
@@ -16,7 +16,8 @@ MODULE MOD_FABM_3D
 
   PRIVATE
 
-  PUBLIC FABM_FVCOM_INITIALIZE, FABM_ALLOCATE, FABM_INITIAL, FABM_INITIAL_DIAG, FABM_UPDATE
+  PUBLIC FABM_FVCOM_INITIALIZE, FABM_ALLOCATE, FABM_INITIALIZE_STATE, FABM_INITIALIZE_DIAGNOSTICS, FABM_UPDATE, REPORT_FABM
+  PUBLIC NAME_LIST_INITIALIZE_FABM, NAME_LIST_READ_FABM
   PUBLIC FABM_UPDATE_SALINITY, FABM_UPDATE_DEPTH
 
   REAL(SP), ALLOCATABLE :: FABM_F(:,:,:)          ! FORECASTED VARIABLES
@@ -35,8 +36,14 @@ MODULE MOD_FABM_3D
   REAL(SP) :: DAYS_SINCE_YEAR_START
   LOGICAL :: COMPUTE_DAYS_SINCE_YEAR_START
 
-  LOGICAL :: USE_FABM_SALINITY = .TRUE.
-  LOGICAL :: USE_FABM_BOTTOM_THICKNESS = .TRUE.
+  LOGICAL :: USE_FABM_SALINITY
+  LOGICAL :: USE_FABM_BOTTOM_THICKNESS
+  LOGICAL :: FABM_DEBUG
+
+  NAMELIST /NML_FABM/                 &
+         & USE_FABM_SALINITY,         &
+         & USE_FABM_BOTTOM_THICKNESS, &
+         & FABM_DEBUG
 
   TYPE (type_bulk_standard_variable),PARAMETER :: mass_concentration_of_solute &
      = type_bulk_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
@@ -54,7 +61,48 @@ MODULE MOD_FABM_3D
      procedure :: log_message => fvcom_driver_log_message
   end type
 
-CONTAINS
+   CONTAINS
+
+   SUBROUTINE NAME_LIST_INITIALIZE_FABM
+
+   !--Parameters in namelist NML_FABM
+   USE_FABM_SALINITY = .FALSE.
+   USE_FABM_BOTTOM_THICKNESS = .FALSE.
+   FABM_DEBUG = .FALSE.
+
+   END SUBROUTINE NAME_LIST_INITIALIZE_FABM  
+
+   SUBROUTINE NAME_LIST_READ_FABM
+   USE CONTROL
+
+   INTEGER :: IOS
+   CHARACTER(LEN=120):: FNAME
+
+   if(DBG_SET(dbg_sbr)) &
+        & write(IPT,*) "Subroutine Begins: NAME_LIST_READ_FABM;"
+
+    FNAME = "./"//trim(casename)//"_run.nml"
+
+    if(DBG_SET(dbg_io)) &
+         & write(IPT,*) "NAME_LIST_READ_FABM: File: ",trim(FNAME)
+
+    CALL FOPEN(NMLUNIT,trim(FNAME),'cfr')
+
+    ! Read FVCOM-FABM coupler settings.
+    READ(UNIT=NMLUNIT, NML=NML_FABM,IOSTAT=IOS)
+    IF (IOS/=0) THEN
+       IF (DBG_SET(dbg_log)) WRITE(UNIT=IPT,NML=NML_FABM)
+       IF(IOS<0) then
+          ! End of file reached - that means the namelist was not present - warn and continue
+          IF (DBG_SET(dbg_log)) WRITE (IPT,*) 'WARNING: namelist NML_FABM not present in '//trim(FNAME)//'. Using default settings for FVCOM-FABM coupler.'
+       ELSE
+          ! Another error (typically unknown variables or incorrect data types) - stop altogether.
+          Call FATAL_ERROR('Cannot read nameList NML_FABM from file: ' //trim(FNAME))
+       END IF
+    END IF
+
+    CLOSE(NMLUNIT)
+   END SUBROUTINE NAME_LIST_READ_FABM
 
    SUBROUTINE FABM_FVCOM_INITIALIZE()
       ALLOCATE(type_fvcom_driver::driver)
@@ -224,35 +272,41 @@ CONTAINS
       END IF
    END SUBROUTINE
 
-   SUBROUTINE FABM_INITIAL()
+   SUBROUTINE FABM_INITIALIZE_STATE()
       INTEGER :: K
 
-      IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIAL called before FABM_ALLOCATE")
+      IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIALIZE_STATE called before FABM_ALLOCATE")
 
       CALL PREPARE_ENVIRONMENT
 
-      ! Provide FABM with pointer to the dummy mask ("nothign masked") to include dry points in initialization.
+      ! Provide FABM with pointer to the dummy mask ("nothing masked") to include dry points in initialization.
       call fabm_set_mask(model,MASK_NONE)
 
       ! Allow FABM to perform its default initialization.
       CALL fabm_initialize_surface_state(model,1,M)
       CALL fabm_initialize_bottom_state (model,1,M)
       DO K=1,KBM1
-        CALL fabm_initialize_state(model,1,M,K)
+        CALL fabm_initialize_interior_state(model,1,M,K)
       END DO
 
     ! Provide FABM with pointer to the real mask.
       call fabm_set_mask(model,ISWETN(1:M))
 
-   END SUBROUTINE FABM_INITIAL
+   END SUBROUTINE FABM_INITIALIZE_STATE
 
-   SUBROUTINE FABM_INITIAL_DIAG()
+   SUBROUTINE FABM_INITIALIZE_DIAGNOSTICS()
+      ! Provide FABM with pointer to the dummy mask ("nothing masked") to ensure even diagnostics on dry points have a value.
+      call fabm_set_mask(model,MASK_NONE)
+
       ! Initialize all diagnostics (but skip time integration)
       CALL FABM_SOURCES(DTI,UPDATE=.FALSE.)
 
+      ! Provide FABM with pointer to the real mask.
+      call fabm_set_mask(model,ISWETN(1:M))
+
       ! Compute initial value of conserved quantity integrals
       CALL CHECK_CONSERVATION
-   END SUBROUTINE FABM_INITIAL_DIAG
+   END SUBROUTINE FABM_INITIALIZE_DIAGNOSTICS
 
 SUBROUTINE FABM_UPDATE
      USE MOD_PAR
@@ -261,12 +315,16 @@ SUBROUTINE FABM_UPDATE
 
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
-!     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_SOURCES')
+     IF (FABM_DEBUG) THEN
+       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_SOURCES'
+     END IF
 
      ! Vertical movement (e.g., sinking or floating)
 !     CALL CALC_VERTICAL_MOVEMENT(DTI)
      CALL FABM_VERTICAL_MOVEMENT(DTI)
-!     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of CALC_VERTICAL_MOVEMENT')
+     IF (FABM_DEBUG) THEN
+       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_VERTICAL_MOVEMENT'
+     END IF
 
 # if !defined (ONE_D_MODEL)
 
@@ -290,8 +348,10 @@ SUBROUTINE FABM_UPDATE
      END DO
 #   endif
 
-    IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
-!    IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_ADV')
+     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
+     IF (FABM_DEBUG) THEN
+       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_ADV'
+     END IF
 
 # endif
 ! end if defined 1D
@@ -302,11 +362,11 @@ SUBROUTINE FABM_UPDATE
 # else
      CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
 # endif
-!     IF (.NOT.CHECK_STATE(.FALSE.)) CALL FATAL_ERROR('Invalid FABM state at the end of FABM_MIXING')
+     IF (FABM_DEBUG) THEN
+       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_MIXING'
+     END IF
 
 # if defined (MULTIPROCESSOR)
-! RJT just to check this is needed...only the call to FABM_ALL is mine
-     IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
      IF(PAR)CALL FABM_EXCHANGE(FABM_F)
 # endif
 
@@ -316,6 +376,9 @@ SUBROUTINE FABM_UPDATE
      ! Check validity of state variables and "correct" (typicalyl: clip) where needed.
      ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
      IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_BCOND'
+     IF (FABM_DEBUG) THEN
+       IF (ANY(ISNAN(FABM_F))) CALL FATAL_ERROR("NaNs found in updated FABM state.")
+     END IF
 
 # if !defined (ONE_D_MODEL)
      FABM_ALL = FABM_F      ! Update to new time level
@@ -330,9 +393,20 @@ SUBROUTINE FABM_UPDATE
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
 # endif
 
-      ! Compute conserved quantity integrals
-      CALL CHECK_CONSERVATION
 END SUBROUTINE FABM_UPDATE
+
+SUBROUTINE REPORT_FABM
+   INTEGER :: IFABM
+
+   ! Compute conserved quantity integrals
+   CALL CHECK_CONSERVATION
+
+   IF(MSR) THEN
+      DO IFABM=1,SIZE(model%conserved_quantities)
+         WRITE (IPT,'(1X,A,E15.7,1X,A)') '!  INTEGRATED '//TRIM(model%conserved_quantities(IFABM)%name)//' :',FABM_TOTALS(IFABM),TRIM(model%conserved_quantities(IFABM)%units)//'*m3'
+      END DO
+   END IF
+END SUBROUTINE REPORT_FABM
 
 SUBROUTINE FABM_UPDATE_SALINITY
    ! Note that FABM salinity is expressed in g/L, NOT in g/kg as absolute salinity (TEOS 2010), which would come closer to PSU.
@@ -436,21 +510,16 @@ SUBROUTINE CHECK_CONSERVATION()
      ! Provide FABM with pointer to the real mask.
      call fabm_set_mask(model,ISWETN(1:M))
 
-! changes needed for serial runs
 #   if defined (MULTIPROCESSOR) 
-!     IF(PAR) THEN
+     IF(PAR) THEN
         ! NB: similar to logic in mod_report
         CALL MPI_REDUCE(TOTALS_LOC,FABM_TOTALS,SIZE(TOTALS_LOC),MPI_DP,MPI_SUM,MSRID-1,MPI_FVCOM_GROUP,IERR)
-!     ELSE
-# else
+     ELSE
         FABM_TOTALS = TOTALS_LOC
-!     END IF
-# endif
-     IF(MSR) THEN
-        DO IFABM=1,SIZE(model%conserved_quantities)
-           WRITE (IPT,'(A,E15.7,A)') 'Domain integral of '//TRIM(model%conserved_quantities(IFABM)%name),FABM_TOTALS(IFABM),' '//TRIM(model%conserved_quantities(IFABM)%units)//'*m3'
-        END DO
      END IF
+# else
+     FABM_TOTALS = TOTALS_LOC
+# endif
 END SUBROUTINE CHECK_CONSERVATION
 
 SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
@@ -963,7 +1032,7 @@ END SUBROUTINE FABM_MIXING
   REAL(SP) :: FIJ1,FIJ2,UN ! removed DXA,DYA,DXB,DYB
   REAL(SP) :: TXX,TYY,FXX,FYY,VISCOF,EXFLUX,TEMP,STPOINT
   REAL(SP) :: FACT,FM1
-  INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,JTMP,K,JJ,IFABM
+  INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,K,JTMP,JJ,IFABM
   REAL(SP) :: WQM1MIN, WQM1MAX, WQM2MIN, WQM2MAX
 
 #  if defined (SEMI_IMPLICIT)
@@ -982,7 +1051,7 @@ END SUBROUTINE FABM_MIXING
   REAL(SP), DIMENSION(0:MT,KB)     :: BETA    !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAOUT !! temporary beta coefficient in corrected part
-  REAL(SP), DIMENSION(0:MT,KB)     :: FABM_FRESH    !! for source term
+  REAL(SP), DIMENSION(0:MT,KB)     :: FABM_FRESH    !! for source term which also bring mass volume
   INTEGER ITERA, NTERA
 #  endif
 
@@ -1038,6 +1107,7 @@ END SUBROUTINE FABM_MIXING
      !     DTIJ(I)=DT1(I1)
      DO K=1,KBM1
        DTIJ(I,K) = DT1(I1)*DZ1(I1,K)
+       ! USE U,V
        UVN(I,K)  = V(I1,K)*DLTXE(I) - U(I1,K)*DLTYE(I)
 #      if defined (SEMI_IMPLICIT)
        DTIJ1(I,K) = D1(I1)*DZ1(I1,K)
@@ -1046,14 +1116,12 @@ END SUBROUTINE FABM_MIXING
      END DO
   END DO
 
-
   !
   !--Calculate the Advection and Horizontal Diffusion Terms----------------------!
   !
 
  DO IFABM=1,size(model%state_variables)
   DO K=1,KBM1
-
      PFPX  = 0.0_SP
      PFPY  = 0.0_SP
      PFPXD = 0.0_SP
@@ -1112,7 +1180,6 @@ END SUBROUTINE FABM_MIXING
         VISCOFF(I)=VISCOFH(I,K)
      END DO
 
-     ! JornB: added based on appearance in adv_s.F 12/03/2015
      IF(K == KBM1) THEN
         AH_BOTTOM(1:M) = (FACT*VISCOFF(1:M) + FM1)*NN_HVC(1:M)
      END IF
@@ -1198,7 +1265,7 @@ END SUBROUTINE FABM_MIXING
  END DO
 
  DO IFABM=1,size(model%state_variables)
-  
+
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
   !
 # if defined (MPDATA)
@@ -1276,7 +1343,6 @@ END SUBROUTINE FABM_MIXING
 #    if defined (WET_DRY)
         IF(ISWETN(I)*ISWETNT(I) == 1) THEN
 #    endif
-
            IF(K == 1) THEN
               TEMP = -(WTS(I,K+1)-ABS(WTS(I,K+1)))*FABM_ALL(I,K,IFABM)   &
                    -(WTS(I,K+1)+ABS(WTS(I,K+1)))*FABM_ALL(I,K+1,IFABM) &
@@ -1313,8 +1379,8 @@ END SUBROUTINE FABM_MIXING
            ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
            XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_ALL(I,K,IFABM)-FABM_ALL(I,K,IFABM)*DT(I)/DTFA(I) 
 
-           BETA(I,K)=0.5*(1.-SIGN(1.0_SP,XXXX)) * (WQMMAX-FABM_ALL(I,K,IFABM))/(ABS(XXXX)+1.E-10) &
-                +0.5*(1.-SIGN(1.0_SP,-XXXX)) * (FABM_ALL(I,K,IFABM)-WQMMIN)/(ABS(XXXX)+1.E-10)
+           BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (WQMMAX-FABM_ALL(I,K,IFABM))/(ABS(XXXX)+1.E-10) &
+                +0.5*(1.-SIGN(1._SP,-XXXX)) * (FABM_ALL(I,K,IFABM)-WQMMIN)/(ABS(XXXX)+1.E-10)
 
            WQM_SF(I,K)=FABM_ALL(I,K,IFABM)-MIN(1.,BETA(I,K))*XXXX
 
@@ -1367,7 +1433,6 @@ END SUBROUTINE FABM_MIXING
              0.5*MIN(1.,BETAIN(I,1))*(WWWS(I,1)-ABS(WWWS(I,1)))
      END DO
 
-     ! JornB: use KBM1-1 as in adv_s, rather than KBM1
      DO K=2,KBM1-1
         DO I=1,M
            WQMMAX = MAXVAL(FABM_ALL(NBSN(I,1:NTSN(I)),K,IFABM))
@@ -1388,7 +1453,7 @@ END SUBROUTINE FABM_MIXING
         END DO
      END DO
 
-     ! JornB: added this section based on adv_s implementation
+
      K=KBM1
      DO I=1,M
         WQMMAX = MAXVAL(FABM_ALL(NBSN(I,1:NTSN(I)),K,IFABM))
@@ -1444,18 +1509,29 @@ END SUBROUTINE FABM_MIXING
 
 
 # if ! defined(MPDATA)
-!
-!--Calculate the Vertical Terms------------------------------------------------
-!
+# if defined (ONE_D_MODEL)
+    XFLUX = 0.0_SP
+# endif
 
+
+  !--------------------------------------------------------------------
+  !   The central difference scheme in vertical advection
+  !--------------------------------------------------------------------
   DO I=1,M
 #    if defined (WET_DRY)
      IF(ISWETN(I)*ISWETNT(I) == 1) THEN
 #    endif
 
+#       if defined (NH) || defined (LIMITER_VER_ADV)
+
+#       endif
 
         DO K=1, KBM1
 
+#          if defined (NH) || defined (LIMITER_VER_ADV)
+#          endif
+
+#          if !defined (NH) && !defined (LIMITER_VER_ADV)
            IF(K == 1) THEN
               TEMP=-WTS(I,K+1)*(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/   &
                    (DZ(I,K)+DZ(I,K+1))
@@ -1465,14 +1541,17 @@ END SUBROUTINE FABM_MIXING
               TEMP= WTS(I,K)*(FABM_ALL(I,K,IFABM)*DZ(I,K-1)+FABM_ALL(I,K-1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))-&
                    WTS(I,K+1)*(FABM_ALL(I,K,IFABM)*DZ(I,K+1)+FABM_ALL(I,K+1,IFABM)*DZ(I,K))/(DZ(I,K)+DZ(I,K+1))
            END IF
+#          endif
 
-!
-!--Total Fluxes ---------------------------------------------------------------
-!
            IF(ISONB(I) == 2) THEN
+              !         XFLUX(I,K,IFABM)=TEMP*ART1(I)/DZ(I,K)
               XFLUX(I,K,IFABM)=TEMP*ART1(I)
            ELSE
+              !         XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM)+TEMP*ART1(I)/DZ(I,K)
               XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM)+TEMP*ART1(I)
+#          if defined (THIN_DAM)
+#          endif
+
            END IF
         ENDDO
 #    if defined (WET_DRY)
@@ -1490,6 +1569,7 @@ END SUBROUTINE FABM_MIXING
               JJ=INODEQ(J)
               STPOINT=FABMDIS(J,IFABM)
               DO K=1,KBM1
+                 !             XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT/DZ(JJ,K)
                  XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
               END DO
            END DO
@@ -1501,6 +1581,10 @@ END SUBROUTINE FABM_MIXING
               J2=N_ICELLQ(J,2)
               STPOINT=FABMDIS(J,IFABM) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
               DO K=1,KBM1
+                 !             XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-   &
+                 !                         QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT/DZ1(J1,K)
+                 !             XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-   &
+                 !                         QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT/DZ1(J2,K)
                  XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
                  XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
               END DO
@@ -1518,6 +1602,7 @@ END SUBROUTINE FABM_MIXING
      IF(ISWETN(I)*ISWETNT(I) == 1 )THEN
         DO K=1,KBM1
 #    if !defined (MPDATA)     
+           !       FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
 #      if !defined (THIN_DAM)
@@ -1547,6 +1632,7 @@ END SUBROUTINE FABM_MIXING
   DO I=1,M
      DO K=1,KBM1
 #    if !defined (MPDATA)     
+        !       FABM_F((I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
 #      if !defined (THIN_DAM)
