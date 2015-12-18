@@ -11,7 +11,12 @@ find_path(METIS_BASE metis.h HINTS "${ROOT}/libs/metis" DOC "Source directory of
 
 include_directories(${ROOT} ${JULIAN_BASE})
 
-add_definitions(-DLIMITED_2 -DGCY1 -DMPDATA)
+add_definitions(-DLIMITED_2 -DGCY1)
+
+option(FVCOM_USE_MPDATA "Use MPDATA advection scheme" OFF)
+if(FVCOM_USE_MPDATA)
+  add_definitions(-DMPDATA)
+endif()
 
 option(FVCOM_USE_FABM "Enable FABM" OFF)
 if(FVCOM_USE_FABM)
