@@ -10,13 +10,13 @@ INSTALLDIR    = $(FVCOM)/input/surface_forcing/wrf_bulk_formula/install/
 MODS          = $(FVCOM)
 DEF_FLAGS     = -C
 COMPILER      = -DGFORTRAN
-FC            = gfortran
+FC            = gfortran -ffree-line-length-none
 CC            = gcc
 CPP           = /lib/cpp
 CPPFLAGS      = $(DEF_FLAGS) -DGFORTRAN
-CXXFLAGS      = -O3
-CFLAGS        = -O3
-FFLAGS        = "-O3 -ffree-line-length-none"
+CXXFLAGS      = -O2
+CFLAGS        = -O2
+FFLAGS        = -O2
 LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -lnetcdff -I$(INSTALLDIR)/include -I$(FVCOMLIBS)include -L$(FVCOMLIBS)lib -ljulian
 EXEC          = wrf_to_fvcom
 
