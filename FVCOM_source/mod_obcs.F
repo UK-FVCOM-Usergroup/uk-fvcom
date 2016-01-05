@@ -117,7 +117,6 @@ MODULE MOD_OBCS
   REAL(SP), ALLOCATABLE :: XFLUX_OBC(:,:)
 
 
-
 CONTAINS
   !==========================================================================|
   SUBROUTINE ALLOC_OBC_DATA
@@ -133,7 +132,7 @@ CONTAINS
 #   endif    
 #   if defined (FABM)
     USE MOD_FABM_DATA
-#   endif    
+#   endif
     IMPLICIT NONE
 
     ALLOCATE(ELM1(0:MT))             ;ELM1       = ZERO 
@@ -157,11 +156,10 @@ CONTAINS
 #   if defined (FABM)
     ALLOCATE(FABM_OBC(IOBCN,KBM1,size(model%state_variables)));FABM_OBC = ZERO
 #   endif
-# if defined (OFFLINE_FABM)
+#   if defined (OFFLINE_FABM)
 ! allocate offline_UARD_OBCN here 
     ALLOCATE(OFFLINEB_UARD_OBCN(IOBCN))     ;OFFLINEB_UARD_OBCN  = ZERO ! I don't know why it needed to be IOBCN+1
-#  endif
-
+#   endif
 
     IF(TYPE_TSOBC == 4)THEN
        ALLOCATE(T1M1(0:MT,KBM1))        ;T1M1       = ZERO 

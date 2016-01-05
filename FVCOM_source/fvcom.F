@@ -583,8 +583,7 @@ PROGRAM FVCOM
   !  GET THE PARAMETERS OF FABM                                      !
   !==============================================================================!
 #  if defined (FABM)
-   IF (FABM_MODEL) CALL FABM_FVCOM_INITIALIZE
-!   RIVER_TS_SETTING = 'NONE' !No bio river yet
+  IF (FABM_MODEL) CALL FABM_FVCOM_INITIALIZE
 #  endif
 
   !==============================================================================!

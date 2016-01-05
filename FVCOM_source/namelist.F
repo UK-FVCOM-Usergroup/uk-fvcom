@@ -51,7 +51,7 @@ SUBROUTINE NAMELIST
 # if defined (BioGen)
 !  USE MOD_BIO_3D
 # endif    
-# if defined (FABM)    
+# if defined (FABM)
   USE MOD_FABM_3D
 # endif
 # if defined (NH)
@@ -104,7 +104,7 @@ SUBROUTINE NAMELIST
 # if defined (BioGen)    
 !  CALL NAME_LIST_INITIALIZE_BIO
 # endif
-# if defined (FABM)    
+# if defined (FABM)
   CALL NAME_LIST_INITIALIZE_FABM
 # endif
 # if defined (NH)
@@ -228,7 +228,7 @@ SUBROUTINE NAMELIST
 # if defined (WATER_QUALITY)    
   CALL NAME_LIST_READ_WQM
 # endif
-# if defined (FABM)    
+# if defined (FABM)
   CALL NAME_LIST_READ_FABM
 # endif
 # if defined (NH)

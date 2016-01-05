@@ -338,8 +338,8 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: FABM_V_N , FABM_V_P  ! V VELOCITY
   TYPE(NCVAR), POINTER :: FABM_W_N , FABM_W_P  ! W VELOCITY
   TYPE(NCVAR), POINTER :: FABM_S1_N, FABM_S1_P ! SALINITY
-  TYPE(NCVAR), POINTER :: FABM_T1_N, FABM_T1_P ! SALINITY
-  TYPE(NCVAR), POINTER :: FABM_EL_N, FABM_EL_P ! EL 
+  TYPE(NCVAR), POINTER :: FABM_T1_N, FABM_T1_P ! TEMPERATURE
+  TYPE(NCVAR), POINTER :: FABM_EL_N, FABM_EL_P ! ELEVATION
   TYPE(NCVAR), POINTER :: FABM_KH_N, FABM_KH_P ! KM
   TYPE(NCVAR), POINTER :: FABM_WN_N, FABM_WN_P ! WET NODES
   TYPE(NCVAR), POINTER :: FABM_WC_N, FABM_WC_P ! WET CELLS
@@ -473,7 +473,7 @@ MODULE MOD_FORCE
 # endif  
 # if defined (FABM)
   PUBLIC :: UPDATE_OBC_FABM
-# endif  
+# endif
   PUBLIC :: UPDATE_ICE
   PUBLIC :: UPDATE_ICING
   PUBLIC :: SURFACE_WIND2WAVE
@@ -538,11 +538,11 @@ CONTAINS
 # endif
 # if defined (OFFLINE_FABM)
     NULLIFY(FABM_FILE,FABM_INTP_N,FABM_INTP_C, &
-         & FABM_U_N,     FABM_U_P,     &
-         & FABM_V_N,     FABM_V_P,     &
-         & FABM_W_N,     FABM_W_P,     &
-         & FABM_S1_N,     FABM_S1_P,     &
-         & FABM_T1_N,     FABM_T1_P,     &
+         & FABM_U_N,     FABM_U_P,      &
+         & FABM_V_N,     FABM_V_P,      &
+         & FABM_W_N,     FABM_W_P,      &
+         & FABM_S1_N,    FABM_S1_P,     &
+         & FABM_T1_N,    FABM_T1_P,     &
          & FABM_EL_N,    FABM_EL_P,     &
          & FABM_KH_N,    FABM_KH_P,     &
          & FABM_WN_N,    FABM_WN_P,     &
@@ -1672,12 +1672,12 @@ CONTAINS
 # endif  
 # if defined (FABM)
   USE MOD_FABM_DATA
-# endif  
+# endif
     IMPLICIT NONE
     INTEGER :: I, J,K, fcnt,rcnt,status, nfiles,nrs,IOS,NS
 # if defined (FABM)
     INTEGER :: IFABM
-# endif  
+# endif
     TYPE(A_RIVER_FILE) DUMMY
 
     TYPE(NCFILE),POINTER :: NCF
@@ -8927,7 +8927,7 @@ CONTAINS
             & ("IN OFFLINE FABM FILE OBJECT",&
             & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
             &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
-       
+
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
           FABM_FORCING_TYPE = FABM_IS_WRFGRID 
@@ -8956,32 +8956,32 @@ CONTAINS
        FABM_FORCING_COMMENTS(1) = "FVCOM variable offline FABM&
             & hydraulic forcing:"
        FABM_FORCING_COMMENTS(2) = "FILE NAME:"//TRIM(OFFLINE_FABM_FILE)
-       
+
        FABM_FORCING_COMMENTS(3) = "SOURCE:"//TRIM(ATT%CHR(1))
-       
+
        ATT_DATE => FIND_ATT(FABM_FILE,"START_DATE",FOUND)
        IF (FOUND) THEN
           FABM_FORCING_COMMENTS(4) ="MET DATA START DATE:"//TRIM(ATT_DATE%CHR(1))
        ELSE
           FABM_FORCING_COMMENTS(4) = "Unknown start date meta data format"
        END IF
-              
+
        ! LOOK FOR THE DIMENSIONS
        DIM => FIND_UNLIMITED(FABM_FILE,FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
             &"COULD NOT FIND THE UNLIMITED DIMENSION")
-       
+
        NTIMES = DIM%DIM
-       
+
        ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
        TIMETEST = get_file_time(FABM_FILE,1)
        IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
             & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
             &"THE MODEL RUN STARTS BEFORE THE FORCING TIME SERIES")
-       
+
        TIMETEST = get_file_time(FABM_FILE,ntimes)
        IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
             & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
@@ -9015,7 +9015,7 @@ CONTAINS
 
 
        ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
-       
+
        ! X-DIRECTION U VELOCITY
        VAR => FIND_VAR(FABM_FILE,"u",FOUND)
        IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"U",FOUND)

@@ -317,6 +317,7 @@ CONTAINS
     NCAV_FABM         = .False.
 #endif
 
+
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
     !--Parameters in NameList NML_PHYSICS
@@ -439,7 +440,7 @@ CONTAINS
     OBC_FABM_NUDGING = .False.
     OBC_FABM_FILE = trim(casename)//"_obc.nc "
     OBC_FABM_NUDGING_TIMESCALE = 0.0
-#   endif    
+#   endif
     OBC_MEANFLOW = .FALSE.
     OBC_MEANFLOW_FILE = trim(casename)//"_obc.nc"
     OBC_LONGSHORE_FLOW_ON = .FALSE.
@@ -490,7 +491,7 @@ CONTAINS
     STARTUP_BIO_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
 # if defined (FABM)
     FABM_MODEL= .FALSE.
-    STARTUP_FABM_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
+    STARTUP_FABM_TYPE = "'constant' or 'set values'"
 # endif
     SEDIMENT_MODEL= .FALSE.
     SEDIMENT_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
@@ -498,7 +499,7 @@ CONTAINS
     OFFLINE_SEDIMENT_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # endif
 # if defined (OFFLINE_FABM)
-    OFFLINE_FABM_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+    OFFLINE_FABM_FILE = "DO NOT ADD UNTIL FVCOM IS RUNNING BY ITS SELF FIRST"
 # endif
     SEDIMENT_PARAMETER_TYPE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     SEDIMENT_PARAMETER_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
@@ -1543,17 +1544,17 @@ CONTAINS
 
 # if defined (OFFLINE_FABM)
     ! Check FABM file and open
- 
+
        ! TEST FILE NAME
        charnum = index (OFFLINE_FABM_FILE,".nc",back)
        if (charnum /= len_trim(OFFLINE_FABM_FILE)-2)&
-            & CALL WARNING("OFFLINE FABM FILE does not end in .nc", &
+            & CALL WARNING("OFFLINE_FABM_FILE does not end in .nc", &
             & trim(OFFLINE_FABM_FILE))
-       
+
        ! INITIALIZE TYPE TO HOLD FILE METADATA
        pathnfile= trim(INPUT_DIR)//trim(OFFLINE_FABM_FILE)
        CALL  NC_INIT(NCF,pathnfile)
-       
+
        ! OPEN THE FILE AND LOAD METADATA
        if(.not. NCF%OPEN) then
           Call NC_OPEN(NCF)
@@ -1684,17 +1685,17 @@ CONTAINS
 !! --- ADDITION FOR FABM BOUNDARY CONDITIONS
 #   if defined (FABM)
        if (OBC_FABM_NUDGING) then
-         
+
          ! TEST FILE NAME
          charnum = index (OBC_FABM_FILE,".nc",back)
          if (charnum /= len_trim(OBC_FABM_FILE)-2)&
               & CALL WARNING("OBC_FABM_FILE does not end in .nc", &
               & trim(OBC_FABM_FILE))
-         
+
          ! INITIALIZE TYPE TO HOLD FILE METADATA
          pathnfile= trim(INPUT_DIR)//trim(OBC_FABM_FILE)
          CALL  NC_INIT(NCF,pathnfile)
-         
+
          ! OPEN THE FILE AND LOAD METADATA
          if(.not. NCF%OPEN) then
             Call NC_OPEN(NCF)
@@ -1703,7 +1704,7 @@ CONTAINS
          end if
       end if
 !!
-#   endif    
+#   endif
 
       
       if (OBC_MEANFLOW) then
