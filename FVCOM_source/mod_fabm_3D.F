@@ -1819,21 +1819,24 @@ END SUBROUTINE FABM_ADV
          END DO
 
           ELSE
-           ! Inward flux over open boundary. Optionally nudge towards prescribed values.
+           ! Inward flux over open boundary. Optionally nudge boundary state towards prescribed values.
+           ! Here, the affected boundary state is FABM_ALL, which is the updated state *prior to advection*.
+           ! It already includes biogeochemical sources, residual vertical movement [e.g., sinking], and vertical mixing!
            IF(FABM_OBC_PRESCRIBED(IFABM))  THEN
+             ! This variable has a prescribed boundary value. Nudge current state towards it.
              DO K=1,KBM1
                FABM_F(J,K,IFABM) = FABM_ALL(J,K,IFABM) - OBC_FABM_NUDGING_TIMESCALE*RAMP_BIO*(FABM_ALL(J,K,IFABM)&
                       &-FABM_OBC(I,K,IFABM))
              END DO
            ELSE
-             ! No OBC information exist or no nudging is required. Keep previous interior values
+             ! No boundary value prescribed or no nudging required. Keep current state.
              DO K=1,KBM1
                FABM_F(J,K,IFABM)=FABM_ALL(J,K,IFABM)
              END DO
            END IF
          END IF
        END DO
-     END DO !!OUTER LOOP OVER BIO-VARIABLES IFABM=1,size(model%state_variables)
+     END DO !!OUTER LOOP OVER FABM VARIABLES IFABM=1,size(model%state_variables)
      DEALLOCATE(FTMP)
 
    END IF
@@ -1981,21 +1984,24 @@ END SUBROUTINE FABM_ADV
          END DO
 
           ELSE
-           ! Inward flux over open boundary. Optionally nudge towards prescribed values.
+           ! Inward flux over open boundary. Optionally nudge boundary state towards prescribed values.
+           ! Here, the affected boundary state is FABM_ALL, which is the updated state *prior to advection*.
+           ! It already includes biogeochemical sources, residual vertical movement [e.g., sinking], and vertical mixing!
            IF(FABM_OBC_PRESCRIBED(IFABM))  THEN
+             ! This variable has a prescribed boundary value. Nudge current state towards it.
              DO K=1,KBM1
                FABM_F(J,K,IFABM) = FABM_ALL(J,K,IFABM) - OBC_FABM_NUDGING_TIMESCALE*RAMP_BIO*(FABM_ALL(J,K,IFABM)&
                       &-FABM_OBC(I,K,IFABM))
              END DO
            ELSE
-             ! No OBC information exist or no nudging is required. Keep previous interior values
+             ! No boundary value prescribed or no nudging required. Keep current state.
              DO K=1,KBM1
                FABM_F(J,K,IFABM)=FABM_ALL(J,K,IFABM)
              END DO
            END IF
          END IF
        END DO
-     END DO !!OUTER LOOP OVER BIO-VARIABLES IFABM=1,size(model%state_variables)
+     END DO !!OUTER LOOP OVER FABM VARIABLES IFABM=1,size(model%state_variables)
 
    END IF
 
