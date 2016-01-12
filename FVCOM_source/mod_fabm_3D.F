@@ -1699,12 +1699,11 @@ END SUBROUTINE FABM_ADV
 
     IF(IOBCN > 0) THEN
       DO I=1,IOBCN
-        IF(UARD_OBCN(I) < 0.0_SP) THEN
-          ! Inflow over open boundary. Discard the impact of advection and horizontal diffusion,
-          ! as the reference boundary state will be determined by water column simulation (sources, sinking, vertical mixing) only
-          J=I_OBC_N(I)
-          FABM_F(J,1:KBM1,:) = FABM_ALL(J,1:KBM1,:)
-        END IF
+        ! Discard the impact of advection and horizontal diffusion, as the reference boundary state
+        ! is determined by water column simulation (sources, sinking, vertical mixing) only.
+        ! In the case of outflow over the boundary, the impact of advection will be added by FABM_BCOND.
+        J=I_OBC_N(I)
+        FABM_F(J,1:KBM1,:) = FABM_ALL(J,1:KBM1,:)
       END DO
     END IF
   END SUBROUTINE FABM_BCOND_PREPARE
@@ -1785,13 +1784,17 @@ END SUBROUTINE FABM_ADV
            J1=NEXT_OBC(I)
 
            ! Depth-average mass at current boundary node and its interior neighbor (T2D, T2D_NEXT),
-           ! as well as mass flux over the boundary (XFLUX2D). Note that T2D_NEXT is the average of
-           ! the forecast field (i.e., after advection), whereas T2D is the average of the current field.
+           ! as well as mass flux over the boundary (XFLUX2D).
+           ! Note that the affected state FABM_F at the boundary has been modified by FABM_BCOND_PREPARE
+           ! to include only biogeochemical sources, residual vertical movement [e.g., sinking], and vertical mixing!
+           ! Therefore, while T2D_NEXT is the vertical average of the neighboring field including advection,
+           ! T2D is the vertical average of the boundary field excluding advection. The impact of advection is to
+           ! be accounted for here.
            T2D=0.0_SP
            T2D_NEXT=0.0_SP
            XFLUX2D=0.0_SP
            DO K=1,KBM1
-            T2D=T2D+FABM_ALL(J,K,IFABM)*DZ(J,K)
+            T2D=T2D+FABM_F(J,K,IFABM)*DZ(J,K)
             T2D_NEXT=T2D_NEXT+FABM_F(J1,K,IFABM)*DZ(J1,K)
             XFLUX2D=XFLUX2D+XFLUX_OBCB(I,K,IFABM)           !XFLUX_OBCB is set in ADVECTION routine
            END DO
@@ -1845,7 +1848,7 @@ END SUBROUTINE FABM_ADV
 
           ELSE
            ! Inward flux over open boundary. Optionally nudge boundary state towards prescribed values.
-           ! Note that in the case of inflow, the affected boundary state FABM_F has been modified by FABM_BCOND_PREPARE
+           ! Note that the affected boundary state FABM_F has been modified by FABM_BCOND_PREPARE
            ! to include only biogeochemical sources, residual vertical movement [e.g., sinking], and vertical mixing!
            ! It specifically excludes advection and horizontal diffusion - effectively we run water column simulations at the boundary.
            IF(FABM_OBC_PRESCRIBED(IFABM)) THEN
