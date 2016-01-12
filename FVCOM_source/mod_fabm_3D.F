@@ -312,6 +312,7 @@ SUBROUTINE FABM_UPDATE
      USE MOD_PAR
 
      INTEGER :: IFABM
+     LOGICAL :: VALID
 
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
@@ -353,6 +354,9 @@ SUBROUTINE FABM_UPDATE
        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_ADV'
      END IF
 
+     ! Remove the impact of FABM_ADV on the open boundary nodes that experience inflow.
+     ! For those, we want to run water column simulations that only include sources, residual vertical movement and vertical mixing.
+     CALL FABM_BCOND_PREPARE
 # endif
 ! end if defined 1D
 
@@ -375,9 +379,12 @@ SUBROUTINE FABM_UPDATE
 
      ! Check validity of state variables and "correct" (typicalyl: clip) where needed.
      ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
-     IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_BCOND'
      IF (FABM_DEBUG) THEN
-       IF (ANY(ISNAN(FABM_F))) CALL FATAL_ERROR("NaNs found in updated FABM state.")
+       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_BCOND'
+       IF (ANY(ISNAN(FABM_F))) CALL FATAL_ERROR("NaNs found in FABM state at the end of FABM_UPDATE.")
+     ELSE
+       VALID = CHECK_STATE(.TRUE.)
+       IF (DBG_SET(DBG_VRB).AND..NOT.VALID) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values at the end of FABM_UPDATE'
      END IF
 
 # if !defined (ONE_D_MODEL)
@@ -1684,172 +1691,24 @@ END SUBROUTINE FABM_MIXING
 
 END SUBROUTINE FABM_ADV
 !==============================================================================|
-  SUBROUTINE FABM_BCOND2()
-!==============================================================================|
-!   Set Boundary Conditions for FABM                                         |
-!==============================================================================|
 
-!------------------------------------------------------------------------------|
-   USE ALL_VARS
-   USE BCS
-   USE MOD_OBCS
-   IMPLICIT NONE
-   REAL(SP) :: T2D,T2D_NEXT,T2D_OBC,XFLUX2D,TMP,RAMP_BIO
-   INTEGER  :: I,J,K,J1,J11,J22,NCON2,IFABM
-   REAL(SP) ::WQMMAX,WQMMIN
-   REAL(SP), ALLOCATABLE :: FTMP(:,:)
+  SUBROUTINE FABM_BCOND_PREPARE()
+    USE MOD_OBCS
 
-  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_BCOND :"
+    INTEGER :: I,J
 
-!   ALLOCATE(WDIS(NUMQBC,ntt))     ;WDIS      = ZERO
-!------------------------------------------------------------------------------|
+    IF(IOBCN > 0) THEN
+      DO I=1,IOBCN
+        IF(UARD_OBCN(I) < 0.0_SP) THEN
+          ! Inflow over open boundary. Discard the impact of advection and horizontal diffusion,
+          ! as the reference boundary state will be determined by water column simulation (sources, sinking, vertical mixing) only
+          J=I_OBC_N(I)
+          FABM_F(J,1:KBM1,:) = FABM_ALL(J,1:KBM1,:)
+        END IF
+      END DO
+    END IF
+  END SUBROUTINE FABM_BCOND_PREPARE
 
-! make use of masks for  OBC. Non suplied variables will get diluted (in the case of the rivers) or fixed
-! to interior values for OBCs. 
-!------------------------------------------------------------------------------|
-!!!! River nutrient treatment for FABM as SPECIFIED rather than CALCULATED which is handled during advection
-! FABMDIS is initialised to zero so we don't need a mask. Not-read values will be zero
-!--SET CONDITIONS FOR FRESH WATER INFLOW for SPECIFIED CASE!!---------------------------------|
-!
-   IF(RIVER_TS_SETTING == 'specified') THEN
-     ! Impact of rivers is accounted for by OVERWRITING concentrations at inflow nodes with
-     ! the concentrations in the river. Note: the alternative RIVER_TS_SETTING=='calculated'
-     ! updates the concentration at the inflow nodes by taking into account their volume, the
-     ! local concentration, the river concentration and the river flow rate. This scenario is
-     ! handled in FABM_ADV.
-     IF(NUMQBC > 0) THEN
-       IF(RIVER_INFLOW_LOCATION == 'node') THEN
-         DO I=1,NUMQBC
-           J11=INODEQ(I)
-           DO K=1,KBM1
-             DO IFABM=1,size(model%state_variables)
-               FABM_F(J11,K,IFABM) = FABMDIS(I,IFABM)
-             END DO
-           END DO
-         END DO
-       ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
-         DO I=1,NUMQBC
-           J11=N_ICELLQ(I,1)
-           J22=N_ICELLQ(I,2)
-           DO K=1,KBM1
-             DO IFABM=1,size(model%state_variables)
-               FABM_F(J11,K,IFABM)=FABMDIS(I,IFABM)
-               FABM_F(J22,K,IFABM)=FABMDIS(I,IFABM)
-             END DO
-           END DO
-         END DO
-       END IF
-     END IF
-   END IF
-
-       
-   IF(OBC_FABM_NUDGING) CALL UPDATE_OBC_FABM(IntTime,FABM_OBC)
-   IF(IOBCN > 0) THEN
-   ALLOCATE(FTMP(IOBCN,KBM1));  FTMP = 0.0_SP
-!
-!  SET CONDITIONS ON OUTER BOUNDARY
-! Variables presence is a function of variable presence in NETCDF file
-! different handling is only needed when tracers come into the domain
-     RAMP_BIO = TANH(FLOAT(IINT)/FLOAT(IRAMP+1))
-     DO IFABM=1,size(model%state_variables)
-       DO I=1,IOBCN
-         J=I_OBC_N(I)
-         IF(UARD_OBCN(I) > 0.0_SP) THEN
-           ! Outward flow over open boundary. Imposed boundary condition has no effect.
-           J1=NEXT_OBC(I)
-
-           ! Depth-average mass at current boundary node and its interior neighbor (T2D, T2D_NEXT),
-           ! as well as mass flux over the boundary (XFLUX2D). Note that T2D_NEXT is the average of
-           ! the forecast field (i.e., after advection), whereas T2D is the average of the current field.
-           T2D=0.0_SP
-           T2D_NEXT=0.0_SP
-           XFLUX2D=0.0_SP
-           DO K=1,KBM1
-            T2D=T2D+FABM_ALL(J,K,IFABM)*DZ(J,K)
-            T2D_NEXT=T2D_NEXT+FABM_F(J1,K,IFABM)*DZ(J1,K)
-            XFLUX2D=XFLUX2D+XFLUX_OBCB(I,K,IFABM)           !XFLUX_OBCB is set in ADVECTION routine
-           END DO
-
-           ! Add flux across open boundary to existing flux for this node [which presumably did not yet
-           ! include the flux over the boundary itself]
-           TMP=XFLUX2D+T2D*UARD_OBCN(I)
-
-           ! Forecast depth-averaged tracer at the boundary based on previous value and flux TMP.
-           T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
-           
-		   CALL BCOND_FABM_PERTURBATION(T2D_NEXT,T2D,FTMP,I,J,J1)
-           ! For the new depth-explicit value at the boundary, combine the forecast depth-averaged value
-           ! with the differences from the the depth-averaged value as forecast for the neighbouring node.
-           DO K=1,KBM1
-             FABM_F(J,K,IFABM)=T2D_OBC+FTMP(I,K) 
-           END DO
-
-         DO K=1,KBM1
-           ! Minimum and maximum of the values at [horizontally] neighboring cell centers.
-           WQMMAX = MAXVAL(FABM_ALL(NBSN(J,1:NTSN(J)),K,IFABM))
-           WQMMIN = MINVAL(FABM_ALL(NBSN(J,1:NTSN(J)),K,IFABM))
-
-           ! Minimum and maximum of the values at [vertically] neighbouring top and bottom interfaces of the cell.
-           ! Values at the interfaces are found through linear interpolation, accounting for differences in sigma height.
-           IF(K == 1)THEN
-            WQMMAX = MAX(WQMMAX,(FABM_ALL(J,K,IFABM)*DZ(J,K+1)+FABM_ALL(J,K+1,IFABM)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K+1)))
-            WQMMIN = MIN(WQMMIN,(FABM_ALL(J,K,IFABM)*DZ(J,K+1)+FABM_ALL(J,K+1,IFABM)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K+1)))
-           ELSE IF(K == KBM1)THEN
-            WQMMAX = MAX(WQMMAX,(FABM_ALL(J,K,IFABM)*DZ(J,K-1)+FABM_ALL(J,K-1,IFABM)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)))
-            WQMMIN = MIN(WQMMIN,(FABM_ALL(J,K,IFABM)*DZ(J,K-1)+FABM_ALL(J,K-1,IFABM)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)))
-           ELSE
-            WQMMAX = MAX(WQMMAX,(FABM_ALL(J,K,IFABM)*DZ(J,K-1)+FABM_ALL(J,K-1,IFABM)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)), &
-                    (FABM_ALL(J,K,IFABM)*DZ(J,K+1)+FABM_ALL(J,K+1,IFABM)*DZ(J,K))/  &
-		     (DZ(J,K)+DZ(J,K+1)))
-            WQMMIN = MIN(WQMMIN,(FABM_ALL(J,K,IFABM)*DZ(J,K-1)+FABM_ALL(J,K-1,IFABM)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)), &
-                    (FABM_ALL(J,K,IFABM)*DZ(J,K+1)+FABM_ALL(J,K+1,IFABM)*DZ(J,K))/  &
-		     (DZ(J,K)+DZ(J,K+1)))
-           END IF
- 
-           ! Clip to extremes of all neighbours. The effect of this should be dampening of grid-scale oscillations.
-           IF(WQMMIN-FABM_F(J,K,IFABM) > 0.0_SP)FABM_F(J,K,IFABM) = WQMMIN
-           IF(FABM_F(J,K,IFABM)-WQMMAX > 0.0_SP)FABM_F(J,K,IFABM) = WQMMAX
-
-         END DO
-
-          ELSE
-           ! Inward flux over open boundary. Optionally nudge boundary state towards prescribed values.
-           ! Here, the affected boundary state is FABM_ALL, which is the updated state *prior to advection*.
-           ! It already includes biogeochemical sources, residual vertical movement [e.g., sinking], and vertical mixing!
-           IF(FABM_OBC_PRESCRIBED(IFABM))  THEN
-             ! This variable has a prescribed boundary value. Nudge current state towards it.
-             DO K=1,KBM1
-               FABM_F(J,K,IFABM) = FABM_ALL(J,K,IFABM) - OBC_FABM_NUDGING_TIMESCALE*RAMP_BIO*(FABM_ALL(J,K,IFABM)&
-                      &-FABM_OBC(I,K,IFABM))
-             END DO
-           ELSE
-             ! No boundary value prescribed or no nudging required. Keep current state.
-             DO K=1,KBM1
-               FABM_F(J,K,IFABM)=FABM_ALL(J,K,IFABM)
-             END DO
-           END IF
-         END IF
-       END DO
-     END DO !!OUTER LOOP OVER FABM VARIABLES IFABM=1,size(model%state_variables)
-     DEALLOCATE(FTMP)
-
-   END IF
-
-!
-!--SET BOUNDARY CONDITIONS-----------------------------------------------------|
-!
-       FABM_ALL(0,:,:)=ZERO ! don't know what this is doing here
-   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_BCOND2 :"
-
-   RETURN
-
-  END SUBROUTINE FABM_BCOND2
 !==============================================================================!
   SUBROUTINE FABM_BCOND()
 !==============================================================================|
@@ -1909,8 +1768,9 @@ END SUBROUTINE FABM_ADV
      END IF
    END IF
 
-       
+   ! Update concentrations at open boundary nodes, if nudging to boundary state is active.
    IF(OBC_FABM_NUDGING) CALL UPDATE_OBC_FABM(IntTime,FABM_OBC)
+
    IF(IOBCN > 0) THEN
 !
 !  SET CONDITIONS ON OUTER BOUNDARY
@@ -1985,18 +1845,13 @@ END SUBROUTINE FABM_ADV
 
           ELSE
            ! Inward flux over open boundary. Optionally nudge boundary state towards prescribed values.
-           ! Here, the affected boundary state is FABM_ALL, which is the updated state *prior to advection*.
-           ! It already includes biogeochemical sources, residual vertical movement [e.g., sinking], and vertical mixing!
-           IF(FABM_OBC_PRESCRIBED(IFABM))  THEN
+           ! Note that in the case of inflow, the affected boundary state FABM_F has been modified by FABM_BCOND_PREPARE
+           ! to include only biogeochemical sources, residual vertical movement [e.g., sinking], and vertical mixing!
+           ! It specifically excludes advection and horizontal diffusion - effectively we run water column simulations at the boundary.
+           IF(FABM_OBC_PRESCRIBED(IFABM)) THEN
              ! This variable has a prescribed boundary value. Nudge current state towards it.
              DO K=1,KBM1
-               FABM_F(J,K,IFABM) = FABM_ALL(J,K,IFABM) - OBC_FABM_NUDGING_TIMESCALE*RAMP_BIO*(FABM_ALL(J,K,IFABM)&
-                      &-FABM_OBC(I,K,IFABM))
-             END DO
-           ELSE
-             ! No boundary value prescribed or no nudging required. Keep current state.
-             DO K=1,KBM1
-               FABM_F(J,K,IFABM)=FABM_ALL(J,K,IFABM)
+               FABM_F(J,K,IFABM) = FABM_F(J,K,IFABM) - OBC_FABM_NUDGING_TIMESCALE*RAMP_BIO*(FABM_F(J,K,IFABM) - FABM_OBC(I,K,IFABM))
              END DO
            END IF
          END IF
@@ -2132,81 +1987,6 @@ SUBROUTINE FCT_FABM
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: fct_fabm"
   !#  endif
 END SUBROUTINE FCT_FABM
-!==============================================================================|
-SUBROUTINE BCOND_FABM_PERTURBATION(S2D_NEXT,S2D,STMP,I,J,J1)
-  !==============================================================================|
-  ! Calculate the OBC for salinity perturbation                                  |
-  !==============================================================================|
-  USE ALL_VARS
-  USE MOD_OBCS
-  IMPLICIT NONE
-
-  INTEGER :: I,J,J1,J2,K
-  REAL(SP):: CC,CP,MU,CL
-  REAL(SP):: PERT_NEXT,PERT,S2D_NEXT,S2D
-  REAL(SP):: S2D_NEXT1,SM12D_NEXT2,SM12D_NEXT1,SM22D_NEXT1
-  REAL(SP):: STMP(IOBCN,KBM1)
-
-  SELECT CASE(TYPE_TSOBC)
-
-  CASE(1)
-     DO K=1,KBM1
-        STMP(I,K) = SF1(J1,K) - S2D_NEXT
-     END DO
-  CASE(2)
-     CC = SQRT(GRAV_N(J)*H(J))*DTI/DLTN_OBC(I)
-     CP = CC + 1.0_SP
-     DO K=1,KBM1
-        PERT_NEXT = SF1(J1,K) - S2D_NEXT
-        PERT      = S1(J,K) - S2D
-        STMP(I,K) = (CC*PERT_NEXT + PERT)/CP
-     END DO
-  CASE(3)
-     CC = SQRT(GRAV_N(J)*H(J))*DTI/DLTN_OBC(I)
-     CP = CC + 1.0_SP
-     DO K=1,KBM1
-        PERT_NEXT = SF1(J1,K) - S2D_NEXT
-        PERT      = S1(J,K) - S2D
-        STMP(I,K) = (CC*PERT_NEXT + PERT*(1.0_SP - DTI/10800.0_SP))/CP
-     END DO
-  CASE(4)
-     J2 = NEXT_OBC2(I)
-     S2D_NEXT1  =0.0_SP
-     SM12D_NEXT2=0.0_SP
-     SM12D_NEXT1=0.0_SP
-     SM22D_NEXT1=0.0_SP
-     DO K=1,KBM1
-        S2D_NEXT1  =S2D_NEXT1  +S1(J1,K)*DZ(J1,K)
-        SM12D_NEXT2=SM12D_NEXT2+S1M1(J2,K)*DZ(J2,K)
-        SM12D_NEXT1=SM12D_NEXT1+S1M1(J,K)*DZ(J,K)
-        SM22D_NEXT1=SM22D_NEXT1+S1M2(J1,K)*DZ(J1,K)
-     END DO
-
-     DO K=1,KBM1
-        CL = ((S1M2(J1,K)-SM22D_NEXT1)-(S1(J1,K)-S2D_NEXT1))/   &
-             ((S1(J1,K)-S2D_NEXT1)+(S1M2(J1,K)-SM22D_NEXT1)     &
-             -2.0*(S1M1(J2,K)-SM12D_NEXT2))
-        IF(CL >= 1.0)THEN
-           MU = 1.0
-        ELSE IF(CL > 0.0 .AND. CL < 1.0)THEN
-           MU = CL
-        ELSE
-           MU = 0.0
-        END IF
-
-        STMP(I,K)=((S1M1(J,K)-SM12D_NEXT1)*(1.0-MU)     &
-             +2.0*MU*(S1(J1,K)-S2D_NEXT1))/(1.0+MU)
-     END DO
-
-  CASE DEFAULT
-     CALL FATAL_ERROR("INVALID OBC_TS_TYPE IN NML_OPEN_BOUNDARY_CONTROL"&
-          &, "See mod_obcs.F")
-
-  END SELECT
-
-  RETURN
-END SUBROUTINE BCOND_FABM_PERTURBATION
-!========================================================================
 
 # endif
 
