@@ -278,7 +278,7 @@
         if (debug) write(*,*)
         if (debug) write(*,*) "Variable:",idvar,"out of",nVars
         if (debug) write(*,*) "DEALING with variable: ", trim(varnam)
-        if (.not. debug ) write(*,'("   Variable ",i2," :  ",A10,$)') idvar,varnam
+        if (.not. debug ) write(*,'("   Variable ",i3," :  ",A10,$)') idvar,varnam
         if (.not. debug .and. idm .gt. 2 ) write(*,*) " (*)"
         if (.not. debug .and. idm .le. 2 ) write(*,*) "    "
 
