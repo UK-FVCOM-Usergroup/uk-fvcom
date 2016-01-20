@@ -1246,7 +1246,7 @@
         zetu = CC*Ribu*(1.+27./9.*Ribu/CC) ! stable
      endif
      L10 = zu/zetu
-     nits=6
+     nits=3
      if (zetu>50) then ! stable with very thin M-O length relative to zu
         nits=1
      endif
