@@ -305,30 +305,21 @@
            allocate (times(dims(1), dims(2)))
            rcall = nf_get_var_text(cdfid, idvar, times)
            ntimes = dims(2)
-	write(*,*)dims(1),dims(2)
 
         ENDIF
 
         IF (varnam == 'XLAT'  ) THEN
            allocate (xlat(dims(1), dims(2), dims(3), dims(4)))
-	write(*,*) trim(varnam)
-	write(*,*) dims(1),dims(2),dims(3),dims(4)
            rcall = nf_get_var_real(cdfid, idvar, xlat)
         ENDIF
 
 
         IF (varnam == 'XLONG'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
-
            allocate (xlong(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, xlong)
         ENDIF
 
         IF (varnam == 'P'  ) THEN          !! save the lowest P to ptemp
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
-
            allocate (p(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, p)
 
@@ -355,8 +346,6 @@
 
 
         IF (varnam == 'PB'  ) THEN  !! save the lowest PB to pbtemp
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (pb(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, pb)
 
@@ -377,22 +366,16 @@
 
 
         IF (varnam == 'Q2'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (q2(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, q2)
         ENDIF
 
         IF (varnam == 'SST'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (sst(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, sst)
         ENDIF
 
         IF (varnam == 'TSK'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (tsk(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, tsk)
         ENDIF
@@ -401,16 +384,12 @@
 
 
         IF (varnam == 'SWDOWN'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (swdown(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, swdown)
         ENDIF
 
 
         IF (varnam == 'GLW'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (glw(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, glw)
         ENDIF
@@ -418,31 +397,23 @@
 
 
         IF (varnam == 'T2'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (t2(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, t2)
         ENDIF
 
 
         IF (varnam == 'U10'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (u10(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, u10)
         ENDIF
 
 
         IF (varnam == 'V10'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (v10(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, v10)
         ENDIF
 
         IF (varnam == 'RAINC'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (rainc(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, rainc)
         ENDIF
@@ -450,8 +421,6 @@
 
 
         IF (varnam == 'RAINNC'  ) THEN
-        write(*,*) trim(varnam)
-        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (rainnc(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, rainnc)
         ENDIF
@@ -1164,9 +1133,13 @@
 ! Code history:
 !
 ! 1. 12/14/05 - coare26sn.m created based on J. Edson's 12/2004 Matlab code and
-!    B. Weller's UOP 10/3/2003 Fortran code with additional input from J. Edson %    and C. Fairall. coare26sn differs from these earlier codes in the following %    ways: a) the number of computation loop iterations nits increased from 3 to %    6 for better convergence and b) the net longwave radiation flux Rln is
-!    updated during the iteration loop to improve the cool-skin depression
-!    temperature.
+!    B. Weller's UOP 10/3/2003 Fortran code with additional input from J. Edson
+!    and C. Fairall. coare26sn differs from these earlier codes in the following
+!    ways:
+!        a) the number of computation loop iterations nits increased from 3 to
+!        6 for better convergence
+!        b) the net longwave radiation flux Rln is updated during the iteration 
+!        loop to improve the cool-skin depression temperature.
 ! 2. 12/21/05 - sign error in psiu_26 corrected.
 
 
