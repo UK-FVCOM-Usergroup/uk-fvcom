@@ -41,6 +41,10 @@ MODULE MOD_FABM_3D
   LOGICAL :: FABM_DEBUG
 
   NAMELIST /NML_FABM/                 &
+         & STARTUP_FABM_TYPE,         &
+#  if defined (OFFLINE_FABM)
+         & OFFLINE_FABM_FILE,         &
+#  end if
          & USE_FABM_SALINITY,         &
          & USE_FABM_BOTTOM_THICKNESS, &
          & FABM_DEBUG
