@@ -44,7 +44,7 @@ MODULE MOD_FABM_3D
          & STARTUP_FABM_TYPE,         &
 #  if defined (OFFLINE_FABM)
          & OFFLINE_FABM_FILE,         &
-#  end if
+#  endif
          & USE_FABM_SALINITY,         &
          & USE_FABM_BOTTOM_THICKNESS, &
          & FABM_DEBUG
