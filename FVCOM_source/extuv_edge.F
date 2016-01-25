@@ -109,10 +109,17 @@
 #  endif
 
 #      if !defined (NH)
+#      if defined (WET_DRY)
+       RESX(I) = ADX2D(I)+ADVUA(I)+DRX2D(I)+PSTX(I)-COR(I)*VA(I)*(D1(I)-DELF1(I))*ART(I)  &
+                 -(WUSURF2(I)+WUBOT(I))*ART(I)
+       RESY(I) = ADY2D(I)+ADVVA(I)+DRY2D(I)+PSTY(I)+COR(I)*UA(I)*(D1(I)-DELF1(I))*ART(I)  &
+                 -(WVSURF2(I)+WVBOT(I))*ART(I)
+#      else
        RESX(I) = ADX2D(I)+ADVUA(I)+DRX2D(I)+PSTX(I)-COR(I)*VA(I)*D1(I)*ART(I)  &
                  -(WUSURF2(I)+WUBOT(I))*ART(I)
        RESY(I) = ADY2D(I)+ADVVA(I)+DRY2D(I)+PSTY(I)+COR(I)*UA(I)*D1(I)*ART(I)  &
                  -(WVSURF2(I)+WVBOT(I))*ART(I)
+#      endif
 #      else
        RESX(I) = ADX2D(I)+ADVUA(I)+DRX2D(I)+PSTX(I)-COR(I)*VA(I)*D1(I)*ART(I)  &
                  -(WUSURF2(I)+WUBOT(I))*ART(I)+NHQ2DX(I)
