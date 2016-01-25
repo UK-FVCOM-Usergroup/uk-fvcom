@@ -15,6 +15,10 @@ MODULE MOD_FABM_DATA
   REAL(SP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_ALL_SF(:,:)   ! 2D FABM surface-attached state variables
   REAL(SP), ALLOCATABLE, PUBLIC :: FABM_MEAN(:,:,:)            ! MEAN VARIABLES
   REAL(DP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_TOTALS(:)     ! Domain integrals of conserved quantities
+  CHARACTER(LEN=80), PUBLIC :: STARTUP_FABM_TYPE  ! Initialization method ("constant" for spatially homogenous, "set values" for read from restart)
+#   if defined (OFFLINE_FABM)
+  CHARACTER(LEN=80), PUBLIC :: OFFLINE_FABM_FILE  ! File with physics forcing for offline biogeochemistry simulation
+#   endif
 # endif
 
 END MODULE

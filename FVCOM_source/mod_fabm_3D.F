@@ -70,6 +70,10 @@ MODULE MOD_FABM_3D
    SUBROUTINE NAME_LIST_INITIALIZE_FABM
 
    !--Parameters in namelist NML_FABM
+   STARTUP_FABM_TYPE = "'constant' or 'set values'"
+# if defined (OFFLINE_FABM)
+   OFFLINE_FABM_FILE = "DO NOT ADD UNTIL FVCOM IS RUNNING BY ITS SELF FIRST"
+# endif
    USE_FABM_SALINITY = .FALSE.
    USE_FABM_BOTTOM_THICKNESS = .FALSE.
    FABM_DEBUG = .FALSE.
@@ -548,7 +552,7 @@ SUBROUTINE CHECK_CONSERVATION()
      ! Provide FABM with pointer to the real mask.
      call fabm_set_mask(model,ISWETN(1:M))
 
-#   if defined (MULTIPROCESSOR) 
+# if defined (MULTIPROCESSOR) 
      IF(PAR) THEN
         ! NB: similar to logic in mod_report
         CALL MPI_REDUCE(TOTALS_LOC,FABM_TOTALS,SIZE(TOTALS_LOC),MPI_DP,MPI_SUM,MSRID-1,MPI_FVCOM_GROUP,IERR)
