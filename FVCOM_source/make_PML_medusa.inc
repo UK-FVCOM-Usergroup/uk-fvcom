@@ -359,7 +359,7 @@ dashL= $(empty) -L
 #         CALCULATE THE NET HEAT FLUX IN MODEL
 #--------------------------------------------------------------------------
 
-             FLAG_27 = -DHEATING_CALCULATED
+#             FLAG_27 = -DHEATING_CALCULATED
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
