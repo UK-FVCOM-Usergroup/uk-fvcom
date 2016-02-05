@@ -530,23 +530,41 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
 END FUNCTION CHECK_STATE
 
 SUBROUTINE CHECK_CONSERVATION()
-     INTEGER  :: K, IFABM, IERR
+     USE MOD_PAR
+
+     INTEGER  :: I, IBND, K, IFABM, IERR
      REAL(SP), DIMENSION(M,SIZE(model%conserved_quantities)) :: LOCAL
      REAL(DP), DIMENSION(SIZE(model%conserved_quantities))   :: TOTALS_LOC
 
+     REAL(DP), ALLOCATABLE :: WEIGHTS(:)
+
      ! Provide FABM with pointer to the dummy mask ("nothing masked") to include dry regions when computing conserved quantity totals.
      call fabm_set_mask(model,MASK_NONE)
+
+     ALLOCATE(WEIGHTS(1:M))
+     WEIGHTS = ART1(1:M)
+#   if defined (MULTIPROCESSOR) 
+     IF(PAR) THEN
+        DO I=1,M
+           IF(NDE_ID(I) == 1) THEN   !! INTERNAL BOUNDARY NODE (SHARED BETWEEN SUBDOMAINS)
+              DO IBND=1,NBN
+                IF(BN_LOC(IBND) == I) WEIGHTS(I) = WEIGHTS(I)/BN_MLT(IBND)
+              END DO
+           END IF
+        END DO
+     END IF
+#   endif
 
      TOTALS_LOC = 0
      DO K=1,KBM1
         CALL fabm_get_conserved_quantities(model,1,M,K,LOCAL)
         DO IFABM=1,SIZE(model%conserved_quantities)
-           TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*DZ(1:M,K)*D(1:M)*ART1(1:M)))
+           TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*DZ(1:M,K)*D(1:M))*WEIGHTS)
         END DO
      END DO
      CALL fabm_get_horizontal_conserved_quantities(model,1,M,LOCAL)
      DO IFABM=1,SIZE(model%conserved_quantities)
-        TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*ART1(1:M)))
+        TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(LOCAL(1:M,IFABM)*WEIGHTS)
      END DO
 
      ! Provide FABM with pointer to the real mask.
@@ -562,6 +580,8 @@ SUBROUTINE CHECK_CONSERVATION()
 # else
      FABM_TOTALS = TOTALS_LOC
 # endif
+
+     DEALLOCATE(WEIGHTS)
 END SUBROUTINE CHECK_CONSERVATION
 
 SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
