@@ -9,14 +9,14 @@ INSTALLDIR    = $(FVCOM)/input/surface_forcing/wrf_bulk_formula/install/
 # for mod_time stuff.
 MODS          = $(FVCOM)
 DEF_FLAGS     = -C
-COMPILER      = -DGFORTRAN
+COMPILER      = -DIFORT
 FC            = ftn
 CC            = fcc
-CPP           = ftn -E
-CPPFLAGS      = $(DEF_FLAGS) -DGFORTRAN
-CXXFLAGS      = -O2
-CFLAGS        = -O2
-FFLAGS        = -O2 -ffree-line-length-none
+CPP           = /lib/cpp
+CPPFLAGS      = $(DEF_FLAGS) -DINTEL -P
+CXXFLAGS      = -O3
+CFLAGS        = -O3
+FFLAGS        = -O3
 LIBS          = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff -I$(NETCDF_DIR)/include -L$(FVCOMLIBS)/lib -ljulian
 EXEC          = wrf_to_fvcom
 
