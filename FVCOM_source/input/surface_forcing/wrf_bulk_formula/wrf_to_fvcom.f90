@@ -1254,7 +1254,7 @@
      tsr = -(dt-dter*jcool)*von*fdg/(log(zt/zot10)-psit_26(zt/L10))
      qsr = -(dq-wetc*dter*jcool)*von*fdg/(log(zq/zot10)-psit_26(zq/L10))
      tkt = 0.001  ! cool skin thickness (m)
-     charn = 0.011
+     charn = 0.011  ! charnock parameter
      if (ut>10)then
         charn = 0.011+(ut-10)/(18-10)*(0.018-0.011)
      endif
