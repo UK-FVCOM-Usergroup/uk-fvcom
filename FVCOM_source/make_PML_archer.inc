@@ -92,7 +92,7 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -lnetcdf
+             IOLIBS       =  -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz -lm
              IOINCS       =
 #--------------------------------------------------------------------------
 
