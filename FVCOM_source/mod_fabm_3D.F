@@ -1913,7 +1913,7 @@ END SUBROUTINE FABM_ADV
   SUBROUTINE fvcom_driver_log_message(self,message)
      CLASS (type_fvcom_driver), INTENT(INOUT) :: self
      CHARACTER(LEN=*),          INTENT(IN)    :: message
-     WRITE (IPT,*) TRIM(message)
+     WRITE (IPT,'("MYID=",I0,": ",A)') MYID,TRIM(message)
   END SUBROUTINE
 !==========================================================================
 ! Calculate LED Limiter L(u,v) FOR vertical flux as per Sediment module - RJT2015  
