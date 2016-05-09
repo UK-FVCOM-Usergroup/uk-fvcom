@@ -61,8 +61,9 @@ MODULE MOD_FABM_3D
 
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
-     procedure :: fatal_error => fvcom_driver_fatal_error
-     procedure :: log_message => fvcom_driver_log_message
+     procedure :: fatal_error       => fvcom_driver_fatal_error
+     procedure :: log_message       => fvcom_driver_log_message
+     procedure :: describe_location => fvcom_driver_describe_location
   end type
 
    CONTAINS
@@ -1915,6 +1916,20 @@ END SUBROUTINE FABM_ADV
      CHARACTER(LEN=*),          INTENT(IN)    :: message
      WRITE (IPT,'("MYID=",I0,": ",A)') MYID,TRIM(message)
   END SUBROUTINE
+
+  FUNCTION fvcom_driver_describe_location(self,location) RESULT(string)
+     CLASS (type_fvcom_driver), INTENT(IN) :: self
+     INTEGER,                   INTENT(IN) :: location(2)
+
+     CHARACTER(LEN=256) :: string
+
+     INTEGER :: I,K
+
+     I = location(1)
+     K = location(2)
+     WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,"D=",G0.4,")")') I,K,LON(I),LAT(I),D(I)
+  END FUNCTION
+
 !==========================================================================
 ! Calculate LED Limiter L(u,v) FOR vertical flux as per Sediment module - RJT2015  
 !==========================================================================
