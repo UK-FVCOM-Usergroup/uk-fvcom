@@ -1927,7 +1927,7 @@ END SUBROUTINE FABM_ADV
 
      I = location(1)
      K = location(2)
-     WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,"D=",G0.4,")")') I,K,LON(I),LAT(I),D(I)
+     WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,",Z=",G0.4," m,DZ=",G0.4," m)")') I,K,LON(I),LAT(I),ZZ(I,K)*D(I),DZ(I,K)*D(I)
   END FUNCTION
 
 !==========================================================================
