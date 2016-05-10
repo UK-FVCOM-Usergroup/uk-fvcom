@@ -11,7 +11,12 @@ find_path(METIS_BASE metis.h HINTS "${ROOT}/libs/metis" DOC "Source directory of
 
 include_directories(${ROOT} ${JULIAN_BASE})
 
-add_definitions(-DLIMITED_2 -DGCY1 -DMPDATA)
+add_definitions(-DLIMITED_2 -DGCY1)
+
+option(FVCOM_USE_MPDATA "Use MPDATA advection scheme" OFF)
+if(FVCOM_USE_MPDATA)
+  add_definitions(-DMPDATA)
+endif()
 
 option(FVCOM_USE_FABM "Enable FABM" OFF)
 if(FVCOM_USE_FABM)
@@ -63,6 +68,29 @@ if (NetCDF_STATIC_MSVC_BUILD)
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} /libs:static")
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
+endif()
+
+option(FVCOM_USE_PROJ "Use PROJ.4 library" OFF)
+if(FVCOM_USE_PROJ)
+  find_path(PROJ_BASE src/proj.c HINTS "${ROOT}/libs/proj" DOC "Source directory of PROJ.4")
+  add_subdirectory(${PROJ_BASE})
+
+  find_path(FPROJ_BASE proj4.f90 HINTS "${ROOT}/libs/fproj" DOC "Source directory of proj-fortran")
+  add_library(fproj-c
+    ${FPROJ_BASE}/fort-proj.c
+    ${FPROJ_BASE}/cfortran.h
+  )
+  target_include_directories(fproj-c PRIVATE ${FPROJ_BASE})
+  target_include_directories(fproj-c PRIVATE ${PROJ_BASE}/src)
+  target_compile_definitions(fproj-c PRIVATE IFORT)
+  target_link_libraries(fproj-c proj)
+
+  add_library(fproj-f
+    ${FPROJ_BASE}/proj4.f90
+  )
+  target_include_directories(fproj-f PRIVATE ${FPROJ_BASE})
+  target_link_libraries(fproj-f fproj-c)
+  add_definitions(-DPROJ)
 endif()
 
 add_library(metis
@@ -348,6 +376,10 @@ target_link_libraries(FVCOM_exe "${NetCDF_LIBRARIES}")
 if(FVCOM_USE_FABM)
   target_include_directories(FVCOM_exe PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/fabm/modules)
   target_link_libraries(FVCOM_exe fabm)
+endif()
+
+if(FVCOM_USE_PROJ)
+  target_link_libraries(FVCOM_exe fproj-f)
 endif()
 
 if (NetCDF_STATIC_MSVC_BUILD)

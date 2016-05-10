@@ -54,6 +54,9 @@ SUBROUTINE INTERNAL_STEP
 # if defined (BioGen)
   USE MOD_BIO_3D
 # endif      
+# if defined (FABM)
+  USE MOD_FABM_3D
+# endif
 # if defined (NH)
   USE NON_HYDRO
 # endif
@@ -114,6 +117,83 @@ SUBROUTINE INTERNAL_STEP
   ELSE
      RAMP = 1.0_SP
   END IF
+
+
+!----OFFLINE FABM UPDATE
+# if defined (OFFLINE_FABM)
+  IF (FABM_MODEL)  THEN
+  !----SPECIFY THE SURFACE FORCING OF INTERNAL MODES-----------------------------!
+# if defined (GCN)
+    CALL BCOND_GCN(8)
+#   else
+    CALL BCOND_GCY(8)
+# endif
+
+    U   = OFFLINEB_U
+    V   = OFFLINEB_V 
+    WTS = OFFLINEB_W
+    S1  = OFFLINEB_S1
+    T1  = OFFLINEB_T1
+    KH  = OFFLINEB_KH
+    EL  = OFFLINEB_EL
+    UARD_OBCN = OFFLINEB_UARD_OBCN ! this doesn't need broadcasting
+    iswetn = INT(OFFLINEB_WN)
+    iswetnt = iswetn
+    iswetc = INT(OFFLINEB_WC)
+    iswetct = iswetc
+    D = H + EL
+    DT = D
+    DTFA = D
+    CALL N2E2D(D,D1)
+    CALL N2E2D(DT,DT1)
+
+# if defined(MULTIPROCESSOR)
+    IF(PAR)THEN
+      CALL AEXCHANGE(EC,MYID,NPROCS,U,V)
+      CALL AEXCHANGE(NC,MYID,NPROCS,S1,KH,WTS)
+      CALL AEXCHANGE(NC,MYID,NPROCS,T1)
+      CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
+      CALL AEXCHANGE(NC,MYID,NPROCS,EL,D,DT)
+      CALL AEXCHANGE(NC,MYID,NPROCS,DTFA)
+      CALL AEXCHANGE(EC,MYID,NPROCS,D1,DT1)
+      CALL AEXCHANGE(EC,MYID,NPROCS,iswetc,iswetct)
+    END IF
+# endif
+
+!# if defined (WET_DRY)
+!  US=U
+!  VS=V
+!# endif
+
+# if defined (THIN_DAM)
+    CALL GET_KDAM
+    CALL GET_KDAM_INTERNAL
+# endif
+
+
+
+    CALL BOTTOM_ROUGHNESS
+
+!==============================================================================!
+!    FABM MODEL SECTION  
+!      Advance FABM Model (FABM time evolution and integration)      
+!==============================================================================!
+! FOR THIS TO WORK IT REQUIRES POPULATING UARD_OBCN WHICH IS DONE IN EXTERNAL_STEP BUT IS NOT
+! SAVED. THE PROBLEM IS THAT IT REQUIRES ET - PREVIOUS TIME STEP ELEVATION... AND XFLUX_OBCN
+! ONLY SOLUTION IS TO SAVE UARD_OBCN AS PART OF THE OFFLINE FORCING OPTION - 
+! UARD_OBCN is now part of the offline_file_object
+#  if defined (FABM)
+    CALL FABM_UPDATE
+    CALL FABM_UPDATE_DEPTH
+#  endif
+  ELSE 
+     CALL FATAL_ERROR("YOU CAN'T RUN FABM OFFLINE WITHOUT A FABM_MODEL")
+  ENDIF
+
+# endif
+!----END IF OFFLINE FABM
+!----loop end for offline FABM
+
 
 !----OFFLINE SEDIMENT UPDATE
 # if defined (OFFLINE_SEDIMENT)
@@ -199,11 +279,12 @@ SUBROUTINE INTERNAL_STEP
 
 # endif
 
-
-  RETURN
-
 # endif
 !----loop end for offline sediment
+! return statement moved outside so that both codes could be used at the same time
+# if defined (OFFLINE_FABM)  || defined (OFFLINE_SEDIMENT)
+  RETURN
+# endif
 
 
 
@@ -1073,6 +1154,13 @@ SUBROUTINE INTERNAL_STEP
   CALL BIO_3D1D                          
 #   endif
 
+#   if defined (FABM)
+  IF (FABM_MODEL) THEN
+     CALL FABM_UPDATE
+     CALL FABM_UPDATE_DEPTH
+  END IF
+#   endif
+
   !==============================================================================!
   !    UPDATE TEMPERATURE IN NON-BAROTROPIC CASE                                 !
   !==============================================================================!
@@ -1304,6 +1392,9 @@ SUBROUTINE INTERNAL_STEP
   END IF
 #   endif   
   
+#   if defined (FABM)
+  IF (FABM_MODEL) CALL FABM_UPDATE_SALINITY
+#   endif
 
 #   if defined (WATER_QUALITY)
   !==============================================================================!

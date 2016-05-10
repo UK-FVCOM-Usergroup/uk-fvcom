@@ -63,11 +63,21 @@ void register_func_(void (*func)(), int *i, int *stat) {
        }
 }
 
+void REGISTER_FUNC(void (*func)(), int *i, int *stat) {
+   *stat = -1;
+     if(nvoidfuncs <= maxfuncs)
+       {
+         /* Convert from fortran indexing */
+         voidfuncs[nvoidfuncs++].func = func; /*Insert at nvoidfuncs */
+         *i = nvoidfuncs; /*Return value nvoidfuncs+1 */
+         *stat =0;
+       }
+}
 
 
 void call_func(int *i, int *stat){
-  *stat = -1;
   int j = (*i)-1; /* Convert from fortran indexing */
+  *stat = -1;
   if ( j >= 0 && j < nvoidfuncs)
     {
       voidfuncs[j].func();
@@ -77,8 +87,18 @@ void call_func(int *i, int *stat){
 
 
 void call_func_(int *i, int *stat){
-  *stat = -1;
   int j = (*i)-1; /* Convert from fortran indexing */
+  *stat = -1;
+  if ( j >= 0 && j < nvoidfuncs)
+    {
+      voidfuncs[j].func();
+      *stat=0;
+    }
+}
+
+void CALL_FUNC(int *i, int *stat){
+  int j = (*i)-1; /* Convert from fortran indexing */
+  *stat = -1;
   if ( j >= 0 && j < nvoidfuncs)
     {
       voidfuncs[j].func();
