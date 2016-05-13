@@ -263,7 +263,7 @@ SUBROUTINE NC_CREATE(NCF)
        & write(IPT,*) "STARTING NC_CREATE"
 
   errmsg="File named: "//NCF%fname//"; Can not be created by nf90_create"
-  status = nf90_create(trim(NCF%fname),NF90_64BIT_OFFSET,NCF%ncid)
+  status = nf90_create(trim(NCF%fname),NF90_HDF5,NCF%ncid)
   if(status/= nf90_eexist)then
      CALL HANDLE_NCERR(status,trim(errmsg))
   else
