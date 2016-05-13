@@ -175,8 +175,8 @@ dashL= $(empty) -L
 
              FLAG_6 = -DPROJ
 
-             PROJLIBS       = -L$(LIBDIR) -lfproj4 -lproj -lm
-             PROJINCS       = -I$(INCDIR)
+             PROJLIBS       = $(LIBDIR) -lfproj4 -lproj -lm
+             PROJINCS       = $(INCDIR)
 #             PROJLIBS       = -lfproj4 -lproj -lm
 #             PROJINCS       =
 
