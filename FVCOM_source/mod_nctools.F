@@ -3889,7 +3889,7 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
   TYPE(NCFILE), pointer :: NCFP
 
   integer, POINTER :: dimids(:)
-  integer :: status,i
+  integer :: status,deflate_status,i
   CHARACTER(LEN=120)     :: errmsg
   LOGICAL FOUND
 
@@ -3916,7 +3916,7 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
 
 #if defined NETCDF_COMPRESSION
      ! pica: Add compression (level = 5, no shuffling)
-     nf90_def_var_deflate(NCF%ncid, i, 0, 1, 5)
+     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 5)
 #endif
 
   ELSE
@@ -3926,7 +3926,7 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
 
 #if defined NETCDF_COMPRESSION
      ! pica: Add compression (level = 5, no shuffling)
-     nf90_def_var_deflate(NCF%ncid, i, 0, 1, 5)
+     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 5)
 #endif
 
   END IF
