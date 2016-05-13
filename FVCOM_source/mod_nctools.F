@@ -3914,10 +3914,21 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
      status = nf90_def_var(NCF%ncid, trim(VAR%varname), NF90_FLOAT,&
           & dimids, i)
 
+#if defined NETCDF_COMPRESSION
+     ! pica: Add compression (level = 5, no shuffling)
+     nf90_def_var_deflate(NCF%ncid, i, 0, 1, 5)
+#endif
+
   ELSE
 
      status = nf90_def_var(NCF%ncid, trim(VAR%varname), VAR%xtype,&
           & dimids, i)
+
+#if defined NETCDF_COMPRESSION
+     ! pica: Add compression (level = 5, no shuffling)
+     nf90_def_var_deflate(NCF%ncid, i, 0, 1, 5)
+#endif
+
   END IF
      
 #else
