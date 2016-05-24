@@ -11,6 +11,9 @@ MODULE MOD_FABM_3D
   USE ALL_VARS
   USE MOD_UTILS
   USE MOD_WD
+! for accessing global node id in error reporting
+  USE MOD_PAR
+
 
   IMPLICIT NONE
 
@@ -616,8 +619,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
 
      ! Get sources-sinks for interface-attached state variables, and cross-interface
      ! fluxes (air-sea gas exchange, sedimentation, pelagic-benthic diffusion flux)
-     call fabm_do_surface(model,1,M,FLUX_SF,SMS_SF)
-     call fabm_do_bottom (model,1,M,FLUX_BT,SMS_BT)
+!     call fabm_do_surface(model,1,M,FLUX_SF,SMS_SF)
+!     call fabm_do_bottom (model,1,M,FLUX_BT,SMS_BT)
 
      ! Integrate sources-sinks for the pelagic
      DO K=1,KBM1
@@ -1927,7 +1930,7 @@ END SUBROUTINE FABM_ADV
 
      I = location(1)
      K = location(2)
-     WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,",Z=",G0.4," m,DZ=",G0.4," m)")') I,K,LON(I),LAT(I),ZZ(I,K)*D(I),DZ(I,K)*D(I)
+     WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,",Z=",G0.4," m,DZ=",G0.4," m)")') NGID(I),K,LON(I),LAT(I),ZZ(I,K)*D(I),DZ(I,K)*D(I)
   END FUNCTION
 
 !==========================================================================
