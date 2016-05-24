@@ -3915,8 +3915,8 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
           & dimids, i)
 
 #if defined NETCDF4_COMPRESSION
-     ! pica: Add compression (level = 5, no shuffling)
-     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 5)
+     ! pica: Add compression (level = 7, no shuffling)
+     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 7)
 #endif
 
   ELSE
@@ -3925,8 +3925,8 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
           & dimids, i)
 
 #if defined NETCDF4_COMPRESSION
-     ! pica: Add compression (level = 5, no shuffling)
-     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 5)
+     ! pica: Add compression (level = 7, no shuffling)
+     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 7)
 #endif
 
   END IF
