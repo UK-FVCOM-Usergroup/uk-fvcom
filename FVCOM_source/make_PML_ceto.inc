@@ -468,7 +468,7 @@ dashL= $(empty) -L
          DEBFLGS  =
          OPT      = -O3 -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost
          CLIB     =
-         CC       = mpicc
+         CC       = mpiicc
          CFLAGS   =
 #--------------------------------------------------------------------------
 #        COMPAQ/ALPHA Definitions
