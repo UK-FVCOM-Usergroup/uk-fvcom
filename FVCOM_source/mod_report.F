@@ -58,9 +58,6 @@ MODULE MOD_REPORT
 # if defined (WAVE_CURRENT_INTERACTION)
     USE VARS_WAVE, only : HSC1
 #  endif
-#  if defined (FABM)
-    USE MOD_FABM_3D, only : REPORT_FABM
-#  endif
     IMPLICIT NONE
     CHARACTER(LEN=*) :: INFO_STRING     !!INFORMATION STRING
     INTEGER :: E3TOT,ESTOT,IERR
@@ -322,10 +319,6 @@ MODULE MOD_REPORT
 #  endif
 
     END IF
-
-#  if defined (FABM)
-    IF (FABM_MODEL) CALL REPORT_FABM
-#  endif
 
 #if defined(ICE)
     DEALLOCATE(AICE1,VICE1)

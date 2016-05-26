@@ -91,9 +91,6 @@ MODULE MOD_OBCS
 # if defined (BioGen)
   REAL(SP), ALLOCATABLE :: BIO_OBC(:,:,:)      !!OPEN BOUNDARY BIO (see mod_force.F)   
 # endif
-# if defined (FABM)
-  REAL(SP), ALLOCATABLE :: FABM_OBC(:,:,:)     !!OPEN BOUNDARY FABM (see mod_force.F)   
-# endif
   !--Open Boundary Metrics
   INTEGER,  ALLOCATABLE :: NFLUXF_OBC(:)    !!NUMBER OF FLUX SEGMENTS TO OBN
   REAL(SP), ALLOCATABLE :: FLUXF_OBC(:,:)   !!FLUX FRACTION ON EACH SIDE OF OBN
@@ -130,9 +127,6 @@ CONTAINS
 #   if defined (BioGen)
     USE MOD_1D, ONLY : NTT
 #   endif    
-#   if defined (FABM)
-    USE MOD_FABM_DATA
-#   endif
     IMPLICIT NONE
 
     ALLOCATE(ELM1(0:MT))             ;ELM1       = ZERO 
@@ -152,13 +146,6 @@ CONTAINS
 #   endif
 #   if defined (BioGen)
     ALLOCATE(BIO_OBC(IOBCN,KBM1,NTT))   ;BIO_OBC   = ZERO
-#   endif
-#   if defined (FABM)
-    ALLOCATE(FABM_OBC(IOBCN,KBM1,size(model%state_variables)));FABM_OBC = ZERO
-#   endif
-#   if defined (OFFLINE_FABM)
-! allocate offline_UARD_OBCN here 
-    ALLOCATE(OFFLINEB_UARD_OBCN(IOBCN))     ;OFFLINEB_UARD_OBCN  = ZERO ! I don't know why it needed to be IOBCN+1
 #   endif
 
     IF(TYPE_TSOBC == 4)THEN

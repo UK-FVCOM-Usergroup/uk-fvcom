@@ -278,9 +278,6 @@ CONTAINS
     NC_VORTICITY    = .False.
     NC_WQM          = .False.
     NC_BIO          = .False.
-#if defined (FABM)
-    NC_FABM         = .False.
-#endif
     
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
@@ -313,9 +310,6 @@ CONTAINS
     NCAV_VORTICITY    = .False.
     NCAV_WQM          = .False.
     NCAV_BIO          = .False.
-# if defined(FABM)
-    NCAV_FABM         = .False.
-#endif
 
 
     ! OUTPUT VARIABLES DEFAULT TO OFF
@@ -436,11 +430,6 @@ CONTAINS
     OBC_BIO_FILE = trim(casename)//"_obc.nc "
     OBC_BIO_NUDGING_TIMESCALE = 0.0
 #   endif    
-#   if defined (FABM)
-    OBC_FABM_NUDGING = .False.
-    OBC_FABM_FILE = trim(casename)//"_obc.nc "
-    OBC_FABM_NUDGING_TIMESCALE = 0.0
-#   endif
     OBC_MEANFLOW = .FALSE.
     OBC_MEANFLOW_FILE = trim(casename)//"_obc.nc"
     OBC_LONGSHORE_FLOW_ON = .FALSE.
@@ -489,9 +478,6 @@ CONTAINS
     BIOLOGICAL_MODEL= .FALSE.
 !!$    BIOLOGICAL_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     STARTUP_BIO_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
-# if defined (FABM)
-    FABM_MODEL= .FALSE.
-# endif
     SEDIMENT_MODEL= .FALSE.
     SEDIMENT_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # if defined (OFFLINE_SEDIMENT)
@@ -1538,28 +1524,6 @@ CONTAINS
 
 # endif
 
-# if defined (OFFLINE_FABM)
-    ! Check FABM file and open
-
-       ! TEST FILE NAME
-       charnum = index (OFFLINE_FABM_FILE,".nc",back)
-       if (charnum /= len_trim(OFFLINE_FABM_FILE)-2)&
-            & CALL WARNING("OFFLINE_FABM_FILE does not end in .nc", &
-            & trim(OFFLINE_FABM_FILE))
-
-       ! INITIALIZE TYPE TO HOLD FILE METADATA
-       pathnfile= trim(INPUT_DIR)//trim(OFFLINE_FABM_FILE)
-       CALL  NC_INIT(NCF,pathnfile)
-
-       ! OPEN THE FILE AND LOAD METADATA
-       if(.not. NCF%OPEN) then
-          Call NC_OPEN(NCF)
-          CALL NC_LOAD(NCF)
-           FILEHEAD => ADD(FILEHEAD,NCF)
-        end if
-
-# endif
-
     !Check RIVER files and open
     
     do i =1, river_number
@@ -1677,31 +1641,6 @@ CONTAINS
             FILEHEAD => ADD(FILEHEAD,NCF)
          end if
       end if
-
-!! --- ADDITION FOR FABM BOUNDARY CONDITIONS
-#   if defined (FABM)
-       if (OBC_FABM_NUDGING) then
-
-         ! TEST FILE NAME
-         charnum = index (OBC_FABM_FILE,".nc",back)
-         if (charnum /= len_trim(OBC_FABM_FILE)-2)&
-              & CALL WARNING("OBC_FABM_FILE does not end in .nc", &
-              & trim(OBC_FABM_FILE))
-
-         ! INITIALIZE TYPE TO HOLD FILE METADATA
-         pathnfile= trim(INPUT_DIR)//trim(OBC_FABM_FILE)
-         CALL  NC_INIT(NCF,pathnfile)
-
-         ! OPEN THE FILE AND LOAD METADATA
-         if(.not. NCF%OPEN) then
-            Call NC_OPEN(NCF)
-            CALL NC_LOAD(NCF)
-            FILEHEAD => ADD(FILEHEAD,NCF)
-         end if
-      end if
-!!
-#   endif
-
       
       if (OBC_MEANFLOW) then
          

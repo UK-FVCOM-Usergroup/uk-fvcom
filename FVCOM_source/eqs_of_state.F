@@ -517,7 +517,7 @@ CONTAINS
     DO I=lb1,ub1
        DO K=lb2,ub2
           TF = MYT(I,K)
-          SF = max(0._SP,MYS(I,K))
+          SF = MYS(I,K)
           sqrtSF = sqrt(SF)
 
           PBAR = MYP(I,K)
@@ -635,7 +635,7 @@ CONTAINS
     !
     DO K=lb1,ub1
        TF = MYT(K)
-       SF = max(0._SP,MYS(K))
+       SF = MYS(K)
        sqrtSF = sqrt(SF)
        
        PBAR = MYP(K)

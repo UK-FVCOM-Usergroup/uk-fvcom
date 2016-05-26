@@ -41,7 +41,7 @@
 .F.o:
 	$(CPP) $(CPPARGS) $(PETSC_FC_INCLUDES) $*.F > $*.f90
 	$(FC)  -c $(FFLAGS) $(INCS) $*.f90
-#	\rm $*.f90
+	\rm $*.f90
 
 .F90.o:
 	$(CPP) $(CPPFLAGS) $(CPPDEFS) $(INCLDIR) $< > $*.f  
@@ -60,7 +60,7 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	eqs_of_state.F	mod_bulk.F	mod_interp.F	mod_par.F	\
 	mod_par_special.F		mod_ncll.F	mod_nctools.F	\
 	mod_wd.F	mod_sng.F	mod_heatflux.F	mod_solar.F	\
-	mod_input.F	mod_fabm_data.F	mod_fabm_3D.F	mod_force.F	mod_obcs.F	mod_petsc.F	\
+	mod_input.F	mod_force.F	mod_obcs.F	mod_petsc.F	\
 	mod_semi_implicit.F		mod_non_hydro.F	mod_set_time.F	\
 	ice_kinds_mod.F	ice_model_size.F		ice_domain.F	\
 	ice_constants.F	ice_fileunits.F	ice_state.F	ice_work.F	\
@@ -110,9 +110,10 @@ MAIN_W = ocpmix.F	ocpcre.F	ocpids.F	\
 COBJS = func_pointer.c
 
 
-#BIOGEN	= mod_bio_3D.F	mod_onedtide.F
-SRCS = $(BIOGEN) $(MODS)  $(MODS_W) $(MAIN) $(MAIN_W)
-# 
+BIOGEN	= mod_bio_3D.F	mod_onedtide.F
+
+SRCS = $(MODS) $(MODS_W) $(MAIN) $(BIOGEN) $(MAIN_W)
+
 # object list is composed of free (*.F) and fixed (*.F90) source
 FVCOM_OBJS = $(COBJS:.c=.o) $(SRCS:.F=.o) $(FIXED:.F90=.o) 
 
@@ -139,7 +140,7 @@ libfvcom: $(FVCOM_OBJS)
 #--------------------------------------------------------------------------
 
 depend:
-		./makedepf90 -d $(SRCS) >> makedepends
+		makedepf90 -d mod_prec.o $(SRCS) >> makedepends
 
 #--------------------------------------------------------------------------
 #  Target to make all.
@@ -205,4 +206,3 @@ Makefiles::
 includes::
 include ./makedepends
 include ./make.inc
-# DO NOT DELETE
