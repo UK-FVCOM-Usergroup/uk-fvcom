@@ -127,13 +127,19 @@ MODULE MOD_FABM_3D
    SUBROUTINE FABM_ALLOCATE()
     INTEGER :: IFABM
 
+    ALLOCATE(MASK_NONE(M)); MASK_NONE = 1
+
     ! Tell FABM about the extents of the spatial domain.
     call fabm_set_domain(model,M,KB)
     call model%set_surface_index(1)
     call model%set_bottom_index(KBM1)
 
-    ! Provide FABM with pointer to the mask.
-    call fabm_set_mask(model,ISWETN(1:M))
+# if defined(WET_DRY)
+    ! Provide FABM with pointer to the real mask.
+      call fabm_set_mask(model,ISWETN(1:M))
+# else
+      call fabm_set_mask(model,MASK_NONE)
+# endif
 
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
@@ -225,7 +231,6 @@ MODULE MOD_FABM_3D
     ALLOCATE(PFABMPXB(MT,size(model%state_variables)))        ; PFABMPXB    = ZERO
     ALLOCATE(PFABMPYB(MT,size(model%state_variables)))        ; PFABMPYB    = ZERO
 
-    ALLOCATE(MASK_NONE(M)); MASK_NONE = 1
    END SUBROUTINE
 
    SUBROUTINE PREPARE_ENVIRONMENT()
@@ -301,8 +306,13 @@ MODULE MOD_FABM_3D
         CALL fabm_initialize_interior_state(model,1,M,K)
       END DO
 
+# if defined(WET_DRY)
     ! Provide FABM with pointer to the real mask.
       call fabm_set_mask(model,ISWETN(1:M))
+# else
+      call fabm_set_mask(model,MASK_NONE)
+# endif
+
 
    END SUBROUTINE FABM_INITIALIZE_STATE
 
@@ -313,8 +323,13 @@ MODULE MOD_FABM_3D
       ! Initialize all diagnostics (but skip time integration)
       CALL FABM_SOURCES(DTI,UPDATE=.FALSE.)
 
-      ! Provide FABM with pointer to the real mask.
+
+# if defined(WET_DRY)
+    ! Provide FABM with pointer to the real mask.
       call fabm_set_mask(model,ISWETN(1:M))
+# else
+      call fabm_set_mask(model,MASK_NONE)
+# endif
 
       ! Compute initial value of conserved quantity integrals
       CALL CHECK_CONSERVATION
@@ -529,8 +544,14 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
          if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
       END DO
 
-      ! Provide FABM with pointer to the real mask.
+
+# if defined(WET_DRY)
+    ! Provide FABM with pointer to the real mask.
       call fabm_set_mask(model,ISWETN(1:M))
+# else
+      call fabm_set_mask(model,MASK_NONE)
+# endif
+
 END FUNCTION CHECK_STATE
 
 SUBROUTINE CHECK_CONSERVATION()
@@ -571,8 +592,13 @@ SUBROUTINE CHECK_CONSERVATION()
         TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(LOCAL(1:M,IFABM)*WEIGHTS)
      END DO
 
-     ! Provide FABM with pointer to the real mask.
-     call fabm_set_mask(model,ISWETN(1:M))
+# if defined(WET_DRY)
+    ! Provide FABM with pointer to the real mask.
+      call fabm_set_mask(model,ISWETN(1:M))
+# else
+      call fabm_set_mask(model,MASK_NONE)
+# endif
+
 
 # if defined (MULTIPROCESSOR) 
      IF(PAR) THEN
