@@ -263,7 +263,11 @@ SUBROUTINE NC_CREATE(NCF)
        & write(IPT,*) "STARTING NC_CREATE"
 
   errmsg="File named: "//NCF%fname//"; Can not be created by nf90_create"
+#if defined NETCDF4_COMPRESSION
   status = nf90_create(trim(NCF%fname),NF90_HDF5,NCF%ncid)
+#else
+  status = nf90_create(trim(NCF%fname),NF90_64BIT_OFFSET,NCF%ncid)
+#endif
   if(status/= nf90_eexist)then
      CALL HANDLE_NCERR(status,trim(errmsg))
   else
