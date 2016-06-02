@@ -37,7 +37,8 @@ MODULE MOD_FORCE
   USE MOD_SPHERICAL
   USE MOD_PAR
   USE MOD_INPUT
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || defined (EVAPORATION_CALCULATED)
+
   USE MOD_HEATFLUX
 # endif
 # if defined (HEATING_SOLAR)
@@ -263,7 +264,7 @@ MODULE MOD_FORCE
   !  TYPE(NCVAR), POINTER :: HEAT_LTNT_N, HEAT_LTNT_P ! LATENT
   !  TYPE(NCVAR), POINTER :: HEAT_SNS_N, HEAT_SNS_P   ! SENSIBLE
   TYPE(NCVAR), POINTER :: HEAT_NET_N, HEAT_NET_P   ! NET HEAT FLUX
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) 
+# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)  || defined (EVAPORATION_CALCULATED) 
   TYPE(NCVAR), POINTER :: T_AIR_N, T_AIR_P   
   TYPE(NCVAR), POINTER :: RH_AIR_N, RH_AIR_P   
   TYPE(NCVAR), POINTER :: PA_AIR_N, PA_AIR_P   
@@ -452,6 +453,11 @@ MODULE MOD_FORCE
   PUBLIC :: UPDATE_HEAT_SOLAR
 # endif
 
+# if defined (EVAPORATION_CALCULATED)
+  PUBLIC :: UPDATE_EVAP_CALCULATED
+# endif
+
+
 # if defined (OFFLINE_SEDIMENT)
   PUBLIC :: UPDATE_OFFLINE_FORCING
 # endif
@@ -570,7 +576,7 @@ CONTAINS
     CALL SURFACE_WINDSTRESS
     CALL SURFACE_PRECIPITATION
     CALL SURFACE_AIRPRESSURE
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || defined (EVAPORATION_CALCULATED)
     CALL SURFACE_HEATING_CALCULATED
 # endif    
 # if defined (HEATING_SOLAR) 
@@ -6253,7 +6259,7 @@ CONTAINS
 # endif
   !================================================================
   !================================================================
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || defined (EVAPORATION_CALCULATED)
   SUBROUTINE SURFACE_HEATING_CALCULATED
     USE MOD_HEATFLUX
     IMPLICIT NONE
@@ -12129,7 +12135,7 @@ CONTAINS
 # endif
   !==============================================================================|
   !==============================================================================|
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)|| defined (EVAPORATION_CALCULATED)
   SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
@@ -12141,7 +12147,7 @@ CONTAINS
     REAL(SP) :: WDS
     REAL(SP) :: HSB,HLB,TAU,USR,DTER
     REAL(SP), DIMENSION(0:NT) :: WDSN
-    REAL(SP) :: t1k,ulw_airf          ! ejw 8/16/2006
+    REAL(SP) :: t1k,ulw_airf       ! ejw 8/16/2006
 
     IF(.NOT. ALLOCATED(HEAT_SWV)) CALL FATAL_ERROR &
          &("THE HEAT SHORTWAVE VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
@@ -12179,6 +12185,8 @@ CONTAINS
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
          HEAT_SWV(I)  = DSW_AIR(I)
 # endif
+
+
 # if defined (HEATING_CALCULATED_GL)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
               DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
@@ -12304,6 +12312,8 @@ CONTAINS
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
          HEAT_SWV(I)  = DSW_AIR(I)
 # endif
+
+
 # if defined (HEATING_CALCULATED_GL)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
               DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
@@ -12397,6 +12407,7 @@ CONTAINS
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
          HEAT_SWV(I)  = DSW_AIR(I)
 # endif
+
 # if defined (HEATING_CALCULATED_GL)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
               DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
@@ -12417,6 +12428,249 @@ CONTAINS
 
     RETURN
   END SUBROUTINE UPDATE_HEAT_CALCULATED
+
+  SUBROUTINE UPDATE_EVAP_CALCULATED(NOW,EVAP_CAL)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    TYPE(TIME)             :: HTIME
+    REAL(SP), ALLOCATABLE :: EVAP_CAL(:)
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS,I,J
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+    REAL(SP) :: WDS
+    REAL(SP) :: HSB,HLB,TAU
+    REAL(SP), DIMENSION(0:NT) :: WDSN
+    REAL(SP) :: t1c,hlv          ! ejw 8/16/2006
+
+    IF(.NOT. ALLOCATED(EVAP_CAL)) CALL FATAL_ERROR &
+         &("THE EVAPORATIOn  PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(WIND_TYPE /= 'speed')CALL FATAL_ERROR("WIND_TYPE must be 'speed' for heat flux calculating")
+
+!===================================================
+    SELECT CASE(HEATING_CALCULATE_KIND)
+!===================================================
+    CASE (CNSTNT)
+
+       T_AIR(1:MT)   = AIR_TEMPERATURE
+       RH_AIR(1:MT)  = RELATIVE_HUMIDITY
+       PA_AIR(1:MT)  = SURFACE_PRESSURE
+       DLW_AIR(1:MT) = LONGWAVE_RADIATION
+       DSW_AIR(1:MT) = SHORTWAVE_RADIATION
+
+       WDSN(1:NT) = SQRT(UUWIND(1:NT)*UUWIND(1:NT)+VVWIND(1:NT)*VVWIND(1:NT))
+
+       DO I=1,MT
+         WDS = 0.0_SP
+         DO J=1,NTVE(I)
+           WDS = WDS + WDSN(NBVE(I,J))
+         END DO
+         WDS = WDS/FLOAT(NTVE(I))
+
+         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+         t1c=t1(i,1)
+         hlv=(2.501_sp-0.00237_sp*t1c)*1.0e6_sp
+         EVAP_CAL(I) = HLB/hlv*1e-3   ! formular from roms, converted to m/s.                            
+       END DO
+
+       RETURN
+
+    CASE(STTC)
+
+       CALL FATAL_ERROR("STATIC HEATING Not Set Up Yet")
+
+    CASE(TMDPNDNT)
+
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+
+    CASE(PRDC)
+
+       ! TO SET ZERO TIME PHASE USING RUNFILE START TIME
+!      HTIME= NOW - RUNFILE_StartTime
+
+       ! TO USE ZERO AS THE PHASE OF THE FORCING
+       HTIME= NOW
+
+
+       HTIME = MOD(HTIME,HEAT_PERIOD)
+
+    CASE(VRBL)
+
+
+       HTIME = NOW
+    END SELECT
+!===================================================
+!===================================================
+
+
+!===================================================
+    SELECT CASE(HEAT_FORCING_TYPE)
+!===================================================
+    CASE(HEAT_IS_WRFGRID)
+
+       FTM => HEAT_FILE%FTIME
+
+!
+       ! BULK AIR TEMPERATURE
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,T_AIR_P,T_AIR_N,HTIME,STATUS,HEAT_INTP_N)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(T_AIR_N,VNP)
+       CALL NC_POINT_VAR(T_AIR_P,VPP)
+
+       T_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+       ! RELATIVE HUMIDITY
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,RH_AIR_P,RH_AIR_N,HTIME,STATUS,HEAT_INTP_N)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(RH_AIR_N,VNP)
+       CALL NC_POINT_VAR(RH_AIR_P,VPP)
+
+       RH_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+       ! SURFACE PRESSURE
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,PA_AIR_P,PA_AIR_N,HTIME,STATUS,HEAT_INTP_N)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(PA_AIR_N,VNP)
+       CALL NC_POINT_VAR(PA_AIR_P,VPP)
+
+       PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+       ! DOWNWARD LONGWAVE RADIATION
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,DLW_AIR_P,DLW_AIR_N,HTIME,STATUS,HEAT_INTP_N)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(DLW_AIR_N,VNP)
+       CALL NC_POINT_VAR(DLW_AIR_P,VPP)
+
+       DLW_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+       ! DOWNWARD SHORTWAVE RADIATION
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,DSW_AIR_P,DSW_AIR_N,HTIME,STATUS,HEAT_INTP_N)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(DSW_AIR_N,VNP)
+       CALL NC_POINT_VAR(DSW_AIR_P,VPP)
+
+       DSW_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+
+       WDSN(1:NT) = SQRT(UUWIND(1:NT)*UUWIND(1:NT)+VVWIND(1:NT)*VVWIND(1:NT))
+
+       DO I=1,M
+         WDS = 0.0_SP
+         DO J=1,NTVE(I)
+           WDS = WDS + WDSN(NBVE(I,J))
+         END DO
+         WDS = WDS/FLOAT(NTVE(I))
+
+         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+          t1c=t1(i,1)
+         hlv=(2.501_sp-0.00237_sp*t1c)*1.0e6_sp
+         EVAP_CAL(I) = HLB/hlv*1e-3   ! formular from roms, converted to m/s by
+                              ! dividing fresh water density. Negative upward.
+       END DO
+
+    CASE(HEAT_IS_FVCOMGRID)
+
+       FTM => HEAT_FILE%FTIME
+
+!
+       ! BULK AIR TEMPERATURE
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,T_AIR_P,T_AIR_N,HTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       END IF
+
+       CALL NC_POINT_VAR(T_AIR_N,VNP)
+       CALL NC_POINT_VAR(T_AIR_P,VPP)
+
+       T_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+       ! RELATIVE HUMIDITY
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,RH_AIR_P,RH_AIR_N,HTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       END IF
+
+       CALL NC_POINT_VAR(RH_AIR_N,VNP)
+       CALL NC_POINT_VAR(RH_AIR_P,VPP)
+
+       RH_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+       ! SURFACE PRESSURE
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,PA_AIR_P,PA_AIR_N,HTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       END IF
+
+       CALL NC_POINT_VAR(PA_AIR_N,VNP)
+       CALL NC_POINT_VAR(PA_AIR_P,VPP)
+
+       PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+       ! DOWNWARD LONGWAVE RADIATION
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,DLW_AIR_P,DLW_AIR_N,HTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       END IF
+
+       CALL NC_POINT_VAR(DLW_AIR_N,VNP)
+       CALL NC_POINT_VAR(DLW_AIR_P,VPP)
+
+       DLW_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+       ! DOWNWARD SHORTWAVE RADIATION
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,DSW_AIR_P,DSW_AIR_N,HTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       END IF
+
+       CALL NC_POINT_VAR(DSW_AIR_N,VNP)
+       CALL NC_POINT_VAR(DSW_AIR_P,VPP)
+
+       DSW_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!
+
+       WDSN(1:NT) = SQRT(UUWIND(1:NT)*UUWIND(1:NT)+VVWIND(1:NT)*VVWIND(1:NT))
+
+       DO I=1,M
+         WDS = 0.0_SP
+         DO J=1,NTVE(I)
+           WDS = WDS + WDSN(NBVE(I,J))
+         END DO
+         WDS = WDS/FLOAT(NTVE(I))
+
+         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+
+         t1c=t1(i,1)
+         hlv=(2.501_sp-0.00237_sp*t1c)*1.0e6_sp
+         EVAP_CAL(I) = HLB/hlv*1e-3   ! formular from roms, converted to m/s by
+                                      ! dividing fresh water density. Negative upward.
+       END DO
+
+    CASE DEFAULT
+       CALL FATAL_ERROR("UNKNOWN HEAT_FORCING_TYPE IN UPDATE HEAT")
+    END SELECT
+
+    RETURN
+  END SUBROUTINE UPDATE_EVAP_CALCULATED
+
 # endif
   !==============================================================================|
   !==============================================================================|

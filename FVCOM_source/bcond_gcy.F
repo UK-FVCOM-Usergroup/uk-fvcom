@@ -626,6 +626,11 @@
         CALL UPDATE_PRECIPITATION(IntTime,Qprec,Qevap)
      END IF
 
+# if defined (EVAPORATION_CALCULATED)
+    CALL UPDATE_EVAP_CALCULATED(IntTime,Qevap)
+# endif
+
+
 
 # if defined (WAVE_CURRENT_INTERACTION) && (WAVE_OFFLINE)
       IF (WAVE_ON) THEN
@@ -674,6 +679,11 @@
    IF (PRECIPITATION_ON) THEN
       CALL UPDATE_PRECIPITATION(ExtTime,Qprec2,Qevap2)
    END IF
+
+# if defined (EVAPORATION_CALCULATED)
+    CALL UPDATE_EVAP_CALCULATED(ExtTime,Qevap2)
+# endif
+
 
    IF (WIND_ON) THEN
 
