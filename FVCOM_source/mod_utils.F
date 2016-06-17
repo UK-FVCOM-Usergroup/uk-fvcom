@@ -259,7 +259,7 @@ CONTAINS
        IF(PRESENT(ER2)) WRITE(IPT,*) ER2
        IF(PRESENT(ER3)) WRITE(IPT,*) ER3
        IF(PRESENT(ER4)) WRITE(IPT,*) ER4
-       write(IPT,*) TRIM(PRG_NAME)//" CONTINUEING"
+       write(IPT,*) TRIM(PRG_NAME)//" CONTINUING"
        write(IPT,*) "+++++++++++++++++++++++++++++++++++++++++++++++++"
     end if
 
