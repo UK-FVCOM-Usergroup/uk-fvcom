@@ -171,4 +171,4 @@ swancom2.o : swancom2.F mod_spherical.o mod_main.o mod_prec.o swmod2.o mod_main_
 swancom3.o : swancom3.F mod_main_wave.o mod_main.o swmod1.o swmod1.o swmod1.o swmod1.o swmod1.o swmod1.o swmod1.o swmod1.o mod_prec.o 
 swancom4.o : swancom4.F mod_main.o mod_main_wave.o swmod2.o swmod1.o swmod1.o swmod1.o mod_prec.o 
 swancom5.o : swancom5.F swmod1.o swmod1.o swmod1.o swmod2.o mod_main.o mod_action_ex.o swmod1.o swmod1.o swmod1.o swmod2.o mod_prec.o 
-tidal_turbine.o : tidal_turbine.F
+tidal_turbine.o : tidal_turbine.F mod_main.o
