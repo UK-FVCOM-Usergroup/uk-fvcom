@@ -47,17 +47,17 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-           TOPDIR        = $(HOME)/src/uk-fvcom/FVCOM_source
+           TOPDIR        = $(HOME)/Code/uk-fvcom/FVCOM_source
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
 #========== INSTALLDIR =====================================================
 # INSTALLDIR is the directory where you wish to install external libraries
 # The default is in the $(TOPDIR)/libs/install, but you can choose...
-            INSTALLDIR    = $(HOME)/models/FVCOM/pml-aquaculture/run/install
+            INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -C
+            DEF_FLAGS     = -P -traditional
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -92,8 +92,8 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -L$(INSTALLDIR)/lib -lnetcdff -lnetcdf
-             IOINCS       =  -I$(INSTALLDIR)/include
+             IOLIBS       = -L/gpfs1/apps/netcdf/intelmpi/lib -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz -lm
+             IOINCS       = -I/gpfs1/apps/netcdf/intelmpi/include -I/gpfs1/apps/hdf5/intelmpi/include
 #--------------------------------------------------------------------------
 
 
@@ -145,7 +145,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
              FLAG_4 = -DMULTIPROCESSOR
-             PARLIB = -L$(INSTALLDIR)/lib -lmetis
+             PARLIB = -lmetis -L$(LIBDIR)
 
 #--------------------------------------------------------------------------
 #        WATER_QUALITY      INCLUDE EPA WATER QUALITY MOD
@@ -175,10 +175,10 @@ dashL= $(empty) -L
 
              FLAG_6 = -DPROJ
 
-#             PROJLIBS       = -L$(INSTALLDIR)/lib -lfproj4 -lproj -lm
-#             PROJINCS       = -I$(INSTALLDIR)/include
-             PROJLIBS       = -lfproj4 -lproj -lm
-             PROJINCS       =
+             PROJLIBS       = -L$(LIBDIR) -lfproj4 -lproj -lm
+             PROJINCS       = -I$(INCDIR)
+#             PROJLIBS       = -lfproj4 -lproj -lm
+#             PROJINCS       =
 
 #--------------------------------------------------------------------------
 #        DATA_ASSIMILATION  INCLUDE NUDGING BASED DATA ASSIMILATION FOR
@@ -462,27 +462,14 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
-         COMPILER = -DIFORT
-         CPP      = /lib/cpp
-         CPPFLAGS = $(DEF_FLAGS) -DINTEL -P -I/opt/mpi/mpibull2-current/include
-         FC       = ifort
-         DEBFLGS  = #-check all
-         OPT      = -xP -I/opt/mpi/mpibull2-current/include  -g -no-prec-div -no-prec-sqrt -traceback  -warn
-         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -lrt -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-         CC       = icc
-         CFLAGS   = -O3  -xS -I/opt/mpi/mpibull2-current/include
-#--------------------------------------------------------------------------
-#  Intel/MPI Compiler Definitions (PML) Debugging
-#--------------------------------------------------------------------------
-#         COMPILER = -DIFORT
-#         CPP      = /lib/cpp
-#         CPPFLAGS = $(DEF_FLAGS) -P -traditional -DINTEL CPPMACH=-DNOGUI -I/opt/mpi/mpibull2-current/include
-#         FC       = ifort
-#         DEBFLGS  = #-check all
-#         OPT      =  -I/opt/mpi/mpibull2-current/include -g -traceback -warn -nofor_main -fp-model precise -traceback -fpe0 -keep
-#         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -i-static -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-#         CC       = icc
-#         CFLAGS   = -g -I/opt/mpi/mpibull2-current/include -traceback
+         CPP      = cpp
+         COMPILER = -DINTEL
+         FC       = mpiifort
+         DEBFLGS  =
+         OPT      = -O3 -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost
+         CLIB     =
+         CC       = mpiicc
+         CFLAGS   =
 #--------------------------------------------------------------------------
 #        COMPAQ/ALPHA Definitions
 #--------------------------------------------------------------------------
