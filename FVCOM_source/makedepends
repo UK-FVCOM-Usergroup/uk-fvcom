@@ -4,7 +4,7 @@ mod_types.o : mod_types.F mod_prec.o mod_prec.o
 mod_time.o : mod_time.F mod_prec.o mod_prec.o 
 mod_main.o : mod_main.F mod_types.o mod_time.o mod_prec.o mod_prec.o 
 mod_spherical.o : mod_spherical.F mod_main.o mod_prec.o mod_main.o mod_prec.o 
-mod_utils.o : mod_utils.F swmod1.o mod_main.o mod_main.o mod_main.o mod_prec.o mod_prec.o 
+mod_utils.o : mod_utils.F swmod1.o mod_main.o mod_main.o mod_main.o mod_prec.o mod_prec.o mod_spherical.o
 mod_clock.o : mod_clock.F mod_utils.o mod_main.o mod_time.o mod_prec.o mod_prec.o 
 eqs_of_state.o : eqs_of_state.F mod_prec.o mod_utils.o mod_main.o mod_prec.o 
 mod_bulk.o : mod_bulk.F mod_prec.o mod_prec.o 
