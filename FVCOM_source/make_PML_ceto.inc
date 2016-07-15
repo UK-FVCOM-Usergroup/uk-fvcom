@@ -124,7 +124,7 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO SELECT SPHERICAL COORDINATES
 #--------------------------------------------------------------------------
 
-             FLAG_2 = -DSPHERICAL
+#             FLAG_2 = -DSPHERICAL
 
 #--------------------------------------------------------------------------
 #        FLOODYING/DRYING   INCLUDE WET/DRY TREATMENT OF DOMAIN
