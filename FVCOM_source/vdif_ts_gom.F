@@ -127,19 +127,19 @@ SUBROUTINE VDIF_TS_GOM(NCON1,F)
                     ZDEP = Z(I,K)*D(I)
 
                     !       SPECIFIED PARAMETER FOR GOM CASE (JUNE 18, 2003)
-                    IF(D(I) < 100.0_SP) THEN
-                       RHEAT=0.78_SP
-                       ZETA1=1.4_SP
-                       ZETA2=6.3_SP
-                    ELSE IF(D(I) > 150.0_SP) THEN
+                    IF(D(I) < 50.0_SP) THEN
+                       RHEAT=0.77_SP
+                       ZETA1=1.5_SP
+                       ZETA2=14.0_SP
+                    ELSE IF(D(I) > 100.0_SP) THEN
                        RHEAT=0.58_SP
                        ZETA1=0.35_SP
                        ZETA2=23.0_SP
                     ELSE
-                       TMP1=(D(I)-100.0_SP)/(150.0_SP-100.0_SP)
-                       RHEAT=0.78_SP+(0.58_SP-0.78_SP)*TMP1
-                       ZETA1=1.4_SP+ (0.35_SP-1.4_SP )*TMP1
-                       ZETA2=6.3_SP+ (23.0_SP-6.3_SP )*TMP1
+                       TMP1=(D(I)-50.0_SP)/(100.0_SP-50.0_SP)
+                       RHEAT=0.77_SP+(0.58_SP-0.77_SP)*TMP1
+                       ZETA1=1.5_SP+ (0.35_SP-1.5_SP )*TMP1
+                       ZETA2=14.0_SP+ (23.0_SP-14.0_SP )*TMP1
                     END IF
 
                     RAD(I,K)=SWRADF(I)*(RHEAT*EXP(ZDEP/ZETA1)+(1-RHEAT)*EXP(ZDEP/ZETA2))

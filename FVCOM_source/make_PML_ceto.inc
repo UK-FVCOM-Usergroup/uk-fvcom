@@ -115,7 +115,7 @@ dashL= $(empty) -L
 
 #            FLAG_1 =  -DDOUBLE_PRECISION
 
-## SINGLE PRECISION OUTPUT FOR VISIT
+## SINGLE PRECISION OUTPUT FOR VISIT. ALSO ADD DEFLATE COMPRESSION.
             FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT -DNETCDF4_COMPRESSION
 
 #--------------------------------------------------------------------------
@@ -175,8 +175,8 @@ dashL= $(empty) -L
 
              FLAG_6 = -DPROJ
 
-             PROJLIBS       = -L$(LIBDIR) -lfproj4 -lproj -lm
-             PROJINCS       = -I$(INCDIR)
+             PROJLIBS       = $(LIBDIR) -lfproj4 -lproj -lm
+             PROJINCS       = $(INCDIR)
 #             PROJLIBS       = -lfproj4 -lproj -lm
 #             PROJINCS       =
 
