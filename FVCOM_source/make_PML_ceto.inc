@@ -127,11 +127,11 @@ dashL= $(empty) -L
 #             FLAG_2 = -DSPHERICAL
 
 #--------------------------------------------------------------------------
-#        FLOODYING/DRYING   INCLUDE WET/DRY TREATMENT OF DOMAIN
+#        FLOODING/DRYING    INCLUDE WET/DRY TREATMENT OF DOMAIN
 #                           CAN BE ACTIVATED/DEACTIVATED AT RUN TIME WITH
 #                           INPUT FILE CONTROL.  (SEE exa_run.dat) FILE
-#                           DEFAULT: NO FLOODYING/DRYING INCLUDED
-#                           UNCOMMENT TO INCLUDE FLOODYING/DRYING
+#                           DEFAULT: NO FLOODING/DRYING INCLUDED
+#                           UNCOMMENT TO INCLUDE FLOODING/DRYING
 #--------------------------------------------------------------------------
 
              FLAG_3 = -DWET_DRY
