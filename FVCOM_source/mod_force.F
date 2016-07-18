@@ -609,7 +609,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(GROUNDWATER_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
             & TRIM(fvcom_grid_source)) THEN
@@ -685,7 +685,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(GROUNDWATER_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
             & TRIM(fvcom_cap_grid_source)) THEN
@@ -938,7 +938,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION ELEVATION FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -1578,7 +1578,7 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
@@ -3552,7 +3552,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION TEMPERATURE FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_TEMP_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -3700,7 +3700,7 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TEMPERATURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_TEMP_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
@@ -3750,7 +3750,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION SALINITY FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_SALT_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -3899,7 +3899,7 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION SALINITY FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_SALT_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
@@ -3951,7 +3951,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION WATER QUALITY FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -4317,7 +4317,7 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
@@ -4370,7 +4370,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -5153,7 +5153,7 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
@@ -5600,7 +5600,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -5684,7 +5684,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6061,7 +6061,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6145,7 +6145,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6679,7 +6679,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_SOLAR_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7077,7 +7077,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7161,7 +7161,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7633,7 +7633,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE ICING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICING_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7717,7 +7717,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE ICING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICING_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        ICING_FORCING_COMMENTS ="VARIABLE ICING: "//TRIM(ATT%CHR(1))
 
@@ -8112,7 +8112,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -8197,7 +8197,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -8611,7 +8611,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OFFLINE SEDIMENT FILE OBJECT",&
             & "FILE NAME: "//TRIM(OFFLINE_SEDIMENT_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -8982,7 +8982,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -9068,7 +9068,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -9384,7 +9384,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -9470,7 +9470,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -9727,7 +9727,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -9813,7 +9813,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -13896,7 +13896,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        ! LOOK FOR THE DIMENSIONS
        DIM => FIND_UNLIMITED(WINDS_FILE,FOUND)

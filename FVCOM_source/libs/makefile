@@ -19,6 +19,7 @@ all:
 	cd hdf5-1.8.15-patch1 && make -j install
 	cd netcdf-4.1.3 && ./configure CC=$(CC) CFLAGS=-O3 CXX=$(CC) CXXFLAGS=-O3 F77=$(FC) F90=$(FC) FFLAGS=-O3 --prefix=$(MYINSTALLDIR) --build=$(MACHTYPE) CPPFLAGS=-I$(MYINSTALLDIR)/include LDFLAGS=-L$(MYINSTALLDIR)/lib
 	cd netcdf-4.1.3 && make -j install
+	cd metis && sed -i 's/log2/ilog2/g' util.c proto.h rename.h
 	cd metis && make -j install
 	cd julian && make -j install
 

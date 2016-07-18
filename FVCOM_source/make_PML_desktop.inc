@@ -47,7 +47,7 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-           TOPDIR        = /fs4/n01/n01/pica/src/uk-fvcom/FVCOM_source
+           TOPDIR        = $(HOME)/Code/uk-fvcom/FVCOM_source
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
@@ -92,8 +92,8 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz -lm
-             IOINCS       =
+             IOLIBS       =  -L$(INSTALLDIR)/lib -lnetcdff -lnetcdf
+             IOINCS       =  -I$(INSTALLDIR)/include
 #--------------------------------------------------------------------------
 
 
@@ -124,7 +124,7 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO SELECT SPHERICAL COORDINATES
 #--------------------------------------------------------------------------
 
-#             FLAG_2 = -DSPHERICAL
+#            FLAG_2 = -DSPHERICAL
 
 #--------------------------------------------------------------------------
 #        FLOODYING/DRYING   INCLUDE WET/DRY TREATMENT OF DOMAIN
@@ -276,7 +276,7 @@ dashL= $(empty) -L
 #        Physics, 54, 325-362, 1984
 #--------------------------------------------------------------------------
 
-#            FLAG_15 = -DMPDATA
+            FLAG_15 = -DMPDATA
 
 #--------------------------------------------------------------------------
 #         Run Two-D Barotropic Mode Only
@@ -365,7 +365,7 @@ dashL= $(empty) -L
 #         AIR_PRESSURE FROM SURFACE FORCING
 #--------------------------------------------------------------------------
 
-#             FLAG_28 = -DAIR_PRESSURE
+             FLAG_28 = -DAIR_PRESSURE
 
 #--------------------------------------------------------------------------
 # Visit online simulation mode
@@ -484,6 +484,26 @@ dashL= $(empty) -L
 #         CC       = icc
 #         CFLAGS   = -g -I/opt/mpi/mpibull2-current/include -traceback
 #--------------------------------------------------------------------------
+#  GFORTRAN Compiler Definitions (PML)
+#--------------------------------------------------------------------------
+         CPP      = gfortran -E
+         COMPILER = -DGFORTRAN
+         FC       = mpif90
+         DEBFLGS  =
+         OPT      = -O3 -L/usr/lib64/mpich-x86_64/lib -I/usr/include/mpich-x86_64 -I/usr/lib64/gfortran/modules/
+         CLIB     =
+         CC       = mpicc
+#--------------------------------------------------------------------------
+#  GFORTRAN Compiler Definitions (PML) Debugging
+#--------------------------------------------------------------------------
+#         CPP      = cpp
+#         COMPILER = -DGFORTRAN
+#         FC       = gfortran
+#         DEBFLGS  =
+#         OPT      = -g -L/usr/lib64/mpich-x86_64/lib -I/usr/include/mpich-x86_64 -I/usr/lib64/gfortran/modules/
+#         CLIB     =
+#         CC       = gcc
+#--------------------------------------------------------------------------
 #        COMPAQ/ALPHA Definitions
 #--------------------------------------------------------------------------
 #        COMPILER   = -DCOMPAQ
@@ -581,15 +601,15 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  ARCHER Intel/MPI Compiler
 #--------------------------------------------------------------------------
-         CPP      = /usr/bin/cpp
-         COMPILER = -DIFORT  
-         CC       = cc
-         CXX      = CC
-         CFLAGS   = -O3 
-         FC       = ftn
-#         DEBFLGS  = -check all
-         OPT      = -O3
-         COPTIONS = -c89
+#         CPP      = /usr/bin/cpp
+#         COMPILER = -DIFORT  
+#         CC       = cc
+#         CXX      = CC
+#         CFLAGS   = -O3 
+#         FC       = ftn
+##         DEBFLGS  = -check all
+#         OPT      = -O3
+#         COPTIONS = -c89
 #--------------------------------------------------------------------------
 #==========================================================================
 #  END USER DEFINITION SECTION
