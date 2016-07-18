@@ -116,7 +116,7 @@ dashL= $(empty) -L
 #            FLAG_1 =  -DDOUBLE_PRECISION
 
 ## SINGLE PRECISION OUTPUT FOR VISIT
-            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT
+            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT -DNETCDF4_COMPRESSION
 
 #--------------------------------------------------------------------------
 #        SPHERICAL          SELECT SPHERICAL COORDINATES FOR INTEGRATION
