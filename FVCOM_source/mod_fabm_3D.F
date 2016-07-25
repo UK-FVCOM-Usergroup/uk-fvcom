@@ -3,7 +3,7 @@ MODULE MOD_FABM_3D
 
   USE fabm, fabm_initialize_interior_state => fabm_initialize_state
   USE fabm_config
-  USE fabm_types, only: domain_bottom
+  USE fabm_types, only: domain_bottom, attribute_length, get_safe_name
   USE fabm_driver, only: type_base_driver, driver
   USE fabm_standard_variables
 
@@ -14,6 +14,8 @@ MODULE MOD_FABM_3D
 ! for accessing global node id in error reporting
   USE MOD_PAR
 
+  ! For reading FABM forcing data from NetCDF:
+  USE MOD_NCDIO
 
   IMPLICIT NONE
 
@@ -68,6 +70,18 @@ MODULE MOD_FABM_3D
      procedure :: log_message       => fvcom_driver_log_message
      procedure :: describe_location => fvcom_driver_describe_location
   end type
+
+  TYPE TYPE_FABM_INPUT
+     TYPE (type_horizontal_variable_id) :: FABM_ID_HZ
+     CHARACTER(LEN=160)                 :: PATH
+     REAL(SP), ALLOCATABLE              :: DATA_HZ(:)
+     TYPE(NCFILE),           POINTER    :: FILE => NULL()
+     TYPE(NCVAR),            POINTER    :: N    => NULL()
+     TYPE(NCVAR),            POINTER    :: P    => NULL()
+     TYPE (TYPE_FABM_INPUT), POINTER    :: NEXT => NULL()
+  END TYPE
+
+  TYPE (TYPE_FABM_INPUT), POINTER, SAVE :: FIRST_FABM_INPUT => NULL()
 
    CONTAINS
 
@@ -213,6 +227,8 @@ MODULE MOD_FABM_3D
       CALL fabm_link_surface_state_data(model,IFABM,FABM_ALL_SF(1:M,IFABM))
     END DO
 
+    CALL INITIALIZE_FABM_INPUTS()
+
     ! Make sure FABM has all required data
     CALL fabm_check_ready(model)
 
@@ -287,6 +303,8 @@ MODULE MOD_FABM_3D
          Time_yearstart = READ_DATETIME(string_local(1:4)//'-01-01T00:00:00.000Z','ymd','UTC',status)
          DAYS_SINCE_YEAR_START = DAYS(IntTime-Time_yearstart)
       END IF
+
+      CALL UPDATE_FABM_INPUTS(IntTime)
    END SUBROUTINE
 
    SUBROUTINE FABM_INITIALIZE_STATE()
@@ -2062,6 +2080,148 @@ SUBROUTINE FCT_FABM
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: fct_fabm"
   !#  endif
 END SUBROUTINE FCT_FABM
+
+SUBROUTINE INITIALIZE_FABM_INPUTS()
+   CHARACTER(LEN=attribute_length) :: VARIABLE_NAME
+   CHARACTER(LEN=80) FILE, NC_VARIABLE_NAME
+   NAMELIST /NML_FABM_INPUT/ VARIABLE_NAME, FILE, NC_VARIABLE_NAME
+   INTEGER :: ios, status, ntimes
+   INTEGER, PARAMETER :: FABM_INPUT_UNIT = 900
+   LOGICAL :: FOUND
+   TYPE(NCFILE), POINTER :: NCF_TMP
+   TYPE(NCDIM),  POINTER :: DIM
+   TYPE(NCVAR),  POINTER :: VAR
+   TYPE(TIME) :: TIMETEST
+   REAL(SP), POINTER :: STORAGE_VEC(:)
+   TYPE (TYPE_FABM_INPUT), POINTER :: FABM_INPUT
+   CHARACTER(LEN=*),PARAMETER :: NMLPATH = 'fabm_input.nml'
+
+   INQUIRE(FILE=NMLPATH,EXIST=FOUND)
+   IF (.NOT.FOUND) RETURN
+   CALL FOPEN(FABM_INPUT_UNIT,NMLPATH,'cfr')
+
+   DO
+      ! Initialize namelist variables with default value.
+      VARIABLE_NAME = ''
+      NC_VARIABLE_NAME = ''
+      FILE = ''
+
+      ! Read namelist
+      READ(UNIT=FABM_INPUT_UNIT, NML=NML_FABM_INPUT,IOSTAT=ios)
+      IF (IOS>0) CALL FATAL_ERROR("ERROR READING "//TRIM(NMLPATH))
+      if (IOS<0) exit
+
+      IF (VARIABLE_NAME=='') CALL FATAL_ERROR(TRIM(nmlpath)//": VARIABLE_NAME MUST BE PROVIDED")
+      IF (FILE=='') CALL FATAL_ERROR(TRIM(nmlpath)//": VARIABLE_NAME MUST BE PROVIDED")
+      IF (NC_VARIABLE_NAME=='') NC_VARIABLE_NAME = get_safe_name(VARIABLE_NAME)
+
+      ALLOCATE(FABM_INPUT)
+      FABM_INPUT%FABM_ID_HZ = model%get_horizontal_variable_id(VARIABLE_NAME)
+      IF (.NOT.fabm_is_variable_used(FABM_INPUT%FABM_ID_HZ)) CALL FATAL_ERROR &
+         & ("VARIABLE "//TRIM(VARIABLE_NAME)//" REFERENCED IN "//TRIM(nmlpath)//" NOT FOUND IN FABM MODEL")
+
+      ! Test extension of specified data file.
+      if (INDEX(FILE,".nc",.true.)/=LEN_TRIM(FILE)-2)&
+         & CALL WARNING("Name of forcing file for FABM variable "//trim(VARIABLE_NAME)//" does not end in .nc", &
+         & TRIM(FILE))
+
+      ! Compose full path and initialize NetCDF file object (will use existing open file if available).
+      FABM_INPUT%PATH = TRIM(INPUT_DIR)//TRIM(FILE)
+      CALL NC_INIT(FABM_INPUT%FILE,FABM_INPUT%PATH)
+      If(.not. FABM_INPUT%FILE%OPEN) then
+         Call NC_OPEN(FABM_INPUT%FILE)
+         CALL NC_LOAD(FABM_INPUT%FILE)
+         ! MAKE A TEMPORARY POINTER TO ADD THE FILE TO THE LIST ("ADD" NULLIFIES THE FILE POINTER IT RECEIVES)
+         NCF_TMP => FABM_INPUT%FILE
+         FILEHEAD => ADD(FILEHEAD,NCF_TMP)
+      end if
+
+      ! Get time dimension
+      DIM => FIND_UNLIMITED(FABM_INPUT%FILE,FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("IN FILE OBJECT WITH FORCING DATA FOR FABM VARIABLE "//TRIM(VARIABLE_NAME),&
+         & "FILE NAME: "//TRIM(FILE),&
+         &"COULD NOT FIND THE UNLIMITED DIMENSION")
+
+      NTIMES = DIM%DIM
+
+      ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
+      TIMETEST = get_file_time(FABM_INPUT%FILE,1)
+      IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+         & ("IN FILE OBJECT WITH FORCING DATA FOR FABM VARIABLE "//TRIM(VARIABLE_NAME),&
+         & "FILE NAME: "//TRIM(FILE),&
+         &"THE MODEL RUN STARTS BEFORE THE FORCING TIME SERIES")
+
+      TIMETEST = get_file_time(FABM_INPUT%FILE,ntimes)
+      IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+         & ("IN FILE OBJECT WITH FORCING DATA FOR FABM VARIABLE "//TRIM(VARIABLE_NAME),&
+         & "FILE NAME: "//TRIM(FILE),&
+         &"THE MODEL RUN ENDS AFTER THE FORCING TIME SERIES")
+
+      DIM => FIND_DIM(FABM_INPUT%FILE,'node',FOUND)
+      IF(.NOT.FOUND) CALL FATAL_ERROR &
+         & ("IN FILE OBJECT WITH FORCING DATA FOR FABM VARIABLE "//TRIM(VARIABLE_NAME),&
+         & "FILE NAME: "//TRIM(FILE),&
+         & "COULD NOT FIND DIMENSION 'node'")
+
+      if (mgl /= dim%dim) CALL FATAL_ERROR &
+         & ("IN FILE OBJECT WITH FORCING DATA FOR FABM VARIABLE "//TRIM(VARIABLE_NAME),&
+         & "FILE NAME: "//TRIM(FILE),&
+         & "LENGTH OF 'node' DIMENSION DOES NOT MATCH NUMBER OF NODES IN FVCOM GRID")
+
+      VAR => FIND_VAR(FABM_INPUT%FILE,TRIM(NC_VARIABLE_NAME),FOUND)
+      IF(.NOT.FOUND) CALL FATAL_ERROR &
+         & ("IN FILE OBJECT WITH FORCING DATA FOR FABM VARIABLE "//TRIM(VARIABLE_NAME),&
+         & "FILE NAME: "//TRIM(FILE),&
+         & "COULD NOT FIND VARIABLE '"//TRIM(NC_VARIABLE_NAME)//"'")
+
+      ! MAKE SPACE FOR THE DATA FROM THE FILE
+      ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+      IF(STATUS /= 0) CALL FATAL_ERROR("FAILED TO ALLOCATE MEMORY FOR READING FABM FORCING VARIABLE "//TRIM(VARIABLE_NAME))
+      FABM_INPUT%N => reference_var(var)
+      CALL NC_CONNECT_PVAR(FABM_INPUT%N,STORAGE_VEC)
+      NULLIFY(STORAGE_VEC)
+
+      ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+      IF(STATUS /= 0) CALL FATAL_ERROR("FAILED TO ALLOCATE MEMORY FOR READING FABM FORCING VARIABLE "//TRIM(VARIABLE_NAME))
+      FABM_INPUT%P => reference_var(var)
+      CALL NC_CONNECT_PVAR(FABM_INPUT%P,STORAGE_VEC)
+      NULLIFY(STORAGE_VEC)
+
+      ALLOCATE(FABM_INPUT%DATA_HZ(0:MT))
+      FABM_INPUT%DATA_HZ = 0.0_SP
+      CALL model%link_horizontal_data(FABM_INPUT%FABM_ID_HZ,FABM_INPUT%DATA_HZ(1:M),source=data_source_user)
+
+      ! Prepend to list of inputs
+      FABM_INPUT%NEXT => FIRST_FABM_INPUT
+      FIRST_FABM_INPUT => FABM_INPUT
+   END DO
+END SUBROUTINE INITIALIZE_FABM_INPUTS
+
+SUBROUTINE UPDATE_FABM_INPUTS(NOW)
+   TYPE(TIME), INTENT(IN) :: NOW
+
+   TYPE (TYPE_FABM_INPUT), POINTER :: FABM_INPUT
+   REAL(SP),               POINTER :: VNP(:), VPP(:)
+   TYPE(NCFTIME),          POINTER :: FTM
+   INTEGER                         :: STATUS
+
+   FABM_INPUT => FIRST_FABM_INPUT
+   DO WHILE (ASSOCIATED(FABM_INPUT))
+      FTM => FABM_INPUT%FILE%FTIME
+
+      CALL UPDATE_VAR_BRACKET(FABM_INPUT%FILE,FABM_INPUT%P,FABM_INPUT%N,NOW,STATUS)
+      IF (STATUS /= 0) THEN
+         CALL FATAL_ERROR("COULD NOT UPDATE TIME BRACKET FOR "//TRIM(FABM_INPUT%PATH)//": BOUNDS EXCEEDED?")
+      end if
+
+      CALL NC_POINT_VAR(FABM_INPUT%N,VNP)
+      CALL NC_POINT_VAR(FABM_INPUT%P,VPP)
+      FABM_INPUT%DATA_HZ = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+      FABM_INPUT => FABM_INPUT%NEXT
+   END DO
+END SUBROUTINE UPDATE_FABM_INPUTS
 
 # endif
 
