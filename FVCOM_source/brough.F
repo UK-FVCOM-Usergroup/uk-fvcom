@@ -141,7 +141,7 @@ SUBROUTINE BOTTOM_ROUGHNESS
   !  ADD ON BOTTOM ROUGHNESS FOR TIDAL TURBINE IF BED ROUGHNESS OPTION SELECTED  |
   !==============================================================================|
   IF (TIDAL_TURBINE_ON .AND. (TIDAL_TURBINE_KIND .EQ. TTBROUGH)) THEN
-     CBC = CBC + ( NTT * (CT*ATT/(2*ART)) )
+     CBC = CBC + ( NTT * (CT*AREATT/(2*ART)) )
   END IF
 
   !==============================================================================|
