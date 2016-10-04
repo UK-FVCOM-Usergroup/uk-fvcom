@@ -172,11 +172,11 @@ MODULE MOD_DYE
           
         DYESTART = READ_DATETIME(DYE_RELEASE_START,DATE_FORMAT,TIMEZONE,status)
         if (status == 0 ) &
-           & Call Fatal_Error("Could not read the date string START_DATE: "//trim(DYE_RELEASE_START))
+           & Call Fatal_Error("Could not read the date string DYE_RELEASE_START: "//trim(DYE_RELEASE_START))
 
         DYESTOP = READ_DATETIME(DYE_RELEASE_STOP,DATE_FORMAT,TIMEZONE,status)
         if (status == 0) &
-           & Call Fatal_Error("Could not read the date string END_DATE: "//trim(DYE_RELEASE_STOP))
+           & Call Fatal_Error("Could not read the date string DYE_RELEASE_STOP: "//trim(DYE_RELEASE_STOP))
 
         if(DYESTART .GT. DYESTOP) &
            & Call Fatal_Error("Runfile Start_Date exceeds or equal to Stop_Date")
