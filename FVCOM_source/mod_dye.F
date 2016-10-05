@@ -77,11 +77,12 @@ MODULE MOD_DYE
           & DYE_ON,                 &
           & DYE_RELEASE_START,      &
           & DYE_RELEASE_STOP,       &
-	  & KSPE_DYE,               &
-	  & MSPE_DYE,               &
-	  & K_SPECIFY,              &
-	  & M_SPECIFY,              &
-	  & DYE_SOURCE_TERM
+          & USE_REAL_WORLD_TIME,    &
+          & KSPE_DYE,               &
+          & MSPE_DYE,               &
+          & K_SPECIFY,              &
+          & M_SPECIFY,              &
+          & DYE_SOURCE_TERM
 
     integer itera,ntera
      real ssss

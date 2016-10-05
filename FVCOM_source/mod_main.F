@@ -121,7 +121,6 @@ MODULE CONTROL
     NAMELIST /NML_CASE/        &
          & CASE_TITLE,         &
          & TIMEZONE,           &
-         & USE_REAL_WORLD_TIME, &
          & DATE_FORMAT,        &
 	 & DATE_REFERENCE,     &
          & START_DATE,         &
