@@ -61,10 +61,13 @@ MODULE MOD_REPORT
 #  if defined (FABM)
     USE MOD_FABM_3D, only : REPORT_FABM
 #  endif
+#  if defined (DYE_RELEASE)
+    USE MOD_DYE, only : DYE
+#  endif
     IMPLICIT NONE
     CHARACTER(LEN=*) :: INFO_STRING     !!INFORMATION STRING
     INTEGER :: E3TOT,ESTOT,IERR
-    REAL(DP), DIMENSION(22) :: SBUF,RBUF1,RBUF2,RBUF3
+    REAL(DP), DIMENSION(23) :: SBUF,RBUF1,RBUF2,RBUF3
 
     REAL(SP), ALLOCATABLE :: AICE1(:), VICE1(:)
     REAL(SP), ALLOCATABLE :: Q21(:,:),Q2L1(:,:),L1(:,:)
@@ -178,6 +181,9 @@ MODULE MOD_REPORT
 # if defined (WAVE_CURRENT_INTERACTION)
     SBUF(22) = SUM(DBLE(HSC1_E(1:N)))
 # endif
+# if defined (WAVE_CURRENT_INTERACTION)
+    SBUF(23) = SUM(DBLE(DYE(1:M,1:KBM1)))
+# endif
 
     RBUF1 = SBUF
 # if defined (MULTIPROCESSOR)
@@ -218,6 +224,9 @@ MODULE MOD_REPORT
 # endif
 # if defined (WAVE_CURRENT_INTERACTION)
     SBUF(22) = MAXVAL(HSC1(1:M))
+# endif
+# if defined (DYE_RELEASE)
+    SBUF(23) = MAXVAL(DYE(1:M,1:KBM1))
 # endif
 
 
@@ -260,6 +269,9 @@ MODULE MOD_REPORT
 # endif
 # if defined (WAVE_CURRENT_INTERACTION)
     SBUF(22) = MINVAL(HSC1(1:M))
+# endif
+# if defined (DYE_RELEASE)
+    SBUF(22) = MINVAL(DYE(1:M,1:KBM1))
 # endif
 
 
@@ -319,6 +331,10 @@ MODULE MOD_REPORT
        ELSE
           WRITE(IPT,101)'!  WET/DRY DATA          :',INT(RBUF1(17)),NGL-INT(RBUF1(17)),100.*RBUF1(17)/FLOAT(NGL)
        END IF
+#  endif
+
+#  if defined (DYE_RELEASE)
+       WRITE(IPT,100)'!  DYE                   :',RBUF1(23)/ESTOT,RBUF2(23),RBUF3(23)
 #  endif
 
     END IF
