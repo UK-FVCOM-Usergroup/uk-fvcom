@@ -213,7 +213,6 @@ MODULE MOD_FABM_3D
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
     ALLOCATE(FABM_ALL_SF(0:MT,size(model%surface_state_variables))); FABM_ALL_SF =  0.001_SP
     ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)));           FABM_F       =  0.001_SP
-    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)));        FABM_MEAN    =  0.001_SP
     ALLOCATE(FABM_TOTALS(size(model%conserved_quantities)));         FABM_TOTALS = 0
 
     ! Provide FABM with pointers to state variable data.
@@ -1164,6 +1163,7 @@ END SUBROUTINE FABM_MIXING
   REAL(SP), DIMENSION(0:MT,KB)     :: FABM_FRESH    !! for source term which also bring mass volume
   INTEGER ITERA, NTERA
 #  endif
+   REAL(SP) :: FABM_MEAN
 
 
 
@@ -1236,6 +1236,7 @@ END SUBROUTINE FABM_MIXING
      PFPY  = 0.0_SP
      PFPXD = 0.0_SP
      PFPYD = 0.0_SP
+     FABM_MEAN = SUM(FABM_ALL(1:M,K,IFABM))/M
      DO I=1,M
         DO J=1,NTSN(I)-1
            I1=NBSN(I,J)
@@ -1243,20 +1244,20 @@ END SUBROUTINE FABM_MIXING
 
 #    if defined (WET_DRY)
          IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
-          FFD=0.5_SP*(FABM_ALL(I,K,IFABM)+FABM_ALL(I2,K,IFABM)-FABM_MEAN(I,K,IFABM)-FABM_MEAN(I2,K,IFABM))
+          FFD=0.5_SP*((FABM_ALL(I,K,IFABM)-FABM_MEAN)+(FABM_ALL(I2,K,IFABM)-FABM_MEAN))
           FF1=0.5_SP*(FABM_ALL(I,K,IFABM)+FABM_ALL(I2,K,IFABM))
 	 ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
-          FFD=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I,K,IFABM)-FABM_MEAN(I1,K,IFABM)-FABM_MEAN(I,K,IFABM))
+          FFD=0.5_SP*((FABM_ALL(I1,K,IFABM)-FABM_MEAN)+(FABM_ALL(I,K,IFABM)-FABM_MEAN))
           FF1=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I,K,IFABM))
 	 ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
-          FFD=FABM_ALL(I,K,IFABM)-FABM_MEAN(I,K,IFABM)
+          FFD=FABM_ALL(I,K,IFABM)-FABM_MEAN
           FF1=FABM_ALL(I,K,IFABM)
 	 ELSE
-          FFD=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM)-FABM_MEAN(I1,K,IFABM)-FABM_MEAN(I2,K,IFABM))
+          FFD=0.5_SP*((FABM_ALL(I1,K,IFABM)-FABM_MEAN)+(FABM_ALL(I2,K,IFABM)-FABM_MEAN))
           FF1=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM))
 	 END IF 
 #    else	 
-           FFD=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM)-FABM_MEAN(I1,K,IFABM)-FABM_MEAN(I2,K,IFABM))
+           FFD=0.5_SP*((FABM_ALL(I1,K,IFABM)-FABM_MEAN)+(FABM_ALL(I2,K,IFABM)-FABM_MEAN))
            FF1=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM))
 #    endif	 
 	 
