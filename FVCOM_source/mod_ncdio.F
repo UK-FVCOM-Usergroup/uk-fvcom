@@ -5799,7 +5799,7 @@ CONTAINS
        NCF  => ADD(NCF,VAR)
      END IF
    END DO
-
+# ifdef FABM_DIAG_OUT
    IF (ISET/=3) THEN
       ! Normal output, not restart, so include diagnostics.
       DO II=1,size(model%diagnostic_variables)
@@ -5826,6 +5826,7 @@ CONTAINS
         NCF  => ADD(NCF,VAR)
       END DO
    END IF
+# endif   
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END FABM_FILE_OBJECT"
 
   END FUNCTION FABM_FILE_OBJECT

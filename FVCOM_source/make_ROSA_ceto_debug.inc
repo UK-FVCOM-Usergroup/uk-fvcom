@@ -47,17 +47,18 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-           TOPDIR        = $(HOME)/src/uk-fvcom/FVCOM_source
+
+           TOPDIR        =  $(HOME)/src/FVCOM/FVCOM_source/
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
 #========== INSTALLDIR =====================================================
 # INSTALLDIR is the directory where you wish to install external libraries
 # The default is in the $(TOPDIR)/libs/install, but you can choose...
-            INSTALLDIR    = $(HOME)/models/FVCOM/pml-aquaculture/run/install
+            INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -C
+            DEF_FLAGS     = -P -traditional
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -92,8 +93,8 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -L$(INSTALLDIR)/lib -lnetcdff -lnetcdf
-             IOINCS       =  -I$(INSTALLDIR)/include
+             IOLIBS       = -L/gpfs1/apps/netcdf/intelmpi/lib -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz -lm
+             IOINCS       = -I/gpfs1/apps/netcdf/intelmpi/include -I/gpfs1/apps/hdf5/intelmpi/include
 #--------------------------------------------------------------------------
 
 
@@ -145,7 +146,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
              FLAG_4 = -DMULTIPROCESSOR
-             PARLIB = -L$(INSTALLDIR)/lib -lmetis
+             PARLIB = -lmetis -L$(LIBDIR)
 
 #--------------------------------------------------------------------------
 #        WATER_QUALITY      INCLUDE EPA WATER QUALITY MOD
@@ -175,10 +176,10 @@ dashL= $(empty) -L
 
              FLAG_6 = -DPROJ
 
-#             PROJLIBS       = -L$(INSTALLDIR)/lib -lfproj4 -lproj -lm
-#             PROJINCS       = -I$(INSTALLDIR)/include
-             PROJLIBS       = -lfproj4 -lproj -lm
-             PROJINCS       =
+             PROJLIBS       = -L$(LIBDIR) -lfproj4 -lproj -lm
+             PROJINCS       = -I$(INCDIR)
+#             PROJLIBS       = -lfproj4 -lproj -lm
+#             PROJINCS       =
 
 #--------------------------------------------------------------------------
 #        DATA_ASSIMILATION  INCLUDE NUDGING BASED DATA ASSIMILATION FOR
@@ -347,6 +348,9 @@ dashL= $(empty) -L
 #            FLAG_25 = -DBioGen
 #            BIOLIB       = -L$(TOPDIR)/BIO_source -lbiomodule
 #            BIOINCS      = -I$(TOPDIR)/BIO_source/
+            FLAG_25 = -DFABM
+            BIOLIB       = -L$(HOME)/local/fabm/fvcom/lib -lfabm
+            BIOINCS      = -I$(HOME)/local/fabm/fvcom/include
 
 #--------------------------------------------------------------------------
 #         Dynamic/Thermodynamic Ice
@@ -462,135 +466,14 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
-         COMPILER = -DIFORT
-         CPP      = /lib/cpp
-         CPPFLAGS = $(DEF_FLAGS) -DINTEL -P -I/opt/mpi/mpibull2-current/include
-         FC       = ifort
-         DEBFLGS  = #-check all
-         OPT      = -xP -I/opt/mpi/mpibull2-current/include  -g -no-prec-div -no-prec-sqrt -traceback  -warn
-         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -lrt -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-         CC       = icc
-         CFLAGS   = -O3  -xS -I/opt/mpi/mpibull2-current/include
-#--------------------------------------------------------------------------
-#  Intel/MPI Compiler Definitions (PML) Debugging
-#--------------------------------------------------------------------------
-#         COMPILER = -DIFORT
-#         CPP      = /lib/cpp
-#         CPPFLAGS = $(DEF_FLAGS) -P -traditional -DINTEL CPPMACH=-DNOGUI -I/opt/mpi/mpibull2-current/include
-#         FC       = ifort
-#         DEBFLGS  = #-check all
-#         OPT      =  -I/opt/mpi/mpibull2-current/include -g -traceback -warn -nofor_main -fp-model precise -traceback -fpe0 -keep
-#         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -i-static -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-#         CC       = icc
-#         CFLAGS   = -g -I/opt/mpi/mpibull2-current/include -traceback
-#--------------------------------------------------------------------------
-#        COMPAQ/ALPHA Definitions
-#--------------------------------------------------------------------------
-#        COMPILER   = -DCOMPAQ
-#        CPP        = /bin/cpp
-#        FC         = f90
-#        DEBFLGS    =  # -check bounds -check overflow -g
-#        OPT        =  -fast -arch ev6 -fpe1
-#--------------------------------------------------------------------------
-#  CRAY Definitions
-#--------------------------------------------------------------------------
-#         COMPILER = -DCRAY
-#         CPP      = /opt/ctl/bin/cpp
-#         FC       = f90
-#         DEBFLGS  =
-#         OPT      =
-#--------------------------------------------------------------------------
-#   Linux/Portland Group Definitions
-#--------------------------------------------------------------------------
-#         CPP      = /usr/bin/cpp
-#         COMPILER =
-#         FC       = pgf90
-#         DEBFLGS  = -Mbounds -g -Mprof=func
-#         OPT      = #-fast  -Mvect=assoc,cachesize:512000,sse
-#--------------------------------------------------------------------------
-#  Intel Compiler Definitions
-#--------------------------------------------------------------------------
-#         CPP      = /usr/bin/cpp
-#         COMPILER = -DIFORT
-#         FC       = ifort
-#         CC       = icc
-#         CXX      = icc
-#         CFLAGS   = -O3
-#         DEBFLGS  = #-check all
-# Use 'OPT = -O0 -g' for fast compile to test the make
-# Use 'OPT = -xP' for fast run on em64t (Hydra and Guppy)
-# Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
-#         OPT      = -O0 -g
-#         OPT      = -xP
-# Do not set static for use with visit!
-#         VISOPT   = -Wl,--export-dynamic
-#         LDFLAGS  = $(VISITLIBPATH)
-#--------------------------------------------------------------------------
-#  Intel/MPI Compiler Definitions (SMAST)
-#--------------------------------------------------------------------------
-#         CPP      = /usr/bin/cpp
-#         COMPILER = -DIFORT
-#         CC       = mpicc
-#         CXX      = mpicxx
-#         CFLAGS   = -O3
-#         FC       = mpif90
-#         DEBFLGS  = -check all
-# Use 'OPT = -O0 -g'  for fast compile to test the make
-# Use 'OPT = -xP' for fast run on em64t (Hydra and Guppy)
-# Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
-#         OPT      = -O0 -g
-#         OPT      = -axN -xN
-#         OPT      = -O3
-# Do not set static for use with visit!
-#         VISOPT   = -Wl,--export-dynamic
-#         LDFLAGS  =  $(VISITLIBPATH)
-#--------------------------------------------------------------------------
-#  gfortran defs
-#--------------------------------------------------------------------------
-#         CPP      = /usr/bin/cpp
-#         COMPILER = -DGFORTRAN
-#         FC       = gfortran  -O3
-#         DEBFLGS  =
-#         OPT      =
-#         CLIB     =
-#--------------------------------------------------------------------------
-#  absoft / mac os x defs
-#--------------------------------------------------------------------------
-#         CPP      = /usr/bin/cpp
-#         COMPILER = -DABSOFT
-#         FC       = f90  -O3  -lU77
-#         DEBFLGS  =
-#         OPT      =
-#         CLIB     =
-#--------------------------------------------------------------------------
-#  IBM/AIX Definitions
-#--------------------------------------------------------------------------
-#         COMPILER = -DAIX
-#         CPP      = /usr/local/bin/cpp
-#         FC       = mpxlf90 -qsuffix=f=f90
-#         DEBFLGS  =  # -qcheck -C -g
-#         OPT      = -O -qarch=pwr4 -qtune=pwr4  -bmaxdata:0x80000000 -qhot -qmaxmem=8096
-#--------------------------------------------------------------------------
-#  APPLE OS X/XLF Definitions (G5)
-#--------------------------------------------------------------------------
-#         COMPILER = -DAIX
-#         CPP      = /usr/bin/cpp
-#         FC       =  /opt/ibmcmp/xlf/8.1/bin/xlf90 -qsuffix=f=f90
-#         DEBFLGS  =  # -qcheck -C -g
-#         OPT      = -O5 -qarch=g5 -qtune=g5  -qhot -qmaxmem=8096 -qunroll=yes -Wl,-stack_size,10000000
-#--------------------------------------------------------------------------
-#  ARCHER Intel/MPI Compiler
-#--------------------------------------------------------------------------
-#         CPP      = /usr/bin/cpp
-#         COMPILER = -DIFORT  
-#         CC       = cc
-#         CXX      = CC
-#         CFLAGS   = -O3 
-#         FC       = ftn
-##         DEBFLGS  = -check all
-#         OPT      = -O3
-#         COPTIONS = -c89
-#--------------------------------------------------------------------------
+         CPP      = cpp
+         COMPILER = -DINTEL
+         FC       = mpiifort
+         DEBFLGS  =
+         OPT      = -O0 -g -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost -traceback -check all
+         CLIB     =
+         CC       = mpicc
+         CFLAGS   =
 #==========================================================================
 #  END USER DEFINITION SECTION
 #==========================================================================

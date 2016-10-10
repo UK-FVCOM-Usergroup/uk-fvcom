@@ -270,7 +270,8 @@ MODULE MOD_REPORT
 
     IF(MSR)THEN
        IF(LEN_TRIM(INFO_STRING) /= 0)THEN
-          WRITE(IPT,*  )'!===================',TRIM(INFO_STRING),'======================'
+          WRITE(IPT,*)'!==============================',TRIM(INFO_STRING),'============================='
+
        END IF
        RBUF1(15) = (RBUF1(15)+NGL*KBM1)*1000.
        RBUF2(15) = (RBUF2(15)+1.)*1000.
