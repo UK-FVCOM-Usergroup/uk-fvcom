@@ -52,7 +52,8 @@ MODULE MOD_FABM_3D
 #  endif
          & USE_FABM_SALINITY,         &
          & USE_FABM_BOTTOM_THICKNESS, &
-         & FABM_DEBUG
+         & FABM_DEBUG, &
+         & FABM_DIAG_OUT
 
   TYPE (type_bulk_standard_variable),PARAMETER :: mass_concentration_of_solute &
      = type_bulk_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
@@ -95,6 +96,7 @@ MODULE MOD_FABM_3D
    USE_FABM_SALINITY = .FALSE.
    USE_FABM_BOTTOM_THICKNESS = .FALSE.
    FABM_DEBUG = .FALSE.
+   FABM_DIAG_OUT = .TRUE.
 
    END SUBROUTINE NAME_LIST_INITIALIZE_FABM  
 
