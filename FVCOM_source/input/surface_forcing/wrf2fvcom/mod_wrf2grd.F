@@ -258,8 +258,8 @@ CONTAINS
     ALLOCATE(XC(0:NT),XMC(0:NT),YC(0:NT),YMC(0:NT))
 
     CALL LOAD_COLDSTART_COORDS(X_GBL,Y_GBL,X_LCL,Y_LCL)
-    CALL COORDINATE_UNITS
-    CALL SETUP_COORDS
+    CALL COORDINATE_UNITS(X_LCL,Y_LCL)
+    CALL SETUP_CENTER_COORDS
 
     DEALLOCATE(X_LCL)
     DEALLOCATE(Y_LCL)
@@ -280,13 +280,13 @@ CONTAINS
     INTEGER(ITIME) :: dummy
     CHARACTER(LEN=4) :: FLAG
     
-    CALL READ_TIME_STRING(START_DATE,DATE_FORMAT,StartTime,status)
+    StartTime = READ_DATETIME(START_DATE,DATE_FORMAT,'UTC',status)
     if (.not. status) &
          & Call Fatal_Error("Could not read the date string START_DATE: ",&
          & trim(START_DATE))
     
     ! GET THE END TIME
-    CALL READ_TIME_STRING(END_DATE,DATE_FORMAT,EndTime,status)
+    EndTime = READ_DATETIME(END_DATE,DATE_FORMAT,'UTC',status)
     if (.not. status) &
          & Call Fatal_Error("Could not read the date string END_DATE:",&
          & trim(END_DATE))
@@ -313,6 +313,7 @@ CONTAINS
     IMPLICIT NONE
     TYPE(NCFILE), POINTER :: NCF
 
+    HEATING_KIND = VRBL
     HEATING_ON = .TRUE.
     WIND_ON    = .TRUE.
     PRECIPITATION_ON = .TRUE.
@@ -336,122 +337,122 @@ CONTAINS
   END SUBROUTINE LOAD_WRF_IN
 
   
-SUBROUTINE dump_binary_force(NOW)
-  USE ALL_VARS
-  USE MOD_TIME
-  USE MOD_UTILS
-  USE MOD_PAR
-  IMPLICIT NONE
-  TYPE(TIME), INTENT(IN) :: NOW
-
-
-  LOGICAL, SAVE :: INIT = .FALSE.
-  INTEGER, PARAMETER :: wndunit=118 
-  INTEGER, PARAMETER :: hfxunit=119
-  INTEGER, PARAMETER :: evpunit=120
-  REAL(SP) :: hour, mean
-  TYPE(TIME), SAVE :: ZEROTIME, MONTH
-  INTEGER :: STATUS, I
-  REAL(SP), ALLOCATABLE :: WSUGL(:), WSVGL(:), SWRGL(:),NHFGL(:), evapgl(:),precgl(:)
-
-
-  IF(MSR) THEN
-     IF (.NOT. ALLOCATED(WSUGL)) ALLOCATE(WSUGL(0:NGL))
-     IF (.NOT. ALLOCATED(WSVGL)) ALLOCATE(WSVGL(0:NGL))
-
-     IF (.NOT. ALLOCATED(evapGL)) ALLOCATE(evapGL(0:MGL))
-     IF (.NOT. ALLOCATED(precGL)) ALLOCATE(precGL(0:MGL))
-
-     IF (.NOT. ALLOCATED(SWRGL)) ALLOCATE(SWRGL(0:MGL))
-     IF (.NOT. ALLOCATED(NHFGL)) ALLOCATE(NHFGL(0:MGL))
-  END IF
-
-!  write(ipt,*)"Wusurf: min/max",minval(wusurf),maxval(wusurf)
-
-  IF (PAR)THEN
-# if defined(MULTIPROCESSOR)
-     CALL COLLECTA(MYID,MSRID,NPROCS,EMAP,WUSURF,WSUGL)
-     CALL COLLECTA(MYID,MSRID,NPROCS,EMAP,WVSURF,WSVGL)
-      
-      CALL COLLECTA(MYID,MSRID,NPROCS,NMAP,qprec2,precgl)
-      CALL COLLECTA(MYID,MSRID,NPROCS,NMAP,qevap2,evapgl)
-
-     CALL COLLECTA(MYID,MSRID,NPROCS,NMAP,SWRAD_WATTS,SWRGL)
-     CALL COLLECTA(MYID,MSRID,NPROCS,NMAP,WTSURF_WATTS,NHFGL)
-# endif
-  ELSE 
-     
-     WSUGL(1:NT) = WUSURF(1:NT)
-     WSVGL(1:NT) = WVSURF(1:NT)
-     
-      precgl(1:MT) = Qprec2(1:MT)
-      evapgl(1:MT) = Qevap2(1:MT)
-
-     SWRGL(1:MT) = SWRAD_WATTS(1:MT)
-     NHFGL(1:MT) = WTSURF_WATTS(1:MT)
-     
-  END IF
-
-
-  
-  IF (.NOT. MSR) RETURN
-
-
-  IF(.not. INIT) THEN
-     
-     INIT = .TRUE.
-     open(wndunit,file=TRIM(WRF_OUT_FILE)//'_wnd.dat',form='unformatted',status='unknown')
-     open(hfxunit,file=TRIM(WRF_OUT_FILE)//'_hfx.dat',form='unformatted',status='unknown')
-     open(evpunit,file=TRIM(WRF_OUT_FILE)//'_evp.dat',form='unformatted',status='unknown')
-
-     CALL READ_TIME_STRING(ZERO_TIME,'ymd',ZEROTIME,status)
-     IF (.not. STATUS) CALL FATAL_ERROR("COULD NOT READ ZEROTIME STRING")
-     
-
-  END IF
-
-  hour = REAL_TIME_DIFF(NOW,ZEROTIME) / 3600.0_SP
-
-  write(ipt,*) "time", hour
-
-  mean = sum(wsugl(1:NGL))/real(NGL,SP)
-  if(isnan(mean)) call fatal_error("wsugl is nan")
-  write(ipt,*) "WSUGL: min/max/mean",minval(wsugl(1:NGL)),maxval(wsugl(1:NGL)),mean
-
-
-  mean = sum(wsvgl(1:NGL))/real(NGL,SP)
-  if(isnan(mean)) call fatal_error("wsvgl is nan")
-  write(ipt,*) "WSVGL: min/max/mean",minval(wsvgl(1:NGL)),maxval(wsvgl(1:NGL)),mean
-
-  mean = sum(swrgl(1:mGL))/real(NGL,SP)
-  if(isnan(mean)) call fatal_error("swrgl is nan")
-  write(ipt,*) "SWRGL: min/max/mean",minval(swrgl(1:MGL)),maxval(swrgl(1:MGL)),mean
-
-  mean = sum(nhfgl(1:mGL))/real(NGL,SP)
-  if(isnan(mean)) call fatal_error("nhfgl is nan")
-  write(ipt,*) "NHFGL: min/max/mean",minval(nhfgl(1:MGL)),maxval(nhfgl(1:MGL)),mean
-
-  mean = sum(evapgl(1:mGL))/real(MGL,SP)
-  if(isnan(mean)) call fatal_error("EVAPgl is nan")
-  write(ipt,*) "EVAPGL: min/max/mean",minval(EVAPgl(1:MGL)),maxval(EVAPgl(1:MGL)),mean
-
-  mean = sum(PRECgl(1:mGL))/real(MGL,SP)
-  if(isnan(mean)) call fatal_error("PRECgl is nan")
-  write(ipt,*) "PRECGL: min/max/mean",minval(PRECgl(1:MGL)),maxval(PRECgl(1:MGL)),mean
-
-
-  WRITE(wndunit) hour
-  write(wndunit)(WSUGL(i),WSVGL(i),i=1,ngl)
-
-
-  WRITE(hfxunit) hour
-  write(hfxunit)(NHFGL(i),SWRGL(i),i=1,mgl)
-
-  WRITE(evpunit) hour
-  write(evpunit)(evapgl(i),precgl(i),i=1,mgl)
-
-
-END SUBROUTINE dump_binary_force
+! SUBROUTINE dump_binary_force(NOW)
+!   USE ALL_VARS
+!   USE MOD_TIME
+!   USE MOD_UTILS
+!   USE MOD_PAR
+!   IMPLICIT NONE
+!   TYPE(TIME), INTENT(IN) :: NOW
+! 
+! 
+!   LOGICAL, SAVE :: INIT = .FALSE.
+!   INTEGER, PARAMETER :: wndunit=118 
+!   INTEGER, PARAMETER :: hfxunit=119
+!   INTEGER, PARAMETER :: evpunit=120
+!   REAL(SP) :: hour, mean
+!   TYPE(TIME), SAVE :: ZEROTIME, MONTH
+!   INTEGER :: STATUS, I
+!   REAL(SP), ALLOCATABLE :: WSUGL(:), WSVGL(:), SWRGL(:),NHFGL(:), evapgl(:),precgl(:)
+! 
+! 
+!   IF(MSR) THEN
+!      IF (.NOT. ALLOCATED(WSUGL)) ALLOCATE(WSUGL(0:NGL))
+!      IF (.NOT. ALLOCATED(WSVGL)) ALLOCATE(WSVGL(0:NGL))
+! 
+!      IF (.NOT. ALLOCATED(evapGL)) ALLOCATE(evapGL(0:MGL))
+!      IF (.NOT. ALLOCATED(precGL)) ALLOCATE(precGL(0:MGL))
+! 
+!      IF (.NOT. ALLOCATED(SWRGL)) ALLOCATE(SWRGL(0:MGL))
+!      IF (.NOT. ALLOCATED(NHFGL)) ALLOCATE(NHFGL(0:MGL))
+!   END IF
+! 
+! !  write(ipt,*)"Wusurf: min/max",minval(wusurf),maxval(wusurf)
+! 
+!   IF (PAR)THEN
+! # if defined(MULTIPROCESSOR)
+!      CALL COLLECTA(MYID,MSRID,NPROCS,EMAP,WUSURF,WSUGL)
+!      CALL COLLECTA(MYID,MSRID,NPROCS,EMAP,WVSURF,WSVGL)
+!       
+!       CALL COLLECTA(MYID,MSRID,NPROCS,NMAP,qprec2,precgl)
+!       CALL COLLECTA(MYID,MSRID,NPROCS,NMAP,qevap2,evapgl)
+! 
+!      CALL COLLECTA(MYID,MSRID,NPROCS,NMAP,SWRAD_WATTS,SWRGL)
+!      CALL COLLECTA(MYID,MSRID,NPROCS,NMAP,WTSURF_WATTS,NHFGL)
+! # endif
+!   ELSE 
+!      
+!      WSUGL(1:NT) = WUSURF(1:NT)
+!      WSVGL(1:NT) = WVSURF(1:NT)
+!      
+!       precgl(1:MT) = Qprec2(1:MT)
+!       evapgl(1:MT) = Qevap2(1:MT)
+! 
+!      SWRGL(1:MT) = SWRAD_WATTS(1:MT)
+!      NHFGL(1:MT) = WTSURF_WATTS(1:MT)
+!      
+!   END IF
+! 
+! 
+!   
+!   IF (.NOT. MSR) RETURN
+! 
+! 
+!   IF(.not. INIT) THEN
+!      
+!      INIT = .TRUE.
+!      open(wndunit,file=TRIM(WRF_OUT_FILE)//'_wnd.dat',form='unformatted',status='unknown')
+!      open(hfxunit,file=TRIM(WRF_OUT_FILE)//'_hfx.dat',form='unformatted',status='unknown')
+!      open(evpunit,file=TRIM(WRF_OUT_FILE)//'_evp.dat',form='unformatted',status='unknown')
+! 
+!      CALL READ_TIME_STRING(ZERO_TIME,'ymd',ZEROTIME,status)
+!      IF (.not. STATUS) CALL FATAL_ERROR("COULD NOT READ ZEROTIME STRING")
+!      
+! 
+!   END IF
+! 
+!   hour = REAL_TIME_DIFF(NOW,ZEROTIME) / 3600.0_SP
+! 
+!   write(ipt,*) "time", hour
+! 
+!   mean = sum(wsugl(1:NGL))/real(NGL,SP)
+!   if(isnan(mean)) call fatal_error("wsugl is nan")
+!   write(ipt,*) "WSUGL: min/max/mean",minval(wsugl(1:NGL)),maxval(wsugl(1:NGL)),mean
+! 
+! 
+!   mean = sum(wsvgl(1:NGL))/real(NGL,SP)
+!   if(isnan(mean)) call fatal_error("wsvgl is nan")
+!   write(ipt,*) "WSVGL: min/max/mean",minval(wsvgl(1:NGL)),maxval(wsvgl(1:NGL)),mean
+! 
+!   mean = sum(swrgl(1:mGL))/real(NGL,SP)
+!   if(isnan(mean)) call fatal_error("swrgl is nan")
+!   write(ipt,*) "SWRGL: min/max/mean",minval(swrgl(1:MGL)),maxval(swrgl(1:MGL)),mean
+! 
+!   mean = sum(nhfgl(1:mGL))/real(NGL,SP)
+!   if(isnan(mean)) call fatal_error("nhfgl is nan")
+!   write(ipt,*) "NHFGL: min/max/mean",minval(nhfgl(1:MGL)),maxval(nhfgl(1:MGL)),mean
+! 
+!   mean = sum(evapgl(1:mGL))/real(MGL,SP)
+!   if(isnan(mean)) call fatal_error("EVAPgl is nan")
+!   write(ipt,*) "EVAPGL: min/max/mean",minval(EVAPgl(1:MGL)),maxval(EVAPgl(1:MGL)),mean
+! 
+!   mean = sum(PRECgl(1:mGL))/real(MGL,SP)
+!   if(isnan(mean)) call fatal_error("PRECgl is nan")
+!   write(ipt,*) "PRECGL: min/max/mean",minval(PRECgl(1:MGL)),maxval(PRECgl(1:MGL)),mean
+! 
+! 
+!   WRITE(wndunit) hour
+!   write(wndunit)(WSUGL(i),WSVGL(i),i=1,ngl)
+! 
+! 
+!   WRITE(hfxunit) hour
+!   write(hfxunit)(NHFGL(i),SWRGL(i),i=1,mgl)
+! 
+!   WRITE(evpunit) hour
+!   write(evpunit)(evapgl(i),precgl(i),i=1,mgl)
+! 
+! 
+! END SUBROUTINE dump_binary_force
 
 
 
@@ -465,10 +466,12 @@ END SUBROUTINE dump_binary_force
     TYPE(NCDIM),  POINTER :: DIM2
     TYPE(NCDIM),  POINTER :: DIM3
     TYPE(NCFTIME), POINTER ::FTM
+    TYPE(GRID), SAVE :: MYGRID
     
 
 
   ! ALLOCATE THE NEW FILE OBJECT
+  CALL SET_FVCOM_GRID(MYGRID)
   NCF => NEW_FILE()
 
   NC_OUT => NCF
@@ -478,7 +481,7 @@ END SUBROUTINE dump_binary_force
 
   NCF%FNAME = TRIM(WRF_OUT_FILE)//'.nc'
 
-  NCF => ADD(NCF,GRID_FILE_OBJECT() )
+  NCF => ADD(NCF,GRID_FILE_OBJECT(MYGRID) )
 
   NCF => ADD(NCF,SURFACE_HEATING_FILE_OBJECT() )
   NCF => ADD(NCF,WIND_STRESS_FILE_OBJECT() )
