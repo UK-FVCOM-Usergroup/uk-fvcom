@@ -311,7 +311,7 @@ dashL= $(empty) -L
 #           dye release
 #---------------------------------------------------------------------------
 
-            FLAG_20 = -DDYE_RELEASE
+#            FLAG_20 = -DDYE_RELEASE
 
 #--------------------------------------------------------------------------
 #        SUSPENDED SEDIMENT MODEL:   UNCOMMENT TO INCLUDE MODEL
@@ -469,25 +469,25 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
-#         CPP      = mpiicc -E
-#         COMPILER = -DINTEL
-#         FC       = mpiifort
-#         DEBFLGS  =
-#         OPT      = -O3 -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost #-init=zero -init=arrays -ftrapuv
-#         CLIB     =
-#         CC       = mpiicc
-#         CFLAGS   =
-#--------------------------------------------------------------------------
-#  Intel/MPI Compiler Definitions (PML debug)
-#--------------------------------------------------------------------------
          CPP      = mpiicc -E
          COMPILER = -DINTEL
          FC       = mpiifort
          DEBFLGS  =
-         OPT      = -O0 -g -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost
+         OPT      = -O3 -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost #-init=zero -init=arrays -ftrapuv
          CLIB     =
          CC       = mpiicc
          CFLAGS   =
+#--------------------------------------------------------------------------
+#  Intel/MPI Compiler Definitions (PML debug)
+#--------------------------------------------------------------------------
+#         CPP      = mpiicc -E
+#         COMPILER = -DINTEL
+#         FC       = mpiifort
+#         DEBFLGS  =
+#         OPT      = -O0 -g -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost
+#         CLIB     =
+#         CC       = mpiicc
+#         CFLAGS   =
 #--------------------------------------------------------------------------
 #  gfortran defs
 #--------------------------------------------------------------------------
