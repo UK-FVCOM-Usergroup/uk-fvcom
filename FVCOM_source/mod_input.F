@@ -261,6 +261,7 @@ CONTAINS
     NC_VELOCITY     = .False.
     NC_OFFLINE      = .False.
     NC_SALT_TEMP    = .False.
+    NC_DENSITY      = .False.
     NC_TURBULENCE   = .False.
     NC_AVERAGE_VEL  = .False.
     NC_VERTICAL_VEL = .False.
@@ -296,6 +297,7 @@ CONTAINS
     NCAV_VELOCITY     = .False.
     NCAV_OFFLINE      = .False.
     NCAV_SALT_TEMP    = .False.
+    NCAV_DENSITY      = .False.
     NCAV_TURBULENCE   = .False.
     NCAV_AVERAGE_VEL  = .False.
     NCAV_VERTICAL_VEL = .False.
