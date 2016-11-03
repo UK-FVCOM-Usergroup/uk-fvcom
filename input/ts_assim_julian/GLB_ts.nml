@@ -1,0 +1,18 @@
+&NML_TS_CLIM
+ INPUT_DIR       = '../../../GLOBAL_MODEL_1978-2009/GLOBAL_Hydro/processed_step3/',
+ OUTPUT_DIR      = '../../../Model_Forcing/GLB/1980/',
+ OLD_TS_FILE     = 'GLB_Pts_julian1980.dat',
+ OUTPUT_FILE     = 'GLB_Pts_1980.nc',
+ GRID_FILE       = 'GLB_grd.dat',
+ GRID_FILE_UNITS = 'degrees',
+ SIGMA_LEVELS_FILE       = 'glbn_sig_5m.dat',
+ DEPTH_FILE      = 'GLB_dep.dat',
+ PROJECTION_REFERENCE    ='none',
+ DATE_FORMAT     = 'YMD',
+ START_DATE      = '1979-12-01 00:00:00',
+ END_DATE        = '1981-02-01 00:00:00',
+ OUT_INTERVAL    = 'days=1.',
+ TIMEZONE        = 'UTC',
+ ZERO_TIME       = 'days=0.0'
+ /
+
