@@ -145,6 +145,8 @@ MODULE MOD_FABM_3D
 
     ALLOCATE(MASK_NONE(M)); MASK_NONE = 1
 
+    call CONFIGURE_OUTPUT
+
     ! Tell FABM about the extents of the spatial domain.
     call fabm_set_domain(model,M,KB)
     call model%set_surface_index(1)
@@ -2225,6 +2227,127 @@ SUBROUTINE UPDATE_FABM_INPUTS(NOW)
       FABM_INPUT => FABM_INPUT%NEXT
    END DO
 END SUBROUTINE UPDATE_FABM_INPUTS
+
+SUBROUTINE CONFIGURE_OUTPUT()
+   USE yaml_types
+   USE yaml,yaml_parse=>parse,yaml_error_length=>error_length
+   USE fabm_types,only: output_none, output_instantaneous
+
+   CHARACTER(LEN=*),PARAMETER       :: PATH = 'fabm_output.yaml'
+   LOGICAL                          :: FOUND
+   CLASS (type_node),       POINTER :: node
+   INTEGER, PARAMETER               :: yaml_unit = 901
+   CHARACTER(LEN=yaml_error_length) :: yaml_error
+   TYPE (type_error),       POINTER :: config_error
+   CLASS (type_dictionary), POINTER :: variablemap
+   TYPE (type_key_value_pair),POINTER :: pair
+   LOGICAL                          :: IN_OUTPUT
+   LOGICAL                          :: success
+
+   INQUIRE(FILE=PATH,EXIST=FOUND)
+   IF (.NOT.FOUND) RETURN
+
+   WRITE (IPT,*) 'Reading FABM output configuration from '//PATH
+
+   node => yaml_parse(PATH,yaml_unit,yaml_error)
+   IF (yaml_error/='') CALL FATAL_ERROR(TRIM(yaml_error))
+   IF (.not.ASSOCIATED(node)) CALL FATAL_ERROR('No configuration information found in '//PATH//'.')
+
+   ! Disable output for all variables by default
+   model%state_variables(:)%output = output_none
+   model%bottom_state_variables(:)%output = output_none
+   model%surface_state_variables(:)%output = output_none
+   model%diagnostic_variables(:)%save = .false.
+   model%horizontal_diagnostic_variables(:)%save = .false.
+
+   SELECT TYPE (node)
+   CLASS IS (type_dictionary)
+      variablemap => node%get_dictionary('variables',required=.false.,error=config_error)
+      if (associated(config_error)) CALL FATAL_ERROR(PATH//': '//TRIM(config_error%message))
+      pair => variablemap%first
+      DO WHILE (ASSOCIATED(pair))
+         SELECT TYPE (value=>pair%value)
+         CLASS IS (type_scalar)
+            IN_OUTPUT = value%to_logical(.TRUE.,success)
+            IF (.not.success) CALL FATAL_ERROR(PATH//': '//trim(value%path)//' is set to "'//trim(value%string)//'", which cannot be interpreted as a Boolean value.')
+            CALL SELECT_FOR_OUTPUT(TRIM(pair%key),IN_OUTPUT)
+         CLASS IS (type_null)
+            CALL FATAL_ERROR(PATH//': '//TRIM(value%path)//' must be set to a Boolean value, not to null.')
+         CLASS IS (type_dictionary)
+            CALL FATAL_ERROR(PATH//': '//TRIM(value%path)//' must be set to a Boolean value, not to a dictionary.')
+         END SELECT
+         pair => pair%next
+      END DO
+   CLASS IS (type_node)
+      CALL FATAL_ERROR(PATH//' should must a dictionary with key: value pairs at the root level, not a single value. Are you missing a trailing colon?')
+   END SELECT
+
+CONTAINS
+
+   SUBROUTINE SELECT_FOR_OUTPUT(NAME,IN_OUTPUT)
+      CHARACTER(LEN=*),INTENT(IN) :: NAME
+      LOGICAL,         INTENT(IN) :: IN_OUTPUT
+
+      CHARACTER(LEN=LEN(NAME)) :: NAME_
+      LOGICAL :: FOUND
+      INTEGER :: IFABM
+      INTEGER :: IASTERISK
+      INTEGER :: ISTOP
+      INTEGER :: OUTPUT_FLAG
+
+      IASTERISK = INDEX(NAME,'*')
+      IF (IASTERISK/=0) THEN
+         IF (IASTERISK/=LEN_TRIM(NAME)) CALL FATAL_ERROR(PATH//': invalid expression "'//TRIM(NAME)//'". The * symbol can only appear as last character.')
+         ISTOP = IASTERISK-1
+         NAME_ = NAME(1:ISTOP)
+      ELSE
+         ISTOP = attribute_length
+         NAME_ = NAME
+      END IF
+
+      OUTPUT_FLAG = output_instantaneous
+      IF (.NOT.IN_OUTPUT) OUTPUT_FLAG = output_none
+
+      FOUND = .FALSE.
+      DO IFABM=1,SIZE(model%state_variables)
+         IF (model%state_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%state_variables(IFABM)%output = OUTPUT_FLAG
+            WRITE (IPT,*) '- '//TRIM(model%state_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      DO IFABM=1,SIZE(model%bottom_state_variables)
+         IF (model%bottom_state_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%bottom_state_variables(IFABM)%output = OUTPUT_FLAG
+            WRITE (IPT,*) '- '//TRIM(model%bottom_state_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      DO IFABM=1,SIZE(model%surface_state_variables)
+         IF (model%surface_state_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%surface_state_variables(IFABM)%output = OUTPUT_FLAG
+            WRITE (IPT,*) '- '//TRIM(model%surface_state_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      DO IFABM=1,SIZE(model%diagnostic_variables)
+         IF (model%diagnostic_variables(IFABM)%output/=output_none .and. model%diagnostic_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%diagnostic_variables(IFABM)%save = IN_OUTPUT
+            WRITE (IPT,*) '- '//TRIM(model%diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      DO IFABM=1,SIZE(model%horizontal_diagnostic_variables)
+         IF (model%horizontal_diagnostic_variables(IFABM)%output/=output_none .and. model%horizontal_diagnostic_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%horizontal_diagnostic_variables(IFABM)%save = IN_OUTPUT
+            WRITE (IPT,*) '- '//TRIM(model%horizontal_diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      IF (.NOT.FOUND) CALL FATAL_ERROR(PATH//': FABM variable with name "'//TRIM(NAME)//'" not found.')
+   END SUBROUTINE
+
+END SUBROUTINE
 
 # endif
 
