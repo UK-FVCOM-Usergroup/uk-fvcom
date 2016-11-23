@@ -13901,7 +13901,7 @@ CONTAINS
 
     CALL NC_POINT_VAR(FABM_WC_N,VNP_INT)
     CALL NC_POINT_VAR(FABM_WC_P,VPP_INT) 
-    DO I=1,MT
+    DO I=1,NT ! loop through elements rather than nodes, hence NT and not MT
       offlineb_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
 # endif
@@ -14110,7 +14110,7 @@ CONTAINS
 
     CALL NC_POINT_VAR(SEDIMENTS_WC_N,VNP_INT)
     CALL NC_POINT_VAR(SEDIMENTS_WC_P,VPP_INT) 
-    DO I=1,MT
+    DO I=1,NT
       OFFLINE_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
 # endif

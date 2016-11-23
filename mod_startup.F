@@ -2069,7 +2069,6 @@ CONTAINS
       CALL NC_READ_VAR(VAR,STKCNT)
     END DO
 
-    FABM_MEAN=FABM_ALL
 
     DO IFABM = 1,size(model%bottom_state_variables)
       ! LOAD BOTTOM-BOUND FABM STATE VARIABLES
