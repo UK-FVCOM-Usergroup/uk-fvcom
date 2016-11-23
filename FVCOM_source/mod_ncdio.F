@@ -1514,7 +1514,7 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:H")
        h = 0.0_SP
        
-# if defined(UCF)
+!# if defined(UCF)
        allocate(zz1(NGL,KB),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ZZ1")
        zz1 = 0.0_SP
@@ -1526,7 +1526,7 @@ CONTAINS
        allocate(h1(NGL),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORcY ON IO PROC FOR OUTPUT DATA:H1")
        h1 = 0.0_SP
-# endif
+!# endif
 
        
     END IF
@@ -1829,7 +1829,7 @@ CONTAINS
        NCF  => ADD(NCF,VAR)
     END IF
 
-# if defined(UCF)
+!# if defined(UCF)
     ! ADD SIGMA VALUE AT CELL CENTERS!
     IF (ALLOCATED(zz1)) THEN
        ! siglay
@@ -1922,7 +1922,7 @@ CONTAINS
     END IF
 
 
-# endif
+!# endif
 
     IF (ALLOCATED(h)) THEN
        ! h (if morphodynamics is on, dump time-dependent bathymetry)
@@ -2124,7 +2124,7 @@ CONTAINS
 
 # if defined(UCF)
        allocate(EL1(NGL),stat=status)
-       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:EL1"
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:EL1")
        EL1 = 0.0_SP
 # endif
     END IF
@@ -3516,7 +3516,7 @@ CONTAINS
     ATT  => NC_MAKE_ATT(name='long_name',values='Turbulent Kinetic Energy') 
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='m2 s-2') 
+    ATT  => NC_MAKE_ATT(name='units',values='m^2/s^2') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
@@ -3537,7 +3537,7 @@ CONTAINS
     ATT  => NC_MAKE_ATT(name='long_name',values='Turbulent Kinetic Energy Dissipation Rate') 
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='w kg-1 ') 
+    ATT  => NC_MAKE_ATT(name='units',values='m^2/s^3') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
