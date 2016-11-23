@@ -15,7 +15,7 @@ MODULE MOD_FABM_3D
   USE MOD_PAR
 
   ! For reading FABM forcing data from NetCDF:
-  USE MOD_NCDIO
+  USE MOD_NCTOOLS
 
   IMPLICIT NONE
 
@@ -142,7 +142,8 @@ MODULE MOD_FABM_3D
 
    SUBROUTINE FABM_ALLOCATE()
     INTEGER :: IFABM
-
+    
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_ALLOCATE"
     ALLOCATE(MASK_NONE(M)); MASK_NONE = 1
 
     call CONFIGURE_OUTPUT
@@ -249,7 +250,7 @@ MODULE MOD_FABM_3D
     ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%state_variables))) ; XFLUX_OBCB  =  0.0_SP
     ALLOCATE(PFABMPXB(MT,size(model%state_variables)))        ; PFABMPXB    = ZERO
     ALLOCATE(PFABMPYB(MT,size(model%state_variables)))        ; PFABMPYB    = ZERO
-
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_ALLOCATE"
    END SUBROUTINE
 
    SUBROUTINE PREPARE_ENVIRONMENT()
@@ -312,7 +313,7 @@ MODULE MOD_FABM_3D
 
    SUBROUTINE FABM_INITIALIZE_STATE()
       INTEGER :: K
-
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_STATE" 
       IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIALIZE_STATE called before FABM_ALLOCATE")
 
       CALL PREPARE_ENVIRONMENT
@@ -333,11 +334,14 @@ MODULE MOD_FABM_3D
 # else
       call fabm_set_mask(model,MASK_NONE)
 # endif
-
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE" 
 
    END SUBROUTINE FABM_INITIALIZE_STATE
 
    SUBROUTINE FABM_INITIALIZE_DIAGNOSTICS()
+
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_DIAGNOSTICS" 
+
       ! Provide FABM with pointer to the dummy mask ("nothing masked") to ensure even diagnostics on dry points have a value.
       call fabm_set_mask(model,MASK_NONE)
 
@@ -354,6 +358,8 @@ MODULE MOD_FABM_3D
 
       ! Compute initial value of conserved quantity integrals
       CALL CHECK_CONSERVATION
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE" 
+
    END SUBROUTINE FABM_INITIALIZE_DIAGNOSTICS
 
 SUBROUTINE FABM_UPDATE
@@ -361,6 +367,7 @@ SUBROUTINE FABM_UPDATE
 
      INTEGER :: IFABM
      LOGICAL :: VALID
+     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE" 
 
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
@@ -466,6 +473,8 @@ END SUBROUTINE REPORT_FABM
 SUBROUTINE FABM_UPDATE_SALINITY
    INTEGER :: I
 
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE_SALINITY" 
+
    ! Note that FABM salinity is expressed in g/L, NOT in g/kg as absolute salinity (TEOS 2010), which would come closer to PSU.
    ! Hence, we here divide by density in kg/L to get g/kg.
    ! [NB density residual rho will be the density computed previously for the old salinity value]
@@ -488,6 +497,8 @@ SUBROUTINE FABM_UPDATE_SALINITY
 
    ! Use updated salinity also on elements
    CALL N2E3D(S1,S)
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_UPDATE_SALINITY" 
+
 END SUBROUTINE FABM_UPDATE_SALINITY
 
 SUBROUTINE FABM_UPDATE_DEPTH
@@ -528,7 +539,7 @@ SUBROUTINE FABM_UPDATE_DEPTH
 #  endif
 
    END DO
-
+! Extend H to halo nodes
 # if defined (MULTIPROCESSOR)
    IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,H )
 # endif
@@ -647,7 +658,9 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_SOURCES :"
 
      CALL PREPARE_ENVIRONMENT
-
+# if defined (WET_DRY)
+     call fabm_set_mask(model,ISWETN(1:M))
+# endif
      ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
      DO K=1,KBM1
         CALL fabm_get_light_extinction(model,1,M,K,DUMMY)
@@ -659,10 +672,10 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
         CALL fabm_get_light(model,1,KBM1,I)
      END DO
 
-     FLUX_SF = 0
-     FLUX_BT = 0
-     SMS_SF = 0
-     SMS_BT = 0
+     FLUX_SF = 0.
+     FLUX_BT = 0.
+     SMS_SF = 0.
+     SMS_BT = 0.
 
      ! Get sources-sinks for interface-attached state variables, and cross-interface
      ! fluxes (air-sea gas exchange, sedimentation, pelagic-benthic diffusion flux)

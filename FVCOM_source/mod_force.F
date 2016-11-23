@@ -2907,6 +2907,8 @@ CONTAINS
              NULLIFY(STORAGE_VEC)
 
           ! TODO: report for which variables river data is being used
+              IF(DBG_SET(DBG_SBR)) write(ipt,*) "RIVER_FORCINGS: FABM VARIABLE FOUND", TRIM(model%state_variables(IFABM)%name)
+
            ENDIF
 
          END DO
@@ -3484,7 +3486,7 @@ CONTAINS
     CASE ('unifor')
        
        ! ALREADY SET VALUES
-       WRITE(IPT,*) "UNIFORM RIVER DISTRIBUTION",MYDIST
+!       WRITE(IPT,*) "UNIFORM RIVER DISTRIBUTION",MYDIST
        ! HEAVISIDE FUNCTION
     CASE('heavis')
        
@@ -5440,8 +5442,10 @@ CONTAINS
        IF(FOUND) THEN
           ! TODO: report which variables have OBC
           FABM_OBC_PRESCRIBED(IFABM)=.TRUE.
-       ATT => FIND_ATT(VAR,'units',FOUND)
-       IF(.not. FOUND) CALL FATAL_ERROR &
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! FABM VARIABLE AVAILABLE TO READ IN OBC FILE!"//trim(model%state_variables(IFABM)%name)
+
+         ATT => FIND_ATT(VAR,'units',FOUND)
+         IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
             &"COULD NOT FIND "//trim(model%state_variables(IFABM)%name)//" VARIABLE'S ATTRIBUTE 'units'")
@@ -10798,7 +10802,7 @@ CONTAINS
 #if defined (FABM)
     INTEGER :: IFABM
 #endif
-
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: UPDATE RIVERS" 
     IF(.NOT. ALLOCATED(FLUX)) CALL FATAL_ERROR &
          &("THE RIVER FLUX VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
 
@@ -11884,7 +11888,7 @@ CONTAINS
 #endif
 
     END DO ! FOR EACH FILE
-
+   IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: UPDATE_RIVERS" 
   END SUBROUTINE UPDATE_RIVERS
   !==============================================================================|
   SUBROUTINE UPDATE_GROUNDWATER(NOW,GW_FLUX,GW_TEMP,GW_SALT)
@@ -12833,6 +12837,7 @@ CONTAINS
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS,I
 
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: UPDATE_OFFLINE_FABM_FORCING" 
 
     IF(.NOT. ALLOCATED(offlineb_u)) CALL FATAL_ERROR &
          &("THE offlineb_u VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
@@ -12945,7 +12950,7 @@ CONTAINS
 
     CALL NC_POINT_VAR(FABM_WN_N,VNP_INT)
     CALL NC_POINT_VAR(FABM_WN_P,VPP_INT)
-    DO I=1,MT
+    DO I=1,MT ! do we need to loop here? 
       offlineb_WN(I)=VNP_INT(I)*VPP_INT(I)
     END DO
 
@@ -12957,7 +12962,7 @@ CONTAINS
 
     CALL NC_POINT_VAR(FABM_WC_N,VNP_INT)
     CALL NC_POINT_VAR(FABM_WC_P,VPP_INT) 
-    DO I=1,MT
+    DO I=1,NT ! loop through elements rather than nodes, hence NT and not MT
       offlineb_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
 # endif
@@ -13102,7 +13107,7 @@ CONTAINS
 
     CALL NC_POINT_VAR(SEDIMENTS_WC_N,VNP_INT)
     CALL NC_POINT_VAR(SEDIMENTS_WC_P,VPP_INT) 
-    DO I=1,MT
+    DO I=1,NT
       OFFLINE_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
 
@@ -13957,6 +13962,8 @@ CONTAINS
     INTEGER :: STATUS
     INTEGER :: IFABM
 
+    IF(dbg_set(dbg_sbr)) write(ipt,*) "Start: UPDATE_OBC_FABM"
+
     IF(.NOT. ALLOCATED(FABMO)) CALL FATAL_ERROR &
          &("THE BOUNDARY FABMO VARIABLE PASSED TO UPDATE_OBC_FABM IS NOT ALLOCATED")
 
@@ -13982,6 +13989,7 @@ CONTAINS
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN OBC FABM FILE TYPE IN UPDATE_OBC_FABM")
     END SELECT
+    IF(dbg_set(dbg_sbr)) write(ipt,*) "End: UPDATE_OBC_FABM"
 
   END SUBROUTINE UPDATE_OBC_FABM
 # endif  
