@@ -1071,6 +1071,8 @@ SUBROUTINE INTERNAL_STEP
      
      ! There is a bug in the advection of turbulent kinetic energy
      ! when using the GOTM MODULE
+! RJT It does indeed crash after a few iterations. Not having advection of
+! turbulence quantities limits the usability of GOTM with fvcom...
      
      !     CALL ADV_Q(TKE,TKEF)     !!Advection of Tubulent Kinetic Energy
      !     CALL ADV_Q(TEPS,TEPSF)   !!Advection of Turbulent Dissipation Rate 

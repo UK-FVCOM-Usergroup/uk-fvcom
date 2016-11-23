@@ -2585,7 +2585,11 @@ END SUBROUTINE GENMAP_NESTING
     D%V_BLK(:,:,D%IDX) = V(G%ELID(:),:)
     D%S1_BLK(:,:,D%IDX) = S1(G%NLID(:),:)
     D%T1_BLK(:,:,D%IDX) = T1(G%NLID(:),:)
+# if defined (NH)
     D%HYW_BLK(:,:,D%IDX) = CALC_HYW(G)
+# else
+    D%HYW_BLK(:,:,D%IDX) = 0.0_SP
+# endif
     D%TIME_BLK(D%IDX) = INTTIME
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END ASSIGN2BLOCK"
