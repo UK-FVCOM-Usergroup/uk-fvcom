@@ -55,7 +55,7 @@
         END DO	 
       ELSE
 !     *** call KSCIP1 to compute KWAVE and CGO ***
-        CALL KSCIP(MSC,SPCSIG,DEPLOC,KWAVE(1,IC),CGO(1,IC),NN,ND)                                 
+        CALL KSCIP1(MSC,SPCSIG,DEPLOC,KWAVE(1,IC),CGO(1,IC),NN,ND)                                 
       ENDIF
     ELSE                                                    
       INDX  = NBVE(IG,IC-1)
@@ -69,7 +69,7 @@
         END DO	 
       ELSE
 !     *** call KSCIP1 to compute KWAVE and CGO ***
-        CALL KSCIP(MSC,SPCSIG,DEPLOC,KWAVE(1,IC),CGO(1,IC),NN,ND)
+        CALL KSCIP1(MSC,SPCSIG,DEPLOC,KWAVE(1,IC),CGO(1,IC),NN,ND)
       ENDIF
     END IF  
   ENDDO                                                              
