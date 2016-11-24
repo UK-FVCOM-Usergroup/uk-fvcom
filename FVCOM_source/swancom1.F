@@ -908,6 +908,13 @@
      !  if(msr)print*,'between ********'
        CALL ADV_N(DTW)
 
+#  if defined (MULTIPROCESSOR)
+#  if defined (ICE)
+      CALL ICETT2
+      DEALLOCATE(Sice)
+#  endif
+#  endif
+
 !JQI#      if defined (MULTIPROCESSOR)
 !JQI       IF(PAR)THEN
 !JQI         ALLOCATE(AC2_TMP(0:MT));   AC2_TMP = 0.0
@@ -4300,7 +4307,7 @@
          IF ( IAMOUT.EQ.3 .AND. IT.EQ.1 ) RNRM0 = RNORM
 
          IF ( IAMOUT.EQ.2 ) THEN
-            WRITE (PRINTF,'(A,I3,A,E12.6)')               &
+            WRITE (PRINTF,'(A,I3,A,E13.6)')               &
 	            ' ++ SWSIP: iter = ',IT,'    res = ',RNORM
          END IF
 
@@ -4358,16 +4365,16 @@
 	       IXCGRD(1)+MXF-1,',',IYCGRD(1)+MYF-1,')'
          WRITE (PRINTF,'(A,I3)')                            &
 	      '           total number of iterations     = ',IT
-         WRITE (PRINTF,'(A,E12.6)')                         &
+         WRITE (PRINTF,'(A,E13.6)')                         &
 	      '           2-norm of the residual         = ',RNORM
-         WRITE (PRINTF,'(A,E12.6)')                         &
+         WRITE (PRINTF,'(A,E13.6)')                         &
 	      '           required accuracy              = ',EPSLIN
       ELSE IF ( IAMOUT.EQ.3 ) THEN
-         WRITE (PRINTF,'(A,E12.6)')                         &
+         WRITE (PRINTF,'(A,E13.6)')                         &
 	      ' ++ SWSIP: 2-norm of the initial residual = ',RNRM0
          WRITE (PRINTF,'(A,I3)')                            &
 	      '           total number of iterations     = ',IT
-         WRITE (PRINTF,'(A,E12.6)')                         &
+         WRITE (PRINTF,'(A,E13.6)')                         &
 	      '           2-norm of the residual         = ',RNORM
       END IF
 
@@ -4849,7 +4856,7 @@
             GOTO 10
          END IF
          IF ( IAMOUT.EQ.2 ) THEN
-            WRITE (PRINTF,'(A,I3,A,E12.6,A,I3,A,I3,A)')     &
+            WRITE (PRINTF,'(A,I3,A,E13.6,A,I3,A,I3,A)')     &
 	          ' ++ SWSOR: iter = ',IT,'    res = ',RESM, &
 		  ' in (ID,IS) = (',IDINF,',',ISINF,')'
          END IF
@@ -4876,16 +4883,16 @@
 	      IXCGRD(1)+MXF-1,',',IYCGRD(1)+MYF-1,')'
          WRITE (PRINTF,'(A,I3)')                              &
 	      '           total number of iterations       = ',IT
-         WRITE (PRINTF,'(A,E12.6)')                           &
+         WRITE (PRINTF,'(A,E13.6)')                           &
 	      '           inf-norm of the residual         = ',RESM
-         WRITE (PRINTF,'(A,E12.6)')                           &
+         WRITE (PRINTF,'(A,E13.6)')                           &
 	      '           required accuracy                = ',REPS
       ELSE IF ( IAMOUT.EQ.3 ) THEN
-         WRITE (PRINTF,'(A,E12.6)')                           &
+         WRITE (PRINTF,'(A,E13.6)')                           &
 	      ' ++ SWSOR: inf-norm of the initial residual = ',RESM0
          WRITE (PRINTF,'(A,I3)')                              &
 	      '           total number of iterations       = ',IT
-         WRITE (PRINTF,'(A,E12.6)')                           &
+         WRITE (PRINTF,'(A,E13.6)')                           &
 	      '           inf-norm of the residual         = ',RESM
       END IF
 
@@ -5413,3 +5420,36 @@
       END SUBROUTINE SWSTPC
 
 # endif
+
+
+!****************************************************************
+!
+  SUBROUTINE ICETT2
+!
+!****************************************************************
+!
+  USE M_GENARR
+  USE SWCOMM2
+  USE SWCOMM3
+  USE SWCOMM4
+  USE OCPCOMM4
+  USE M_PARALL
+  USE ALL_VARS
+  USE VARS_WAVE
+
+  INTEGER :: I,ISS,ID
+
+  DO I = 1,MT
+   DO ISS = 1,MSC
+    DO ID = 1,MDC
+     if (Sice(ID,ISS,I)>0) then
+       AC2(ID,ISS,I)=AC2(ID,ISS,I)-Sice(ID,ISS,I)
+       AC2(ID,ISS,I)=MAX(0.0,AC2(ID,ISS,I))
+     endif
+    END DO
+   END DO
+  END DO
+
+  RETURN
+  END SUBROUTINE ICETT2
+

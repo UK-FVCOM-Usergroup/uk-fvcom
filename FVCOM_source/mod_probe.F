@@ -69,7 +69,13 @@ MODULE PROBES
   USE LIMS
   USE MOD_PAR
 # if defined (SEDIMENT)
-  USE MOD_SED
+
+#  if defined (ORIG_SED)
+  USE mod_sed
+#  elif defined (CSTMS_SED)
+  USE mod_sed_cstms
+#  endif
+
 # endif  
   IMPLICIT NONE
   SAVE
@@ -866,7 +872,7 @@ SUBROUTINE ALLOC_PROBE(PROBE,N)
       CASE("vice2")
          CALL MYPROBE(PROBE,VICE2)
 # endif
-# if defined (SEDIMENT)
+# if defined (ORIG_SED)
       CASE("csed")
          CALL MYPROBE(PROBE,CSED)
 # endif

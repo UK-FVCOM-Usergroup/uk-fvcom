@@ -58,7 +58,11 @@ SUBROUTINE INTERNAL_STEP
   USE NON_HYDRO
 # endif
 # if defined (SEDIMENT)
-  USE MOD_SED, only : morpho_model, morpho_factor
+# if defined (ORIG_SED)
+  USE MOD_SED
+# elif defined (CSTMS_SED)
+  USE MOD_SED_CSTMS
+# endif
 # endif
 # if defined (DYE_RELEASE)
   USE MOD_DYE
@@ -116,12 +120,12 @@ SUBROUTINE INTERNAL_STEP
   END IF
 
 !----OFFLINE SEDIMENT UPDATE
-# if defined (OFFLINE_SEDIMENT)
+# if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
   !----SPECIFY THE SURFACE FORCING OF INTERNAL MODES-----------------------------!
 # if defined (GCN)
-  CALL BCOND_GCN(8)
+  CALL BCOND_GCN(8,0)
 #   else
-  CALL BCOND_GCY(8)
+  CALL BCOND_GCY(8,0)
 # endif
 
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -140,12 +144,22 @@ SUBROUTINE INTERNAL_STEP
   V   = OFFLINE_V 
   WTS = OFFLINE_W
   S1  = OFFLINE_S1
+  T1  = OFFLINE_T1
   KH  = OFFLINE_KH
   EL  = OFFLINE_EL
+# if defined (GOTM)
+  TEPS = OFFLINE_TEPS
+# else
+  Q2  = OFFLINE_Q2
+  Q2L = OFFLINE_Q2L
+# endif
+  
+# if defined (WET_DRY)
   iswetn = INT(OFFLINE_WN)
   iswetnt = iswetn
   iswetc = INT(OFFLINE_WC)
   iswetct = iswetc
+# endif
   D = H + EL
   DT = D
   DTFA = D
@@ -155,12 +169,15 @@ SUBROUTINE INTERNAL_STEP
 # if defined(MULTIPROCESSOR)
   IF(PAR)THEN
     CALL AEXCHANGE(EC,MYID,NPROCS,U,V)
-    CALL AEXCHANGE(NC,MYID,NPROCS,S1,KH,WTS)
-    CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
+    CALL AEXCHANGE(NC,MYID,NPROCS,S1,T1)
+    CALL AEXCHANGE(NC,MYID,NPROCS,KH,WTS)
     CALL AEXCHANGE(NC,MYID,NPROCS,EL,D,DT)
     CALL AEXCHANGE(NC,MYID,NPROCS,DTFA)
     CALL AEXCHANGE(EC,MYID,NPROCS,D1,DT1)
+# if defined (WET_DRY)
+    CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
     CALL AEXCHANGE(EC,MYID,NPROCS,iswetc,iswetct)
+# endif
   END IF
 # endif
 
@@ -176,8 +193,6 @@ SUBROUTINE INTERNAL_STEP
 
 
 
-  CALL BOTTOM_ROUGHNESS
-
 !==============================================================================!
 !    SEDIMENT MODEL SECTION  
 !      Advance Sed Model (Erode/Deposit/Advect/Diffuse)      
@@ -187,6 +202,9 @@ SUBROUTINE INTERNAL_STEP
 !      morpho_model and morpho_factor are stored and set in mod_sed.F              
 !==============================================================================!
 # if defined (SEDIMENT)
+
+  CALL BOTTOM_ROUGHNESS
+
   DPDAYS = days(inttime)
   SPDAYS = DPDAYS
   IF(SEDIMENT_MODEL)CALL ADVANCE_SED(DTI,spdays,taubm_n(1:m))
@@ -197,6 +215,10 @@ SUBROUTINE INTERNAL_STEP
     endif
   ENDIF
 
+# endif
+
+# if defined (BioGen)
+  IF(BIOLOGICAL_MODEL)CALL BIO_3D1D                           
 # endif
 
 
@@ -227,9 +249,9 @@ SUBROUTINE INTERNAL_STEP
 
   !----SPECIFY THE SOLID BOUNDARY CONDITIONS OF U&V INTERNAL MODES---------------!
 #   if defined (GCN)
-    CALL BCOND_GCN(5)
+    CALL BCOND_GCN(5,0)
 #   else
-    CALL BCOND_GCY(5)
+    CALL BCOND_GCY(5,0)
 #   endif
 
 #   if defined(MULTIPROCESSOR)
@@ -240,9 +262,9 @@ SUBROUTINE INTERNAL_STEP
 
   !----SPECIFY THE SURFACE FORCING OF INTERNAL MODES-----------------------------!
 # if defined (GCN)
-  CALL BCOND_GCN(8)
+  CALL BCOND_GCN(8,0)
 #   else
-  CALL BCOND_GCY(8)
+  CALL BCOND_GCY(8,0)
 # endif
 
   ! New Open Boundary Condition ----3
@@ -521,9 +543,9 @@ SUBROUTINE INTERNAL_STEP
 #  endif
 
 #  if defined (GCN)
-   CALL BCOND_GCN(1)
+   CALL BCOND_GCN(1,0)
 #  else
-   CALL BCOND_GCY(1)
+   CALL BCOND_GCY(1,0)
 #  endif
 
    IF(NESTING_ON )THEN
@@ -647,9 +669,9 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (NH)  
 #   if defined (GCN)
-    CALL BCOND_GCN(3)    ! Boundary Condition on U/V At River Input           !
+    CALL BCOND_GCN(3,0)    ! Boundary Condition on U/V At River Input           !
 #   else
-    CALL BCOND_GCY(3)    ! Boundary Condition on U/V At River Input           !
+    CALL BCOND_GCY(3,0)    ! Boundary Condition on U/V At River Input           !
 #   endif
 
 # if defined (PLBC)
@@ -680,9 +702,9 @@ SUBROUTINE INTERNAL_STEP
 #  if defined (TWO_D_MODEL) 
 
 #   if defined (GCN)
-    CALL BCOND_GCN(8)
+    CALL BCOND_GCN(8,0)
 #   else
-    CALL BCOND_GCY(8)
+    CALL BCOND_GCY(8,0)
 #   endif
 
     UAC = UA
@@ -1046,6 +1068,10 @@ SUBROUTINE INTERNAL_STEP
 !      morpho_model and morpho_factor are stored and set in mod_sed.F              
 !==============================================================================!
 # if defined (SEDIMENT)
+# if defined (DATA_ASSIM)
+  IF(ASSIM_FLAG.AND.(SST_ASSIM.OR.SSTGRD_ASSIM.OR.SSHGRD_ASSIM.OR.TSGRD_ASSIM))THEN
+# endif
+
    DPDAYS = days(inttime)
    SPDAYS = DPDAYS
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -1067,10 +1093,15 @@ SUBROUTINE INTERNAL_STEP
 
   ENDIF
 
+# if defined (DATA_ASSIM)
+  ENDIF
+# endif
+
 # endif
   
 #   if defined (BioGen)
-  CALL BIO_3D1D                          
+  IF(BIOLOGICAL_MODEL)CALL BIO_3D1D
+                           
 #   endif
 
   !==============================================================================!
@@ -1159,6 +1190,16 @@ SUBROUTINE INTERNAL_STEP
 !     END IF
 
 #   if !defined (ONE_D_MODEL)
+!J. Ge for tracer advection
+     IF(BACKWARD_ADVECTION==.TRUE.)THEN
+       IF(BACKWARD_STEP==1)THEN
+        T0 = T1
+       ELSEIF(BACKWARD_STEP==2)THEN
+         T2 = T0
+         T0 = T1
+       ENDIF
+     ENDIF
+!J. Ge for tracer advection
      T1 = TF1                                       !Update to new time level  !
 #   endif
 
@@ -1246,7 +1287,17 @@ SUBROUTINE INTERNAL_STEP
 !     END IF
 
 #   if !defined (ONE_D_MODEL)
-     S1 = SF1                                       !Update to new time level  !
+!J. Ge for tracer advection
+     IF(BACKWARD_ADVECTION==.TRUE.)THEN
+       IF(BACKWARD_STEP==1)THEN
+        S0 = S1
+       ELSEIF(BACKWARD_STEP==2)THEN
+         S2 = S0
+         S0 = S1
+       ENDIF
+     ENDIF
+!J. Ge for tracer advection
+     S1 = SF1                                     !Update to new time level  !
 #   endif
 
      CALL N2E3D(S1,S)                               !Shift to Elements         !
@@ -1428,9 +1479,9 @@ SUBROUTINE INTERNAL_STEP
     IF(ASSIM_FLAG==0 .AND. (.NOT. SST_ASSIM .AND. .NOT. SSTGRD_ASSIM .AND. .NOT. SSHGRD_ASSIM .AND. .NOT. TSGRD_ASSIM) )CALL CURRENT_ASSIMILATION
     IF(ASSIM_FLAG==1 .AND. (SST_ASSIM .OR. SSTGRD_ASSIM .OR. SSHGRD_ASSIM .OR. TSGRD_ASSIM)) CALL CURRENT_ASSIMILATION
 #   if defined (GCN)
-    CALL BCOND_GCN(5)
+    CALL BCOND_GCN(5,0)
 #   else
-    CALL BCOND_GCY(5)
+    CALL BCOND_GCY(5,0)
 #   endif
   END IF
 !==============================================================================!

@@ -174,22 +174,72 @@ SUBROUTINE ADV_S
            I2=NBSN(I,J+1)
 
 #    if defined (WET_DRY)
-         IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
-          FFD=0.5_SP*(S1(I,K)+S1(I2,K)-SMEAN1(I,K)-SMEAN1(I2,K))
-          FF1=0.5_SP*(S1(I,K)+S1(I2,K))
-	 ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
-          FFD=0.5_SP*(S1(I1,K)+S1(I,K)-SMEAN1(I1,K)-SMEAN1(I,K))
-          FF1=0.5_SP*(S1(I1,K)+S1(I,K))
-	 ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
-          FFD=0.5_SP*(S1(I,K)+S1(I,K)-SMEAN1(I,K)-SMEAN1(I,K))
-          FF1=0.5_SP*(S1(I,K)+S1(I,K))
-	 ELSE
-          FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
-          FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
-	 END IF 
-#    else	 
-           FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
-           FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
+!J. Ge for tracer advection
+           IF(BACKWARD_ADVECTION==.FALSE.)THEN
+
+            IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
+             FFD=0.5_SP*(S1(I,K)+S1(I2,K)-SMEAN1(I,K)-SMEAN1(I2,K))
+             FF1=0.5_SP*(S1(I,K)+S1(I2,K))
+            ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
+             FFD=0.5_SP*(S1(I1,K)+S1(I,K)-SMEAN1(I1,K)-SMEAN1(I,K))
+             FF1=0.5_SP*(S1(I1,K)+S1(I,K))
+            ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
+             FFD=0.5_SP*(S1(I,K)+S1(I,K)-SMEAN1(I,K)-SMEAN1(I,K))
+             FF1=0.5_SP*(S1(I,K)+S1(I,K))
+            ELSE
+             FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
+             FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
+            END IF
+
+           ELSE
+         
+            IF(BACKWARD_STEP==1)THEN
+              IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
+               FFD=0.5_SP*((S0(I,K)+S1(I,K))*0.5+(S0(I2,K)+S1(I2,K))*0.5-SMEAN1(I,K)-SMEAN1(I2,K))
+               FF1=0.5_SP*((S0(I,K)+S1(I,K))*0.5+(S0(I2,K)+S1(I2,K))*0.5)
+              ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
+               FFD=0.5_SP*((S0(I1,K)+S1(I1,K))*0.5+(S0(I,K)+S1(I,K))*0.5-SMEAN1(I1,K)-SMEAN1(I,K))
+               FF1=0.5_SP*((S0(I1,K)+S1(I1,K))*0.5+(S0(I,K)+S1(I,K))*0.5)
+	      ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
+               FFD=0.5_SP*((S0(I,K)+S1(I,K))*0.5+(S0(I,K)+S1(I,K))*0.5-SMEAN1(I,K)-SMEAN1(I,K))
+               FF1=0.5_SP*((S0(I,K)+S1(I,K))*0.5+(S0(I,K)+S1(I,K))*0.5)
+	      ELSE
+               FFD=0.5_SP*((S0(I1,K)+S1(I1,K))*0.5+(S0(I2,K)+S1(I2,K))*0.5-SMEAN1(I1,K)-SMEAN1(I2,K))
+               FF1=0.5_SP*((S0(I1,K)+S1(I1,K))*0.5+(S0(I2,K)+S1(I2,K))*0.5)
+	      END IF 
+            ELSEIF(BACKWARD_STEP==2)THEN
+              IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
+               FFD=0.5_SP*((S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP+(S2(I2,K)+S0(I2,K)+S1(I2,K))/3.0_SP-SMEAN1(I,K)-SMEAN1(I2,K))
+               FF1=0.5_SP*((S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP+(S2(I2,K)+S0(I2,K)+S1(I2,K))/3.0_SP)
+              ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
+               FFD=0.5_SP*((S2(I1,K)+S0(I1,K)+S1(I1,K))/3.0_SP+(S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP-SMEAN1(I1,K)-SMEAN1(I,K))
+               FF1=0.5_SP*((S2(I1,K)+S0(I1,K)+S1(I1,K))/3.0_SP+(S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP)
+	      ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
+               FFD=0.5_SP*((S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP+(S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP-SMEAN1(I,K)-SMEAN1(I,K))
+               FF1=0.5_SP*((S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP+(S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP)
+	      ELSE
+               FFD=0.5_SP*((S2(I1,K)+S0(I1,K)+S1(I1,K))/3.0_SP+(S2(I2,K)+S0(I2,K)+S1(I2,K))/3.0_SP-SMEAN1(I1,K)-SMEAN1(I2,K))
+               FF1=0.5_SP*((S2(I1,K)+S0(I1,K)+S1(I1,K))/3.0_SP+(S2(I2,K)+S0(I2,K)+S1(I2,K))/3.0_SP)
+	      END IF 
+            ENDIF
+
+           END IF
+!J. Ge for tracer advection
+#    else
+!J. Ge for tracer advection	 
+           IF(BACKWARD_ADVECTION==.FALSE.)THEN
+             FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
+             FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
+           ELSE
+             IF(BACKWARD_STEP==1)THEN
+               FFD=0.5_SP*((S0(I1,K)+S1(I1,K))*0.5+(S0(I2,K)+S1(I2,K))*0.5-SMEAN1(I1,K)-SMEAN1(I2,K))
+               FF1=0.5_SP*((S0(I1,K)+S1(I1,K))*0.5+(S0(I2,K)+S1(I2,K))*0.5)
+             ELSEIF(BACKWARD_STEP==2)THEN
+               FFD=0.5_SP*((S2(I1,K)+S0(I1,K)+S1(I1,K))/3.0_SP+(S2(I2,K)+S0(I2,K)+S1(I2,K))/3.0_SP-SMEAN1(I1,K)-SMEAN1(I2,K))
+               FF1=0.5_SP*((S2(I1,K)+S0(I1,K)+S1(I1,K))/3.0_SP+(S2(I2,K)+S0(I2,K)+S1(I2,K))/3.0_SP)
+             ENDIF
+           ENDIF
+!J. Ge for tracer advection
 #    endif	 
 	 
 
@@ -251,8 +301,20 @@ SUBROUTINE ADV_S
            DO J=1,NTSN(N_DAM_MATCH(I,NX+1))-1
              I1=NBSN(N_DAM_MATCH(I,NX+1),J)
              I2=NBSN(N_DAM_MATCH(I,NX+1),J+1)
-             FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
-             FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
+!J. Ge for tracer advection
+             IF(BACKWARD_ADVECTION==.FALSE.)THEN
+               FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
+               FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
+             ELSE
+               IF(BACKWARD_STEP==1)THEN
+                FFD=0.5_SP*((S0(I1,K)+S1(I1,K))*0.5+(S0(I2,K)+S1(I2,K))*0.5-SMEAN1(I1,K)-SMEAN1(I2,K))
+                FF1=0.5_SP*((S0(I1,K)+S1(I1,K))*0.5+(S0(I2,K)+S1(I2,K))*0.5)
+               ELSEIF(BACKWARD_STEP==2)THEN
+                FFD=0.5_SP*((S2(I1,K)+S0(I1,K)+S1(I1,K))/3.0_SP+(S2(I2,K)+S0(I2,K)+S1(I2,K))/3.0_SP-SMEAN1(I1,K)-SMEAN1(I2,K))
+                FF1=0.5_SP*((S2(I1,K)+S0(I1,K)+S1(I1,K))/3.0_SP+(S2(I2,K)+S0(I2,K)+S1(I2,K))/3.0_SP)
+               ENDIF
+             ENDIF
+!J. Ge for tracer advection
              PSPX(I)=PSPX(I)+FF1*DLTYTRIE(N_DAM_MATCH(I,NX+1),j)
              PSPY(I)=PSPY(I)+FF1*DLTXTRIE(N_DAM_MATCH(I,NX+1),j)
              PSPXD(I)=PSPXD(I)+FFD*DLTYTRIE(N_DAM_MATCH(I,NX+1),j)
@@ -341,9 +403,20 @@ SUBROUTINE ADV_S
 !!$        DYB=YI-VY(IB)
 !!$#      endif
 
-        FIJ1=S1(IA,K)+DLTXNCVE(I,1)*PSPX(IA)+DLTYNCVE(I,1)*PSPY(IA)
-        FIJ2=S1(IB,K)+DLTXNCVE(I,2)*PSPX(IB)+DLTYNCVE(I,2)*PSPY(IB)
-
+!J. Ge for tracer advection
+        IF(BACKWARD_ADVECTION==.FALSE.)THEN
+          FIJ1=S1(IA,K)+DLTXNCVE(I,1)*PSPX(IA)+DLTYNCVE(I,1)*PSPY(IA)
+          FIJ2=S1(IB,K)+DLTXNCVE(I,2)*PSPX(IB)+DLTYNCVE(I,2)*PSPY(IB)
+        ELSE
+          IF(BACKWARD_STEP==1)THEN
+            FIJ1=(S0(IA,K)+S1(IA,K))*0.5+DLTXNCVE(I,1)*PSPX(IA)+DLTYNCVE(I,1)*PSPY(IA)
+            FIJ2=(S0(IB,K)+S1(IB,K))*0.5+DLTXNCVE(I,2)*PSPX(IB)+DLTYNCVE(I,2)*PSPY(IB)
+          ELSEIF(BACKWARD_STEP==2)THEN
+            FIJ1=(S2(IA,K)+S0(IA,K)+S1(IA,K))/3.0_SP+DLTXNCVE(I,1)*PSPX(IA)+DLTYNCVE(I,1)*PSPY(IA)
+            FIJ2=(S2(IB,K)+S0(IB,K)+S1(IB,K))/3.0_SP+DLTXNCVE(I,2)*PSPX(IB)+DLTYNCVE(I,2)*PSPY(IB)
+          ENDIF
+        ENDIF
+!J. Ge for tracer advection
         S1MIN=MINVAL(S1(NBSN(IA,1:NTSN(IA)-1),K))
         S1MIN=MIN(S1MIN, S1(IA,K))
         S1MAX=MAXVAL(S1(NBSN(IA,1:NTSN(IA)-1),K))
@@ -746,15 +819,43 @@ SUBROUTINE ADV_S
 #          endif
 
 #          if !defined (NH) && !defined (LIMITER_VER_ADV)
-           IF(K == 1) THEN
+
+!J. Ge for tracer advection
+           IF(BACKWARD_ADVECTION==.FALSE.)THEN
+             IF(K == 1) THEN
               TEMP=-WTS(I,K+1)*(S1(I,K)*DZ(I,K+1)+S1(I,K+1)*DZ(I,K))/   &
                    (DZ(I,K)+DZ(I,K+1))
-           ELSE IF(K == KBM1) THEN
+             ELSE IF(K == KBM1) THEN
               TEMP= WTS(I,K)*(S1(I,K)*DZ(I,K-1)+S1(I,K-1)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))
-           ELSE
+             ELSE
               TEMP= WTS(I,K)*(S1(I,K)*DZ(I,K-1)+S1(I,K-1)*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))-&
                    WTS(I,K+1)*(S1(I,K)*DZ(I,K+1)+S1(I,K+1)*DZ(I,K))/(DZ(I,K)+DZ(I,K+1))
-           END IF
+             END IF
+           ELSE
+             IF(BACKWARD_STEP==1)THEN
+               IF(K == 1) THEN
+                TEMP=-WTS(I,K+1)*((S0(I,K)+S1(I,K))*0.5*DZ(I,K+1)+(S0(I,K+1)+S1(I,K+1))*0.5*DZ(I,K))/   &
+                   (DZ(I,K)+DZ(I,K+1))
+               ELSE IF(K == KBM1) THEN
+                TEMP= WTS(I,K)*((S0(I,K)+S1(I,K))*0.5*DZ(I,K-1)+(S0(I,K-1)+S1(I,K-1))*0.5*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))
+               ELSE
+                 TEMP= WTS(I,K)*((S0(I,K)+S1(I,K))*0.5*DZ(I,K-1)+(S0(I,K-1)+S1(I,K-1))*0.5*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))-&
+                   WTS(I,K+1)*((S0(I,K)+S1(I,K))*0.5*DZ(I,K+1)+(S0(I,K+1)+S1(I,K+1))*0.5*DZ(I,K))/(DZ(I,K)+DZ(I,K+1))
+               END IF
+             ELSEIF(BACKWARD_STEP==2)THEN
+               IF(K == 1) THEN
+                TEMP=-WTS(I,K+1)*((S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP*DZ(I,K+1)+(S2(I,K+1)+S0(I,K+1)+S1(I,K+1))/3.0_SP*DZ(I,K))/   &
+                   (DZ(I,K)+DZ(I,K+1))
+               ELSE IF(K == KBM1) THEN
+                TEMP= WTS(I,K)*((S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP*DZ(I,K-1)+(S2(I,K-1)+S0(I,K-1)+S1(I,K-1))/3.0_SP*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))
+               ELSE
+                 TEMP= WTS(I,K)*((S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP*DZ(I,K-1)+(S2(I,K-1)+S0(I,K-1)+S1(I,K-1))/3.0_SP*DZ(I,K))/(DZ(I,K)+DZ(I,K-1))-&
+                   WTS(I,K+1)*((S2(I,K)+S0(I,K)+S1(I,K))/3.0_SP*DZ(I,K+1)+(S2(I,K+1)+S0(I,K+1)+S1(I,K+1))/3.0_SP*DZ(I,K))/(DZ(I,K)+DZ(I,K+1))
+               END IF
+             ENDIF
+           ENDIF
+!J. Ge for tracer advection
+
 #          endif
 
            IF(ISONB(I) == 2) THEN
@@ -832,7 +933,17 @@ SUBROUTINE ADV_S
   ELSEIF(GROUNDWATER_ON) THEN
      DO I=1,M
 !        XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*S1(I,KBM1)/DZ(I,KBM1)
-        XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*S1(I,KBM1)
+!J. Ge for tracer advection
+        IF(BACKWARD_ADVECTION==.FALSE.)THEN
+          XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*S1(I,KBM1)
+        ELSE
+          IF(BACKWARD_STEP==1)THEN
+            XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*(S0(I,KBM1)+S1(I,KBM1))*0.5
+          ELSEIF(BACKWARD_STEP==2)THEN
+            XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*(S2(I,KBM1)+S0(I,KBM1)+S1(I,KBM1))/3.0_SP
+          ENDIF
+        ENDIF
+!J. Ge for tracer advection
      END DO
   END IF
 

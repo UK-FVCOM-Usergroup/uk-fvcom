@@ -150,8 +150,7 @@ MODULE MOD_DAM
    ALLOCATE(DAM1_SPONGE_GL(NN_DAM1,2));DAM1_SPONGE_GL = 0.0
 
    DO I=1,NN_DAM1
-     READ(1,*) NODE_DAM1(I,1),NODE_DAM1(I,2),D_DAM1(I,1),D_DAM1(I,2)&
-          &,DAM1_SPONGE_GL(I,:)
+     READ(1,*) NODE_DAM1(I,1),NODE_DAM1(I,2),D_DAM1(I,1),D_DAM1(I,2)
    END DO
 
 !---read in type 2 dam. ---------------------   
@@ -164,7 +163,7 @@ MODULE MOD_DAM
    
    DO I=1,NN_DAM2
      READ(1,*) NODE_DAM2(I,1),NODE_DAM2(I,2),NODE_DAM2(I,3),    &
-               D_DAM2(I,1),D_DAM2(I,2),D_DAM2(I,3),DAM2_SPONGE_GL(I,:)
+               D_DAM2(I,1),D_DAM2(I,2),D_DAM2(I,3)
    END DO
    
 !---read in type 3 dam. ---------------------   
@@ -177,7 +176,7 @@ MODULE MOD_DAM
    
    DO I=1,NN_DAM3
      READ(1,*) NODE_DAM3(I,1),NODE_DAM3(I,2),NODE_DAM3(I,3),NODE_DAM3(I,4), &
-               D_DAM3(I,1),D_DAM3(I,2),D_DAM3(I,3),D_DAM3(I,4),DAM3_SPONGE_GL(I,:)
+               D_DAM3(I,1),D_DAM3(I,2),D_DAM3(I,3),D_DAM3(I,4)
    END DO
    
    CLOSE(1)

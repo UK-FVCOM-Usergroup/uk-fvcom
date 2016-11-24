@@ -134,9 +134,12 @@ MODULE MOD_TYPES
 
      !----------------2-d arrays for the general vertical coordinate -------------------------------!
 
-!     REAL(SP), POINTER :: H(:)                      !!BATHYMETRY 
-!     REAL(SP), POINTER :: Z(:,:)                    !!SIGMA COORDINATE VALUE 
-!     REAL(SP), POINTER :: ZZ(:,:)                   !!INTRA LEVEL SIGMA VALUE
+     REAL(SP), POINTER :: H(:)                      !!BATHYMETRY 
+     REAL(SP), POINTER :: Z(:,:)                    !!SIGMA COORDINATE VALUE 
+     REAL(SP), POINTER :: ZZ(:,:)                   !!INTRA LEVEL SIGMA VALUE
+     REAL(SP), POINTER :: H1(:)                      !!BATHYMETRY 
+     REAL(SP), POINTER :: Z1(:,:)                    !!SIGMA COORDINATE VALUE 
+     REAL(SP), POINTER :: ZZ1(:,:)                   !!INTRA LEVEL SIGMA VALUE
 
      !------------shape coefficient arrays and control volume metrics--------------------!
      

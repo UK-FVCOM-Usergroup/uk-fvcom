@@ -100,7 +100,8 @@
 !   INTEGER :: IUNIT, IOSTAT, IT0, ITW, SAVITE, ILEN, INERR, IERR
    INTEGER :: IUNIT, IOSTAT,  SAVITE, ILEN, INERR, IERR
    INTEGER :: ISTAT, IF1, IL1, IDC,ISC,IP   
-   CHARACTER :: PTYPE, PNAME *8, COMPUT *4, DTTIWR*18                     
+!   CHARACTER :: PTYPE, PNAME *8, COMPUT *4, DTTIWR*18                     
+   CHARACTER :: PTYPE, PNAME *8, DTTIWR*18                     
    CHARACTER*20 :: NUMSTR, CHARS(1)                                       
    CHARACTER*80 :: MSGSTR                                                 
    LOGICAL :: LOPEN     
@@ -133,7 +134,7 @@
 
 !  --- read and process user commands
 
-   CALL SWREAD (COMPUT)   
+   CALL SWREAD !(COMPUT)   
 
 !JQI#  if defined (SPHERICAL)
 !JQI   CALL ALLOC_SPHERE_VARS
@@ -422,7 +423,7 @@
 !JQI#  if !defined (EXPLICIT)
 !JQI   CALL PETSc_CLEANUP
 !JQI#  endif
-   
+
    RETURN                                                              
    END SUBROUTINE SWMAIN_SETUP
  
@@ -472,7 +473,8 @@
 !   INTEGER :: IUNIT, IOSTAT, IT0, ITW, SAVITE, ILEN, INERR, IERR
    INTEGER :: IUNIT, IOSTAT , SAVITE, ILEN, INERR, IERR
    INTEGER :: ISTAT, IF1, IL1, IDC,ISC,IP   
-   CHARACTER :: PTYPE, PNAME *8, COMPUT *4, DTTIWR*18                     
+!   CHARACTER :: PTYPE, PNAME *8, COMPUT *4, DTTIWR*18                     
+   CHARACTER :: PTYPE, PNAME *8, DTTIWR*18                     
    CHARACTER*20 :: NUMSTR, CHARS(1)                                       
    CHARACTER*80 :: MSGSTR                                                 
    LOGICAL :: LOPEN     
@@ -2907,7 +2909,7 @@
   USE SWCOMM3                                                         
   USE SWCOMM4 
   USE ALL_VARS   
-  USE VARS_WAVE, ONLY : M,MT,N,NGL,SERIAL,PAR,ART,NPROCS,MYID,   &
+  USE VARS_WAVE, ONLY : SERIAL,PAR,ART,   &
                        IOBCN_W,I_OBC_N_W,AC2,COMPDA
                                                      
 # if defined (EXPLICIT)

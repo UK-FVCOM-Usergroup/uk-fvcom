@@ -103,8 +103,9 @@ MODULE MOD_DYE
    USE ALL_VARS
    IMPLICIT NONE
    INTEGER NCT
-   INTEGER NDB
-   
+   INTEGER NDB, status
+   INTEGER(ITIME) :: tstep
+   CHARACTER(LEN=4) :: BFLAG,EFLAG
 # if !defined (DOUBLE_PRECISION)
    NDB = 1       !!GWC BASE THIS ON KIND
 # else
@@ -128,43 +129,6 @@ MODULE MOD_DYE
 !   ALLOCATE(beta(0:MT,KB))       ;beta    = ZERO  
 !   ALLOCATE(betain(0:MT,KB))       ;betain    = ZERO
 !   ALLOCATE(betaout(0:MT,KB))       ;betaout    = ZERO
-
-   RETURN
-   END SUBROUTINE ALLOC_VARS_DYE
-
-
-!==============================================================================|
-!   Specify source term                |
-!==============================================================================|
-   SUBROUTINE NAME_LIST_READ_DYE
-   USE CONTROL
-
-   IMPLICIT NONE
-   integer :: ios, i, status
-   Character(Len=120):: FNAME
-   CHARACTER(LEN=4) :: BFLAG,EFLAG
-   INTEGER(ITIME) :: tstep
-
-   if(DBG_SET(dbg_sbr)) &
-        & write(IPT,*) "Subroutine Begins: set_dye_param;"
-
-    ios = 0
-
-    FNAME = "./"//trim(casename)//"_run.nml"
-
-    if(DBG_SET(dbg_io)) &
-         & write(IPT,*) "Set_dye_param: File: ",trim(FNAME)
-
-    CALL FOPEN(NMLUNIT,trim(FNAME),'cfr')
-
-    !READ NAME LIST FILE
-
-    ! Read Model Dye Release Settings
-    READ(UNIT=NMLUNIT, NML=NML_DYE_RELEASE,IOSTAT=ios)
-    if(ios .NE. 0 ) then
-       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_DYE_RELEASE)
-       Call Fatal_Error('Can Not Read NameList NML_DYE_RELEASE from file:' //trim(FNAME))
-    end if
 
 !   add convert time
     SELECT CASE(USE_REAL_WORLD_TIME)
@@ -195,6 +159,44 @@ MODULE MOD_DYE
 
     END SELECT
 !   end add convert time
+
+
+   RETURN
+   END SUBROUTINE ALLOC_VARS_DYE
+
+
+!==============================================================================|
+!   Specify source term                |
+!==============================================================================|
+   SUBROUTINE NAME_LIST_READ_DYE
+   USE CONTROL
+
+   IMPLICIT NONE
+   integer :: ios, i
+   Character(Len=120):: FNAME
+
+
+   if(DBG_SET(dbg_sbr)) &
+        & write(IPT,*) "Subroutine Begins: set_dye_param;"
+
+    ios = 0
+
+    FNAME = "./"//trim(casename)//"_run.nml"
+
+    if(DBG_SET(dbg_io)) &
+         & write(IPT,*) "Set_dye_param: File: ",trim(FNAME)
+
+    CALL FOPEN(NMLUNIT,trim(FNAME),'cfr')
+
+    !READ NAME LIST FILE
+
+    ! Read Model Dye Release Settings
+    READ(UNIT=NMLUNIT, NML=NML_DYE_RELEASE,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_DYE_RELEASE)
+       Call Fatal_Error('Can Not Read NameList NML_DYE_RELEASE from file:' //trim(FNAME))
+    end if
+
 
     REWIND(NMLUNIT)
 

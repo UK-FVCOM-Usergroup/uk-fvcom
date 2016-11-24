@@ -21,7 +21,7 @@ SUBROUTINE ZOOPLANKTON
 !=======================================================================
 !  BEGINNING EXECUTABLE
 !=======================================================================
-        do 10 k=1,KBVM1
+        do 10 k=1,KBV
 !******  Determine availability of all biological pool *********
        DO J=1,NNN
         FVNN(K,J)=BIO_N(K,J)-N_0(J)
@@ -52,7 +52,12 @@ SUBROUTINE ZOOPLANKTON
       DO J=1,NNZ
         TRANS=EXP(RP_T*(TEMPP-T_OPTZ(J)))          !Temporal for the lake model
         Z_D(K,J)=MZD(J)*FVZ(K,J)**M_Z(J)           !Mortality to detritus
+
+!       Z_D(K,J)=MZD(J)*FVZ(K,J)**M_Z(J)*(A_TZ(J))**((TEMPP-T_OPTZ(J))/10.)  !Ji
+       	
         Z_N(K,J)=R_Z(J)*FVZ(K,J)*EXP(RP_T*TEMPP)   !Basic respiration to nutrient
+!JQI        Z_N(K,J)=R_Z(J)*( FVZ(K,J)**M_Z(J) )*EXP(RP_T*TEMPP)
+!JQIJQIif(k == 1)write(499,*) Z_D(K,J),Z_N(K,J)	
       END DO
 
 !*****************     ZOOPLANKTON GRAZING     ********************
@@ -60,7 +65,8 @@ SUBROUTINE ZOOPLANKTON
         CASE('IVLE1_G')                                  !Ivlev, 1955
         DO 30 I1=1,NNZ
           G_RATE(I1)=G_MAX(I1)*BIO_Z(K,I1)  &            ! T forcing and biomass
-              *EXP(-A_TZ(I1)*ABS(TEMPP-T_OPTZ(I1)))                  
+          *(A_TZ(I1))**((TEMPP-T_OPTZ(I1))/10.)
+!              *EXP(-A_TZ(I1)*ABS(TEMPP-T_OPTZ(I1)))                  
           DO I2=1,NNP                                    ! Grazing on phyto
             G_P(K,I2,I1)=G_RATE(I1)*(1-EXP(-SIGMA_P(I2,I1)*FVP(K,I2)))
           END DO
@@ -183,7 +189,6 @@ SUBROUTINE ZOOPLANKTON
           R_TOTAL=0.                                     ! Total food
           G_RATE(I1)=G_MAX(I1)*BIO_Z(K,I1)  &            ! T forcing and biomass
               *EXP(-A_TZ(I1)*ABS(TEMPP-T_OPTZ(I1)))  
-
           DO I2=1,NNP                                    ! Total food
             R_TOTAL=R_TOTAL+SIGMA_P(I2,I1)*FVP(K,I2)
           END DO
@@ -213,7 +218,50 @@ SUBROUTINE ZOOPLANKTON
               G_B(K,I2,I1)=G_RATE(I1)*SIGMA_B(I2,I1)*FVB(K,I2) &
                           /(K_ZG(I1)+R_TOTAL)
             END DO
- 70   CONTINUE          
+ 70   CONTINUE   
+         CASE('DM_G')                                    ! Denman 1991
+        DO 75 I1=1,NNZ
+          R_TOTAL=0.                                     ! Total food
+          G_RATE(I1)=G_MAX(I1)*BIO_Z(K,I1)  &            ! T forcing and biomass
+              *EXP(-A_TZ(I1)*ABS(TEMPP-T_OPTZ(I1)))
+!          *(A_TZ(I1))**((TEMPP-T_OPTZ(I1))/10.)      !Ji 
+
+!              *EXP(-A_TZ(I1)*ABS(TEMPP-T_OPTZ(I1)))  
+
+
+          DO I2=1,NNP                                    ! Total food
+            R_TOTAL=R_TOTAL+FVP(K,I2)**2
+          END DO
+ !         DO I2=1,NNZ                                    
+ !           R_TOTAL=R_TOTAL+FVZ(K,I2)**2
+ !         END DO
+ !         DO I2=1,NND                                    
+ !           R_TOTAL=R_TOTAL+FVD(K,I2)**2
+ !         END DO
+ !         DO I2=1,NNB 
+ !           R_TOTAL=R_TOTAL+FVB(K,I2)**2
+ !         END DO
+          
+            DO I2=1,NNP                                    ! Grazing on phyto
+              G_P(K,I2,I1)=G_RATE(I1)*FVP(K,I2)**2 &
+              /(K_ZG(I1)**2+R_TOTAL)
+!JQIJQIif(k == 1)write(200,*) A_TZ(I1),TEMPP,T_OPTZ(I1),G_P(K,I2,I1),FVP(K,I2)
+!JQIJQIif(k == 1)write(201,*) BIO_Z(K,I1),G_P(K,I2,I1),G_MAX(I1),FVP(K,I2),(A_TZ(I1))**((TEMPP-T_OPTZ(I1))/10.)
+            END DO
+ !           DO I2=1,NNZ                                    ! Predation on zoo
+ !             G_Z(K,I2,I1)=G_RATE(I1)*FVZ(K,I2)**2 &
+ !                         /(K_ZG(I1)**2+R_TOTAL)
+ !           END DO
+ !           DO I2=1,NND                                    ! Grazing on detritus
+ !             G_D(K,I2,I1)=G_RATE(I1)*FVD(K,I2)**2 &
+ !                         /(K_ZG(I1)**2+R_TOTAL)
+ !           END DO
+ !           DO I2=1,NNB                                    ! Predation on bacteria
+ !             G_B(K,I2,I1)=G_RATE(I1)*FVB(K,I2)**2 &
+ !                         /(K_ZG(I1)**2+R_TOTAL)
+ !           END DO
+ 75   CONTINUE 
+	            
         CASE('MM2_G')                                    ! Evans 1988
         DO 80 I1=1,NNZ
           R_TOTAL=0.                                     ! Total food
@@ -432,17 +480,18 @@ SUBROUTINE ZOOPLANKTON
           END DO
  130  CONTINUE      
       END SELECT 
-
+      GO TO 8    !No check in Ji's program
 !************   CHECK FOOD AVAILABILITY   *******
       DO I1=1,NNP
       RATIOT=1.
-        SINKK(I1)= P_DOM(K,I1)+P_D(K,I1)+P_N(K,I1)
+!        SINKK(I1)= P_DOM(K,I1)+P_D(K,I1)+P_N(K,I1)
+        SINKK(I1)= DPDOM(I1)*FVP(K,I1) + MPD(I1)*FVP(K,I1)**M_P(I1) + R_P(I1)*FVP(K,I1)*EXP(RP_T*TEMPP)
         DO I2=1,NNZ
           SINKK(I1)=SINKK(I1)+G_P(K,I1,I2)
         END DO
         SINKK(I1)=SINKK(I1)*T_STEP         
-        RATIOT=FVP(K,I1)/(SINKK(I1)+0.0001)
-        IF(SINKK(I1).LT.0.0001) RATIOT=0.0
+        RATIOT=FVP(K,I1)/(SINKK(I1)+1.E-30)
+!JQI        IF(SINKK(I1).LT.0.0001) RATIOT=0.0
         IF(RATIOT.LT.1.) THEN
           DO I2=1,NNZ
             G_P(K,I1,I2)=G_P(K,I1,I2)*RATIOT
@@ -457,7 +506,7 @@ SUBROUTINE ZOOPLANKTON
           SINKK(I1)=SINKK(I1)+G_D(K,I1,I2)
         END DO
         SINKK(I1)=SINKK(I1)*T_STEP
-        RATIOT=FVD(K,I1)/(SINKK(I1)+0.0001)
+        RATIOT=FVD(K,I1)/(SINKK(I1)+1.E-30)
         IF(RATIOT.LT.1. .and. SINKK(I1).GT. 0.0) THEN
           DO I2=1,NNZ
             G_D(K,I1,I2)=G_D(K,I1,I2)*RATIOT
@@ -472,7 +521,7 @@ SUBROUTINE ZOOPLANKTON
           SINKK(I1)=SINKK(I1)+G_Z(K,I1,I2)
         END DO
         SINKK(I1)=SINKK(I1)*T_STEP
-        RATIOT=FVZ(K,I1)/(SINKK(I1)+0.0001)
+        RATIOT=FVZ(K,I1)/(SINKK(I1)+1.E-30)
         IF(RATIOT.LT.1.0 .and. SINKK(I1).GT. 0.0) THEN
           DO I2=1,NNZ
             G_Z(K,I1,I2)=G_Z(K,I1,I2)*RATIOT
@@ -481,26 +530,26 @@ SUBROUTINE ZOOPLANKTON
           Z_N(K,I1)=Z_N(K,I1)*RATIOT
         END IF
       END DO
-
+ 8    CONTINUE
 !********************  ZOOPLANKTON SOURCE AND SINKS   ***********************
       DO J=1,NNZ
-        SOURCE=-Z_D(K,J)-Z_N(K,J)
+        SOURCE=-Z_D(K,J)-Z_N(K,J)                   !Losses
         DO I1=1,NNP        
           SOURCE=SOURCE+EFFIP(I1,J)*G_P(K,I1,J)     !Grazing on phyto
-          FVP(K,I1)=FVP(K,I1)-G_P(K,I1,J)*T_STEP
+!          FVP(K,I1)=FVP(K,I1)-G_P(K,I1,J)*T_STEP
         END DO
         DO I1=1,NND        
           SOURCE=SOURCE+EFFID(I1,J)*G_D(K,I1,J)     !Grazing on detritus
-          FVD(K,I1)=FVD(K,I1)-G_D(K,I1,J)*T_STEP
+!          FVD(K,I1)=FVD(K,I1)-G_D(K,I1,J)*T_STEP
         END DO
         DO I1=1,NNB        
           SOURCE=SOURCE+EFFIB(I1,J)*G_B(K,I1,J)     !Grazing on bacteria
-          FVB(K,I1)=FVB(K,I1)-G_B(K,I1,J)*T_STEP
+!          FVB(K,I1)=FVB(K,I1)-G_B(K,I1,J)*T_STEP
         END DO 
         DO I1=1,NNZ        
           SOURCE=SOURCE+EFFIZ(I1,J)*G_Z(K,I1,J)   & !Predation on zoo
                        -G_Z(K,J,I1)                 !Predation losses 
-          FVZ(K,I1)=FVZ(K,I1)-G_Z(K,I1,J)*T_STEP
+!          FVZ(K,I1)=FVZ(K,I1)-G_Z(K,I1,J)*T_STEP
         END DO 
         RECRUIT_LOSS(J)=R_RECRUIT(J)*SOURCE  
         BIO_Z(K,J)=BIO_Z(K,J)+T_STEP*SOURCE       

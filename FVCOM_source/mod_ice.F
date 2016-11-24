@@ -735,7 +735,19 @@ MODULE MOD_ICE
        DO I=1,M
         IF(ISICEN(i)==1) THEN
          QEVAP(I)=(1-aice(i,1))*QEVAP(I) !+EVAP(I,1)/RHOFRESH
+# if !defined (SEMI_IMPLICIT)
          QPREC(I)=(1-aice(i,1))*QPREC(I)+(fresh(I,1)-evap(I,1))/rhofresh
+# else
+         QPREC(I)=(1-aice(i,1))*QPREC(I)-evap(I,1)/rhofresh   !!yding moved fresh out
+         QPICE(I)=fresh(I,1)/rhofresh                         !!yding treat fresh seperatelly
+# endif
+# if defined (ICE_EMBEDDING)
+         QFLICE(I) = fresh(I,1)/rhofresh     !!((RHO1(I,1)+1.0_SP)*1.0E3_SP)
+         QTHICE(I)= vice(I,1)*(RHOI/((RHO1(I,1)+1.0_SP)*1.0E3_SP))   !!yding ICE THICKNESS IN THE WATER
+
+         mlt_lat(i) = D(i)/QTHICE(i)           !!yding for lateral melting adjustment
+# endif
+
 
           ! evap  :: flux of vapor, atmos to ice   (kg m-2 s-1)
           !! this is the part lost from the ocean and ice system
@@ -748,19 +760,66 @@ MODULE MOD_ICE
 #        if !defined (SEMI_IMPLICIT)
          QPREC2(I) = QPREC(I)
          QEVAP2(I) = QEVAP(I)
+!         QPICE2(I) = QPICE(I)    !!yding
+!#   if defined (ICE_EMBEDDING)
+!         QFLICE2(I)= QFLICE(I)   !!yding
+!#   endif
 #        endif
 
         END IF
        END DO
+
+#   if defined (ICE_EMBEDDING)
+         QTHICE_incr = QTHICE - QTHICERK    !!yding
+
+         QTHICERK = QTHICE                  !!SAVE ICE THICKNESS FOR CURRENT STEP
+
+#   endif
 
 
 # if defined (MULTIPROCESSOR)
        if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QPREC,QEVAP)
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QPREC,QEVAP)
 
+# if defined (SEMI_IMPLICIT)
+!!yding
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QPICE)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QPICE)
+!!yding
+# endif
+
+#   if defined (ICE_EMBEDDING)
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QFLICE)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QFLICE)
+
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QTHICE)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QTHICE)
+
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QTHICERK)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QTHICERK)
+
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QTHICE_incr)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QTHICE_incr)
+
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,mlt_lat)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,mlt_lat)
+
+#   endif
+
 #      if !defined (SEMI_IMPLICIT)
        if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QPREC2,QEVAP2)
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QPREC2,QEVAP2)
+
+!!yding
+!       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QPICE2)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QPICE2)
+!!yding
+
+#   if defined (ICE_EMBEDDING)
+!       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QFLICE2)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QFLICE2)
+#   endif
+
 #      endif
 # endif
 

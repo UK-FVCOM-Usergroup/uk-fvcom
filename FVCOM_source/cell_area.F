@@ -111,7 +111,7 @@
       END IF
 
       MSG = TRIM(MSG)//"Min Triangle Area="
-      WRITE(tstr,'(F8.6)') artmin
+      WRITE(tstr,'(F9.6)') artmin
       MSG=TRIM(MSG)//trim(TSTR)
       
       I = MINLOC(ART(1:N),DIM=1)
@@ -282,7 +282,7 @@
       END IF
 
       MSG = TRIM(MSG)//"Min Control Volume Area="
-      WRITE(tstr,'(F8.6)') art1min
+      WRITE(tstr,'(F9.6)') art1min
       MSG=TRIM(MSG)//trim(TSTR)
       
       I = MINLOC(ART1(1:M),DIM=1)

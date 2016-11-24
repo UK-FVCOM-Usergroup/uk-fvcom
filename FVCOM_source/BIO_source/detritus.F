@@ -15,18 +15,31 @@ subroutine detRITUS
    
    IMPLICIT NONE
    INTEGER :: I,K,J,I1,I2, N_SINK
-   REAL(SPp) :: DELTA_DMIN,W_D1,SOURCE,TEMPP
+   REAL(DPP) :: DELTA_DMIN,W_D1,SOURCE,TEMPP,RIEN
 !=======================================================================
 !  BEGINNING EXECUTABLE
 !=======================================================================
 !*****************   SINKING   ************************
       DO J=1,NND
-         DO k=1,KBVM1
-           D_SINK(K,J)=0.0
+!         DO k=1,KBVM1
+         DO k=1,KBV
+           D_SINK(K,J)=0.0_DPP
            DETRITE(K,J)=FVD(K,J)
          END DO
+!********  AGGREGATION, DISSOLUTION AND REMINERLIZATION   *********
+        DO K=1,KBVM1
+          TEMPP=T_BIO(K)
+          AGGREGATION(K,J)=ALPHA_DAG(J)*DETRITE(K,J)**2
+          DISAGGREGATION(K,J)=ALPHA_DDG(J)*DETRITE(K,J)
+          DISSOLUTION(K,J)=D_D(J)*DETRITE(K,J)
+ !         REMINERALIZATION(K,J)=D_RN(J)*DETRITE(K,J)
+         REMINERALIZATION(K,J)=D_RN(J)*DETRITE(K,J)*EXP(RP_T*TEMPP)
+!         REMINERALIZATION(K,J)=D_RN(J)*DETRITE(K,J)*(RP_T)**((TEMPP-T_OPTP(1))/10.)
+        END DO
+         REMINERALIZATION(KBV,J)=D_RN(J)*BIO_D(KBV,J)*EXP(RP_T*TEMPP)  !BENTHIC LAYER 	 	 
       END DO
-      DELTA_DMIN=1.0E+5    !CFL REQUIRES W*DTI<DELTA_DMIN, THE THINNEAST LAYER
+
+      DELTA_DMIN=1.0E+5_SPP    !CFL REQUIRES W*DTI<DELTA_DMIN, THE THINNEAST LAYER
       DO K=1,KBVM1      
         DELTA_DMIN=MIN(DELTA_DMIN,DELTA_D(K))  
       END DO
@@ -42,30 +55,26 @@ subroutine detRITUS
 
         DO I1=1,N_SINK
 !          D_SINK1(1)=-0.5*W_D1*(DETRITE(1,J)+DETRITE(2,J))/DELTA_D(1)    !SURFACE 
-          D_SINK1(1)=-1.*W_D1*(DETRITE(1,J))/DELTA_D(1)    !SURFACE         
+          D_SINK1(1)=-1._DPP*W_D1*(DETRITE(1,J))/DELTA_D(1)    !SURFACE         
           DO K=2,KBV-2
 !            D_SINK1(K)=0.5*W_D1*(DETRITE(K-1,J)-DETRITE(K+1,J))/DELTA_D(K)
-            D_SINK1(K)=1.*W_D1*(DETRITE(K-1,J)-DETRITE(K,J))/DELTA_D(K)
+            D_SINK1(K)=W_D1*(DETRITE(K-1,J)-DETRITE(K,J))/DELTA_D(K)
           END DO
-!          D_SINK1(KBVM1)=W_D1*(DETRITE(KBVM1-1,J)-DETRITE(KBVM1,J))/DELTA_D(KBVM1) !Sink out
-          D_SINK1(KBVM1)=W_D1*(DETRITE(KBVM1-1,J))/DELTA_D(KBVM1) !No sink out
-          DO K=1,KBVM1
+          D_SINK1(KBVM1)=W_D1*(DETRITE(KBVM1-1,J)-DETRITE(KBVM1,J))/DELTA_D(KBVM1) !Sink out
+!          D_SINK1(KBVM1)=W_D1*(DETRITE(KBVM1-1,J))/DELTA_D(KBVM1) !No sink out 
+          D_SINK1(KBV)=W_D1*(DETRITE(KBVM1,J))/DELTA_D(KBVM1) !FLUX TO BENTHIC
+!          DO K=1,KBVM1
+          DO K=1,KBV
+!RIEN=RIEN+D_SINK1(K)*DELTA_D(K)
             DETRITE(K,J)=DETRITE(K,J)+D_SINK1(K)
             D_SINK(K,J)=D_SINK(K,J)+D_SINK1(K)
           END DO
+!print*,'de 72 ',rien,D_SINK1(:)
         END DO
-        DO K=1,KBVM1
+        DO K=1,KBV
           D_SINK(K,J)=D_SINK(K,J)/T_STEP
         END DO
-!********  AGGREGATION, DISSOLUTION AND REMINERLIZATION   *********
-        DO K=1,KBVM1
-          TEMPP=T_BIO(K)
-          AGGREGATION(K,J)=ALPHA_DAG(J)*DETRITE(K,J)**2
-          DISAGGREGATION(K,J)=ALPHA_DDG(J)*DETRITE(K,J)
-          DISSOLUTION(K,J)=D_D(J)*DETRITE(K,J)
- !         REMINERALIZATION(K,J)=D_RN(J)*DETRITE(K,J)
-         REMINERALIZATION(K,J)=D_RN(J)*DETRITE(K,J)*EXP(RP_T*TEMPP)
-        END DO
+
  10    CONTINUE
 !*****************   DETRITE SOURCES AND SINKS   *******************
       DO 20 J=1,NND
@@ -105,7 +114,8 @@ subroutine detRITUS
              END DO
            END DO
   	   BIO_D(K,J)=BIO_D(K,J)+SOURCE*T_STEP   
-         END DO !K=1,KBV
+         END DO !K=1,KBVM!
+         BIO_D(KBV,J)=BIO_D(KBV,J)+(D_SINK(KBV,J)-REMINERALIZATION(KBV,J))*T_STEP         
  20    CONTINUE
       RETURN
 END SUBROUTINE DETRITUS

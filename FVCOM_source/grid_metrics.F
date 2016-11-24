@@ -33,6 +33,7 @@ SUBROUTINE GRID_METRICS
   USE MOD_NORTHPOLE
   USE MOD_SETUP
   USE MOD_STATION_TIMESERIES
+  USE MOD_SPARSE_TIMESERIES
   USE MOD_NESTING, ONLY: NESTING_ON
 
 # if defined (THIN_DAM)
@@ -52,7 +53,12 @@ SUBROUTINE GRID_METRICS
 !Set up fluxes and control Volumes
 !============================================
   CALL TRIANGLE_GRID_EDGE
-  IF(OUT_STATION_TIMESERIES_ON)CALL TRIANGLE_GRID_EDGE_GL    
+# if defined (WAVE_CURRENT_INTERACTION)
+  IF(OUT_STATION_TIMESERIES_ON .OR. OUT_WAVE_SPARSE_TIMESERIES_ON) &
+   &  CALL TRIANGLE_GRID_EDGE_GL    
+# else
+  IF(OUT_STATION_TIMESERIES_ON) CALL TRIANGLE_GRID_EDGE_GL    
+# endif
 !============================================
 !Calculate Element and Control Volume Areas
 !============================================
