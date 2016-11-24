@@ -217,6 +217,124 @@
 !   End IF
 !   ------------------------------------------------------------
 !****************************************************************
+   USE SWCOMM3
+   USE SWCOMM4
+   USE OCPCOMM4
+   USE M_DIFFR
+#  if defined (EXPLICIT)
+   USE MOD_ACTION_EX
+#  else      
+   USE MOD_ACTION_IM
+#  endif   
+
+   IMPLICIT NONE
+
+   INTEGER  IC,IS,ID,I1,NICMAX
+   REAL     CAXL,CAYL,CG0L,ECOSL,ESINL,UX2L,UY2L
+
+   CAXL = CG0L * ECOSL
+   CAYL = CG0L * ESINL
+!
+!    --- adapt the velocities in case of diffraction
+!
+   IF(IDIFFR == 1 .AND. PDIFFR(3) /= 0.)THEN
+!     CAXL = CAXL*DIFPARAM(I1)      
+!     CAYL = CAYL*DIFPARAM(I1)      
+   END IF
+!
+!    --- ambient currents added
+!
+   IF(ICUR == 1)THEN
+     CAXL = CAXL + UX2L
+     CAYL = CAYL + UY2L
+   END IF
+
+   RETURN
+   END SUBROUTINE SPROXY
+!
+!
+
+!****************************************************************
+!
+   SUBROUTINE SPROXY2 (CAXL   ,CAYL   ,  &
+                      CG0L   ,ECOSL  ,ESINL  ,UX2L   ,UY2L   )
+!
+!****************************************************************
+!
+!        computes the propagation velocities of energy in X-, Y-
+!        -space, i.e., CAX, CAY, in the presence or absence of
+!        currents, for the action balance equation.
+!
+!        The propagation velocities are computed for the fully 360
+!        degrees sector.
+!
+!     METHOD
+!
+!        The next equation are calculated:
+!
+!              @X     _
+!        CAX = -- = n C cos (id) + Ux  = CGO cos(id) + Ux
+!              @T
+!
+!              @Y     _
+!        CAY = -- = n C sin(id)  + Uy  = CGO sin(id) + Uy
+!              @T
+!                                                         _
+!
+!       ******************************************************************
+!       *  attention! in the action balance equation the term            *
+!       *  dx                                                            *
+!       *  -- = CGO + U = CX  with x, CGO, U and CX vectors              *
+!       *  dt                                                            *
+!       *  is in the literature the term dx/dt often indicated           *
+!       *  with CX and CY in the action balance equation.                *
+!       *  In this program we use:    CAX = CGO + U                      *
+!       ******************************************************************
+!
+!   ------------------------------------------------------------
+!   If depth is negative ( DEP(IX,IY) <= 0), then,
+!     For every point in S and D-direction do,
+!       Give propagation velocities default values :
+!       CAX(ID,IS,IC)     = 0.   {propagation velocity of energy in X-dir.}
+!       CAY(ID,IS,IC)     = 0.   {propagation velocity of energy in Y-dir.}
+!     ---------------------------------------------------------
+!   Else if current is on (ICUR > 0) then,
+!     For every point in S and D-direction do,  {using the output of SWAPAR}
+!       S = logaritmic distributed via LOGSIG
+!       Compute propagation velocity in X-direction:
+!
+!               1    K(IS,IC)DEP2(IX,IY)      S cos(D)
+!       CAX = ( - + ------------------------) --------- + UX2(IX,IY)
+!               2   sinh 2K(IS,IC)DEP2(IX,IY) |K(IS,IC)|
+!
+!       ------------------------------------------------------
+!       Compute propagation velocity in Y-direction:
+!
+!               1    K(IS,IC)DEP2(IX,IY)      S sin(D)
+!       CAY = ( - + ------------------------) -------- + UY2(IX,IY)
+!               2   sinh 2K(IS,IC)DEP2(IX,IY) |K(IS,IC)|
+!
+!       ------------------------------------------------------
+!   Else if current is not on (ICUR = 0)
+!     For every point in S and D-direction do
+!       S = logarithmic distributed via LOGSIG
+!       Compute propagation velocity in X-direction:
+!
+!               1    K(IS,IC)DEP2(IX,IY)        S cos(D)
+!       CAX = ( - + ------------------------) ----------
+!               2   sinh 2K(IS,IC)DEP2(IX,IY)  |K(IS,IC)|
+!
+!       ------------------------------------------------------
+!       Compute propagation velocity in Y-direction:
+!
+!               1    K(IS,IC)DEP2(IX,IY)        S sin(D)
+!       CAY = ( - + ------------------------) ----------
+!               2   sinh 2K(IS,IC)DEP2(IX,IY)  |K(IS,IC)|
+!
+!     ----------------------------------------------------------
+!   End IF
+!   ------------------------------------------------------------
+!****************************************************************
    USE SWCOMM3                                                         
    USE SWCOMM4                                                         
    USE OCPCOMM4                                                        
@@ -230,10 +348,13 @@
    IMPLICIT NONE                                              
 
    INTEGER  IC,IS,ID,I1,NICMAX
-   REAL     CAXL,CAYL,CG0L,ECOSL,ESINL,UX2L,UY2L
+   REAL     CAXL(MDC,MSC),CAYL(MDC,MSC),CG0L(MDC,MSC),ECOSL(MDC),ESINL(MDC),UX2L,UY2L
 
-   CAXL = CG0L * ECOSL
-   CAYL = CG0L * ESINL
+   DO ID=1,MDC
+     CAXL(ID,:) = CG0L(ID,:) * ECOSL(ID)
+     CAYL(ID,:) = CG0L(ID,:) * ESINL(ID)
+   END DO
+
 !
 !    --- adapt the velocities in case of diffraction
 !
@@ -250,9 +371,129 @@
    END IF
 
    RETURN
-   END SUBROUTINE SPROXY
+   END SUBROUTINE SPROXY2
 !
 !
+!****************************************************************
+!
+   SUBROUTINE SPROXY3 (CAXL   ,CAYLA ,CAYLB,  &          !yzhang_w3
+              CG0L   ,ECOSL  ,ESINL  ,UX2L   ,UY2L, DLTYETMPP, DLTXETMPP ,DLTXEA , DLTXEB)
+!
+!****************************************************************
+!
+!        computes the propagation velocities of energy in X-, Y-
+!        -space, i.e., CAX, CAY, in the presence or absence of
+!        currents, for the action balance equation.
+!
+!        The propagation velocities are computed for the fully 360
+!        degrees sector.
+!
+!     METHOD
+!
+!        The next equation are calculated:
+!
+!              @X     _
+!        CAX = -- = n C cos (id) + Ux  = CGO cos(id) + Ux
+!              @T
+!
+!              @Y     _
+!        CAY = -- = n C sin(id)  + Uy  = CGO sin(id) + Uy
+!              @T
+!                                                         _
+!
+!       ******************************************************************
+!       *  attention! in the action balance equation the term            *
+!       *  dx                                                            *
+!       *  -- = CGO + U = CX  with x, CGO, U and CX vectors              *
+!       *  dt                                                            *
+!       *  is in the literature the term dx/dt often indicated           *
+!       *  with CX and CY in the action balance equation.                *
+!       *  In this program we use:    CAX = CGO + U                      *
+!       ******************************************************************
+!
+!   ------------------------------------------------------------
+!   If depth is negative ( DEP(IX,IY) <= 0), then,
+!     For every point in S and D-direction do,
+!       Give propagation velocities default values :
+!       CAX(ID,IS,IC)     = 0.   {propagation velocity of energy in X-dir.}
+!       CAY(ID,IS,IC)     = 0.   {propagation velocity of energy in Y-dir.}
+!     ---------------------------------------------------------
+!   Else if current is on (ICUR > 0) then,
+!     For every point in S and D-direction do,  {using the output of SWAPAR}
+!       S = logaritmic distributed via LOGSIG
+!       Compute propagation velocity in X-direction:
+!
+!               1    K(IS,IC)DEP2(IX,IY)      S cos(D)
+!       CAX = ( - + ------------------------) --------- + UX2(IX,IY)
+!               2   sinh 2K(IS,IC)DEP2(IX,IY) |K(IS,IC)|
+!
+!       ------------------------------------------------------
+!       Compute propagation velocity in Y-direction:
+!
+!               1    K(IS,IC)DEP2(IX,IY)      S sin(D)
+!       CAY = ( - + ------------------------) -------- + UY2(IX,IY)
+!               2   sinh 2K(IS,IC)DEP2(IX,IY) |K(IS,IC)|
+!
+!       ------------------------------------------------------
+!   Else if current is not on (ICUR = 0)
+!     For every point in S and D-direction do
+!       S = logarithmic distributed via LOGSIG
+!       Compute propagation velocity in X-direction:
+!
+!               1    K(IS,IC)DEP2(IX,IY)        S cos(D)
+!       CAX = ( - + ------------------------) ----------
+!               2   sinh 2K(IS,IC)DEP2(IX,IY)  |K(IS,IC)|
+!
+!       ------------------------------------------------------
+!       Compute propagation velocity in Y-direction:
+!
+!               1    K(IS,IC)DEP2(IX,IY)        S sin(D)
+!       CAY = ( - + ------------------------) ----------
+!               2   sinh 2K(IS,IC)DEP2(IX,IY)  |K(IS,IC)|
+!
+!     ----------------------------------------------------------
+!   End IF
+!   ------------------------------------------------------------
+!****************************************************************
+   USE SWCOMM3
+   USE SWCOMM4
+   USE OCPCOMM4
+   USE M_DIFFR
+   USE MOD_ACTION_EX
+
+   IMPLICIT NONE
+   INTEGER  IC,IS,ID,I1,NICMAX
+   REAL   CAXL(MDC,MSC),CAYLA(MDC,MSC),CAYLB(MDC,MSC),CG0L(MDC,MSC),ECOSL(MDC),ESINL(MDC),UX2L,UY2L
+   REAL     DLTXETMPP,DLTXEA,DLTXEB,DLTYETMPP
+
+   DO ID=1,MDC
+     CAXL(ID,:) = CG0L(ID,:) * ECOSL(ID) * DLTYETMPP
+     CAYLA(ID,:) = CG0L(ID,:) * ESINL(ID) * DLTXEA
+     CAYLB(ID,:) = CG0L(ID,:) * ESINL(ID) * DLTXEB
+   END DO
+
+!
+!    --- adapt the velocities in case of diffraction
+!
+   IF(IDIFFR == 1 .AND. PDIFFR(3) /= 0.)THEN
+!     CAXL = CAXL*DIFPARAM(I1)      
+!     CAYL = CAYL*DIFPARAM(I1)      
+   END IF
+!
+!    --- ambient currents added
+!
+   IF(ICUR == 1)THEN
+     CAXL = CAXL + UX2L*DLTYETMPP
+     CAYLA = CAYLA + UY2L*DLTXETMPP
+     CAYLB = CAYLB + UY2L*DLTXETMPP
+   END IF
+
+   RETURN
+   END SUBROUTINE SPROXY3
+!
+!
+!****************************************************************
+
 !****************************************************************
 !
   SUBROUTINE SPROSD (KWAVE    ,CAS      ,CAD      ,          &
@@ -326,7 +567,10 @@
 # else            
   USE MOD_ACTION_IM
 # endif      
-  USE ALL_VARS, ONLY : NTVE,NBVE,NV,VX,VY,XC,YC,ART1,MT,ISONB_W,NBSN,NTSN                                                      
+  USE ALL_VARS, ONLY : NTVE,NBVE,NV,VX,VY,XC,YC,ART1,MT,ISONB_W,NBSN,NTSN  
+# if defined (SPHERICAL)
+  USE CONTROL, ONLY : TPI,DEG2RAD                                                      
+# endif      
 !
   IMPLICIT NONE
 !
@@ -360,6 +604,9 @@
   INTEGER :: IG,I
   REAL    :: UX,UY
   REAL    :: X1,X2,X3,Y1,Y2,Y3,DX1,DY1
+# if defined (SPHERICAL)
+  REAL    :: DX_TMP
+# endif      
       
   CAST1 = 0.
   CAST2 = 0.
@@ -405,9 +652,13 @@
     IF(IREFR == -1)THEN                                          
 !     limitation of depths in neighbouring grid points
       DLOC2 = MIN(DLOC2, PNUMS(17)*DLOC1)
-    ELSE                                                           
-!     no limitation                                                
-      DLOC2 = DLOC2                                           
+    ELSE  
+      IF(ABS(DLOC2 - DLOC1) > 100.0)THEN
+        DLOC2 = DLOC1
+      ELSE	                                                         
+!       no limitation                                                
+        DLOC2 = DLOC2
+      END IF                                           
     END IF                                                         
  
     X1 = VX(IG)
@@ -429,16 +680,77 @@
       X3 = VX(NV(NBVE(IG,I),2))	
       Y3 = VY(NV(NBVE(IG,I),2))	
     END IF
-	
+
+# if defined (SPHERICAL)
+    if ((abs(X1-X2)).GT.300.0)then
+      DX1 = 0.5*(X1+X2+360.0)
+      if (DX1.GE.360)DX1=DX1-360.0
+    else
+    DX1 = 0.5*(X1+X2)
+    endif
+    DY1 = 0.5*(Y1+Y2)
+# else
     DX1 = 0.5*(X1+X2)
     DY1 = 0.5*(Y1+Y2)
+# endif
+
+# if defined (SPHERICAL)
+    if  (Y1.GE.89.99)then
+      DX1=X2
+    elseif (Y2.GE.89.99)then
+      DX1=X1
+    endif
+# endif
+
     DX1 = XC(NBVE(IG,I))-DX1
     DY1 = YC(NBVE(IG,I))-DY1
+
+# if defined (SPHERICAL)
+    DX_TMP = DX1
+    DX1 = DX_TMP*TPI
+    IF(DX_TMP >  180.0_SP)THEN
+      DX1 = -360.0_SP*TPI+DX1
+    ELSE IF(DX_TMP < -180.0_SP)THEN
+      DX1 =  360.0_SP*TPI+DX1
+    END IF 
+    DX1 = DX1*COS(DEG2RAD*VY(IG))
+    DY1 = DY1*TPI 
+# endif    
 	
+
+# if defined (SPHERICAL)
+    if ((abs(X1-X3)).GT.300.0)then
+      DX2 = 0.5*(X1+X3+360.0)
+      if (DX2.GE.360)DX2=DX2-360.0
+    else
+    DX2 = 0.5*(X1+X3)
+    endif
+    DY2 = 0.5*(Y1+Y3)
+# else
     DX2 = 0.5*(X1+X3)
     DY2 = 0.5*(Y1+Y3)
+# endif
+
+# if defined (SPHERICAL)
+    if  (Y1.GE.89.99)then
+      DX2=X3
+    elseif (Y3.GE.89.99)then
+      DX2=X1
+    endif
+# endif
     DX2 = DX2-XC(NBVE(IG,I))
     DY2 = DY2-YC(NBVE(IG,I))
+# if defined (SPHERICAL)
+    DX_TMP = DX2
+    DX2 = DX_TMP*TPI
+    IF(DX_TMP >  180.0_SP)THEN
+      DX2 = -360.0_SP*TPI+DX2
+    ELSE IF(DX_TMP < -180.0_SP)THEN
+      DX2 =  360.0_SP*TPI+DX2
+    END IF 
+    DX2 = DX2*COS(DEG2RAD*VY(IG))
+    DY2 = DY2*TPI 
+# endif    
 	
     DX = DX1+DX2
     DY = DY1+DY2
@@ -458,8 +770,21 @@
 
   IF(ISONB_W(IG) == 1)THEN
     DX = VX(NBSN(IG,2))-VX(NBSN(IG,NTSN(IG)-1))
+# if defined (SPHERICAL)
+    DX_TMP = DX
+    DX = DX_TMP*TPI
+    IF(DX_TMP >  180.0_SP)THEN
+      DX = -360.0_SP*TPI+DX
+    ELSE IF(DX_TMP < -180.0_SP)THEN
+      DX =  360.0_SP*TPI+DX
+    END IF 
+    DX = DX*COS(DEG2RAD*VY(IG))
+# endif    
     DX = 0.5*DX
     DY = VY(NBSN(IG,2))-VY(NBSN(IG,NTSN(IG)-1))
+# if defined (SPHERICAL)
+    DY = DY*TPI 
+# endif    
     DY = 0.5*DY
 	
     SUMHDX = SUMHDX - DEP2(IG)*DX

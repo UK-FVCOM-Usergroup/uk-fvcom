@@ -47,6 +47,12 @@
       use ice_flux
       use ice_itd
       use mod_utils
+
+#   if defined (ICE_EMBEDDING)
+      use ALL_VARS, only : mlt_lat, QTHICE           !!yding
+#   endif
+
+
 !      use ice_diagnostics, only: print_state
 !      use ice_diagnostics  ! print_state
 
@@ -556,6 +562,10 @@
          ustar = max (ustar,ustar_min*ustar_scale)
 
          fbot(i,j) = cpchr * deltaT * ustar ! < 0
+#   if defined (ICE_EMBEDDING)
+         fbot(i,j) = fbot(i,j) + cpchr * deltaT * ustar * QTHICE(i)     
+#   endif
+
          fbot(i,j) = max (fbot(i,j), frzmlt(i,j)) ! frzmlt < fbot < 0
 
 !!! uncomment to use all frzmlt for standalone runs
@@ -569,7 +579,16 @@
             
          wlat = m1 * deltaT**m2 ! Maykut & Perovich
 !         rside(i,j) = wlat*dt*pi/(alpha*floediam) ! Steele 
-         rside(i,j) = wlat*dtice*pi/(alpha*floediam) ! Steele 
+         rside(i,j) = wlat*dtice*pi/(alpha*floediam) ! Steele
+
+#   if defined (ICE_EMBEDDING)
+         if (rside(i,j)<0.5) then                
+          rside(i,j) = rside(i,j)*mlt_lat(i)     
+         else if (rside(i,j)>=0.5) then
+          rside(i,j) = rside(i,j)*QTHICE(i)    
+         end if
+#   endif
+ 
          rside(i,j) = max(c0i,min(rside(i,j),c1i))
 
       enddo                     ! ij

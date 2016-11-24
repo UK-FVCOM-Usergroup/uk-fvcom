@@ -1025,7 +1025,7 @@ contains !------------------------------------------------------------------!
 # if defined(SPHERICAL)
 !---------------------------------------------------------------
              XM = a_rk(ns)*p%v%deltat*p%v%chi(:,ns-1)
-             p%v%x(1) = p%v%xn(1) + XM(1)/(TPI*COS(p%v%xn(2)) + 1.0E-6)
+             p%v%x(1) = p%v%xn(1) + XM(1)/(TPI*COSD(p%v%xn(2)) + 1.0E-6)
              p%v%x(2) = p%v%xn(2) + XM(2)/TPI
              p%v%x(3) = p%v%xn(3) + XM(3)
 
@@ -1141,7 +1141,7 @@ contains !------------------------------------------------------------------!
           
           XTMP = XTMP + XM
           
-          p%v%xn(1) = p%v%xn(1) + XM(1)/(TPI*COS(p%v%xn(2)) + 1.0E-6)
+          p%v%xn(1) = p%v%xn(1) + XM(1)/(TPI*COSD(p%v%xn(2)) + 1.0E-6)
           p%v%xn(2) = p%v%xn(2) + XM(2)/TPI
           p%v%xn(3) = p%v%xn(3) + XM(3)
 

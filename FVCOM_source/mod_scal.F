@@ -43,7 +43,11 @@ Module Scalar
 !==============================================================================|
 ! Calculate Horizontal Advection and Diffusion For Scalar (f)                  |
 !==============================================================================|
-  Subroutine Adv_Scal(f,fn,d_fdis,fdis,d_fflux,fflux_obc,deltat,source)
+!  Subroutine Adv_Scal(f,fn,d_fdis,fdis,d_fflux,fflux_obc,deltat,source)
+!J. Ge for tracer advection
+  Subroutine Adv_Scal(f,f0,f2,fn,d_fdis,fdis,d_fflux,fflux_obc,deltat,source)
+!J. Ge for tracer advection
+
 !------------------------------------------------------------------------------|
 
   use all_vars
@@ -62,7 +66,10 @@ Module Scalar
 # endif
 
   implicit none
-  real(sp), intent(in ), dimension(0:mt,kb)      :: f 
+  real(sp), intent(in ), dimension(0:mt,kb)      :: f
+!J. Ge for tracer advection
+  real(sp), intent(in ), dimension(0:mt,kb)      :: f0,f2
+!J. Ge for tracer advection 
   real(sp), intent(out), dimension(0:mt,kb)      :: fn
   integer , intent(in )                          :: d_fdis
   real(sp), intent(in ), dimension(d_fdis)       :: fdis
@@ -84,8 +91,14 @@ Module Scalar
   real(sp) :: txx,tyy,fxx,fyy,viscof,exflux,temp,fpoint
   real(sp) :: fact,fm1,fmean
   integer  :: i,i1,i2,ia,ib,j,j1,j2,k,jtmp,jj
+!J. Ge for tracer advectio
+  real(sp),dimension(kb) :: ftmp
+!J. Ge for tracer advection
+
 # if defined (SPHERICAL)
   real(sp) :: ty,txpi,typi
+# else
+  real(sp) :: da,db,ds
 # endif
 
 # if defined (THIN_DAM)
@@ -162,22 +175,85 @@ Module Scalar
          i2=nbsn(i,j+1)
 
 #    if defined (WET_DRY)
-         IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
-          FFD=0.5_SP*(f(I,K)+f(I2,K))
-          FF1=0.5_SP*(f(I,K)+f(I2,K))
-	 ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
-          FFD=0.5_SP*(f(I1,K)+f(I,K))
-          FF1=0.5_SP*(f(I1,K)+f(I,K))
-	 ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
-          FFD=0.5_SP*(f(I,K)+f(I,K))
-          FF1=0.5_SP*(f(I,K)+f(I,K))
-	 ELSE
-          FFD=0.5_SP*(f(I1,K)+f(I2,K))
-          FF1=0.5_SP*(f(I1,K)+f(I2,K))
-	 END IF 
+!         IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
+!          FFD=0.5_SP*(f(I,K)+f(I2,K))
+!          FF1=0.5_SP*(f(I,K)+f(I2,K))
+!	 ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
+!          FFD=0.5_SP*(f(I1,K)+f(I,K))
+!          FF1=0.5_SP*(f(I1,K)+f(I,K))
+!	 ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
+!          FFD=0.5_SP*(f(I,K)+f(I,K))
+!          FF1=0.5_SP*(f(I,K)+f(I,K))
+!	 ELSE
+!          FFD=0.5_SP*(f(I1,K)+f(I2,K))
+!          FF1=0.5_SP*(f(I1,K)+f(I2,K))
+!	 END IF
+ 
+!J. Ge for tracer advection
+         IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+           IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
+            FFD=0.5_SP*(f(I,K)+f(I2,K))
+            FF1=0.5_SP*(f(I,K)+f(I2,K))
+	   ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
+            FFD=0.5_SP*(f(I1,K)+f(I,K))
+            FF1=0.5_SP*(f(I1,K)+f(I,K))
+	   ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
+            FFD=0.5_SP*(f(I,K)+f(I,K))
+            FF1=0.5_SP*(f(I,K)+f(I,K))
+	   ELSE
+            FFD=0.5_SP*(f(I1,K)+f(I2,K))
+            FF1=0.5_SP*(f(I1,K)+f(I2,K))
+	   END IF
+         ELSE
+           IF(BACKWARD_STEP==1)THEN
+             IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
+               FFD=0.5_SP*((f0(I,K)+f(I,K))*0.5+(f0(I2,K)+f(I2,K))*0.5)
+               FF1=0.5_SP*((f0(I,K)+f(I,K))*0.5+(f0(I2,K)+f(I2,K))*0.5)
+             ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
+               FFD=0.5_SP*((f0(I1,K)+f(I1,K))*0.5+(f0(I,K)+f(I,K))*0.5)
+               FF1=0.5_SP*((f0(I1,K)+f(I1,K))*0.5+(f0(I,K)+f(I,K))*0.5)
+	     ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
+               FFD=0.5_SP*((f0(I,K)+f(I,K))*0.5+(f0(I,K)+f(I,K))*0.5)
+               FF1=0.5_SP*((f0(I,K)+f(I,K))*0.5+(f0(I,K)+f(I,K))*0.5)
+	     ELSE
+               FFD=0.5_SP*((f0(I1,K)+f(I1,K))*0.5+(f0(I2,K)+f(I2,K))*0.5)
+               FF1=0.5_SP*((f0(I1,K)+f(I1,K))*0.5+(f0(I2,K)+f(I2,K))*0.5)
+             END IF
+           ELSEIF(BACKWARD_STEP==2)THEN
+             IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
+               FFD=0.5_SP*((f2(I,K)+f0(I,K)+f(I,K))/3.0_SP+(f2(I2,K)+f0(I2,K)+f(I2,K))/3.0_SP)
+               FF1=0.5_SP*((f2(I,K)+f0(I,K)+f(I,K))/3.0_SP+(f2(I2,K)+f0(I2,K)+f(I2,K))/3.0_SP)
+             ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
+               FFD=0.5_SP*((f2(I1,K)+f0(I1,K)+f(I1,K))/3.0_SP+(f2(I,K)+f0(I,K)+f(I,K))/3.0_SP)
+               FF1=0.5_SP*((f2(I1,K)+f0(I1,K)+f(I1,K))/3.0_SP+(f2(I,K)+f0(I,K)+f(I,K))/3.0_SP)
+	     ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
+               FFD=0.5_SP*((f2(I,K)+f0(I,K)+f(I,K))/3.0_SP+(f2(I,K)+f0(I,K)+f(I,K))/3.0_SP)
+               FF1=0.5_SP*((f2(I,K)+f0(I,K)+f(I,K))/3.0_SP+(f2(I,K)+f0(I,K)+f(I,K))/3.0_SP)
+	     ELSE
+               FFD=0.5_SP*((f2(I1,K)+f0(I1,K)+f(I1,K))/3.0_SP+(f2(I2,K)+f0(I2,K)+f(I2,K))/3.0_SP)
+               FF1=0.5_SP*((f2(I1,K)+f0(I1,K)+f(I1,K))/3.0_SP+(f2(I2,K)+f0(I2,K)+f(I2,K))/3.0_SP)
+	     END IF  
+           ENDIF
+
+         END IF
+!J. Ge for tracer advection
 #    else	 
-         ffd=0.5_sp*(f(i1,k)+f(i2,k)) !-fmean1(i1,k)-fmean1(i2,k))
-         ff1=0.5_sp*(f(i1,k)+f(i2,k))
+!         ffd=0.5_sp*(f(i1,k)+f(i2,k)) !-fmean1(i1,k)-fmean1(i2,k))
+!         ff1=0.5_sp*(f(i1,k)+f(i2,k))
+!J. Ge for tracer advection	 
+         IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+           FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
+           FF1=0.5_SP*(f(I1,K)+f(I2,K))
+         ELSE
+           IF(BACKWARD_STEP==1)THEN
+             FFD=0.5_SP*((f0(I1,K)+f(I1,K))*0.5+(f0(I2,K)+f(I2,K))*0.5)
+             FF1=0.5_SP*((f0(I1,K)+f(I1,K))*0.5+(f0(I2,K)+f(I2,K))*0.5)
+           ELSEIF(BACKWARD_STEP==2)THEN
+             FFD=0.5_SP*((f2(I1,K)+f0(I1,K)+f(I1,K))*0.5+(f2(I2,K)+f0(I2,K)+f(I2,K))*0.5)
+             FF1=0.5_SP*((f2(I1,K)+f0(I1,K)+f(I1,K))*0.5+(f2(I2,K)+f0(I2,K)+f(I2,K))*0.5)
+           ENDIF
+         ENDIF
+!J. Ge for tracer advection
 #    endif	 
 	 
 #        if defined (SPHERICAL)
@@ -203,8 +279,22 @@ Module Scalar
            DO J=1,NTSN(N_DAM_MATCH(I,NX+1))-1
              I1=NBSN(N_DAM_MATCH(I,NX+1),J)
              I2=NBSN(N_DAM_MATCH(I,NX+1),J+1)
-             FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
-             FF1=0.5_SP*(f(I1,K)+f(I2,K))
+!             FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
+!             FF1=0.5_SP*(f(I1,K)+f(I2,K))
+!J. Ge for tracer advection
+             IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+               FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
+               FF1=0.5_SP*(f(I1,K)+f(I2,K))
+             ELSE
+               IF(BACKWARD_STEP==1)THEN
+                FFD=0.5_SP*((f0(I1,K)+f(I1,K))*0.5+(f0(I2,K)+f(I2,K))*0.5)
+                FF1=0.5_SP*((f0(I1,K)+f(I1,K))*0.5+(f0(I2,K)+f(I2,K))*0.5)
+               ELSEIF(BACKWARD_STEP==2)THEN
+                FFD=0.5_SP*((f2(I1,K)+f0(I1,K)+f(I1,K))/3.0_SP+(f2(I2,K)+f0(I2,K)+f(I2,K))/3.0_SP)
+                FF1=0.5_SP*((f2(I1,K)+f0(I1,K)+f(I1,K))/3.0_SP+(f2(I2,K)+f0(I2,K)+f(I2,K))/3.0_SP)
+               ENDIF
+             ENDIF
+!J. Ge for tracer advection
 #        if defined (SPHERICAL)
              ty=0.5_sp*(vy(i1)+vy(i2))
              txpi=(vx(i2)-vx(i1))*tpi*cos(deg2rad*ty)
@@ -402,8 +492,23 @@ Module Scalar
        dxb=xi-vx(ib)
        dyb=yi-vy(ib)
 #      endif
-       fij1=f(ia,k)+dxa*pfpx(ia)+dya*pfpy(ia)
-       fij2=f(ib,k)+dxb*pfpx(ib)+dyb*pfpy(ib)
+
+!       fij1=f(ia,k)+dxa*pfpx(ia)+dya*pfpy(ia)
+!       fij2=f(ib,k)+dxb*pfpx(ib)+dyb*pfpy(ib)
+!J. Ge for tracer advection
+       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+         fij1=f(ia,k)+dxa*pfpx(ia)+dya*pfpy(ia)
+         fij2=f(ib,k)+dxb*pfpx(ib)+dyb*pfpy(ib)
+       ELSE
+         IF(BACKWARD_STEP==1)THEN
+           fij1=(f0(ia,k)+f(ia,k))*0.5+dxa*pfpx(ia)+dya*pfpy(ia)
+           fij2=(f0(ib,k)+f(ib,k))*0.5+dxb*pfpx(ib)+dyb*pfpy(ib)
+         ELSEIF(BACKWARD_STEP==2)THEN
+           fij1=(f2(ia,k)+f0(ia,k)+f(ia,k))/3.0_SP+dxa*pfpx(ia)+dya*pfpy(ia)
+           fij2=(f2(ib,k)+f0(ib,k)+f(ib,k))/3.0_SP+dxb*pfpx(ib)+dyb*pfpy(ib)
+         ENDIF
+       ENDIF
+!J. Ge for tracer advection
        un=uvn(i,k)
 
 !       viscof=horcon*(fact*(viscoff(ia)+viscoff(ib))*0.5_sp + fm1)
@@ -421,6 +526,23 @@ Module Scalar
 
        exflux=-un*dtij(i,k)* &
           ((1.0_sp+sign(1.0_sp,un))*fij2+(1.0_sp-sign(1.0_sp,un))*fij1)*0.5_sp+fxx+fyy
+
+
+       ! --------- new: 14-02-2012 ,K.Lettmann ------
+       ! Limit the total flux according to the amount
+       ! of mass within the respective neigbour control volumnes
+
+# if !defined (SPHERICAL)
+       Da = dz(ia,k)*dt(ia)
+       Db = dz(ib,k)*dt(ib)
+       Ds = 0.5_sp*( dz(ia,k) + dz(ib,k) )  ! Approximation of water depth for segment in sigma units
+
+       exflux = exflux / Ds ! trafo to old eflux unit (FVCOM 2.7)
+       call limit_hor_flux_Scal(f(ia,k),f(ib,k),ia,ib,Da,Db,ntrg(i),deltat,exflux)
+       exflux = exflux * Ds ! trafo back to new eflux unit (>FVCOM 3.1.4)
+# endif
+       ! --------------------------------------------
+
 
        xflux(ia,k)=xflux(ia,k)+exflux
        xflux(ib,k)=xflux(ib,k)-exflux
@@ -505,13 +627,61 @@ Module Scalar
      if(IS_DAM(I)==1)then
        wvel(1:kb)=0.0_sp
 !YC    call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),vflux)
-       call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),dz(i,1:kbm1),vflux)
+!J. Ge for tracer advection
+       !w_tmp = wvel(1:kb)
+       !dz_tmp= dz(i,1:kbm1)
+       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+         ftmp = f(i,1:kbm1)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),dz(i,1:kbm1),vflux)
+       ELSE
+         IF(BACKWARD_STEP==1)THEN
+           ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
+         ELSEIF(BACKWARD_STEP==2)THEN
+           ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
+         ENDIF
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,ftmp,wvel(1:kb),dz(i,1:kbm1),vflux)
+       ENDIF
+!J. Ge for tracer advection
      else
 !YC    call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),vflux)
-       call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
+!J. Ge for tracer advection
+       !w_tmp = wts(i,1:kb)
+       !dz_tmp= dz(i,1:kbm1)
+       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+         ftmp = f(i,1:kbm1)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
+       ELSE
+         IF(BACKWARD_STEP==1)THEN
+           ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
+         ELSEIF(BACKWARD_STEP==2)THEN
+           ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
+         ENDIF
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
+       ENDIF
+!J. Ge for tracer advection
      end if
 #    else
-       call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
+!J. Ge for tracer advection
+       !w_tmp = wts(i,1:kb)
+       !dz_tmp= dz(i,1:kbm1)
+       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+         !ftmp = f(i,1:kbm1)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
+       ELSE
+         IF(BACKWARD_STEP==1)THEN
+           ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
+         ELSEIF(BACKWARD_STEP==2)THEN
+           ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
+         ENDIF
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
+       ENDIF
+!J. Ge for tracer advection
 !!!      vflux = 0.0_SP
 #    endif
 
@@ -574,6 +744,17 @@ Module Scalar
           jj=inodeq(j)
           do k=1,kbm1
             fpoint = f(jj,k)
+!J. Ge for tracer advection
+            IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+              fpoint = f(jj,k)
+            ELSE
+              IF(BACKWARD_STEP==1)THEN
+                fpoint = (f0(jj,k)+f(jj,k))*0.5
+              ELSEIF(BACKWARD_STEP==2)THEN
+                fpoint = (f2(jj,k)+f0(jj,k)+f(jj,k))/3.0_SP
+              ENDIF
+            ENDIF
+!J. Ge for tracer advection
             xflux(jj,k)=xflux(jj,k) - qdis(j)*vqdist(j,k)*fpoint! /dz(jj,k)
           end do
         end do
@@ -968,7 +1149,7 @@ Module Scalar
   do i=2,n
     dis4    = .5*abs(w(i))
     conv(i) = w(i)*(cin(i)+cin(i-1))*0.5_SP
-    sl_u = 2.0_SP*(cin(i)-cin(n+1))/(sl_h(i)+sl_h(i+1))
+    sl_u = 2.0_SP*(cin(i)-cin(i+1))/(sl_h(i)+sl_h(i+1))
     sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(sl_h(i-2)+sl_h(i-1))
     diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(sl_h(i-1)+sl_h(i))) 
 !!    flux(i) = conv(i)+diss(i)
@@ -1003,5 +1184,120 @@ Module Scalar
 
   End Function Lim
 
+
+! =============================================================================
+! K.lettmann, Feb 2012, lettmann@icbm.de
+!
+! Methods for flux limiting for problems witht the diffusion step
+! to omit negative concentrations
+! ==============================================================================
+!
+!==============================================================================|
+! Horizontal flux Limitation For Scalar (f)                  |
+! 
+! K.lettmann, Feb 2012, lettmann@icbm.de
+!==============================================================================|
+  Subroutine limit_hor_flux_Scal(fka,fkb,ia,ib,Da,Db,ele_num,delt,exflux)
+!
+! This subroutine limits the total flux about a control volume segment
+! in case there is not enough tracer in the source element, 
+! the flux is coming from.
+!------------------------------------------------------------------------------|
+
+  use all_vars
+  use lims, only: m,mt,n,nt,kbm1,kb
+  use bcs
+  use mod_obcs
+#  if defined (SPHERICAL)
+   USE MOD_SPHERICAL
+#  endif
+
+  implicit none
+  real(sp), intent(in )                  :: fka        ! scalar quantity on k-sigma level in cv a
+  real(sp), intent(in )                  :: fkb        ! scalar quantity on k-sigma level in cv b
+  integer , intent(in )                  :: ele_num    ! The element/triangle we are working
+  integer , intent(in )                  :: ia,ib      ! Index of the left and right node to the SCV side S
+  real(sp), intent(in )                  :: delt       ! time step for diffusion equation
+  real(sp), intent(in )                  :: Da         ! water depth  of sigma layer [m] on side a of interface
+  real(sp), intent(in )                  :: Db         ! water depth  of sigma layer [m] on side b of interface
+  real(sp), intent(inout)                :: exflux     ! total flux over side S (diffusion + advection) []
+
+  !----------------local--------------------------------------
+  integer  :: i_source
+  real(sp) :: x_ce,xa,xb,y_ce,ya,yb !coordinates of triangle nodes
+  real(sp) :: f_source              !concentrations in source element
+  real(sp) :: A_cv                  !area of part of control volume
+  real(sp) :: delh                  !hight of sigma-layer
+  real(sp) :: D_source              !water depth of sigma layer [m] at source node
+  real(sp) :: amount_source         !amount of tracer in source node control volume
+  real(sp) :: flux_max              !maximal possible outflux of tracer from source node control volume
+# if defined (SPHERICAL)
+  real(sp) :: side1,side2,side3     ! length of triangle sides for spherical triangle
+# endif
+!------------------------------------------------------------------------------!
+
+  ! ----- the coordinates of the corner points of the double control volume ---
+  x_ce = xc(ele_num) ;   y_ce = yc(ele_num)  ! center node
+  xa = vx(ia) ;   ya = vy(ia)                ! left node
+  xb = vx(ib) ;   yb = vy(ib)                ! right node
+  !print*,'center node: ',x_ce,y_ce
+  ! ---------------------------------------------------------------------------
+
+
+  ! -------- calculate the area of the tracer control volume -------------------
+  ! it is only the small part of the total control volume / not art1
+#  if defined (SPHERICAL)
+     ! see routine cell_area for an example
+     ! how to calculate the area of triangles on a sphere
+     CALL ARC(x_ce,y_ce,xa,ya,side1)  
+     CALL ARC(xa,ya,xb,yb,side2)
+     CALL ARC(xb,yb,xa,ya,side3)
+
+     ! calculate area of triangle from triangle sides
+     CALL AREA(side1,side2,side3,A_cv)
+     A_cv = 0.5_SP * abs(A_cv)
+#  else
+   ! area for cartesian triangle on a plane
+   A_cv = 0.5* abs( 0.5*( (xb-xa)*(y_ce-ya) - (x_ce-xa)*(yb-ya) ) )
+#  endif
+  ! ----------------------------------------------------------------------------
+
+  ! ------- find the source element, where the flux comes from -----------------
+  if (exflux >= 0.0) then 
+       i_source = ia
+       f_source = fka
+       D_source = Da
+  else
+       i_source = ib
+       f_source = fkb
+       D_source = Db
+  end if
+  !print*,'source node:',i_source
+  ! -----------------------------------------------------------------------------
+
+  ! ------- calculate the maximal possible outflow from source element ---------
+  ! it cannot flow out more tracer than being in the element
+  !print*,'f_source',f_source
+  !print*,'D:',Dn(ia),Dn(ib)
+
+  amount_source = f_source * A_cv
+  flux_max = amount_source*D_source/delt
+
+  !print*,'flux_max:',flux_max
+  ! -----------------------------------------------------------------------------
+
+
+  ! ------ limit the exflux if necessary ----------------------------------------
+  if (exflux >= 0.0) then
+    exflux = min(flux_max,exflux)
+  else
+    exflux = max(-flux_max,exflux)
+  end if
+  ! -----------------------------------------------------------------------------
+
+
+  return
+  End Subroutine limit_hor_flux_Scal
+!==============================================================================|
 
 End Module Scalar

@@ -2032,7 +2032,7 @@ CONTAINS
     implicit none
     TYPE(INTERP_WEIGHTS), INTENT(IN) :: WEIGHTS
     real(SP), POINTER , INTENT(IN):: zin(:,:)
-    real(SP), POINTER, INTENT(OUT) :: Zout(:)
+    real(SP), POINTER, INTENT(INOUT) :: Zout(:)
     TYPE(R2PTS) :: PTW
     integer  :: i,j,x,y, kk
     real(SP) :: tt

@@ -1679,9 +1679,9 @@ MODULE NON_HYDRO
 
 # if !defined (SEMI_IMPLICIT)
 # if defined (GCN)
-    CALL BCOND_GCN(3)    ! Boundary Condition on U/V At River Input           !
+    CALL BCOND_GCN(3,0)    ! Boundary Condition on U/V At River Input           !
 # else
-    CALL BCOND_GCY(3)    ! Boundary Condition on U/V At River Input           !
+    CALL BCOND_GCY(3,0)    ! Boundary Condition on U/V At River Input           !
 # endif
 # endif
 

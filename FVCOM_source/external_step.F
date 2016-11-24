@@ -91,9 +91,9 @@ SUBROUTINE EXTERNAL_STEP
 !------SURFACE BOUNDARY CONDITIONS FOR EXTERNAL MODEL--------------------------!
 !
 # if defined (GCN)
-  CALL BCOND_GCN(9)
+  CALL BCOND_GCN(9,0)
 # else
-  CALL BCOND_GCY(9)
+  CALL BCOND_GCY(9,0)
 # endif
 
 # if defined (ICE)
@@ -207,9 +207,9 @@ SUBROUTINE EXTERNAL_STEP
 ! One is meanflow method combined transport with tidal forcing
 ! One is only tidal focring as ordinary
 #        if defined (GCN)
-         CALL BCOND_GCN(1)
+         CALL BCOND_GCN(1,K)
 #        else
-         CALL BCOND_GCY(1)
+         CALL BCOND_GCY(1,K)
 #        endif
 !---------------------------------------------------------------------!
       IF(NMFCELL_I>0)THEN
@@ -250,9 +250,9 @@ SUBROUTINE EXTERNAL_STEP
      ! VALUES FOR THE OPEN BOUNDARY ARE ONLY UPDATED IN THE LOCAL DOMAIN
      ! THE HALO IS NOT SET HERE
 #   if defined (GCN)
-     CALL BCOND_GCN(1)
+     CALL BCOND_GCN(1,K)
 #   else
-     CALL BCOND_GCY(1)
+     CALL BCOND_GCY(1,K)
 #   endif
  
      IF(NESTING_ON )THEN
@@ -306,9 +306,9 @@ SUBROUTINE EXTERNAL_STEP
 # endif
 
 # if defined (GCN)
-     CALL BCOND_GCN(2)
+     CALL BCOND_GCN(2,K)
 # else
-     CALL BCOND_GCY(2)
+     CALL BCOND_GCY(2,K)
 # endif
 
 # if defined (PLBC)

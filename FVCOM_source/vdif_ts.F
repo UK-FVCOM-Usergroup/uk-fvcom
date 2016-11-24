@@ -71,6 +71,8 @@ SUBROUTINE VDIF_TS(NCON1,F)
   REAL(DP) :: ftmp,stmp
 # endif
 
+  REAL(SP) :: WFTMP1, WFTMP2, WFTMP3
+
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: vdif_ts :", NCON1
 
   UMOLPR = UMOL*1.E0_SP
@@ -129,6 +131,32 @@ SUBROUTINE VDIF_TS(NCON1,F)
         WFSURF(1:M)=WTSURF(1:M)
         SWRADF(1:M)=SWRAD(1:M)
         SASURF=0.0_SP
+
+#    if !defined (ICE)
+!
+!-----------------------------------------------------------------------
+!  If net heat flux is cooling and SST is at freezing point or below
+!  then suppress further cooling. Note: net heat flux sign convention is that 
+!  positive (in FVCOM negitive - J. Qi) means heating the ocean (J Wilkin - ROMS).
+!-----------------------------------------------------------------------
+! 
+!  Below the surface heat flux WFSURF is ZERO if cooling AND
+!  the SST is cooler than the threshold.  The value is retained if
+!  warming.
+!
+!    WFTMP3 = 0      if SST warmer than threshold (WFTMP1) - change nothing
+!    WFTMP3 = 1      if SST colder than threshold (WFTMP1)
+!
+!    0.5*(WFTMP2+ABS(WFTMP2)) = 0                        if flux is warming
+!                             = WFSURF                   if flux is cooling 
+!
+        WFTMP1=-2.0_SP              ! nominal SST threshold to cease cooling
+        DO I=1,M
+          WFTMP2=WFSURF(I)
+          WFTMP3=0.5_SP*(1.0_SP+SIGN(1.0_SP,WFTMP1-F(I,1)))
+          WFSURF(I) = WFTMP2-WFTMP3*0.5_SP*(WFTMP2+ABS(WFTMP2))
+        END DO
+#    endif
 
         DO K = 1, KB
            DO I = 1, M

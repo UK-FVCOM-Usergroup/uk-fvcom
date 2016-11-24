@@ -2427,7 +2427,7 @@ END FUNCTION OPEN_DAT
 !  DECOMPOSE INPUT LINE INTO VARIABLE NAME AND VARIABLE VALUE(S)               !
 !==============================================================================!
 
-SUBROUTINE GET_VAL(LNUM,NUMCHAR,TEXT_LINE,VARNAME,VARTYPE,LOGVAL,STRINGVAL,&
+SUBROUTINE GET_VALUE(LNUM,NUMCHAR,TEXT_LINE,VARNAME,VARTYPE,LOGVAL,STRINGVAL,&
                     REALVAL,INTVAL,NVAL)
 
 !==============================================================================!
@@ -2590,7 +2590,7 @@ SUBROUTINE GET_VAL(LNUM,NUMCHAR,TEXT_LINE,VARNAME,VARTYPE,LOGVAL,STRINGVAL,&
      END IF
    END DO
 
-END SUBROUTINE GET_VAL 
+END SUBROUTINE GET_VALUE
 
 
 !==============================================================================|
@@ -2710,7 +2710,7 @@ END SUBROUTINE GET_VAL
      END IF
        
 !----PROCESS THE LINE----------------------------------------------------------!
-     CALL GET_VAL(NLINE,LEN_TRIM(TLINE),ADJUSTL(TLINE),VARNAME,VARTYPE,LOGVAL,&
+     CALL GET_VALUE(NLINE,LEN_TRIM(TLINE),ADJUSTL(TLINE),VARNAME,VARTYPE,LOGVAL,&
                  STRINGVAL,REALVAL,INTVAL,NVAL)
 
 !----IF VARNAME MATCHES, PROCESS VARIABLE AND ERROR-CHECK----------------------!
@@ -3059,9 +3059,7 @@ END SUBROUTINE GET_VAL
     
   END FUNCTION READ_INT
 
-
-
-    FUNCTION SCAN_FILE2(FNAME,VNAME,ISCAL,FSCAL,IVEC,FVEC,CVEC,NSZE,CVAL,LVAL)           
+  FUNCTION SCAN_FILE2(FNAME,VNAME,ISCAL,FSCAL,IVEC,FVEC,CVEC,NSZE,CVAL,LVAL)           
 
 !==============================================================================|
 !   Scan an Input File for a Variable                                          |
@@ -3169,7 +3167,7 @@ END SUBROUTINE GET_VAL
      END IF
        
 !----PROCESS THE LINE----------------------------------------------------------!
-     CALL GET_VAL(NLINE,LEN_TRIM(TLINE),ADJUSTL(TLINE),VARNAME,VARTYPE,LOGVAL,&
+     CALL GET_VALUE(NLINE,LEN_TRIM(TLINE),ADJUSTL(TLINE),VARNAME,VARTYPE,LOGVAL,&
                  STRINGVAL,REALVAL,INTVAL,NVAL)
 
 !----IF VARNAME MATCHES, PROCESS VARIABLE AND ERROR-CHECK----------------------!
@@ -3251,6 +3249,207 @@ END SUBROUTINE GET_VAL
 
    RETURN 
    END FUNCTION SCAN_FILE2
+
+
+    FUNCTION SCAN_FILE3(FNAME,VNAME,ISCAL,FSCAL,IVEC,FVEC,CVEC,NSZE,CVAL,LVAL)           
+
+!==============================================================================|
+!   Scan an Input File for a Variable                                          |
+!   RETURN VALUE:                                                              |
+!        0 = FILE FOUND, VARIABLE VALUE FOUND                                  |
+!       -1 = FILE DOES NOT EXIST OR PERMISSIONS ARE INCORRECT                  |
+!       -2 = VARIABLE NOT FOUND OR IMPROPERLY SET                              |
+!       -3 = VARIABLE IS OF DIFFERENT TYPE, CHECK INPUT FILE                   |
+!       -4 = VECTOR PROVIDED BUT DATA IS SCALAR TYPE                           |
+!       -5 = NO DATATYPE DESIRED, EXITING                                      |
+!							                       |
+!   REQUIRED INPUT:		        				       |
+!        FNAME = File Name					               |
+!        FSIZE = Length of Filename					       |
+!                                                                              | 
+!   OPTIONAL (MUST PROVIDE ONE)        					       | 
+!        ISCAL = INTEGER SCALAR					               |
+!        FSCAL = FLOAT SCALAR  						       | 
+!        CVAL = CHARACTER VARIABLE                                             |
+!        LVAL = LOGICAL VARIABLE                                               |
+!        IVEC = INTEGER VECTOR **                                              |
+!        FVEC = FLOAT VECTOR **                                                |
+!        CVEC = STRING VECTOR ** (STRINGS OF LENGTH 80)                        |
+!      **NSZE = ARRAY SIZE (MUST BE PROVIDED WITH IVEC/FVEC)                   |
+!                                                                              | 
+!==============================================================================|
+
+   USE MOD_PREC
+   USE OCPCOMM4
+   IMPLICIT NONE
+   CHARACTER(LEN=*) :: FNAME,VNAME
+   INTEGER, INTENT(INOUT), OPTIONAL :: ISCAL,IVEC(*)
+   REAL(SP),INTENT(INOUT), OPTIONAL :: FSCAL,FVEC(*)
+   CHARACTER(LEN=80), OPTIONAL      :: CVAL,CVEC(*)
+   LOGICAL, INTENT(INOUT), OPTIONAL :: LVAL
+   INTEGER, INTENT(INOUT), OPTIONAL :: NSZE 
+   
+!------------------------------------------------------------------------------|
+
+   INTEGER :: SCAN_FILE3
+   REAL(DP) REALVAL(150)
+   INTEGER  INTVAL(150)
+   CHARACTER(LEN=40 ) :: VARNAME
+   CHARACTER(LEN=80 ) :: STRINGVAL(150),TITLE
+   CHARACTER(LEN=80 ) :: INPLINE
+   CHARACTER(LEN=400) :: TLINE
+   CHARACTER(LEN=7  ) :: VARTYPE
+   CHARACTER(LEN=20 ), DIMENSION(200)  :: SET
+   INTEGER I,NVAL,J,NSET,NLINE,NREP
+   LOGICAL SETYES,ALLSET,CHECK,LOGVAL
+
+
+   SCAN_FILE3 = 0
+!==============================================================================|
+!            OPEN THE INPUT FILE                                               |
+!==============================================================================|
+   INQUIRE(FILE=TRIM(FNAME),EXIST=CHECK)
+   IF(.NOT.CHECK)THEN
+     SCAN_FILE3 = -1
+     RETURN
+   END IF
+
+   OPEN(INPUTF,FILE=TRIM(FNAME)) ; REWIND(INPUTF) 
+
+!==============================================================================|
+!            SCAN THE FILE FOR THE VARIABLE NAME                               |
+!==============================================================================|
+
+   NSET = 0
+   NLINE = 0
+   DO WHILE(.TRUE.)
+     TLINE(1:LEN(TLINE)) = ' ' 
+     NREP  = 0
+     NLINE = NLINE + 1
+     READ(INPUTF,'(a)',END=20) INPLINE
+     TLINE(1:80) = INPLINE(1:80)
+
+!----PROCESS LINE CONTINUATIONS------------------------------------------------!
+ 110 CONTINUE
+     I = LEN_TRIM(INPLINE)
+     IF(I > 2)THEN
+#    if defined (COMPAQ) || defined (INTEL) || defined (IRIX)
+     IF( INPLINE(I-1:I) == '\\')THEN
+#    else
+     IF( INPLINE(I-1:I) == '\\')THEN
+#    endif
+       NREP = NREP + 1
+       READ(INPUTF,'(a)',END=20) INPLINE
+       NLINE = NLINE + 1
+       TLINE( NREP*80 + 1 : NREP*80 +80) = INPLINE(1:80)
+       GOTO 110
+     END IF
+     END IF
+     IF(NREP > 4)CALL Fatal_Error("CANNOT HAVE > 4 LINE CONTINUATIONS")
+
+!----REMOVE LINE CONTINUATION CHARACTER \\-------------------------------------!
+     IF(NREP > 0)THEN
+       DO I=2,LEN_TRIM(TLINE)
+#    if defined (COMPAQ) || defined (INTEL) || defined (IRIX)
+         IF( TLINE(I-1:I) == '\\') TLINE(I-1:I) = '  '
+#        else
+         IF( TLINE(I-1:I) == '\\') TLINE(I-1:I) = '  '
+#        endif
+       END DO
+     END IF
+
+      
+!----PROCESS THE LINE----------------------------------------------------------!
+     CALL GET_VALUE(NLINE,LEN_TRIM(TLINE),ADJUSTL(TLINE),VARNAME,VARTYPE,LOGVAL,&
+                 STRINGVAL,REALVAL,INTVAL,NVAL)
+
+!----IF VARNAME MATCHES, PROCESS VARIABLE AND ERROR-CHECK----------------------!
+
+     IF(TRIM(VARNAME) == TRIM(VNAME))THEN
+
+       IF(PRESENT(ISCAL))THEN
+         IF(VARTYPE == 'integer')THEN
+           ISCAL = INTVAL(1)
+           CLOSE(INPUTF)
+           RETURN
+         ELSE
+           SCAN_FILE3 = -3
+         END IF
+       ELSE IF(PRESENT(FSCAL))THEN
+         IF(VARTYPE == 'float')THEN
+           FSCAL = REALVAL(1)
+           CLOSE(INPUTF)
+           RETURN
+         ELSE
+           SCAN_FILE3 = -3
+         END IF
+       ELSE IF(PRESENT(CVAL))THEN
+         IF(VARTYPE == 'string')THEN
+           CVAL = STRINGVAL(1) 
+           CLOSE(INPUTF)
+           RETURN
+         ELSE
+           SCAN_FILE3 = -3
+         END IF
+       ELSE IF(PRESENT(LVAL))THEN
+         IF(VARTYPE == 'logical')THEN
+           LVAL = LOGVAL 
+           CLOSE(INPUTF)
+           RETURN
+         ELSE
+           SCAN_FILE3 = -3
+         END IF
+       ELSE IF(PRESENT(IVEC))THEN
+         IF(NVAL > 1)THEN
+           IF(VARTYPE == 'integer')THEN
+             IVEC(1:NVAL) = INTVAL(1:NVAL) 
+             NSZE = NVAL
+             CLOSE(INPUTF)         
+             RETURN
+           ELSE
+             SCAN_FILE3 = -3
+           END IF
+           ELSE
+           SCAN_FILE3 = -4 
+         END IF
+       ELSE IF(PRESENT(FVEC))THEN
+         IF(NVAL > 1)THEN
+           IF(VARTYPE == 'float')THEN
+             FVEC(1:NVAL) = REALVAL(1:NVAL) 
+             NSZE = NVAL 
+             CLOSE(INPUTF)          
+             RETURN
+           ELSE
+             SCAN_FILE3 = -3
+           END IF
+         ELSE
+           SCAN_FILE3 = -4 
+         END IF
+       ELSE IF(PRESENT(CVEC))THEN
+         IF(NVAL > 0)THEN
+           IF(VARTYPE == 'string')THEN
+             CVEC(1:NVAL) = STRINGVAL(2:NVAL+1)
+             NSZE = NVAL 
+             CLOSE(INPUTF)
+             RETURN
+           ELSE
+             SCAN_FILE3 = -3
+           END IF
+         ELSE
+           SCAN_FILE3 = -4
+         END IF
+       ELSE
+         SCAN_FILE3 = -5
+       END IF
+     END IF  !!VARIABLE IS CORRECT
+            
+   END DO !!LOOP OVER INPUT FILE
+ 20 CLOSE(INPUTF) 
+   SCAN_FILE3 = -2
+
+   RETURN 
+   END FUNCTION SCAN_FILE3
+
 !==============================================================================|
 
 

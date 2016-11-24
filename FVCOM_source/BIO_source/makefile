@@ -16,6 +16,9 @@
 
 BIOMODULE	= \
 libbiomodule.a(mod_1D.o)			\
+libbiomodule.a(mod_utils2.o)			\
+libbiomodule.a(mod_bioinp.o)			\
+libbiomodule.a(mod_newinp2.o)			\
 libbiomodule.a(mod_phytoplankton.o)		\
 libbiomodule.a(mod_zooplankton.o)		\
 libbiomodule.a(mod_bacteria.o)			\
@@ -33,13 +36,16 @@ libbiomodule.a(bio_mixing.o)
 
 LIBS	=	libbiomodule.a
 
+FFLAGS_BIO = -O3
+
 libbiomodule.a: $(BIOMODULE)
 
 .SUFFIXES: .o .f90 .F .F90 
 
 .F.o:
-	$(CPP) $(CPPFLAGS) $*.F > $*.f90
-	$(FC) -c $(FFLAGS) $*.f90 > $*.o
+	$(CPP) $(CPPFLAGS) $(CPPARGS) $*.F > $*.f90
+#	$(FC) -c $(FFLAGS) $*.f90 > $*.o
+	$(FC) -c $(FFLAGS_BIO) $*.f90 > $*.o
 #	$(AR) $(ARFLGS) $@ $<	
 	ar rv libbiomodule.a *.o
 	\rm $*.f90
@@ -53,6 +59,6 @@ clobber:
 
 Makefiles::
 
-includes::
-include ../make.inc
+#includes::
+#include ../make.inc
 # DO NOT DELETE
