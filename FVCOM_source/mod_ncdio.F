@@ -41,6 +41,7 @@ MODULE MOD_NCDIO
   !         km:    turbulent viscosity                                           !
   !         t1:    temperature                                                   !
   !         s1:    salinity                                                      !
+  !       rho1:    density                                                       !
   !         ua:    vertically-averaged x-velocity                                !
   !                In spherical coordinate,vertically-averaged lon-velocity      !
   !         va:    vertically-averaged y-velocity                                !
@@ -53,7 +54,7 @@ MODULE MOD_NCDIO
   !      vvice:    ice y-velocity                                                !
   !     uuwind:    wind speed in x direction                                     !
   !     vvwind:    wind speed in y direction                                     !
-  !     pa_air:    sea level atmospheric pressure                                     !
+  !     pa_air:    sea level atmospheric pressure                                !
   !                                                                              !
   !       wd:      wet/dry flag (0 or 1)                                         !
   !                                                                              !
