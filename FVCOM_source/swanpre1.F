@@ -2,7 +2,7 @@
 !***********************************************************************
 !                                                                      *
 #  if defined (WAVE_CURRENT_INTERACTION)
-   SUBROUTINE SWREAD (COMPUT)                                          
+   SUBROUTINE SWREAD !(COMPUT)                                          
 !                                                                      *
 !***********************************************************************
 !
@@ -121,7 +121,8 @@
 
    LOGICAL, SAVE :: LOGCOM(1:6) = .FALSE.                              
    INTEGER   TIMARR(6)                                                 
-   CHARACTER PSNAME *8, PNAME *8, COMPUT *(*), PTYPE *1, DTTIWR *18    
+!   CHARACTER PSNAME *8, PNAME *8, COMPUT *(*), PTYPE *1, DTTIWR *18    
+   CHARACTER PSNAME *8, PNAME *8, PTYPE *1, DTTIWR *18    
    INTEGER, SAVE :: IENT = 0       ! number of entries to this subr
    INTEGER, SAVE :: LWINDR = 0     ! if non-zero, there is wind
    INTEGER, SAVE :: LWINDM = 3     ! type of wind growth formulation
@@ -941,6 +942,7 @@
      ISONB_W = ISONB
      DO I=1,MT
         IF(ISONB_W(I)==2) ISONB_W(I)=1
+        IF(ISONB_W(I)==3) ISONB_W(I)=0
      ENDDO
            
    END IF

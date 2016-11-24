@@ -33,6 +33,9 @@ SUBROUTINE RHO_PMEAN
   USE MOD_UTILS
   USE MOD_PAR
   USE SINTER
+# if defined (WET_DRY)
+  USE MOD_WD
+# endif
   IMPLICIT NONE
 
   INTEGER, PARAMETER :: KBB=601
@@ -63,17 +66,49 @@ SUBROUTINE RHO_PMEAN
 
   IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) "! Recalculating mean density in pressure coordinates"
 
+# if defined (WET_DRY)
+
   IF(SERIAL) THEN
-     Z_TOP = maxval(EL(1:M))
+     IF(WETTING_DRYING_ON)THEN
+       Z_TOP = maxval(EL(1:M)*ISWETN(1:M))
+     ELSE
+       Z_TOP = maxval(EL(1:M))
+     END IF
      Z_BOTTOM = HMAX+spacing(hmax)
   ELSE
 #    if defined(MULTIPROCESSOR)
-     SBUF = maxval(EL(1:M))
-     CALL MPI_ALLREDUCE(SBUF,Z_TOP,1,MPI_REAL,MPI_MAX,MPI_FVCOM_GROUP,IERR)
+     IF(WETTING_DRYING_ON)THEN
+       SBUF = maxval(EL(1:M)*ISWETN(1:M))
+     ELSE
+       SBUF = maxval(EL(1:M))
+     END IF
+     CALL MPI_ALLREDUCE(SBUF,Z_TOP,1,MPI_F,MPI_MAX,MPI_FVCOM_GROUP,IERR)
      Z_BOTTOM = HMAX ! ALREADY GLOBALLY COLLECTED!
 # endif
   END IF
-  
+
+# else
+
+  IF(SERIAL) THEN
+#   if defined (ICE_EMBEDDING)
+     Z_TOP = maxval(EL(1:M))-minval(QTHICE(1:M))   !!yding
+#   else
+     Z_TOP = maxval(EL(1:M))
+#   endif
+     Z_BOTTOM = HMAX+spacing(hmax)
+  ELSE
+#    if defined(MULTIPROCESSOR)
+#   if defined (ICE_EMBEDDING)
+     SBUF = maxval(EL(1:M))-minval(QTHICE(1:M))   !!yding
+#   else
+     SBUF = maxval(EL(1:M))
+#   endif
+     CALL MPI_ALLREDUCE(SBUF,Z_TOP,1,MPI_F,MPI_MAX,MPI_FVCOM_GROUP,IERR)
+     Z_BOTTOM = HMAX ! ALREADY GLOBALLY COLLECTED!
+# endif
+  END IF
+
+# endif  
 
 !  DELTZ=HMAX/FLOAT(KBBM1)
   DELTZ=(Z_BOTTOM + Z_TOP)/FLOAT(KBBM1)
@@ -99,13 +134,21 @@ SUBROUTINE RHO_PMEAN
      DO I=1,M
 
         !--LINEARLY INTERPOLATE TO OBTAIN DENSITY VALUES AT Z LEVELS-------------------|
+#   if defined (ICE_EMBEDDING)
+        ZM(1:kbm1)=ZZ(I,1:kbm1)*D(I)+EL(I)-QTHICE(I)    !!yding
+#   else        
         ZM(1:kbm1)=ZZ(I,1:kbm1)*D(I)+EL(I)
+#   endif
         RHOS = RHO1(I,1:KBM1)
         CALL SINTER_EXTRP_NONE(ZM,RHOS,PHY_Z,RHOZ,KBM1,KBB)
 
         !--SUM THE DENSITY ACROSS ALL THE NODES AT ZLEVELS ----------!
-        DO K=1,KBB        
+        DO K=1,KBB       
+#   if defined (ICE_EMBEDDING)
+           IF(-H(I).LE.PHY_Z(K) .AND. EL(I)-QTHICE(I) .GE. PHY_Z(K)) THEN  !!yding
+#   else 
            IF(-H(I).LE.PHY_Z(K) .AND. EL(I) .GE. PHY_Z(K)) THEN
+#   endif
               FCOUNT(K) = FCOUNT(K) + 1.0_SP
               RHOA(K)=RHOA(K)+RHOZ(K)
            END IF
@@ -132,13 +175,21 @@ SUBROUTINE RHO_PMEAN
 
      DO I=1,M        
         !--LINEARLY INTERPOLATE TO OBTAIN DENSITY VALUES AT Z LEVELS-------------------|
+#   if defined (ICE_EMBEDDING)
+        ZM(1:kbm1)=ZZ(I,1:kbm1)*D(I)+EL(I)-QTHICE(I)   !!yding
+#   else
         ZM(1:kbm1)=ZZ(I,1:kbm1)*D(I)+EL(I)
+#   endif
         RHOS = RHO1(I,1:KBM1)
         CALL SINTER_EXTRP_NONE(ZM,RHOS,PHY_Z,RHOZ,KBM1,KBB) 
 
         !--SUM THE DENSITY ACROSS ALL THE NODES AT ZLEVELS ----------!
-        DO K=1,KBB        
+        DO K=1,KBB       
+#   if defined (ICE_EMBEDDING) 
+           IF(-H(I).LE.PHY_Z(K) .AND. EL(I)-QTHICE(I) .GE. PHY_Z(K)) THEN   !!yding
+#   else
            IF(-H(I).LE.PHY_Z(K) .AND. EL(I) .GE. PHY_Z(K)) THEN
+#   endif
               IF(NDE_ID(I) == 0)THEN !!INTERNAL NODE
                  FCOUNT(K) = FCOUNT(K) + 1.0_SP
                  RHOA(K)=RHOA(K)+RHOZ(K)
@@ -155,17 +206,17 @@ SUBROUTINE RHO_PMEAN
 
      END DO
 
-#    if defined (DOUBLE_PRECISION)
-     CALL MPI_ALLGATHER(RHOA,KBB,MPI_DOUBLE_PRECISION,RHOA_RCV,KBB,MPI_DOUBLE_PRECISION,MPI_FVCOM_GROUP,IERR)
-     CALL MPI_ALLGATHER(FCOUNT,KBB,MPI_DOUBLE_PRECISION,FCOUNT_RCV,KBB,MPI_DOUBLE_PRECISION,MPI_FVCOM_GROUP,IERR)
-#    else
-     CALL MPI_ALLGATHER(RHOA,KBB,MPI_REAL,RHOA_RCV,KBB,MPI_REAL,MPI_FVCOM_GROUP,IERR)
-     CALL MPI_ALLGATHER(FCOUNT,KBB,MPI_REAL,FCOUNT_RCV,KBB,MPI_REAL,MPI_FVCOM_GROUP,IERR)
-#    endif
+     CALL MPI_ALLGATHER(RHOA,KBB,MPI_F,RHOA_RCV,KBB,MPI_F,MPI_FVCOM_GROUP,IERR)
+     CALL MPI_ALLGATHER(FCOUNT,KBB,MPI_F,FCOUNT_RCV,KBB,MPI_F,MPI_FVCOM_GROUP,IERR)
      RHOA = SUM(RHOA_RCV,2)
      FCOUNT = SUM(FCOUNT_RCV,2)
         
-     IF(MINVAL(FCOUNT) .LT. 1.0_SP) THEN
+!     IF(MINVAL(FCOUNT) .LT. 1.0_SP) THEN
+# if !defined (DOUBLE_PRECISION)
+     IF(NINT(MINVAL(FCOUNT)) .LT. 1) THEN
+# else
+     IF(IDNINT(MINVAL(FCOUNT)) .LT. 1) THEN
+# endif
         IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) "FOUND NO DATA AT DEPTH:",PHY_Z(MINLOC(FCOUNT,1))
         CALL FATAL_ERROR("RHO_PMEAN: In Parallel case, found fcount LT 0.0!")
      END IF
@@ -180,8 +231,15 @@ SUBROUTINE RHO_PMEAN
 
 
   DO I=1,M
+# if defined (WET_DRY)
+     IF(WETTING_DRYING_ON.and.ISWETN(i)==0)cycle
+# endif
      DO K=1,KBM1
+#   if defined (ICE_EMBEDDING)
+        ZM(K)=ZZ(I,K)*D(I)+EL(I)-QTHICE(I)       !!yding
+#   else
         ZM(K)=ZZ(I,K)*D(I)+EL(I)
+#   endif
      END DO
      CALL SINTER_EXTRP_NONE(PHY_Z,RHOA,ZM,RHOS,KBB,KBM1)
      RMEAN1(I,1:KBM1) = RHOS

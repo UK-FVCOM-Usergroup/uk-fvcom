@@ -988,6 +988,7 @@ SUBROUTINE READ_ATT_TYPE(NCID,VARID,ATT)
 
   len=ATT%LEN
   write(clen,'(I4.4)') len
+  status = 1
   select case(ATT%XTYPE)
   case(NF90_BYTE)
      allocate(ATT%int(len),stat=status)
@@ -1093,6 +1094,7 @@ SUBROUTINE WRITE_ATT_TYPE(ncid,varid,ATT)
        & write(IPT,*) "START WRITE_ATT_TYPE"
 
   len=ATT%LEN
+  status=1
   select case(ATT%XTYPE)
   case(NF90_BYTE)
      status = nf90_put_att(NCID,VARID,&

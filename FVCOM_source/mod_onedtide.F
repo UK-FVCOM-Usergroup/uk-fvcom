@@ -105,7 +105,8 @@ MODULE MOD_ONEDTIDE
    REAL(DP):: TIME_FLT
 !**************     EXECUTABLE     ***************
 !   TIME1 = TIME * 86400.0_SP
-   TIME_ELAPSED = RKTime - SpecTime
+!   TIME_ELAPSED = RKTime - SpecTime
+    TIME_ELAPSED = IntTime - SpecTime
    
    PSTX_TM = 0.0_SP
    PSTY_TM = 0.0_SP

@@ -165,6 +165,7 @@ SUBROUTINE BOTTOM_ROUGHNESS
   END DO
 
 # if defined (SEDIMENT) && (WAVE_CURRENT_INTERACTION)
+  if(SEDIMENT_MODEL)THEN
   if(MB_BBL_USE)then
     call mb_bbl
   elseif(SG_BBL_USE)then
@@ -180,7 +181,7 @@ SUBROUTINE BOTTOM_ROUGHNESS
 !    print*,'WUBOT_NEW=', WUBOT(5551)
 !    print*,'WVBOT_NEW=', WVBOT(5551)
   end if
-
+  end if
 # endif
 
   !==============================================================================|
