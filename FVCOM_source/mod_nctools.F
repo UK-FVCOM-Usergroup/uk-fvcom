@@ -263,7 +263,11 @@ SUBROUTINE NC_CREATE(NCF)
        & write(IPT,*) "STARTING NC_CREATE"
 
   errmsg="File named: "//NCF%fname//"; Can not be created by nf90_create"
+#if defined NETCDF4_COMPRESSION
+  status = nf90_create(trim(NCF%fname),NF90_HDF5,NCF%ncid)
+#else
   status = nf90_create(trim(NCF%fname),NF90_64BIT_OFFSET,NCF%ncid)
+#endif
   if(status/= nf90_eexist)then
      CALL HANDLE_NCERR(status,trim(errmsg))
   else
@@ -3891,7 +3895,7 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
   TYPE(NCFILE), pointer :: NCFP
 
   integer, POINTER :: dimids(:)
-  integer :: status,i
+  integer :: status,deflate_status,i
   CHARACTER(LEN=120)     :: errmsg
   LOGICAL FOUND
 
@@ -3916,10 +3920,21 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
      status = nf90_def_var(NCF%ncid, trim(VAR%varname), NF90_FLOAT,&
           & dimids, i)
 
+#if defined NETCDF4_COMPRESSION
+     ! pica: Add compression (level = 7, no shuffling)
+     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 7)
+#endif
+
   ELSE
 
      status = nf90_def_var(NCF%ncid, trim(VAR%varname), VAR%xtype,&
           & dimids, i)
+
+#if defined NETCDF4_COMPRESSION
+     ! pica: Add compression (level = 7, no shuffling)
+     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 7)
+#endif
+
   END IF
      
 #else
