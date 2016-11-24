@@ -183,7 +183,7 @@
      WUSURF_NODE = WUSURF_NODE/FLOAT(NTVE(I))
      WVSURF_NODE = WVSURF_NODE/FLOAT(NTVE(I))
 
-#    if defined (WAVE_CURRENT_INTERACTION)
+#    if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
 !!$     UTAU2 = SQRT(WUSURF_NODE**2+WVSURF_NODE**2)
 !!$     VHP(I,1) = (15.8_SP*CBCNST)**0.6666667_SP*UTAU2
 !!$     VH(I,1)  = 0.0_SP
@@ -335,7 +335,8 @@
 !------------------------------------------------------------------------------!
 
 !!   GH = (L**2/Q2)*BOYGR
-   GH(1:MT,1:KBM1) = (L(1:MT,1:KBM1)**2/Q2(1:MT,1:KBM1))*BOYGR(1:MT,1:KBM1)
+!   GH(1:MT,1:KBM1) = (L(1:MT,1:KBM1)**2/Q2(1:MT,1:KBM1))*BOYGR(1:MT,1:KBM1)
+   GH(1:M,1:KBM1) = (L(1:M,1:KBM1)**2/Q2(1:M,1:KBM1))*BOYGR(1:M,1:KBM1)
 
 !------------------------------------------------------------------------------!
 !  limit maximum of GH in unstable regions to reasonable physical value        !

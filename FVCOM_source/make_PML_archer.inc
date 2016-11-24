@@ -115,8 +115,8 @@ dashL= $(empty) -L
 
 #            FLAG_1 =  -DDOUBLE_PRECISION
 
-## SINGLE PRECISION OUTPUT FOR VISIT
-            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT
+## SINGLE PRECISION OUTPUT FOR VISIT. ALSO ADD DEFLATE COMPRESSION.
+            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT -DNETCDF4_COMPRESSION
 
 #--------------------------------------------------------------------------
 #        SPHERICAL          SELECT SPHERICAL COORDINATES FOR INTEGRATION
@@ -124,7 +124,7 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO SELECT SPHERICAL COORDINATES
 #--------------------------------------------------------------------------
 
-#             FLAG_2 = -DSPHERICAL
+#            FLAG_2 = -DSPHERICAL
 
 #--------------------------------------------------------------------------
 #        FLOODYING/DRYING   INCLUDE WET/DRY TREATMENT OF DOMAIN
@@ -244,7 +244,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
 #            FLAG_11 = -DGOTM
-#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil -lmeanflow
+#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil #-lmeanflow
 #            GOTMINCS      = -I../GOTM_source/
 
 #--------------------------------------------------------------------------
@@ -314,11 +314,24 @@ dashL= $(empty) -L
 
 #--------------------------------------------------------------------------
 #        SUSPENDED SEDIMENT MODEL:   UNCOMMENT TO INCLUDE MODEL
+# ORIG : the sediment transport model developed by Geoffey Cowles in v3.1-v3.2
+# CSTMS: Community Sediment Transport Modeling System with cohesive model
+# DELFT: Sediment modeling system as Delft Flow (not included)
+#
+# note: only one model should be chosen for modeling.
+#
+#  Utilities:
+#    OFFLINE_SEDIMENT : run sediment with offline hydrodynamic forcing
+#    FLUID_MUD : activate the 2-D fluid mud at bed-water interface
 #--------------------------------------------------------------------------
 
 #            FLAG_21 =  -DSEDIMENT
+#            FLAG_211 = -DORIG_SED
+#            FLAG_211 = -DCSTMS_SED
+#
 #            FLAG_22 =  -DOFFLINE_SEDIMENT
-
+#            FLAG_43 =  -DFLUID_MUD
+#
 #--------------------------------------------------------------------------
 #         KALMAN FILTERS
 #--------------------------------------------------------------------------
@@ -343,29 +356,38 @@ dashL= $(empty) -L
 
 #--------------------------------------------------------------------------
 #       GENERAL BIOLOGICAL MODEL:    UNCOMMENT TO INCLUDE MODEL
-#--------------------------------------------------------------------------
-#            FLAG_25 = -DBioGen
-#            BIOLIB       = -L$(TOPDIR)/BIO_source -lbiomodule
-#            BIOINCS      = -I$(TOPDIR)/BIO_source/
+#-------------------------------------------------------------------------- 
+#            FLAG_25  = -DBioGen
+#            FLAG_251 = -DOFFLINE_BIOLOGY
+#            BIOLIB   = -L$(TOPDIR)/BIO_source -lbiomodule
+#            BIOINCS  = -I$(TOPDIR)/BIO_source
+
 
 #--------------------------------------------------------------------------
 #         Dynamic/Thermodynamic Ice
 #--------------------------------------------------------------------------
 
 # NOTE: Must use -DSPHERICAL  and -DHEAT_FLUX ----- this note only for old version v2.7
-#            FLAG_26 = -DICE
+#       ICE_EMBEDDING must with SEMI_IMPLICIT
+#            FLAG_26 = -DICE  
+#            FLAG_261 = -DICE_EMBEDDING  
 
 #--------------------------------------------------------------------------
-#         CALCULATE THE NET HEAT FLUX IN MODEL
+#         CALCULATE THE NET HEAT FLUX IN MODEL (THREE CHOICES):
+#         1. CALCULATE THE NET HEAT FLUX USING COARE26Z
+#         2. CALCULATE THE NET HEAT FLUX USING COARE26Z for Great Lake
+#         3. CALCULATE THE NET HEAT FLUX USING SOLAR HEATING MODULE                          
 #--------------------------------------------------------------------------
 
-#             FLAG_27 = -DHEATING_CALCULATED
+#            FLAG_27 = -DHEATING_CALCULATED  
+#            FLAG_27 = -DHEATING_CALCULATED_GL  
+#            FLAG_27 = -DHEATING_SOLAR  
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
 #--------------------------------------------------------------------------
 
-#             FLAG_28 = -DAIR_PRESSURE
+#            FLAG_28 = -DAIR_PRESSURE
 
 #--------------------------------------------------------------------------
 # Visit online simulation mode
@@ -534,7 +556,7 @@ dashL= $(empty) -L
 #         CXX      = mpicxx
 #         CFLAGS   = -O3
 #         FC       = mpif90
-#         DEBFLGS  = -check all
+#         DEBFLGS  = -check all -traceback
 # Use 'OPT = -O0 -g'  for fast compile to test the make
 # Use 'OPT = -xP' for fast run on em64t (Hydra and Guppy)
 # Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
@@ -613,8 +635,9 @@ dashL= $(empty) -L
    $(FLAG_31) $(FLAG_32) $(FLAG_33) $(FLAG_34) \
    $(FLAG_35) $(FLAG_36) $(FLAG_37) $(FLAG_38) \
    $(FLAG_39) $(FLAG_40) $(FLAG_41) $(FLAG_42) \
-   $(FLAG_LAM)\
-   $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)
+   $(FLAG_43) $(FLAG_LAM)\
+   $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)\
+   $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261)
 #--------------------------------------------------------------------------
 #  Libraries
 #--------------------------------------------------------------------------

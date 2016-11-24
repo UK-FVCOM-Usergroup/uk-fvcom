@@ -123,7 +123,7 @@ SUBROUTINE CNTRL_PRMTRS
                 "should have the default value when the bottom roughness is set using 'static'",&
                 "(ie set from an input file!)")
            
-           BOTTOM_ROUGHNESS_LENGTHSCALE = -1.0_SP
+           BOTTOM_ROUGHNESS_LENGTHSCALE = BOTTOM_ROUGHNESS_LENGTHSCALE
         end if
         
      else if(BOTTOM_ROUGHNESS_KIND .eq. CNSTNT) THEN

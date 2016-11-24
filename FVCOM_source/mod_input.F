@@ -349,6 +349,11 @@ CONTAINS
     SALINITY_ACTIVE     = .FALSE.          
     SURFACE_WAVE_MIXING = .FALSE.          
     WETTING_DRYING_ON   = .FALSE.
+!J. Ge
+    ! for tracer advection
+    BACKWARD_ADVECTION = .FALSE.
+    BACKWARD_STEP = -1
+!J. Ge
 
     ADCOR_ON = .TRUE.
     EQUATOR_BETA_PLANE = .FALSE.
@@ -476,12 +481,17 @@ CONTAINS
     DATA_ASSIMILATION  = .FALSE.
     DATA_ASSIMILATION_FILE = "./"//trim(casename)//"_run.nml"
     BIOLOGICAL_MODEL= .FALSE.
-!!$    BIOLOGICAL_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+!--------- J. Ge for biology --------------
+    BIOLOGICAL_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+!------------------------------------------
     STARTUP_BIO_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
     SEDIMENT_MODEL= .FALSE.
     SEDIMENT_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # if defined (OFFLINE_SEDIMENT)
     OFFLINE_SEDIMENT_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+# endif
+# if defined (OFFLINE_BIOLOGY)
+    OFFLINE_BIOLOGY_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # endif
     SEDIMENT_PARAMETER_TYPE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     SEDIMENT_PARAMETER_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
@@ -495,6 +505,9 @@ CONTAINS
     ICE_AIR_TEMP           = 0.0
     ICE_SPEC_HUMIDITY      = 0.0
     ICE_CLOUD_COVER        = 0.0
+    ICE_SHORTWAVE          = 0.0
+    ICE_LONGWAVE_TYPE      = "'PW' or 'RM'" !PW -- longwave as in Parkinson and Washington (1979)
+                                            !RM -- longwave, Rosati and Miyakoda, JPO 18, p. 1607 (1988)
 
     ICING_MODEL= .FALSE.
     ICING_FORCING_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
@@ -506,6 +519,8 @@ CONTAINS
     PROBES_ON = .FALSE.
     PROBES_NUMBER =0
     PROBES_FILE = "Probe namelist file name"
+
+    HIGH_LATITUDE_WAVE = .FALSE.
 
   END SUBROUTINE NAME_LIST_INITIALIZE
 
@@ -1524,6 +1539,29 @@ CONTAINS
 
 # endif
 
+
+# if defined (OFFLINE_BIOLOGY)
+    ! Check Wave file and open
+ 
+       ! TEST FILE NAME
+       charnum = index (OFFLINE_BIOLOGY_FILE,".nc",back)
+       if (charnum /= len_trim(OFFLINE_BIOLOGY_FILE)-2)&
+            & CALL WARNING("OFFLINE BIOLOGY FILE does not end in .nc", &
+            & trim(OFFLINE_BIOLOGY_FILE))
+       
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(OFFLINE_BIOLOGY_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+       
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+           FILEHEAD => ADD(FILEHEAD,NCF)
+        end if
+
+# endif
+
     !Check RIVER files and open
     
     do i =1, river_number
@@ -1799,7 +1837,7 @@ CONTAINS
     END IF
 
     ! LOAD SEDIMENT PARAMETER
-    IF (SEDIMENT_PARAMETER_TYPE /= CNSTNT) THEN
+    IF (SEDIMENT_PARAMETER_TYPE /= UNIFORM) THEN
 
        ! TEST FILE NAME
        charnum = index (SEDIMENT_PARAMETER_FILE,".nc",back)
@@ -2228,6 +2266,58 @@ CONTAINS
        CALL NC_READ_VAR(VAR)
        CALL NC_DISCONNECT(VAR)
        
+       
+       ! h
+       ALLOCATE(G%H(0:G%MT),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%H WHILE READING:"//TRIM(NCF%FNAME))
+       G%H=0.0_SP
+       
+       VAR => FIND_VAR(NCF,'h',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'h' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+       
+       CALL NC_CONNECT_PVAR(VAR,G%H)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+       
+       ! h1
+       ALLOCATE(G%H1(0:G%NT),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%H1 WHILE READING:"//TRIM(NCF%FNAME))
+       G%H1=0.0_SP
+       
+       VAR => FIND_VAR(NCF,'h_center',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'h_center' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+       
+       CALL NC_CONNECT_PVAR(VAR,G%H1)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+       
+       ! zz
+       ALLOCATE(G%ZZ(0:G%MT,G%KBM1),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%ZZ WHILE READING:"//TRIM(NCF%FNAME))
+       G%ZZ=0.0_SP
+       
+       VAR => FIND_VAR(NCF,'siglay',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'siglay' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+       
+       CALL NC_CONNECT_PVAR(VAR,G%ZZ)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+       
+       ! zz1
+       ALLOCATE(G%ZZ1(0:G%NT,G%KBM1),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%ZZ1 WHILE READING:"//TRIM(NCF%FNAME))
+       G%ZZ1=0.0_SP
+       
+       VAR => FIND_VAR(NCF,'siglay_center',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'siglay_center' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+       
+       CALL NC_CONNECT_PVAR(VAR,G%ZZ1)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
        
     END IF
        
@@ -3147,6 +3237,10 @@ CONTAINS
           
           ! GET THE PERIOD OF THE COMPONENT
           PRD(I) = READ_FLOAT(item(2), IOS)
+          ! -------- new: Karsten Lettmann, 2016, march -------
+          ! initialize Test:
+          TEST = item(2)
+          ! -------------- end new ----------------------------
           IF(IOS /=0) CALL FATAL_ERROR&
                &("INVALID DATA IN ASCII NON_JULIAN FORCING FILE",&
                & "Non Floating Point Value: '"//TRIM(TEST)//"' ; in line: "//TRIM(LINE))
@@ -3166,19 +3260,32 @@ CONTAINS
           
           ! GET THE PERIOD OF THE COMPONENT
           PRD(I) = READ_FLOAT(item(2), IOS)
+          ! -------- new: Karsten Lettmann, 2016, march -------
+          ! initialize Test:
+          TEST = item(2)
+          ! -------------- end new ----------------------------
           IF(IOS /=0) CALL FATAL_ERROR&
                &("INVALID DATA IN ASCII NON_JULIAN FORCING FILE",&
                & "Non Floating Point Value: '"//TRIM(TEST)//"' ; in line: "//TRIM(LINE))
 
           ! GET THE EQILIBRIUM AMPLITUDE OF THE COMPONENT
           EQ_AMP(I) = READ_FLOAT(item(3), IOS)
+          ! -------- new: Karsten Lettmann, 2016, march -------
+          ! initialize Test:
+          TEST = item(3)
+          ! -------------- end new ----------------------------
           IF(IOS /=0) CALL FATAL_ERROR&
                &("INVALID DATA IN ASCII NON_JULIAN FORCING FILE",&
                & "Non Floating Point Value: '"//TRIM(TEST)//"' ; in line: "//TRIM(LINE))
 
 
           ! GET THE EQILIBRIUM BETA OF THE COMPONENT
-          EQ_BETA(I) = READ_FLOAT(item(3), IOS)
+          ! -------- new: Karsten Lettmann, 2016, march -------
+          !EQ_BETA(I) = READ_FLOAT(item(3), IOS)  ! original line
+          EQ_BETA(I) = READ_FLOAT(item(4), IOS)
+          ! initialize Test:
+          TEST = item(4)
+          ! -------------- end new ----------------------------
           IF(IOS /=0) CALL FATAL_ERROR&
                &("INVALID DATA IN ASCII NON_JULIAN FORCING FILE",&
                & "Non Floating Point Value: '"//TRIM(TEST)//"' ; in line: "//TRIM(LINE))

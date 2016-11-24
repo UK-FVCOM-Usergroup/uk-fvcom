@@ -327,7 +327,7 @@ contains
     ! Read argument into double and return
     read (arg_val(arg_val_srt_idx:arg_lng),*) opt_val ! [frc] Variable to receive copy of arg_val
     if (dbg_lvl >= dbg_io) then
-       write (6,'(2a,g12.6)') prg_nm(1:ftn_strlsc(prg_nm)), &
+       write (6,'(2a,g13.6)') prg_nm(1:ftn_strlsc(prg_nm)), &
             ': DEBUG '//sbr_nm//'() assigned argument value = ',opt_val
     endif                     ! endif
     if(present(opt_flg)) opt_flg=.true. ! [flg] Variable set by command-line
@@ -397,7 +397,7 @@ contains
     ! Read argument into float and return
     read (arg_val(arg_val_srt_idx:arg_lng),*) opt_val ! [frc] Variable to receive copy of arg_val
     if (dbg_lvl >= dbg_io) then
-       write (6,'(2a,g12.6)') prg_nm(1:ftn_strlsc(prg_nm)), &
+       write (6,'(2a,g13.6)') prg_nm(1:ftn_strlsc(prg_nm)), &
             ': DEBUG '//sbr_nm//'() assigned argument value = ',opt_val
     endif                     ! endif
     if(present(opt_flg)) opt_flg=.true. ! [flg] Variable set by command-line
@@ -468,7 +468,7 @@ contains
     ! Read argument into integer and return
     read (arg_val(arg_val_srt_idx:arg_lng),*) opt_val ! [nbr] Variable to receive copy of arg_val
     if (dbg_lvl >= dbg_io) then
-       write (6,'(2a,g12.6)') prg_nm(1:ftn_strlsc(prg_nm)), &
+       write (6,'(2a,g13.6)') prg_nm(1:ftn_strlsc(prg_nm)), &
             ': DEBUG '//sbr_nm//'() assigned argument value = ',opt_val
     endif                     ! endif
     if(present(opt_flg)) opt_flg=.true. ! [flg] Variable set by command-line
@@ -538,7 +538,7 @@ contains
     ! Read argument into integer and return
     read (arg_val(arg_val_srt_idx:arg_lng),*) opt_val ! [flg] Variable to receive copy of arg_val
     if (dbg_lvl >= dbg_io) then
-       write (6,'(2a,g12.6)') prg_nm(1:ftn_strlsc(prg_nm)), &
+       write (6,'(2a,g13.6)') prg_nm(1:ftn_strlsc(prg_nm)), &
             ': DEBUG '//sbr_nm//'() assigned argument value = ',opt_val
     endif                     ! endif
     if(present(opt_flg)) opt_flg=.true. ! [flg] Variable set by command-line

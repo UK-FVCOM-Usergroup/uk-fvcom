@@ -2869,6 +2869,337 @@ MODULE MOD_NORTHPOLE
    END SUBROUTINE ADV_T_XY
 !==============================================================================|
 
+   SUBROUTINE ADV_N_XY(XFLUX,PWPX,PWPY,ISS,ID,DEP2,SPCDIR,N32)
+!  This subroutine is for wave advection at the north pole    yzhang
+!------------------------------------------------------------------------------|
+   USE SWCOMM3, ONLY :MDC,MSC
+
+   IMPLICIT NONE
+
+   SAVE
+
+   REAL :: N32(MDC,MSC,0:MT),N32_TMP(MDC,MSC,0:MT)
+   INTEGER  :: ID,ISS,IG,IG2,IDT,IDD ! LWU IG2 IS FOR PLBC
+   REAL :: CANX,CANY,CANX_TMP,CANY_TMP,ADDEXFLUX2455
+   REAL :: SPCDIR(MDC,6)
+   REAL(SP) :: DEP2(MT)
+   REAL    :: DEPLOC,KWAVELOC,CGLOC,NN,ND,SPCSIGL
+#  if defined (SPHERICAL)
+   REAL(8) :: XTMP1,XTMP
+#  endif
+   REAL(SP), DIMENSION(0:MT)     :: XFLUX
+   REAL(SP), DIMENSION(M)           :: PWPX,PWPY
+   REAL(SP) :: DXA,DYA,DXB,DYB,FIJ1,FIJ2
+   INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,JTMP,JJ,II,L
+   REAL(SP) :: VX_TMP,VY_TMP,VX1_TMP,VY1_TMP,VX2_TMP,VY2_TMP,VX3_TMP,VY3_TMP
+   REAL(SP) :: XI_TMP,YI_TMP,VXA_TMP,VYA_TMP,VXB_TMP,VYB_TMP
+   REAL(SP) :: UL_DEGREE,DL_DEGREE,CENTER_DEGREE,FF11
+   REAL(SP) :: UIJ_TMP,VIJ_TMP,DLTXE_TMP,DLTYE_TMP,UVN_TMP,EXFLUX_TMP
+   REAL(SP) :: PUPX_TMP,PUPY_TMP,PVPX_TMP,PVPY_TMP
+   REAL(SP) :: PWPX_TMP,PWPY_TMP
+   REAL(SP) :: U_TMP,V_TMP
+   REAL(SP) :: ADDYIJE1,ADDYIJE2
+   REAL(SP) ::  ADD_DLTXE ,ADD_DLTYE,ADD_DLTXTRIE,ADD_DLTYTRIE
+   REAL(SP) :: X11,Y11,X22,Y22,X33,Y33,TMP1,TMP2
+   REAL(SP) :: XIJE1_TMP,YIJE1_TMP,XIJE2_TMP,YIJE2_TMP
+   REAL(SP) :: AC1MIN, AC1MAX, AC2MIN, AC2MAX
+
+#  if defined (SEMI_IMPLICIT)
+   REAL(SP) :: UIJ_TMP1, VIJ_TMP1, UVN_TMP1
+#  endif
+!------------------------------------------------------------------------------!
+   IF (NODE_NORTHPOLE .EQ. 0) RETURN
+
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "Start: ADV_N_XY"
+
+!   CAX = 0.0
+!   CAY = 0.0
+
+!
+!--Initialize Fluxes-----------------------------------------------------------!
+!
+   DO II=1,NPCV
+     I = NCEDGE_LST(II)
+     IA = NIEC(I,1)
+     IB = NIEC(I,2)
+     IF(IA == NODE_NORTHPOLE)THEN
+       XFLUX(IA) = 0.0_SP
+     ELSE IF(IB == NODE_NORTHPOLE)THEN
+       XFLUX(IB) = 0.0_SP
+     END IF
+   END DO
+!==========YZHANG_NORTHPOLE_TESTING================================
+   I=NODE_NORTHPOLE
+   PWPX(I)=0.0_SP
+   PWPY(I)=0.0_SP
+   ADD_DLTXTRIE=0.0_SP
+   ADD_DLTYTRIE=0.0_SP
+   DO J=1,NTSN(I)-1
+     I1=NBSN(I,J)
+     I2=NBSN(I,J+1)
+     UL_DEGREE=22.5
+     CENTER_DEGREE=0
+     DL_DEGREE=337.5
+
+     IF (VX(I1)<UL_DEGREE .OR. VX(I1)>DL_DEGREE)THEN
+       IDT=MDC-(MDC*2/8)
+       IDD=ID+IDT
+!       IDD=ID
+       IF(IDD>MDC)THEN
+         IDD=IDD-MDC
+       END IF
+       N32_TMP(ID,ISS,I1)=N32(IDD,ISS,I1)
+     END IF
+
+     IF (VX(I2)<UL_DEGREE .OR. VX(I2)>DL_DEGREE)THEN
+       IDT=MDC-(MDC*2/8)
+       IDD=ID+IDT
+!       IDD=ID
+       IF(IDD>MDC)THEN
+         IDD=IDD-MDC
+       END IF
+       N32_TMP(ID,ISS,I2)=N32(IDD,ISS,I2)
+     END IF
+     DO L=1,7
+       CENTER_DEGREE=L*45.0
+       UL_DEGREE=CENTER_DEGREE+22.5
+       DL_DEGREE=CENTER_DEGREE-22.5
+
+       IF(VX(I1)<UL_DEGREE .AND. VX(I1)>DL_DEGREE) THEN
+         IDT=MDC-(MDC*(L+2)/8)
+!         IDT=MDC-(MDC*L/8)
+         IF(IDT<0)THEN
+           IDT=IDT+MDC
+         END IF
+         IDD=ID+IDT
+         IF(IDD>MDC)THEN
+           IDD=IDD-MDC
+         END IF
+         N32_TMP(ID,ISS,I1)=N32(IDD,ISS,I1)
+       END IF
+       IF(VX(I2)<UL_DEGREE .AND. VX(I2)>DL_DEGREE) THEN
+         IDT=MDC-(MDC*(L+2)/8)
+!         IDT=MDC-(MDC*L/8)
+         IF(IDT<0)THEN
+           IDT=IDT+MDC
+         END IF
+         IDD=ID+IDT
+         IF(IDD>MDC)THEN
+           IDD=IDD-MDC
+         END IF
+         N32_TMP(ID,ISS,I2)=N32(IDD,ISS,I2)
+       END IF
+     END DO
+     FF11=0.5*(N32_TMP(ID,ISS,I1)+N32_TMP(ID,ISS,I2))
+     PWPX(I)=PWPX(I)+FF11*DLTYTRIE(I,J)
+     PWPY(I)=PWPY(I)+FF11*DLTXTRIE(I,J)
+     ADD_DLTXTRIE=ADD_DLTXTRIE+DLTXTRIE(I,J)
+     ADD_DLTYTRIE=ADD_DLTYTRIE+DLTYTRIE(I,J)
+   END DO
+
+   PWPX(I)=PWPX(I)/ART2(I)
+   PWPY(I)=PWPY(I)/ART2(I)
+!============================================================================
+   ADDYIJE1=0.0_SP
+   ADDYIJE2=0.0_SP
+   DO II=1,NPCV
+     I = NCEDGE_LST(II)
+     ADDYIJE1=ADDYIJE1+YIJE(I,1)
+     ADDYIJE2=ADDYIJE2+YIJE(I,2)
+   END DO
+   ADDYIJE1=ADDYIJE1/NPCV
+   ADDYIJE2=ADDYIJE2/NPCV
+
+   ADD_DLTXE=0.0_SP
+   ADD_DLTYE=0.0_SP
+
+   DO II=1,NPCV
+     I = NCEDGE_LST(II)
+     I1=NTRG(I)
+     IA=NIEC(I,1)
+     IB=NIEC(I,2)
+     IF(IA <= M .AND. IB <= M .AND. I1 <= N)THEN
+!        XI=0.5_SP*(XIJE(I,1)+XIJE(I,2))
+!        YI=0.5_SP*(YIJE(I,1)+YIJE(I,2))
+!!   ggao edge calculation
+       XIJE1_TMP = REARTH * COS(YIJE(I,1)*DEG2RAD) * COS(XIJE(I,1)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(YIJE(I,1)*DEG2RAD))
+       YIJE1_TMP = REARTH * COS(YIJE(I,1)*DEG2RAD) * SIN(XIJE(I,1)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(YIJE(I,1)*DEG2RAD))
+
+       XIJE2_TMP = REARTH * COS(YIJE(I,2)*DEG2RAD) * COS(XIJE(I,2)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(YIJE(I,2)*DEG2RAD))
+       YIJE2_TMP = REARTH * COS(YIJE(I,2)*DEG2RAD) * SIN(XIJE(I,2)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(YIJE(I,2)*DEG2RAD))
+       XI_TMP =0.5_SP*(XIJE1_TMP+XIJE2_TMP)
+       YI_TMP =0.5_SP*(YIJE1_TMP+YIJE2_TMP)
+
+       IF(IA == NODE_NORTHPOLE .OR. IB == NODE_NORTHPOLE)THEN
+         VXA_TMP = REARTH * COS(VY(IA)*DEG2RAD) * COS(VX(IA)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(VY(IA)*DEG2RAD))
+         VYA_TMP = REARTH * COS(VY(IA)*DEG2RAD) * SIN(VX(IA)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(VY(IA)*DEG2RAD))
+
+         VXB_TMP = REARTH * COS(VY(IB)*DEG2RAD) * COS(VX(IB)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(VY(IB)*DEG2RAD))
+         VYB_TMP = REARTH * COS(VY(IB)*DEG2RAD) * SIN(VX(IB)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(VY(IB)*DEG2RAD))
+
+!         IF(IA == NODE_NORTHPOLE)THEN
+         DXA=XI_TMP-VXA_TMP
+         DYA=YI_TMP-VYA_TMP
+!         ELSE IF(IB == NODE_NORTHPOLE)THEN
+         DXB=XI_TMP-VXB_TMP
+         DYB=YI_TMP-VYB_TMP
+
+         IF(IA == NODE_NORTHPOLE)THEN
+           PWPX_TMP=-PWPY(IB)*COS(VX(IB)*DEG2RAD)-PWPX(IB)*SIN(VX(IB)*DEG2RAD)
+           PWPY_TMP=-PWPY(IB)*SIN(VX(IB)*DEG2RAD)+PWPX(IB)*COS(VX(IB)*DEG2RAD)
+
+!           PSPXD_TMP=-PSPYD(IB)*COS(VX(IB)*DEG2RAD)-PSPXD(IB)*SIN(VX(IB)*DEG2RAD)
+!           PSPYD_TMP=-PSPYD(IB)*SIN(VX(IB)*DEG2RAD)+PSPXD(IB)*COS(VX(IB)*DEG2RAD)
+!======================zhangyang======start=======================
+           IF (VX(IB)<UL_DEGREE .OR. VX(IB)>DL_DEGREE)THEN
+             IDT=MDC-(MDC*2/8)
+             IDD=ID+IDT
+!             IDD=ID
+             IF(IDD>MDC)THEN
+               IDD=IDD-MDC
+             END IF
+             N32_TMP(ID,ISS,IB)=N32(IDD,ISS,IB)
+           END IF
+
+           DO L=1,7
+             CENTER_DEGREE=L*45.0
+             UL_DEGREE=CENTER_DEGREE+22.5
+             DL_DEGREE=CENTER_DEGREE-22.5
+             IF(VX(IB)<UL_DEGREE .AND. VX(IB)>DL_DEGREE) THEN
+               IDT=MDC-(MDC*(L+2)/8)
+!               IDT=MDC-(MDC*L/8)
+               IF(IDT<0)THEN
+                 IDT=IDT+MDC
+               END IF
+               IDD=ID+IDT
+               IF(IDD>MDC)THEN
+                 IDD=IDD-MDC
+               END IF
+               N32_TMP(ID,ISS,IB)=N32(IDD,ISS,IB)
+             END IF
+           END DO
+           FIJ1=N32(ID,ISS,IA)!+DXA*PWPX(IA)+DYA*PWPY(IA)
+           FIJ2=N32_TMP(ID,ISS,IB)!+DXB*PWPX_TMP+DYB*PWPY_TMP
+!================zhangyang======end==================================
+
+          !VISCOF=HORCON*(FACT*(VISCOFF(IA)+VISCOFF(IB))*0.5_SP + FM1)
+          ! David moved HPRNU and added VHC
+!          VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) +
+!          FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB))) !/HPRNU
+
+!          TXX=0.5_SP*(PSPXD(IA)+PSPXD_TMP)*VISCOF
+!          TYY=0.5_SP*(PSPYD(IA)+PSPYD_TMP)*VISCOF
+
+         ELSE IF(IB == NODE_NORTHPOLE)THEN
+           PWPX_TMP=-PWPY(IA)*COS(VX(IA)*DEG2RAD)-PWPX(IA)*SIN(VX(IA)*DEG2RAD)
+           PWPY_TMP=-PWPY(IA)*SIN(VX(IA)*DEG2RAD)+PWPX(IA)*COS(VX(IA)*DEG2RAD)
+
+!           PSPXD_TMP=-PSPYD(IA)*COS(VX(IA)*DEG2RAD)-PSPXD(IA)*SIN(VX(IA)*DEG2RAD)
+!           PSPYD_TMP=-PSPYD(IA)*SIN(VX(IA)*DEG2RAD)+PSPXD(IA)*COS(VX(IA)*DEG2RAD)
+
+!======================zhangyang======start=======================
+           IF (VX(IA)<UL_DEGREE .OR. VX(IA)>DL_DEGREE)THEN
+             IDT=MDC-(MDC*2/8)
+             IDD=ID+IDT
+!             IDD=ID
+             IF(IDD>MDC)THEN
+               IDD=IDD-MDC
+             END IF
+             N32_TMP(ID,ISS,IA)=N32(IDD,ISS,IA)
+           END IF
+
+           DO L=1,7
+             CENTER_DEGREE=L*45.0
+             UL_DEGREE=CENTER_DEGREE+22.5
+             DL_DEGREE=CENTER_DEGREE-22.5
+             IF(VX(IA)<UL_DEGREE .AND. VX(IA)>DL_DEGREE) THEN
+               IDT=MDC-(MDC*(L+2)/8)
+!               IDT=MDC-(MDC*L/8)
+               IF(IDT<0)THEN
+                 IDT=IDT+MDC
+               END IF
+               IDD=ID+IDT
+               IF(IDD>MDC)THEN
+                 IDD=IDD-MDC
+               END IF
+               N32_TMP(ID,ISS,IA)=N32(IDD,ISS,IA)
+             END IF
+           END DO
+           FIJ1=N32_TMP(ID,ISS,IA)!+DXA*PWPX_TMP+DYA*PWPY_TMP
+           FIJ2=N32(ID,ISS,IB)!+DXB*PWPX(IB)+DYB*PWPY(IB)
+
+!================zhangyang======end==================================
+         END IF
+         CALL SWAPAR1(I1,ISS,ID,DEP2(1),KWAVELOC,CGLOC)
+         UIJ_TMP = UA(I1)
+         VIJ_TMP = VA(I1)
+
+         DO L=1,8
+           CENTER_DEGREE=L*45.0-22.5
+           UL_DEGREE=CENTER_DEGREE+22.5
+           DL_DEGREE=CENTER_DEGREE-22.5
+
+           IF(XC(I1)<UL_DEGREE .AND. XC(I1)>DL_DEGREE) THEN
+             IDT=MDC-(MDC*(L+2)/8-5)
+!             IDT=MDC-(MDC*L/8)
+             IF(IDT<0)THEN
+               IDT=IDT+MDC
+             END IF
+             IDD=ID+IDT
+             IF(IDD>MDC)THEN
+               IDD=IDD-MDC
+             END IF
+           END IF
+         END DO
+
+         CALL SPROXY(I1,ISS,IDD,CANX,CANY,CGLOC,SPCDIR(IDD,2),SPCDIR(IDD,3),UIJ_TMP,VIJ_TMP)
+
+         VX1_TMP = REARTH * COS(YIJE(I,1)*DEG2RAD) * COS(XIJE(I,1)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(YIJE(I,1)*DEG2RAD))
+         VY1_TMP = REARTH * COS(YIJE(I,1)*DEG2RAD) * SIN(XIJE(I,1)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(YIJE(I,1)*DEG2RAD))
+ 
+         VX2_TMP = REARTH * COS(YIJE(I,2)*DEG2RAD) * COS(XIJE(I,2)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(YIJE(I,2)*DEG2RAD))
+         VY2_TMP = REARTH * COS(YIJE(I,2)*DEG2RAD) * SIN(XIJE(I,2)*DEG2RAD) &
+                  * 2._SP /(1._SP+sin(YIJE(I,2)*DEG2RAD))
+
+         DLTXE_TMP = VX2_TMP-VX1_TMP
+         DLTYE_TMP = VY2_TMP-VY1_TMP
+
+         CANX_TMP = -CANY*COS(XC(I1)*DEG2RAD)-CANX*SIN(XC(I1)*DEG2RAD)
+         CANY_TMP = -CANY*SIN(XC(I1)*DEG2RAD)+CANX*COS(XC(I1)*DEG2RAD)
+
+#        if !defined (SEMI_IMPLICIT)
+         UVN_TMP = CANY_TMP*DLTXE_TMP - CANX_TMP*DLTYE_TMP
+         EXFLUX_TMP = -UVN_TMP*((1.0_SP+SIGN(1.0_SP,UVN_TMP))*FIJ2+   &
+                      (1.0_SP-SIGN(1.0_SP,UVN_TMP))*FIJ1)*0.5_SP
+#        endif
+
+         IF(IA == NODE_NORTHPOLE)THEN
+           XFLUX(IA)=XFLUX(IA)+EXFLUX_TMP
+!           XFLUX_ADV(IA,K)=XFLUX_ADV(IA,K)+EXFLUX_TMP
+         ELSE IF(IB == NODE_NORTHPOLE)THEN
+           XFLUX(IB)=XFLUX(IB)-EXFLUX_TMP
+!           XFLUX_ADV(IB,K)=XFLUX_ADV(IB,K)-EXFLUX_TMP
+         END IF
+       END IF
+     END IF
+   END DO
+
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "End: ADV_N_XY(ID,ISS):",ID,ISS
+
+   RETURN
+   END SUBROUTINE ADV_N_XY
+
 !==============================================================================|
 !     CALCULATE THE BAROCLINIC PRESSURE GRADIENT IN SIGMA COORDINATES          |
 !==============================================================================|

@@ -527,7 +527,7 @@
 !
 !     MMT     input    number of frequency points
 !
-      INTEGER, INTENT(IN)::   MMT
+      INTEGER   MMT
 !
 !     CG      output   group velocity
 !     D       input    local depth
@@ -537,155 +537,8 @@
 !     SIG     input    rel. frequency for which wave parameters
 !                      must be determined
 !
-      REAL, INTENT(OUT)::     CG, K, N, ND
-      REAL, INTENT(IN) :: D,SIG
-!
-!  6. Local variables
-!
-!     C         phase velocity
-!     FAC1      auxiliary factor
-!     FAC2      auxiliary factor
-!     FAC3      auxiliary factor
-!     IENT      number of entries
-!     IS        counter in frequency (sigma-space)
-!     KND       dimensionless wave number
-!     ROOTDG    square root of D/GRAV
-!     WGD       square root of GRAV*D
-!     SND       dimensionless frequency
-!     SND2      = SND*SND
-!
-      INTEGER   IENT
-      REAL      KND, ROOTDG, SND, WGD, SND2, C, FAC1, FAC2, FAC3
-!
-!  8. Subroutines used
-!
-!     --
-!
-!  9. Subroutines calling
-!
-!     SWOEXA, SWOEXF (Swan/Output)
-!
-! 10. Error messages
-!
-!     --
-!
-! 11. Remarks
-!
-!     --
-!
-! 12. Structure
-!
-!     -----------------------------------------------------------------
-!      Compute non-dimensional frequency SND
-!      IF SND >= 2.5, then
-!        Compute wave number K, group velocity CGO, ratio of group
-!        and phase velocity N and its derivative ND according to
-!        deep water theory
-!      ELSE IF SND =< 1.e-6
-!        Compute wave number K, group velocity CGO, ratio of group
-!        and phase velocity N and its derivative ND
-!        according to extremely shallow water
-!      ELSE
-!        Compute wave number K, group velocity CGO and the ratio of
-!        group and phase velocity N by Pade and other simple formulas.
-!        Compute the derivative of N w.r.t. D = ND.
-!     -----------------------------------------------------------------
-!
-! 13. Source text
-!
-!    SAVE IENT
-!    DATA IENT /0/
-!    IF (LTRACE) CALL STRACE (IENT, 'KSCIP1')
-!
-    ROOTDG = SQRT(D/GRAV_W)                                               
-    WGD    = ROOTDG*GRAV_W                                                
-
-!     SND is dimensionless frequency
-      SND = SIG * ROOTDG
-      IF(SND >= 2.5)THEN
-!     ******* deep water *******
-        K  = SIG * SIG / GRAV_W                               
-        CG = 0.5 * GRAV_W / SIG                                  
-        N  = 0.5
-        ND = 0.
-      ELSE IF(SND < 1.E-6)THEN
-!     *** very shallow water ***  
-!        print*,'IN VERY SHALLOW WATER'
-!	stop                                      
-        K  = SND/D                                                  
-        CG = WGD
-        N  = 1.
-        ND = 0.
-      ELSE
-        SND2  = SND*SND                                                 
-        C     = SQRT(GRAV_W*D/(SND2+1./(1.+0.666*SND2+0.445*SND2**2      &
-	        -0.105*SND2**3+0.272*SND2**4)))   
-        K = SIG/C                                               
-        KND   = K*D                                                 
-        FAC1  = 2.*KND/SINH(2.*KND)                                     
-        N = 0.5*(1.+FAC1)                                           
-        CG= N*C                                                 
-        FAC2  = SND2/KND                                                
-        FAC3  = 2.*FAC2/(1.+FAC2*FAC2)                                  
-        ND= FAC1*(0.5/D - K/FAC3)                               
-      ENDIF
-  
-
-    RETURN
-    END SUBROUTINE KSCIP1
-
-!***********************************************************************
-!                                                                      *
-    SUBROUTINE KSCIP(MMT,SIG,D,K,CG,N,ND)
-!                                                                      *
-!***********************************************************************
-!
-    USE OCPCOMM4                                                        
-    USE SWCOMM3                                                         
-!
-    IMPLICIT NONE
-!
-!   --|-----------------------------------------------------------|--
-!     | Delft University of Technology                            |
-!     | Faculty of Civil Engineering                              |
-!     | Environmental Fluid Mechanics Section                     |
-!     | P.O. Box 5048, 2600 GA  Delft, The Netherlands            |
-!     |                                                           |
-!     | Programmers: R.C. Ris, N. Booij,                          |
-!     |              IJ.G. Haagsma, A.T.M.M. Kieftenburg,         |
-!     |              M. Zijlema, E.E. Kriezi,                     |
-!     |              R. Padilla-Hernandez, L.H. Holthuijsen       |
-!   --|-----------------------------------------------------------|--
-!
-!  0. Authors
-!
-!  1. Updates
-!
-!  2. Purpose
-!
-!     Calculation of the wave number, group velocity, group number N
-!     and the derivative of N w.r.t. depth (=ND)
-!
-!  3. Method
-!
-!     --
-!
-!  4. Argument variables
-!
-!     MMT     input    number of frequency points
-!
-      INTEGER, INTENT(IN)::   MMT
-!
-!     CG      output   group velocity
-!     D       input    local depth
-!     K       output   wave number
-!     N       output   ratio of group and phase velocity
-!     ND      output   derivative of N with respect to D
-!     SIG     input    rel. frequency for which wave parameters
-!                      must be determined
-!
-      REAL, INTENT(OUT)::     CG(MMT), K(MMT), N(MMT), ND(MMT)
-      REAL, INTENT(IN) :: D,SIG(MMT)
+      REAL      CG(MMT), D,                                    &
+                K(MMT), N(MMT), ND(MMT), SIG(MMT)
 !
 !  6. Local variables
 !
@@ -779,9 +632,52 @@
     END DO  
 
     RETURN
-    END SUBROUTINE KSCIP
+    END SUBROUTINE KSCIP1
+!***********************************************************************
+!                                                                      *
+    SUBROUTINE KSCIP2(S,D,CG)
+!                                                                      *
+!***********************************************************************
+!
+    USE OCPCOMM4
+    USE SWCOMM3
+!
+    IMPLICIT NONE
+      REAL      CG(MSC), D, K,S(MSC)
+      INTEGER   IENT, IS
+      REAL      KND, ROOTDG, SND, WGD, SND2, C, FAC1,N
+    ROOTDG = SQRT(D/GRAV_W)
+    WGD    = ROOTDG*GRAV_W
+!     SND is dimensionless frequency
+     DO IS=1,MSC
+      SND = S(IS) * ROOTDG
+      IF(SND >= 2.5)THEN
+!     ******* deep water *******
+        K = S(IS) * S(IS) / GRAV_W
+        CG(IS) = 0.5 * GRAV_W / S(IS)
+      ELSE IF(SND < 1.E-6)THEN
+!     *** very shallow water ***  
+!        print*,'IN VERY SHALLOW WATER'
+!       stop                                      
+        K  = SND/D
+        CG(IS) = WGD
+      ELSE
+        SND2  = SND*SND
+        C     = SQRT(GRAV_W*D/(SND2+1./(1.+0.666*SND2+0.445*SND2**2      &
+                -0.105*SND2**3+0.272*SND2**4)))
+        K = S(IS)/C
+        KND   = K*D
+        FAC1  = 2.*KND/SINH(2.*KND)
+        N = 0.5*(1.+FAC1)
+        CG(IS)= N*C
+      ENDIF
+    END DO
+    RETURN
+    END SUBROUTINE KSCIP2
 
 
+
+!****************************************************************
 
 !****************************************************************
 !
@@ -1296,7 +1192,7 @@
         ENDIF
         IF(ITEST >= 10) CTOTT = CTOTT + CDIR * DDIR
         IF(ITEST >= 100) WRITE (PRTEST, 360) ID,SPCDIR(ID,1),CDIR
- 360    FORMAT (' ID Spcdir Cdir: ',I3,3(1X,E10.4))
+ 360    FORMAT (' ID Spcdir Cdir: ',I3,3(1X,E11.4))
         DO IS = 1, MSC
           ACLOC(ID,IS) = CDIR * ACLOC(MDC,IS)
         ENDDO
@@ -1446,6 +1342,7 @@
 !***********************************************************************
 !                                                                      *
       SUBROUTINE SWANOUT(DEP2)    !AC2   ,SPCSIG,HSIBC,KGRPNT)                     
+#     if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
 !                                                                      *
 !***********************************************************************
 !
@@ -1464,7 +1361,10 @@
 #     endif      
 #     if defined (MULTIPROCESSOR)
       USE MOD_PAR
-#     endif      
+#     endif
+      USE MOD_STATION_TIMESERIES, ONLY : OUT_STATION_TIMESERIES_ON,OUT_WAVE_PARTITION,NSTA,NODE_STA
+      USE MOD_SPARSE_TIMESERIES, ONLY : OUT_WAVE_SPARSE_TIMESERIES_ON,OUT_WAVE_PARTITION_SPARSE 
+      USE W3PARTMD
 !
 !  3. Method
 !
@@ -1552,26 +1452,31 @@
       REAL,PARAMETER   :: eps=1e-14_SP
       
       REAL :: EEX,EEY,EAD,NN,ND
-      REAL :: DS,EFTAIL,EHFR,DIRDEG,EMAX,EDI,ISIGM,ETD,HSREL
+      REAL :: DS,EFTAIL,EHFR,DIRDEG,EMAX,EDI,ETD,HSREL
       REAL :: EKTOT,SIG2,SKK,PPTAIL,CETAIL,CKTAIL,WLMEAN
       REAL :: DEPLOC,KWAVELOC,CGLOC,SPCSIGL
       REAL :: FRINTF_X_DDIR,HM,QBLOC,BRCOEF
+      INTEGER :: ISIGM
 
 !----------------------------lwu for output new vars------
-   REAL              :: ETOT_DSIG(MSC)
-   REAL              :: ACTOT_DSIG(MSC), ETOT_DSHKD2_DSIG(MSC)
-   REAL              :: ETOT_DRK_DSIG(MSC), ETOT_SIG2_DSIG(MSC)
-   REAL              :: ETOT_K_DSIG(MSC), ETOT_SIG_DSIG(MSC)
-   REAL              :: ETOT_SIG2_DSHKD2_DSIG(MSC)
-   REAL              :: ETOT_SIG4_DSIG(MSC)
-   REAL              :: SINH_K_X_DEP_2(MSC)
-   REAL              :: AB2, UB2
-   REAL              :: EBSIN(MSC)
-   REAL              :: EBCOS(MSC)
-   REAL              :: EBSIN_INT(MSC)
-   REAL              :: EBCOS_INT(MSC)
-   REAL              :: EBCOSTOT, EBSINTOT
+      REAL              :: ETOT_DSIG(MSC)
+      REAL              :: ACTOT_DSIG(MSC), ETOT_DSHKD2_DSIG(MSC)
+      REAL              :: ETOT_DRK_DSIG(MSC), ETOT_SIG2_DSIG(MSC)
+      REAL              :: ETOT_K_DSIG(MSC), ETOT_SIG_DSIG(MSC)
+      REAL              :: ETOT_SIG2_DSHKD2_DSIG(MSC)
+      REAL              :: ETOT_SIG4_DSIG(MSC)
+      REAL              :: SINH_K_X_DEP_2(MSC)
+      REAL              :: AB2, UB2
+      REAL              :: EBSIN(MSC)
+      REAL              :: EBCOS(MSC)
+      REAL              :: EBSIN_INT(MSC)
+      REAL              :: EBCOS_INT(MSC)
+      REAL              :: EBCOSTOT, EBSINTOT
+!-----------------------------for output wave partition vars----
+      REAL              :: SPEC(MSC,MDC)
+      INTEGER           :: DIMXP,NSPECC,ISC,KK
 !----------------------------------------------------------
+
       INTEGER :: IENT
       DATA IENT/0/, HSRR/.TRUE./
       CALL STRACE (IENT, 'HSOBND')
@@ -1599,6 +1504,62 @@
       DIRBOT    = 0.0_SP
       SPEC_DENSITY = 0.0_SP
 !    
+
+!---------------- WAVE_SPARSE_TIMESERIES --------------yzhang&jqi---
+      IF((OUT_STATION_TIMESERIES_ON .AND. OUT_WAVE_PARTITION) .OR.     &
+         (OUT_WAVE_SPARSE_TIMESERIES_ON .AND. OUT_WAVE_PARTITION_SPARSE))THEN
+        IF(SERIAL)THEN
+          NSPECC=MDC*MSC
+          DIMXP=MDC/2*MSC/2
+          DO IS=1, MSC
+            SPCSIGL = SPCSIG(IS)
+            CALL KSCIP1(1,SPCSIGL,DEPLOC,KWAVELOC,CGLOC,NN,ND)
+            WK(IS) = KWAVELOC
+          END DO
+
+          DO ISC=1,NSTA
+            INDX = NODE_STA(ISC)
+            DEPLOC = COMPDA(INDX,8)   !JDP2(8/28)
+            DO ID = 1, MDC
+              DO IS = 1, MSC
+                SPEC(IS,ID)=AC2(ID,IS,INDX)
+              END DO
+            END DO
+            IF(SUM(SPEC) > 1.0e-8_SP .AND. SUM(SPEC) < 1.0e8_SP)THEN
+              CALL W3PART(SPEC,MSC,MDC,NSPECC,DEPLOC,DIMXP,WK,INDX)
+            END IF
+            EXIT
+          END DO
+        END IF
+#  if defined (MULTIPROCESSOR) 
+        IF(PAR)THEN
+          NSPECC=MDC*MSC
+          DIMXP=MDC/2*MSC/2
+          DO IS=1, MSC
+            SPCSIGL = SPCSIG(IS)
+            CALL KSCIP1(1,SPCSIGL,DEPLOC,KWAVELOC,CGLOC,NN,ND)
+            WK(IS) = KWAVELOC
+          END DO
+
+          DO ISC=1,NSTA       
+            INDX = NLID(NODE_STA(ISC))
+	    IF(INDX /= 0)THEN
+              DEPLOC = COMPDA(INDX,8)   !JDP2(8/28)
+              DO ID = 1, MDC
+                DO IS = 1, MSC
+                  SPEC(IS,ID)=AC2(ID,IS,INDX)
+                END DO
+              END DO
+              IF(SUM(SPEC) > 1e-8_SP .AND. SUM(SPEC) < 1e8_SP)THEN
+                CALL W3PART(SPEC,MSC,MDC,NSPECC,DEPLOC,DIMXP,WK,INDX)
+              ENDIF
+	    END IF  
+          END DO
+        END IF
+# endif
+      END IF    
+!-------------------WAVE_SPARSE_TIMESERIES-----yzhang&jqi---
+
       DO IG = 1, MT
           INDX = IG    !KGRPNT(IX,IY)
 !          IF ( HSIBC(INDX) .GT. 1.E-25 ) THEN
@@ -1856,5 +1817,6 @@
 !End calculation
 
 
+#     endif
       RETURN
       END SUBROUTINE SWANOUT

@@ -115,8 +115,8 @@ dashL= $(empty) -L
 
 #            FLAG_1 =  -DDOUBLE_PRECISION
 
-## SINGLE PRECISION OUTPUT FOR VISIT
-            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT
+## SINGLE PRECISION OUTPUT FOR VISIT. ALSO ADD DEFLATE COMPRESSION.
+            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT -DNETCDF4_COMPRESSION
 
 #--------------------------------------------------------------------------
 #        SPHERICAL          SELECT SPHERICAL COORDINATES FOR INTEGRATION
@@ -244,7 +244,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
 #            FLAG_11 = -DGOTM
-#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil -lmeanflow
+#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil #-lmeanflow
 #            GOTMINCS      = -I../GOTM_source/
 
 #--------------------------------------------------------------------------
@@ -314,11 +314,24 @@ dashL= $(empty) -L
 
 #--------------------------------------------------------------------------
 #        SUSPENDED SEDIMENT MODEL:   UNCOMMENT TO INCLUDE MODEL
+# ORIG : the sediment transport model developed by Geoffey Cowles in v3.1-v3.2
+# CSTMS: Community Sediment Transport Modeling System with cohesive model
+# DELFT: Sediment modeling system as Delft Flow (not included)
+#
+# note: only one model should be chosen for modeling.
+#
+#  Utilities:
+#    OFFLINE_SEDIMENT : run sediment with offline hydrodynamic forcing
+#    FLUID_MUD : activate the 2-D fluid mud at bed-water interface
 #--------------------------------------------------------------------------
 
 #            FLAG_21 =  -DSEDIMENT
+#            FLAG_211 = -DORIG_SED
+#            FLAG_211 = -DCSTMS_SED
+#
 #            FLAG_22 =  -DOFFLINE_SEDIMENT
-
+#            FLAG_43 =  -DFLUID_MUD
+#
 #--------------------------------------------------------------------------
 #         KALMAN FILTERS
 #--------------------------------------------------------------------------
@@ -343,29 +356,38 @@ dashL= $(empty) -L
 
 #--------------------------------------------------------------------------
 #       GENERAL BIOLOGICAL MODEL:    UNCOMMENT TO INCLUDE MODEL
-#--------------------------------------------------------------------------
-#            FLAG_25 = -DBioGen
-#            BIOLIB       = -L$(TOPDIR)/BIO_source -lbiomodule
-#            BIOINCS      = -I$(TOPDIR)/BIO_source/
+#-------------------------------------------------------------------------- 
+#            FLAG_25  = -DBioGen
+#            FLAG_251 = -DOFFLINE_BIOLOGY
+#            BIOLIB   = -L$(TOPDIR)/BIO_source -lbiomodule
+#            BIOINCS  = -I$(TOPDIR)/BIO_source
+
 
 #--------------------------------------------------------------------------
 #         Dynamic/Thermodynamic Ice
 #--------------------------------------------------------------------------
 
 # NOTE: Must use -DSPHERICAL  and -DHEAT_FLUX ----- this note only for old version v2.7
-#            FLAG_26 = -DICE
+#       ICE_EMBEDDING must with SEMI_IMPLICIT
+#            FLAG_26 = -DICE  
+#            FLAG_261 = -DICE_EMBEDDING  
 
 #--------------------------------------------------------------------------
-#         CALCULATE THE NET HEAT FLUX IN MODEL
+#         CALCULATE THE NET HEAT FLUX IN MODEL (THREE CHOICES):
+#         1. CALCULATE THE NET HEAT FLUX USING COARE26Z
+#         2. CALCULATE THE NET HEAT FLUX USING COARE26Z for Great Lake
+#         3. CALCULATE THE NET HEAT FLUX USING SOLAR HEATING MODULE                          
 #--------------------------------------------------------------------------
 
-#             FLAG_27 = -DHEATING_CALCULATED
+#            FLAG_27 = -DHEATING_CALCULATED  
+#            FLAG_27 = -DHEATING_CALCULATED_GL  
+#            FLAG_27 = -DHEATING_SOLAR  
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
 #--------------------------------------------------------------------------
 
-             FLAG_28 = -DAIR_PRESSURE
+#            FLAG_28 = -DAIR_PRESSURE
 
 #--------------------------------------------------------------------------
 # Visit online simulation mode
@@ -462,47 +484,14 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
-#         COMPILER = -DIFORT
-#         CPP      = /lib/cpp
-#         CPPFLAGS = $(DEF_FLAGS) -DINTEL -P -I/opt/mpi/mpibull2-current/include
-#         FC       = ifort
-#         DEBFLGS  = #-check all
-#         OPT      = -xP -I/opt/mpi/mpibull2-current/include  -g -no-prec-div -no-prec-sqrt -traceback  -warn
-#         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -lrt -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-#         CC       = icc
-#         CFLAGS   = -O3  -xS -I/opt/mpi/mpibull2-current/include
-#--------------------------------------------------------------------------
-#  Intel/MPI Compiler Definitions (PML) Debugging
-#--------------------------------------------------------------------------
-#         COMPILER = -DIFORT
-#         CPP      = /lib/cpp
-#         CPPFLAGS = $(DEF_FLAGS) -P -traditional -DINTEL CPPMACH=-DNOGUI -I/opt/mpi/mpibull2-current/include
-#         FC       = ifort
-#         DEBFLGS  = #-check all
-#         OPT      =  -I/opt/mpi/mpibull2-current/include -g -traceback -warn -nofor_main -fp-model precise -traceback -fpe0 -keep
-#         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -i-static -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-#         CC       = icc
-#         CFLAGS   = -g -I/opt/mpi/mpibull2-current/include -traceback
-#--------------------------------------------------------------------------
-#  GFORTRAN Compiler Definitions (PML)
-#--------------------------------------------------------------------------
-         CPP      = gfortran -E
-         COMPILER = -DGFORTRAN
-         FC       = mpif90
+         CPP      = cpp
+         COMPILER = -DINTEL
+         FC       = mpiifort
          DEBFLGS  =
-         OPT      = -O3 -L/usr/lib64/mpich-x86_64/lib -I/usr/include/mpich-x86_64 -I/usr/lib64/gfortran/modules/
+         OPT      = -O3 -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost
          CLIB     =
-         CC       = mpicc
-#--------------------------------------------------------------------------
-#  GFORTRAN Compiler Definitions (PML) Debugging
-#--------------------------------------------------------------------------
-#         CPP      = cpp
-#         COMPILER = -DGFORTRAN
-#         FC       = gfortran
-#         DEBFLGS  =
-#         OPT      = -g -L/usr/lib64/mpich-x86_64/lib -I/usr/include/mpich-x86_64 -I/usr/lib64/gfortran/modules/
-#         CLIB     =
-#         CC       = gcc
+         CC       = mpiicc
+         CFLAGS   =
 #--------------------------------------------------------------------------
 #        COMPAQ/ALPHA Definitions
 #--------------------------------------------------------------------------
@@ -554,7 +543,7 @@ dashL= $(empty) -L
 #         CXX      = mpicxx
 #         CFLAGS   = -O3
 #         FC       = mpif90
-#         DEBFLGS  = -check all
+#         DEBFLGS  = -check all -traceback
 # Use 'OPT = -O0 -g'  for fast compile to test the make
 # Use 'OPT = -xP' for fast run on em64t (Hydra and Guppy)
 # Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
@@ -633,8 +622,9 @@ dashL= $(empty) -L
    $(FLAG_31) $(FLAG_32) $(FLAG_33) $(FLAG_34) \
    $(FLAG_35) $(FLAG_36) $(FLAG_37) $(FLAG_38) \
    $(FLAG_39) $(FLAG_40) $(FLAG_41) $(FLAG_42) \
-   $(FLAG_LAM)\
-   $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)
+   $(FLAG_43) $(FLAG_LAM)\
+   $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)\
+   $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261)
 #--------------------------------------------------------------------------
 #  Libraries
 #--------------------------------------------------------------------------
