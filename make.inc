@@ -193,7 +193,7 @@ dashL= $(empty) -L
 #             include ${PETSC_DIR}/bmake/common/variables
 #             OILIB  = -lmkl_lapack -lmkl_em64t -lguide -lpthread
 
-#             OILIB  = -L/usr/local/share/Intel-Compilers/mkl/lib/em64t -lmkl_lapack -lmkl_em64t -lguide -lpthread
+             OILIB  = -L/gpfs1/apps/intel/mkl/lib/em64t/ -lmkl_lapack95_ilp64 -lmkl_intel_ilp64 -lmkl_core -lmkl_sequential
 
 # For Build on em64t computer (Guppy)
 #             LIBDIR = $(LIBDIR) -L/usr/local/lib64
