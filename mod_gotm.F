@@ -185,7 +185,7 @@ MODULE MOD_GOTM
       u_taus=(wusurf_node**2+wvsurf_node**2)**(1./4.)
   
       !Set Surface Roughness Height Using Charnok Formula[m]
-!RJT the next two lines where commented out.
+!RJT the next two lines were commented out.
       z0s_gotm = charnok_val*u_taus**2/grav_n(i)
       if(z0s_gotm < z0s_min) z0s_gotm = z0s_min
       z0s_gotm = z0s_min

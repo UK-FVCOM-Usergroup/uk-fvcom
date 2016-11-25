@@ -522,6 +522,8 @@ CONTAINS
     ICE_SPEC_HUMIDITY      = 0.0
     ICE_CLOUD_COVER        = 0.0
     ICE_SHORTWAVE          = 0.0
+    ICE_LONGWAVE_TYPE      = "'PW' or 'RM'" !PW -- longwave as in Parkinson and Washington (1979)
+                                            !RM -- longwave, Rosati and Miyakoda, JPO 18, p. 1607 (1988)
 
     ICING_MODEL= .FALSE.
     ICING_FORCING_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"

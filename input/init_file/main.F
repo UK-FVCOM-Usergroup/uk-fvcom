@@ -40,8 +40,6 @@ PROGRAM Init_create
 
   CALL CNTRL_PRMTRS
 
-  date_reference='default'
-
   IF(USE_REAL_WORLD_TIME)THEN
 
      NOW = READ_DATETIME(START_DATE,DATE_FORMAT,TIMEZONE,status)

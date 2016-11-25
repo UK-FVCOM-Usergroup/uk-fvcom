@@ -1022,7 +1022,7 @@ SUBROUTINE INTERNAL_STEP
     CALL UPDATES_SEMI
     DO I=1,IOBCN            ! do linear T/S case, must redo this part, carefule!
       J=I_OBC_N(I)
-      UARD_OBCN(I)=-(EL(J)-ET(J))*ART1(J)/DTI-XFLUX_OBCN(I)
+      UARD_OBCN(I)=-(EL(J)-ET(J))*ART1(J)/DTI-XFLUX_OBCN(I) ! this over writes the UARD_OBCN values set in external_Step! RJT2015
     END DO
 
 #  endif
@@ -1198,7 +1198,8 @@ SUBROUTINE INTERNAL_STEP
 # endif
   
 #   if defined (BioGen)
-  CALL BIO_3D1D                          
+  IF(BIOLOGICAL_MODEL)CALL BIO_3D1D
+                           
 #   endif
 
 #   if defined (FABM)

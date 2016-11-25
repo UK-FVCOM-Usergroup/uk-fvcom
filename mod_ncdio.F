@@ -241,8 +241,8 @@ CONTAINS
 
           ! Start averaging data at Next_IO
           IF(NC_AVG%FTIME%NEXT_IO < IntTime) CALL ADD_AVERAGE
-          !write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO
-          !write(*,*) '             IntTime=',IntTime
+          write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO
+          write(*,*) '             IntTime=',IntTime
           
           ! When average interval is complete - write to file
           IF((NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL)  == IntTime)THEN
@@ -2209,6 +2209,7 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:EL1")
        EL1 = 0.0_SP
 # endif
+
     END IF
 
     ! ALLOCATE THE NEW FILE OBJECT
@@ -2290,7 +2291,6 @@ CONTAINS
        NCF  => ADD(NCF,VAR)
     END IF
 # endif
-
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END ZETA_FILE_OBJECT"
 
@@ -2957,6 +2957,8 @@ CONTAINS
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
+
+
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END VELOCITY_FILE_OBJECT"
 
@@ -4216,6 +4218,16 @@ CONTAINS
        EL_ATMO = 0.0_SP
 # endif
 
+    ! ------ New: Karsten Lettmann, 2016, June ---------------
+    ! add the atmospheric pressure elevation
+# if defined(AIR_PRESSURE)
+       ALLOCATE(EL_AIR(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:EL_AIR")
+       EL_AIR = 0.0_SP
+# endif      
+    ! -------- end new -------------------------------------
+
+
     END IF
 
   ! ALLOCATE THE NEW FILE OBJECT
@@ -4396,7 +4408,7 @@ CONTAINS
 
 # if defined (EQUI_TIDE)
     VAR  => NC_MAKE_AVAR(name='el_eqi',&
-         & values=el_eqi, DIM1= DIM_node)
+         & values=el_eqi, DIM1= DIM_node, DIM2= DIM_time)
     
     ATT  => NC_MAKE_ATT(name='long_name',values='Equilibrium tide adjustment height') 
     VAR  => ADD(VAR,ATT)
@@ -4409,7 +4421,7 @@ CONTAINS
     
 # if defined (ATMO_TIDE)
     VAR  => NC_MAKE_AVAR(name='el_atmo',&
-         & values=el_atmo, DIM1= DIM_node)
+         & values=el_atmo, DIM1= DIM_node, DIM2= DIM_time)
     
     ATT  => NC_MAKE_ATT(name='long_name',values='Atmospheric tide adjustment height') 
     VAR  => ADD(VAR,ATT)
@@ -4419,6 +4431,23 @@ CONTAINS
        
     NCF  => ADD(NCF,VAR)
 # endif
+
+
+    ! ------ New: Karsten Lettmann, 2016, June ---------------
+    ! add the atmospheric pressure elevation
+# if defined(AIR_PRESSURE)
+    VAR  => NC_MAKE_AVAR(name='el_press',&
+         & values=EL_AIR, DIM1= DIM_node, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='AIR-Pressure Induced Water Surface Elevation') 
+    VAR  => ADD(VAR,ATT)
+       
+    ATT  => NC_MAKE_ATT(name='units',values='meters') 
+    VAR  => ADD(VAR,ATT)
+       
+    NCF  => ADD(NCF,VAR)
+# endif      
+    ! -------- end new -------------------------------------
 
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END RESTART_EXTRAS_FILE_OBJECT"

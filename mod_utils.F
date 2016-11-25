@@ -259,7 +259,7 @@ CONTAINS
        IF(PRESENT(ER2)) WRITE(IPT,*) ER2
        IF(PRESENT(ER3)) WRITE(IPT,*) ER3
        IF(PRESENT(ER4)) WRITE(IPT,*) ER4
-       write(IPT,*) TRIM(PRG_NAME)//" CONTINUEING"
+       write(IPT,*) TRIM(PRG_NAME)//" CONTINUING"
        write(IPT,*) "+++++++++++++++++++++++++++++++++++++++++++++++++"
     end if
 
@@ -2294,27 +2294,27 @@ CONTAINS
 ! CREATED USING: http://www.mudmagic.com/figlet-server/
 !     146) rounded.flf :
 
-WRITE(IPT,*)'!================================================================!'
-WRITE(IPT,*)'  _______  _     _  _______  _______  _______  ______     _____  '
-WRITE(IPT,*)' (_______)(_)   (_)(_______)(_______)(_______)(_____ \   (_____) '
-WRITE(IPT,*)'  _____    _     _  _        _     _  _  _  _  _____) )  _  __ _ '
-WRITE(IPT,*)' |  ___)  | |   | || |      | |   | || ||_|| |(_____ (  | |/ /| |'
-WRITE(IPT,*)' | |       \ \ / / | |_____ | |___| || |   | | _____) )_|   /_| |'
-WRITE(IPT,*)' |_|        \___/   \______) \_____/ |_|   |_|(______/(_)\_____/ '
-WRITE(IPT,*)' -- Beta Release'
-WRITE(IPT,*)'!================================================================!'
-WRITE(IPT,*)'!                                                                !'
-WRITE(IPT,*)'!========DOMAIN DECOMPOSITION USING: METIS 4.0.1 ================!'
-WRITE(IPT,*)'!======Copyright 1998, Regents of University of Minnesota========!'
-WRITE(IPT,*)'!                                                                !'
+WRITE(IPT,*)'!=============================================================================!'
+WRITE(IPT,*)'            _______ _     _ _______ _______ _______ _     _   _____            '
+WRITE(IPT,*)'           (_______|_)   (_|_______|_______|_______) |   (_) (_____)           '
+WRITE(IPT,*)'            _____   _     _ _       _     _ _  _  _| |_____  _  __ _           '
+WRITE(IPT,*)'           |  ___) | |   | | |     | |   | | ||_|| |_____  || |/ /| |          '
+WRITE(IPT,*)'           | |      \ \ / /| |_____| |___| | |   | |     | ||   /_| |          '
+WRITE(IPT,*)'           |_|       \___/  \______)\_____/|_|   |_|     |_(_)_____/           '
+WRITE(IPT,*)''
+WRITE(IPT,*)'!=============================================================================!'
+WRITE(IPT,*)'!                                                                             !'
+WRITE(IPT,*)'!================== DOMAIN DECOMPOSITION USING: METIS 4.0.1 ==================!'
+WRITE(IPT,*)'!============= Copyright 1998, Regents of University of Minnesota ============!'
+WRITE(IPT,*)'!                                                                             !'
 IF(PAR) THEN
    WRITE(chr_np,'(I3.3)') NP
    WRITE(chr_id,'(I3.3)') ID
-WRITE(IPT,*)'!================================================================!'
-WRITE(IPT,*)'!                                                                !'
-WRITE(IPT,*)'! RUNNING IN PARALLEL: '//trim(chr_np)//' Processors                            !'
-WRITE(IPT,*)'! MYID is '//trim(chr_id)//'                                                    !'
-WRITE(IPT,*)'!================================================================!'
+WRITE(IPT,*)'!=============================================================================!'
+WRITE(IPT,*)'!                                                                             !'
+WRITE(IPT,*)'! RUNNING IN PARALLEL: '//trim(chr_np)//' Processors                          !'
+WRITE(IPT,*)'! MYID is '//trim(chr_id)//'                                                  !'
+WRITE(IPT,*)'!=============================================================================!'
 END IF
    RETURN
    END SUBROUTINE WRITE_BANNER
@@ -2995,7 +2995,7 @@ END SUBROUTINE GET_VALUE
 
   real(sp) a,b,alpha
 
-  lim = 0.5_sp*(sign(1.,a)+sign(1.,b))*max(min(alpha*abs(a),abs(b)),min(abs(a),alpha*abs(b)))
+  lim = 0.5_sp*(sign(1._sp,a)+sign(1._sp,b))*max(min(alpha*abs(a),abs(b)),min(abs(a),alpha*abs(b)))
 
   End Function LimLED1
 
@@ -3004,7 +3004,7 @@ END SUBROUTINE GET_VALUE
 
   real(sp) a,b,alpha
 
-  lim = 0.5_sp*(sign(1.,a)+sign(1.,b))*min(0.5_sp*abs(a+b),alpha*abs(a),alpha*abs(b))
+  lim = 0.5_sp*(sign(1._sp,a)+sign(1._sp,b))*min(0.5_sp*abs(a+b),alpha*abs(a),alpha*abs(b))
 
   End Function LimLED2
 

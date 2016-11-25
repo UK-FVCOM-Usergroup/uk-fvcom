@@ -36,9 +36,10 @@ MOD2  = mod_mm5.F
 MOD3  = mod_wrf.F
 MOD4  = mod_binary.F
 MOD5  = mod_output.F
+MOD6  = mod_pro_hurr_model.F
 MAIN  = main.F
 
-SRCS = $(MOD1) $(MOD2) $(MOD3) $(MOD4) $(MOD5) $(MAIN) 
+SRCS = $(MOD1) $(MOD2) $(MOD3) $(MOD4) $(MOD5) $(MOD6) $(MAIN) 
 
 MYOBJS = $(SRCS:.F=.o)
 

@@ -1016,9 +1016,10 @@ PROGRAM FVCOM
 
              CALL DUMP_PROBE_DATA
              IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
-# if defined (WAVE_CURRENT_INTERACTION)
+#            if defined (WAVE_CURRENT_INTERACTION)
              IF(OUT_WAVE_SPARSE_TIMESERIES_ON) CALL OUT_WAVE_SPARSE_TIMESERIES
-# endif
+#            endif
+
 
 #            if defined (LAG_PARTICLE)
              CALL LAG_UPDATE
@@ -1086,9 +1087,9 @@ PROGRAM FVCOM
 
            CALL DUMP_PROBE_DATA
            IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
-# if defined (WAVE_CURRENT_INTERACTION)
+#          if defined (WAVE_CURRENT_INTERACTION)
            IF(OUT_WAVE_SPARSE_TIMESERIES_ON)CALL OUT_WAVE_SPARSE_TIMESERIES
-# endif
+#          endif
            !==============================================================================!
            !  CALL SHUTDOWN CHECK TO LOOK FOR BAD VALUES                                  !
            !==============================================================================!

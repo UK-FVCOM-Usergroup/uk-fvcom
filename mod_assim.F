@@ -4213,8 +4213,20 @@ in:  DO WHILE(.TRUE.)
 
    CALL N2E2D(EL,EL1)
 
+#   if defined (ICE_EMBEDDING)
+  DO I = 1, NT                                !!yding
+    QTHICE1(I) = (QTHICE(NV(I,1))+QTHICE(NV(I,2))+QTHICE(NV(I,3)))/3.0_SP
+  END DO
+
+  D   = H + EL - QTHICE     !!yding
+  D1  = H1 + EL1 - QTHICE1  !!yding
+
+#   else
+
    D   = H + EL
    D1  = H1 + EL1
+
+#   endif
 
    RETURN
    END SUBROUTINE SSHGRD_NUDGE
@@ -4789,8 +4801,14 @@ in:  DO WHILE(.TRUE.)
     IF(PAR) CALL EXCHANGE_ALL
 
     ! SET DEPTH AN INTERPOLATE VALUES TO CELL CENTERS
+#   if defined (ICE_EMBEDDING)
+    D   = H + EL - QTHICE     !!yding
+    D   = H + ET - QTHICERK   !!yding
+#   else
     D  = H + EL
     DT = H + ET
+#   endif
+
 
     CALL N2E2D(H,H1)
     CALL N2E2D(EL,EL1)

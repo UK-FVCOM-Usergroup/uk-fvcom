@@ -357,8 +357,11 @@ MODULE MOD_ACTION_EX
   REAL(SP) :: SPCDIR2(MDC),SPCDIR3(MDC),CANX_2D(MDC,MSC),CANY_2D(MDC,MSC),CGO_1D(MSC),CGO_2D(MDC,MSC)
   INTEGER  :: NTSN_T
   REAL(SP) :: N32_T,XFLUX_T
-  REAL(SP),ALLOCATABLE :: DEP2(:),AC2LOC(:)   
+  REAL(SP),ALLOCATABLE :: DEP2(:),AC2LOC(:)
   REAL(SP) :: DEPLOC,KWAVELOC,CGLOC,NN,ND,SPCSIGL
+# if defined (ICE)
+  REAL(SP),ALLOCATABLE :: Sice_TMP(:),SiceLOC(:)
+# endif  
 # if defined (SPHERICAL)
   REAL(8) :: XTMP1,XTMP
   REAL(8) :: DLTXE_TMP,DLTYE_TMP
@@ -378,6 +381,10 @@ MODULE MOD_ACTION_EX
 
 !------------------------------------------------------------------------------!
   ALLOCATE(DEP2(MT),AC2LOC(0:MT),XFLUX_TMP(0:MT))
+# if defined (ICE)
+  ALLOCATE(Sice_TMP(0:MT),SiceLOC(0:MT))
+  ALLOCATE(Sice(MDC,MSC,0:MT));Sice=0.0
+# endif  
   ALLOCATE(EXFLUX(MDC,MSC),FF1(MDC,MSC),FIJ1(MDC,MSC,2),UN(MDC,MSC))
   ALLOCATE(XFLUX(MDC,MSC,0:MT));XFLUX=0.0
   ALLOCATE(PSPX(MDC,MSC,M));PSPX=0.0
@@ -658,22 +665,36 @@ MODULE MOD_ACTION_EX
 
 #   if defined (ICE)                                 
     C_ICE=(aice(IA,1)+aice(IB,1))/2
-!    C_ICE=0.0
-    IF(C_ICE > 1.0e-8)THEN
-      CALL ACTT2(IA,IB,RATIO)
-      DO ID=1,MDC
-        DO ISS=1,MSC
-          EXFLUX_TMPA(ID,ISS)=EXFLUXA(ID,ISS)*RATIO(ISS)
-          EXFLUX_TMPB(ID,ISS)=EXFLUXB(ID,ISS)*RATIO(ISS)
-          IF(EXFLUXA(ID,ISS) > 0.0_SP)THEN
-            XFLUX(ID,ISS,IA)=XFLUX(ID,ISS,IA)+EXFLUXA(ID,ISS)
-            XFLUX(ID,ISS,IB)=XFLUX(ID,ISS,IB)-EXFLUX_TMPB(ID,ISS)
-          ELSE
-            XFLUX(ID,ISS,IA)=XFLUX(ID,ISS,IA)+EXFLUX_TMPA(ID,ISS)
-            XFLUX(ID,ISS,IB)=XFLUX(ID,ISS,IB)-EXFLUXB(ID,ISS)
-          END IF
+        if(C_ICE.gt.1e-8)then
+        CALL ACTT2(IA,IB,RATIO)
+        DO ID=1,MDC
+         DO ISS=1,MSC
+        EXFLUX_TMPA(ID,ISS)=EXFLUXA(ID,ISS)*RATIO(ISS)
+        EXFLUX_TMPB(ID,ISS)=EXFLUXB(ID,ISS)*RATIO(ISS)
+        if (EXFLUXA(ID,ISS).ge.0)then   !  .ge.
+        Sice(ID,ISS,IB)=Sice(ID,ISS,IB)+EXFLUXB(ID,ISS)*(1.0-RATIO(ISS))
+        else
+        Sice(ID,ISS,IA)=Sice(ID,ISS,IA)-EXFLUXA(ID,ISS)*(1.0-RATIO(ISS))
+        end if
         END DO
-      END DO
+        END DO
+!    IF(C_ICE > 1.0e-8)THEN
+!      CALL ACTT2(IA,IB,RATIO)
+!      DO ID=1,MDC
+!        DO ISS=1,MSC
+!          EXFLUX_TMPA(ID,ISS)=EXFLUXA(ID,ISS)*RATIO(ISS)
+!          EXFLUX_TMPB(ID,ISS)=EXFLUXB(ID,ISS)*RATIO(ISS)
+!          IF(EXFLUXA(ID,ISS) > 0.0_SP)THEN
+!            XFLUX(ID,ISS,IA)=XFLUX(ID,ISS,IA)+EXFLUXA(ID,ISS)
+!            XFLUX(ID,ISS,IB)=XFLUX(ID,ISS,IB)-EXFLUX_TMPB(ID,ISS)
+!          ELSE
+!            XFLUX(ID,ISS,IA)=XFLUX(ID,ISS,IA)+EXFLUX_TMPA(ID,ISS)
+!            XFLUX(ID,ISS,IB)=XFLUX(ID,ISS,IB)-EXFLUXB(ID,ISS)
+!          END IF
+!        END DO
+!      END DO
+      XFLUX(:,:,IA)=XFLUX(:,:,IA)+EXFLUXA
+      XFLUX(:,:,IB)=XFLUX(:,:,IB)-EXFLUXB
     ELSE
       XFLUX(:,:,IA)=XFLUX(:,:,IA)+EXFLUXA
       XFLUX(:,:,IB)=XFLUX(:,:,IB)-EXFLUXB
@@ -879,6 +900,52 @@ MODULE MOD_ACTION_EX
     END DO
   END DO
 
+!----yzhang----
+# if defined (ICE)
+# if defined (MULTIPROCESSOR)
+  DO ISS=1,MSC
+    DO ID=1,MDC
+      DO I=1,MT
+        Sice_TMP(I)=Sice(ID,ISS,I)
+      END DO
+      IF(PAR)CALL NODE_MATCH(0,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,Sice_TMP)
+      DO I=1,MT
+        Sice(ID,ISS,I)=Sice_TMP(I)
+      END DO
+    END DO
+  END DO
+# endif
+
+!--Update Sice ------------------------------------------------------!
+!
+  DO I = 1,M
+    IF(DEP2(I) > DEPMIN)THEN
+     Sice(:,:,I)=Sice(:,:,I)/ART1(I)*DTW
+    END IF
+  END DO
+
+# if defined (MULTIPROCESSOR)
+  IF(PAR)THEN
+    DO ISS=1,MSC
+      DO ID=1,MDC
+        SiceLOC= 0.0
+        DO I = 1,MT
+          SiceLOC(I)=Sice(ID,ISS,I)
+        END DO
+        CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,SiceLOC)
+!        CALL EXCHANGE(NC,MT,1,MYID,NPROCS,AC2LOC)
+        CALL AEXCHANGE(NC,MYID,NPROCS,SiceLOC)
+        Sice(ID,ISS,:)=0.0
+        DO I = 1,MT
+          Sice(ID,ISS,I) = SiceLOC(I)
+        END DO
+      END DO
+    END DO
+  END IF
+# endif
+  DEALLOCATE(SiceLOC,Sice_TMP)
+# endif
+!----yzhang----
   DEALLOCATE(DEP2,AC2LOC,XFLUX_TMP,EXFLUX,FF1,FIJ1,UN)
   DEALLOCATE(XFLUX,PSPX,PSPY)
   IF(HIGH_LATITUDE_WAVE)THEN

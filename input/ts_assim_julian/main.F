@@ -11,10 +11,10 @@ PROGRAM TS_clim
   IMPLICIT NONE
   INTEGER :: STATUS, I
   CHARACTER(LEN=4) :: BFLAG
-  character(len=*),parameter::CVS_Id="$Id: main.F,v 1.1.1.1 2010/01/03 19:36:05 jqi Exp $" ! [sng] CVS Identification
-  character(len=*),parameter::CVS_Date="$Date: 2010/01/03 19:36:05 $" ! [sng] Date string
-  character(len=*),parameter::CVS_Name="$Name:  $" ! [sng] File name string
-  character(len=*),parameter::CVS_Revision="$Revision: 1.1.1.1 $" ! [sng] File revision string
+  character(len=*),parameter::CVS_Id="$Id$" ! [sng] CVS Identification
+  character(len=*),parameter::CVS_Date="$Date$" ! [sng] Date string
+  character(len=*),parameter::CVS_Name="$Name$" ! [sng] File name string
+  character(len=*),parameter::CVS_Revision="$Revision$" ! [sng] File revision string
 
   CHARACTER(len=120) :: TSC_OUT_NAME
   TYPE(TIME) :: NOW
@@ -107,7 +107,7 @@ PROGRAM TS_clim
 !  CALL READ_TSC(TC0=TC,SC0=SC)
 !  Now = TC%dtm
 
-  DO WHILE(IINT <= 14)
+  DO WHILE(IINT <= 4)
 
       CALL READ_TSC(now,TC,SC)
 

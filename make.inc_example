@@ -247,7 +247,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
 #            FLAG_11 = -DGOTM
-#            GOTMLIB       = -L../GOTM_source -lturbulence -lutil -lmeanflow
+#            GOTMLIB       = -L../GOTM_source -lturbulence -lutil #-lmeanflow
 #            GOTMINCS      = -I../GOTM_source  
 
 #--------------------------------------------------------------------------
@@ -371,7 +371,9 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
 # NOTE: Must use -DSPHERICAL  and -DHEAT_FLUX ----- this note only for old version v2.7
+#       ICE_EMBEDDING must with SEMI_IMPLICIT
 #            FLAG_26 = -DICE  
+#            FLAG_261 = -DICE_EMBEDDING  
 
 #--------------------------------------------------------------------------
 #         CALCULATE THE NET HEAT FLUX IN MODEL (THREE CHOICES):
@@ -612,7 +614,7 @@ dashL= $(empty) -L
    $(FLAG_39) $(FLAG_40) $(FLAG_41) $(FLAG_42) \
    $(FLAG_43) $(FLAG_LAM)\
    $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)\
-   $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) 
+   $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261)
 #--------------------------------------------------------------------------
 #  Libraries           
 #--------------------------------------------------------------------------

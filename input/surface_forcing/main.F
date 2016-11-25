@@ -3,6 +3,7 @@ PROGRAM surfaceforce
   USE MOD_MM5
   USE MOD_BINARY
   USE MOD_WRF
+  USE MOD_PRO_HURR_MODEL
   USE MOD_OUTPUT
   USE MOD_FORCE
   USE MOD_NCDIO
@@ -43,8 +44,6 @@ PROGRAM surfaceforce
 
   CALL CNTRL_PRMTRS
 
-  date_reference = 'default'
-  
   CALL CHECK_IO_DIRS
 
   CALL GET_FVCOM_GRID
@@ -66,7 +65,9 @@ PROGRAM surfaceforce
   CASE(binary)
      CALL LOAD_BINARY(BWND_FILE_NAME,BHFX_FILE_NAME,BEVP_FILE_NAME,  &
                       BAIP_FILE_NAME,BSAT_FILE_NAME,BSPQ_FILE_NAME,  &
-		      BCLD_FILE_NAME)
+		              BCLD_FILE_NAME,BDPT_FILE_NAME)
+  CASE(prototypical_hurricane_model)
+     CALL LOAD_PRO_HURR_MODEL(BWND_FILE_NAME)
   END SELECT
 
   IF (DBG_SET(DBG_LOG))WRITE(IPT,*) "! SETUP INPUT FILES"
@@ -83,7 +84,7 @@ PROGRAM surfaceforce
   CASE(binary)
      CALL MAKE_BINARY_OUTFILE(BWND_FILE_NAME,BHFX_FILE_NAME,BEVP_FILE_NAME,  &
                               BAIP_FILE_NAME,BSAT_FILE_NAME,BSPQ_FILE_NAME,  &
-		              BCLD_FILE_NAME)
+		                      BCLD_FILE_NAME,BDPT_FILE_NAME)
   END SELECT
   
   
@@ -98,12 +99,13 @@ PROGRAM surfaceforce
 
      SELECT CASE(INPUT_TYPE)
      CASE(wrf)
-        CALL UPDATE_WRF(NOW)
+       CALL UPDATE_WRF(NOW)
      CASE(mm5)
-        CALL UPDATE_MM5(NOW)
+       CALL UPDATE_MM5(NOW)
      CASE(binary)
-
-        CALL UPDATE_BINARY(NOW)
+       CALL UPDATE_BINARY(NOW)
+     CASE(prototypical_hurricane_model)
+       CALL UPDATE_PRO_HURR_MODEL(NOW)
 
      END SELECT
 

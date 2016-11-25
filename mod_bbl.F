@@ -1534,17 +1534,9 @@ subroutine ssw_bbl
 !  Load sediment properties, stresses, and roughness from previous time
 !  step (stresses are in m2 s-2).
 !
-
-! Jianzhong GE
-!          d50=bottom(i,isd50)
-!          rhos=bottom(i,idens)/(1000.0*rho1(i,kbm1)+1000.0)
-!          wsedr=bottom(i,iwset)
-
-          d50=deposition_d50
-          rhos=sed_rhos/(1000.0*rho1(i,kbm1)+1000.0)
-          wsedr=sed_wset 
-
-
+          d50=bottom(i,isd50)
+          rhos=bottom(i,idens)/(1000.0*rho1(i,kbm1)+1000.0)
+          wsedr=bottom(i,iwset)
           Taucr=bottom(i,itauc)/1025.
           Tauc(i)=SQRT(bustrc(i)**2+bvstrc(i)**2)
           Tauw(i)=SQRT(bustrw(i)**2+bvstrw(i)**2)
@@ -1552,7 +1544,6 @@ subroutine ssw_bbl
 !
           rheight(i)=bottom(i,irhgt)
           rlength(i)=bottom(i,irlen)
-
           zoMAX=0.9*Zr(i)
           zoMIN=MAX(absolute_zoMIN,2.5*d50/30.0) 
 !

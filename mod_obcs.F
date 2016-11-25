@@ -468,7 +468,9 @@ CONTAINS
 #  if defined (AIR_PRESSURE)
 !==============================================================================|
    USE ALL_VARS
+#  if defined (MULTIPROCESSOR)
    USE MOD_PAR, ONLY : NC,AEXCHANGE
+#  endif
    IMPLICIT NONE
 
    TYPE(TIME) :: NOW
@@ -488,7 +490,9 @@ CONTAINS
 !==============================================================================|
    CALL UPDATE_AIRPRESSURE(NOW,PA_AIR)
 
+#  if defined (MULTIPROCESSOR)
    IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,PA_AIR)         
+#  endif
 
 !!$   ELF_AIR = -(PA_AIR-SLP0)/(1025._SP*GRAV_N)
    ELF_AIR(1:MT) = -(PA_AIR(1:MT)-SLP0)/(1025._SP*GRAV_N(1:MT))

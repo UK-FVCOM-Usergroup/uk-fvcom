@@ -830,6 +830,7 @@ MODULE CONTROL
     REAL(SP) ::ICE_SPEC_HUMIDITY
     REAL(SP) ::ICE_CLOUD_COVER
     REAL(SP) ::ICE_SHORTWAVE
+    CHARACTER(LEN=80) ICE_LONGWAVE_TYPE
     
     LOGICAL HIGH_LATITUDE_WAVE
 
@@ -902,6 +903,7 @@ MODULE CONTROL
          & ICE_AIR_TEMP,                  &
          & ICE_SPEC_HUMIDITY,             &
          & ICE_SHORTWAVE,                 &
+         & ICE_LONGWAVE_TYPE,                 &
          & ICE_CLOUD_COVER,               &
          & HIGH_LATITUDE_WAVE
 
@@ -1430,6 +1432,22 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET  :: WSSURF(:)        !!  sea surface salinity    flux
    REAL(SP), ALLOCATABLE,TARGET  :: WHSURF(:)        !!  sea surface heat        flux
    REAL(SP), ALLOCATABLE,TARGET  :: FWtSURF(:)       !!  sea surface fresh water flux
+
+!!============yding=============================================================
+   REAL(SP), ALLOCATABLE,TARGET :: QPICE(:)         !!SURFACE ice volume FOR INT
+!!============yding end===========================================================
+
+#   if defined (ICE_EMBEDDING)
+   REAL(SP), ALLOCATABLE,TARGET :: QFLICE(:)         !!water volume FOR INT
+
+   REAL(SP), ALLOCATABLE,TARGET :: QTHICE(:)         !!ice thickness in the water
+   REAL(SP), ALLOCATABLE,TARGET :: mlt_lat(:)         !!ice thickness in the water
+   REAL(SP), ALLOCATABLE,TARGET :: QTHICERK(:)       !!ice thickness in the water
+   REAL(SP), ALLOCATABLE,TARGET :: QTHICE_incr(:)    !!ice thickness increament
+   REAL(SP), ALLOCATABLE,TARGET :: QTHICE1(:)         !!ice thickness in the water
+
+#   endif
+
 # endif
 # if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
    REAL(SP), ALLOCATABLE,TARGET  :: PA_AIR(:)        !!SURFACE PRESSURE
@@ -1949,6 +1967,19 @@ CONTAINS
    ALLOCATE(WHSURF(0:MT))        ;WHSURF = ZERO      !  sea surface heat        flux
    ALLOCATE(FWtSURF(0:MT))       ;FWtSURF= ZERO      !  sea surface fresh water flux
    MEMCNT =  MT*4*NDB + MEMCNT
+
+!!yding
+   ALLOCATE(QPICE(0:MT))         ;QPICE = ZERO      !!SURFACE ice volume FOR INT
+!!yding
+#   if defined (ICE_EMBEDDING)
+   ALLOCATE(QFLICE(0:MT))         ;QFLICE = ZERO      !!SURFACE ice volume FOR INT
+   ALLOCATE(QTHICE(0:MT))         ;QTHICE = ZERO      !!ice thickness for current step
+   ALLOCATE(mlt_lat(0:MT))         ;mlt_lat = ZERO      !!ice thickness for current step
+   ALLOCATE(QTHICERK(0:MT))       ;QTHICERK = ZERO    !!ice thickness for previous step
+   ALLOCATE(QTHICE_incr(0:MT))    ;QTHICE_incr = ZERO    !!ice thickness increament
+   ALLOCATE(QTHICE1(0:NT))         ;QTHICE1 = ZERO       !!ice thickness for current step
+#  endif
+
 # endif
 # if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
    ALLOCATE(PA_AIR(0:MT))        !!SURFACE PRESSURE

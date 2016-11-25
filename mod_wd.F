@@ -105,7 +105,23 @@ MODULE MOD_WD
 #  endif
 
 !-------- TRANSFER ELEVATION FIELD TO DEPTH AND OLD TIME LEVELS----------------!
+#   if defined (ICE_EMBEDDING)
+  DO I = 1, NT
+    QTHICE1(I) = (QTHICE(NV(I,1))+QTHICE(NV(I,2))+QTHICE(NV(I,3)))/3.0_SP
+  END DO
 
+     EL1 = ELF1
+     D1  = H1 + EL1 - QTHICE1
+     EL = ELF
+     ET = EL
+     D  = EL + H - QTHICE
+     DT = D
+     DTFA = D
+     ET1 = EL1
+     DT1 = D1
+
+
+#   else
      EL1 = ELF1
      D1  = H1 + EL1
      EL = ELF
@@ -115,6 +131,8 @@ MODULE MOD_WD
      DTFA = D
      ET1 = EL1
      DT1 = D1
+
+#   endif
 
    END IF 
 
@@ -194,7 +212,12 @@ MODULE MOD_WD
 !
    ISWETN = 1
    DO I = 1, M
+#   if defined (ICE_EMBEDDING)
+     DTMP = H(I) + ELF(I)  - QTHICE(I)
+#   else
      DTMP = H(I) + ELF(I)
+#   endif
+
      IF((DTMP - MIN_DEPTH) < 1.0E-5_SP) ISWETN(I) = 0
    END DO
 
@@ -203,8 +226,15 @@ MODULE MOD_WD
 !
    ISWETC = 1
    DO I = 1, N
+#   if defined (ICE_EMBEDDING)
+     DTMP =  MAX(ELF(NV(I,1)),ELF(NV(I,2)),ELF(NV(I,3)))  + &
+             MIN(  H(NV(I,1)),  H(NV(I,2)),  H(NV(I,3)))  - &
+             MAX(QTHICE(NV(I,1)),QTHICE(NV(I,2)),QTHICE(NV(I,3)))      !!yding
+#   else
      DTMP =  MAX(ELF(NV(I,1)),ELF(NV(I,2)),ELF(NV(I,3)))  + &
              MIN(  H(NV(I,1)),  H(NV(I,2)),  H(NV(I,3)))
+#   endif
+
      IF((DTMP - MIN_DEPTH) < 1.0E-5_SP) ISWETC(I) = 0
    END DO
 

@@ -3,6 +3,7 @@ MODULE MOD_SURFACEFORCE
   USE MOD_UTILS
   USE MOD_INPUT
   USE MOD_TIME
+  USE MOD_SOLAR
   USE CONTROL
   USE LIMS
   USE ALL_VARS
@@ -26,6 +27,7 @@ MODULE MOD_SURFACEFORCE
   INTEGER, PARAMETER :: binary=3
   INTEGER, PARAMETER :: unstruct=4
   INTEGER, PARAMETER :: struct=5
+  INTEGER, PARAMETER :: prototypical_hurricane_model=6
   
 
 
@@ -42,6 +44,7 @@ MODULE MOD_SURFACEFORCE
   CHARACTER(LEN=160) :: BSAT_FILE_NAME
   CHARACTER(LEN=160) :: BSPQ_FILE_NAME
   CHARACTER(LEN=160) :: BCLD_FILE_NAME
+  CHARACTER(LEN=160) :: BDPT_FILE_NAME
 
   CHARACTER(LEN=160) :: STRUCT_FILE_NAME
   CHARACTER(LEN=160) :: UNSTRUCT_FILE_NAME
@@ -57,13 +60,13 @@ MODULE MOD_SURFACEFORCE
   ! FOR FVCOM GRID OUTPUT
   REAL(SP), POINTER :: SPDY(:), SPDX(:)
   REAL(SP), POINTER :: STRY(:), STRX(:)
-  REAL(SP), POINTER :: SWR(:),  NHF(:)
+  REAL(SP), POINTER :: SWR(:),  NHF(:),  LWR(:)
   REAL(SP), POINTER :: PRC(:),  EVP(:)
 
   REAL(SP), POINTER :: PRS(:),  SST(:),LNGWV(:),SENSE(:),LATENT(:)
 
-  ! for ice model code
-  REAL(SP), POINTER :: AIP(:),  SAT(:), SPQ(:), CLD(:)
+  ! for ice model code & Heating-SOLAR
+  REAL(SP), POINTER :: AIP(:),  SAT(:), SPQ(:), CLD(:), RH(:), DPT(:)
 
   ! FOR REGULAR GRID OUTPUT
   REAL(SP), POINTER :: SPDY_rg(:,:), SPDX_rg(:,:)
@@ -73,7 +76,7 @@ MODULE MOD_SURFACEFORCE
 
   REAL(SP), POINTER :: PRS_rg(:,:),  SST_rg(:,:),LNGWV_rg(:,:),SENSE_rg(:,:),LATENT_rg(:,:)
 
-  REAL(SP), POINTER :: AIP_rg(:,:),  SAT_rg(:,:), SPQ_rg(:,:), CLD_rg(:,:)
+  REAL(SP), POINTER :: AIP_rg(:,:),  SAT_rg(:,:), SPQ_rg(:,:), CLD_rg(:,:), DPT_rg(:,:)
 
 
   INTEGER :: DIMX,DIMY  ! X/Y dimension for regular grid data
@@ -94,7 +97,8 @@ MODULE MOD_SURFACEFORCE
        & TIMEZONE,                       &
        & END_DATE,                       &
        & OUT_INTERVAL,                   &
-       & ZERO_TIME
+       & ZERO_TIME,                      &
+       & DATE_REFERENCE
 
 
   ! FILE UNITS FOR OUTPUT
@@ -106,6 +110,7 @@ MODULE MOD_SURFACEFORCE
   INTEGER, PARAMETER :: satunit=122
   INTEGER, PARAMETER :: spqunit=123
   INTEGER, PARAMETER :: cldunit=124
+  INTEGER, PARAMETER :: dptunit=126
 
   INTEGER, PARAMETER :: mm5unit=125
 
@@ -242,7 +247,7 @@ CONTAINS
     WRITE(IPT,*) "!   INPUT_DIR              # input path"
     WRITE(IPT,*) "!   OUTPUT_DIR             # output path"
     WRITE(IPT,*) "!   INPUT_FILE             # filename"
-    WRITE(IPT,*) "!   INPUT_FILE_TYPE        # 'mm5', 'wrf, 'binary'"
+    WRITE(IPT,*) "!   INPUT_FILE_TYPE        # 'mm5', 'wrf', 'binary', 'prototypical hurricane model'"
     WRITE(IPT,*) "!   OUT_FILE_TYPE          # 'binary', 'unstructured', 'structured'" 
     WRITE(IPT,*) "!   GRID_FILE              # filename"
     WRITE(IPT,*) "!   GRID_FILE_UNITS        # 'meters' or 'degrees'"
@@ -319,6 +324,9 @@ CONTAINS
   CASE('binary speed','BINARY SPEED')
      input_type=binary
      WIND_TYPE="speed"
+  CASE('prototypical_hurricane_model','PROTOTYPICAL_HURRICANE_MODEL')
+     input_type=prototypical_hurricane_model
+     WIND_TYPE="speed"
   CASE DEFAULT
      CALL FATAL_ERROR("ILLEGAL INPUT FILE TYPE:"//TRIM(INPUT_FILE_TYPE))
   END SELECT
@@ -381,6 +389,7 @@ CONTAINS
 # if defined (AIR_PRESSURE)
         ALLOCATE(PA_AIR(0:MT))
         AIP => PA_AIR
+        AIRPRESSURE_ON = .TRUE.
 # endif
         
 # if defined(ICE)
@@ -388,6 +397,13 @@ CONTAINS
         SPQ => QA_AIR
         CLD => CLOUD
         SAT => T_AIR
+# endif
+
+# if defined(HEATING_SOLAR)
+        ALLOCATE(T_AIR(0:MT), CLOUD(0:MT), TDEW(0:MT))
+        CLD => CLOUD
+        SAT => T_AIR
+        DPT => TDEW
 # endif
 
 
@@ -408,6 +424,7 @@ CONTAINS
         BSAT_FILE_NAME= TRIM(output_dir)//trim(output_file)//"_sat.dat"
         BSPQ_FILE_NAME= TRIM(output_dir)//trim(output_file)//"_spq.dat"
         BCLD_FILE_NAME= TRIM(output_dir)//trim(output_file)//"_cld.dat"
+        BDPT_FILE_NAME= TRIM(output_dir)//trim(output_file)//"_dpt.dat"
 
 
 
@@ -426,6 +443,7 @@ CONTAINS
 # if defined (AIR_PRESSURE)
         ALLOCATE(PA_AIR(0:MT))
         AIP => PA_AIR
+        AIRPRESSURE_ON = .TRUE.
 # endif
 
 # if defined(ICE)
@@ -433,6 +451,13 @@ CONTAINS
         SPQ => QA_AIR
         CLD => CLOUD
         SAT => T_AIR
+# endif
+
+# if defined(HEATING_SOLAR)
+        ALLOCATE(T_AIR(0:MT), CLOUD(0:MT), TDEW(0:MT))
+        CLD => CLOUD
+        SAT => T_AIR
+        DPT => TDEW
 # endif
 
         CALL RUN_TGE
@@ -504,6 +529,7 @@ CONTAINS
         BSAT_FILE_NAME= TRIM(output_dir)//trim(output_file)//"_sat.dat"
         BSPQ_FILE_NAME= TRIM(output_dir)//trim(output_file)//"_spq.dat"
         BCLD_FILE_NAME= TRIM(output_dir)//trim(output_file)//"_cld.dat"
+        BDPT_FILE_NAME= TRIM(output_dir)//trim(output_file)//"_dpt.dat"
 
 
 
@@ -535,11 +561,12 @@ CONTAINS
      BSAT_FILE_NAME= TRIM(input_dir)//trim(input_file)//"_sat.dat"
      BSPQ_FILE_NAME= TRIM(input_dir)//trim(input_file)//"_spq.dat"
      BCLD_FILE_NAME= TRIM(input_dir)//trim(input_file)//"_cld.dat"
+     BDPT_FILE_NAME= TRIM(input_dir)//trim(input_file)//"_dpt.dat"
      
 
      ALLOCATE(STRX(0:NT),STRY(0:NT))
      ALLOCATE(PRC(0:MT),EVP(0:MT))
-     ALLOCATE(SWR(0:MT), NHF(0:MT))
+     ALLOCATE(SWR(0:MT), NHF(0:MT), LWR(0:MT))
 
      IF(WIND_TYPE == 'speed') THEN
         ALLOCATE(SPDX(0:NT),SPDY(0:NT))
@@ -551,7 +578,11 @@ CONTAINS
 #endif
 
 # if defined (ICE)
-     ALLOCATE(SAT(0:MT), SPQ(0:MT), CLD(0:MT))
+     ALLOCATE(SAT(0:MT), SPQ(0:MT), CLD(0:MT), RH(0:MT))
+#endif
+
+# if defined (HEATING_SOLAR)
+     ALLOCATE(SAT(0:MT), DPT(0:MT), CLD(0:MT))
 #endif
 
      binary_out: SELECT CASE(output_type)
@@ -573,6 +604,44 @@ CONTAINS
      CASE DEFAULT
         CALL FATAL_ERROR("THIS SHOULD NEVER HAPPEN?")
      END SELECT binary_out
+
+  CASE(prototypical_hurricane_model)
+
+     
+     BWND_FILE_NAME= TRIM(input_dir)//trim(input_file)    !//"_path.dat"
+
+     ALLOCATE(STRX(0:NT),STRY(0:NT))
+!     ALLOCATE(PRC(0:MT),EVP(0:MT))
+!     ALLOCATE(SWR(0:MT), NHF(0:MT))
+
+     IF(WIND_TYPE == 'speed') THEN
+        ALLOCATE(SPDX(0:NT),SPDY(0:NT))
+     END IF
+
+# if defined (AIR_PRESSURE)
+     ALLOCATE(AIP(0:MT))
+     AIRPRESSURE_ON = .TRUE.
+#endif
+
+     p_t_model_out: SELECT CASE(output_type)
+     CASE(struct)
+        
+        CALL FATAL_ERROR &
+             & ("Can not create a structred grid file from an unstructured binary file!")
+     
+     CASE(unstruct)
+
+
+        UNSTRUCT_FILE_NAME = TRIM(output_dir)//trim(output_file)
+
+
+     CASE(binary)
+        
+        CALL FATAL_ERROR("WHY WOULD YOU SELECT BOTH BINARY INPUT AND BINARY OUTPUT?")
+        
+     CASE DEFAULT
+        CALL FATAL_ERROR("THIS SHOULD NEVER HAPPEN?")
+     END SELECT p_t_model_out
 
 
      

@@ -1169,7 +1169,7 @@ Module Scalar
   do i=2,n
     dis4    = .5*abs(w(i))
     conv(i) = w(i)*(cin(i)+cin(i-1))*0.5_SP
-    sl_u = 2.0_SP*(cin(i)-cin(n+1))/(sl_h(i)+sl_h(i+1))
+    sl_u = 2.0_SP*(cin(i)-cin(i+1))/(sl_h(i)+sl_h(i+1))
     sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(sl_h(i-2)+sl_h(i-1))
     diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(sl_h(i-1)+sl_h(i))) 
 !!    flux(i) = conv(i)+diss(i)

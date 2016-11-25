@@ -126,6 +126,13 @@ CONTAINS
        CALL READ_EQI
 # endif
 
+
+! ------- New: Karsten Lettmann, June 2016 -----------------------
+# if defined(AIR_PRESSURE)
+  CALL READ_AIR_PRESS_ELE
+# endif
+! ---------- end  new --------------------------------------------
+
 !    if (dbg_set(dbg_log)) write(ipt,*) &
 !         & "! INITIALIZING SEA ICE"
 
@@ -177,6 +184,14 @@ CONTAINS
 # if defined (EQUI_TIDE)
        CALL READ_EQI
 # endif
+
+
+! ------- New: Karsten Lettmann, June 2016 -----------------------
+# if defined(AIR_PRESSURE)
+  CALL READ_AIR_PRESS_ELE
+# endif
+! ---------- end  new --------------------------------------------
+
 
 # if defined (ICE)    
     CALL  READ_ICE
@@ -572,7 +587,10 @@ CONTAINS
     VAR => FIND_VAR(NC_START,'wet_cells_prev_ext',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'wet_cells_prev_ext'&
          & IN THE HOTSTART FILE OBJECT")
+    ! ------ new: Karsten Lettmann, May 2016 -------------
+    !CALL NC_CONNECT_AVAR(VAR, ISWETC)  ! original line
     CALL NC_CONNECT_AVAR(VAR, ISWETCE)
+    ! ------------- end new ------------------------------
     CALL NC_READ_VAR(VAR,STKCNT)
 
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_WETDRY"
@@ -682,6 +700,35 @@ CONTAINS
    
   END SUBROUTINE READ_EQI
 !==============================================================================!
+
+! ------- New: Karsten Lettmann, June 2016 -----------------------
+# if defined(AIR_PRESSURE)
+!==============================================================================!
+  SUBROUTINE READ_AIR_PRESS_ELE
+    IMPLICIT NONE
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM
+    LOGICAL :: FOUND
+    INTEGER :: STKCNT
+
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_AIR_PRESS_ELE" 
+    
+    STKCNT = NC_START%FTIME%PREV_STKCNT
+
+    ! LOAD Air pressure induced elevation
+    VAR => FIND_VAR(NC_START,'el_press',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR&
+         &("COULD NOT FIND VARIABLE 'el_press' IN THE HOTSTART FILE OBJECT")
+    CALL NC_CONNECT_AVAR(VAR, EL_AIR)
+    CALL NC_READ_VAR(VAR,STKCNT)
+
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_AIR_PRESS_ELE" 
+   
+  END SUBROUTINE READ_AIR_PRESS_ELE
+!==============================================================================!
+# endif  
+! ------------- end new ---------------------------------------------------------
+
 # if defined (DYE_RELEASE)
   SUBROUTINE READ_DYE
     IMPLICIT NONE
@@ -1294,7 +1341,7 @@ CONTAINS
     VAR => FIND_VAR(NC_START,'km',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'km'&
          & IN THE HOTSTART FILE OBJECT")
-    CALL NC_CONNECT_AVAR(VAR, km)
+    CALL NC_CONNECT_AVAR(VAR, KM)
     CALL NC_READ_VAR(VAR,STKCNT)
 
     VAR => FIND_VAR(NC_START,'kq',FOUND)

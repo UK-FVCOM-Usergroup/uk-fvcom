@@ -2601,44 +2601,47 @@ CONTAINS
             & ("MOD_FORCE NOT SETUP FOR N_SED > 10 REVISE")  
        ENDIF
 
+
        ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
        ! Initialize some variables 
        ! afm 20160216
        ! Need initialization. Otherwise, random values are asigned
        ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
        ! This problem reported with Intel15.0.3. 
-       river_forcing(i)%sed1_n%curr_stkcnt = 0; river_forcing(i)%sed1_p%curr_stkcnt = 0
+       if(n_sed>0)then
+         river_forcing(i)%sed1_n%curr_stkcnt = 0; river_forcing(i)%sed1_p%curr_stkcnt = 0
+       end if	 
        if(n_sed>1)then
-       river_forcing(i)%sed2_n%curr_stkcnt = 0; river_forcing(i)%sed2_p%curr_stkcnt = 0
-       endif
+         river_forcing(i)%sed2_n%curr_stkcnt = 0; river_forcing(i)%sed2_p%curr_stkcnt = 0
+       end if	 
        if(n_sed>2)then
-       river_forcing(i)%sed3_n%curr_stkcnt = 0; river_forcing(i)%sed3_p%curr_stkcnt = 0
-       endif
+         river_forcing(i)%sed3_n%curr_stkcnt = 0; river_forcing(i)%sed3_p%curr_stkcnt = 0
+       end if	 
        if(n_sed>3)then
-       river_forcing(i)%sed4_n%curr_stkcnt = 0; river_forcing(i)%sed4_p%curr_stkcnt = 0
-       endif
+         river_forcing(i)%sed4_n%curr_stkcnt = 0; river_forcing(i)%sed4_p%curr_stkcnt = 0
+       end if	 
        if(n_sed>4)then
-       river_forcing(i)%sed5_n%curr_stkcnt = 0; river_forcing(i)%sed5_p%curr_stkcnt = 0
-       endif
+         river_forcing(i)%sed5_n%curr_stkcnt = 0; river_forcing(i)%sed5_p%curr_stkcnt = 0
+       end if	 
        if(n_sed>5)then
-       river_forcing(i)%sed6_n%curr_stkcnt = 0; river_forcing(i)%sed6_p%curr_stkcnt = 0
-       endif
+         river_forcing(i)%sed6_n%curr_stkcnt = 0; river_forcing(i)%sed6_p%curr_stkcnt = 0
+       end if	 
        if(n_sed>6)then
-       river_forcing(i)%sed7_n%curr_stkcnt = 0; river_forcing(i)%sed7_p%curr_stkcnt = 0
-       endif
+         river_forcing(i)%sed7_n%curr_stkcnt = 0; river_forcing(i)%sed7_p%curr_stkcnt = 0
+       end if	 
        if(n_sed>7)then
-       river_forcing(i)%sed8_n%curr_stkcnt = 0; river_forcing(i)%sed8_p%curr_stkcnt = 0
-       endif
+         river_forcing(i)%sed8_n%curr_stkcnt = 0; river_forcing(i)%sed8_p%curr_stkcnt = 0
+       end if	 
        if(n_sed>8)then
-       river_forcing(i)%sed9_n%curr_stkcnt = 0; river_forcing(i)%sed9_p%curr_stkcnt = 0
-       endif
-       if(n_sed>9)then 
-       river_forcing(i)%sed10_n%curr_stkcnt = 0; river_forcing(i)%sed10_p%curr_stkcnt = 0
-       endif
+         river_forcing(i)%sed9_n%curr_stkcnt = 0; river_forcing(i)%sed9_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>9)then
+         river_forcing(i)%sed10_n%curr_stkcnt = 0; river_forcing(i)%sed10_p%curr_stkcnt = 0
+       end if	 
+
        ! --------------------------------------------------------------------------------
 
        ENDIF !SEDIMENT_MODEL ACTIVE
-
 # endif
 
 # if defined (BioGen)
@@ -3071,37 +3074,75 @@ CONTAINS
        ENDIF
 
 
-       ENDIF !BIOLOGICAL_MODEL ACTIVE
-
-
        ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
        ! Initialize some variables 
        ! afm 20160216
        ! Need initialization. Otherwise, random values are asigned
        ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
        ! This problem reported with Intel15.0.3. 
-       RIVER_FORCING(I)%BIO1_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO1_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO2_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO2_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO3_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO3_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO4_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO4_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO5_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO5_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO6_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO6_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO7_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO7_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO8_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO8_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO9_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO9_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO10_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO10_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO11_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO11_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO12_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO12_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO13_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO13_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO14_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO14_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO15_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO15_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO16_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO16_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO17_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO17_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO18_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO18_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO19_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO19_P%CURR_STKCNT = 0;
-       RIVER_FORCING(I)%BIO20_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO20_P%CURR_STKCNT = 0;
+       IF(NTT > 0)THEN
+         RIVER_FORCING(I)%BIO1_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO1_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 1)THEN
+         RIVER_FORCING(I)%BIO2_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO2_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 2)THEN
+         RIVER_FORCING(I)%BIO3_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO3_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 3)THEN
+         RIVER_FORCING(I)%BIO4_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO4_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 4)THEN
+         RIVER_FORCING(I)%BIO5_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO5_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 5)THEN
+         RIVER_FORCING(I)%BIO6_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO6_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 6)THEN
+         RIVER_FORCING(I)%BIO7_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO7_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 7)THEN
+         RIVER_FORCING(I)%BIO8_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO8_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 8)THEN
+         RIVER_FORCING(I)%BIO9_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO9_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 9)THEN
+         RIVER_FORCING(I)%BIO10_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO10_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 10)THEN
+         RIVER_FORCING(I)%BIO11_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO11_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 11)THEN
+         RIVER_FORCING(I)%BIO12_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO12_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 12)THEN
+         RIVER_FORCING(I)%BIO13_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO13_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 13)THEN
+         RIVER_FORCING(I)%BIO14_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO14_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 14)THEN
+         RIVER_FORCING(I)%BIO15_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO15_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 15)THEN
+         RIVER_FORCING(I)%BIO16_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO16_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 16)THEN
+         RIVER_FORCING(I)%BIO17_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO17_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 17)THEN
+         RIVER_FORCING(I)%BIO18_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO18_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 18)THEN
+         RIVER_FORCING(I)%BIO19_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO19_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 19)THEN
+         RIVER_FORCING(I)%BIO20_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO20_P%CURR_STKCNT = 0;
+       END IF
        ! --------------------------------------------------------------------------------
 
+       ENDIF !BIOLOGICAL_MODEL ACTIVE
 
 
 # endif
@@ -6191,7 +6232,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -6664,7 +6705,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -7292,7 +7333,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -7702,7 +7743,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT ICE FORCING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT ICE FORCING Not Set Up Yet")
        !       HEAT_FORCING_COMMENTS = "Using TIME DEPENDENT heating from file"
 
     CASE(PRDC)
@@ -8272,7 +8313,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
        !       HEAT_FORCING_COMMENTS = "Using TIME DEPENDENT heating from file"
 
     CASE(PRDC)
@@ -8766,7 +8807,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -10574,7 +10615,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WAVE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WAVE Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -10976,7 +11017,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT AIR PRESSURE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT AIR PRESSURE Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -11330,7 +11371,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -12871,11 +12912,11 @@ CONTAINS
 
     CASE(STTC)
 
-       CALL FATAL_ERROR("STATIC HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("STATIC GROUNDWATER Not Set Up Yet")
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT GROUNDWATER Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12993,7 +13034,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13150,7 +13191,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13410,7 +13451,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13522,8 +13563,10 @@ CONTAINS
   
        END DO
        
+#      if defined (MULTIPROCESSOR)
        !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+#      endif
 
     CASE(HEAT_IS_FVCOMGRID)
 
@@ -13609,8 +13652,10 @@ CONTAINS
 
        END DO
 
-    !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
-    IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+#      if defined (MULTIPROCESSOR)
+       !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+#      endif
 
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN HEAT_FORCING_TYPE IN UPDATE HEAT")
@@ -13653,7 +13698,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -14110,7 +14155,7 @@ CONTAINS
 
     CALL NC_POINT_VAR(SEDIMENTS_WC_N,VNP_INT)
     CALL NC_POINT_VAR(SEDIMENTS_WC_P,VPP_INT) 
-    DO I=1,NT
+    DO I=1,MT
       OFFLINE_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
 # endif
@@ -14353,7 +14398,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -14485,7 +14530,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -14646,7 +14691,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT AIR PRESSURE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT AIR PRESSURE Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -15240,7 +15285,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT ICE FORCING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT ICE FORCING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -15407,7 +15452,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT ICING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT ICING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -16043,7 +16088,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -16411,7 +16456,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
 
     CASE(PRDC)
 

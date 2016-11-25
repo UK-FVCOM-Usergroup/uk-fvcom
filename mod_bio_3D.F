@@ -839,40 +839,41 @@ END SUBROUTINE BIO_3D1D
            TMP=XFLUX2D+T2D*UARD_OBCN(I)
            T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
            DO K=1,KBM1
-            BIO_ALL(J,K,N1)=T2D_OBC+(BIO_ALL(J1,K,N1)-T2D_NEXT)
+!            BIO_ALL(J,K,N1)=T2D_OBC+(BIO_ALL(J1,K,N1)-T2D_NEXT)
+            BIO_F(J,K,N1)=T2D_OBC+(BIO_F(J1,K,N1)-T2D_NEXT)
            END DO
 
-         DO K=1,KBM1
-           WQMMAX = MAXVAL(BIO_ALL(NBSN(J,1:NTSN(J)),K,N1))
-           WQMMIN = MINVAL(BIO_ALL(NBSN(J,1:NTSN(J)),K,N1))
+           DO K=1,KBM1
+             WQMMAX = MAXVAL(BIO_ALL(NBSN(J,1:NTSN(J)),K,N1))
+             WQMMIN = MINVAL(BIO_ALL(NBSN(J,1:NTSN(J)),K,N1))
          
-           IF(K == 1)THEN
-            WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K+1)))
-            WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K+1)))
-           ELSE IF(K == KBM1)THEN
-            WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)))
-            WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)))
-           ELSE
-            WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)), &
-                    (BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
-		     (DZ(J,K)+DZ(J,K+1)))
-            WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)), &
-                    (BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
-		     (DZ(J,K)+DZ(J,K+1)))
-           END IF
+             IF(K == 1)THEN
+               WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K+1)))
+               WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K+1)))
+             ELSE IF(K == KBM1)THEN
+               WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K-1)))
+               WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K-1)))
+             ELSE
+               WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K-1)), &
+                       (BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
+		       (DZ(J,K)+DZ(J,K+1)))
+               WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K-1)), &
+                       (BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
+		       (DZ(J,K)+DZ(J,K+1)))
+             END IF
  
-           IF(WQMMIN-BIO_F(J,K,N1) > 0.0_SP)BIO_F(J,K,N1) = WQMMIN
-           IF(BIO_F(J,K,N1)-WQMMAX > 0.0_SP)BIO_F(J,K,N1) = WQMMAX
+             IF(WQMMIN-BIO_F(J,K,N1) > 0.0_SP)BIO_F(J,K,N1) = WQMMIN
+             IF(BIO_F(J,K,N1)-WQMMAX > 0.0_SP)BIO_F(J,K,N1) = WQMMAX
 
-         END DO
+           END DO
 
-          ELSE
+         ELSE
 
            IF(OBC_BIO_NUDGING) THEN
              DO K=1,KBM1

@@ -14,5 +14,6 @@
  END_DATE               = 'days=365.0'
  OUT_INTERVAL           = 'days=1.0'
  ZERO_TIME              = 'days=0.0'
+ DATE_REFERENCE         = 'default'
 /
  

@@ -21,6 +21,7 @@ MODULE VARS_WAVE
   INTEGER, ALLOCATABLE :: BGRIDP(:)                                   
   REAL   , ALLOCATABLE :: BSPECS(:,:,:,:)                             
   REAL   , ALLOCATABLE :: AC1(:,:,:)                     
+  REAL, ALLOCATABLE :: Sice(:,:,:)
   
   REAL   , ALLOCATABLE :: BLKND(:), BLKNDC(:), OURQT(:)   
   INTEGER :: ITW,IT0            

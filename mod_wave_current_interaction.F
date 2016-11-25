@@ -72,6 +72,28 @@ MODULE MOD_WAVE_CURRENT_INTERACTION
  LOGICAL :: N92_RIPRUF 
  LOGICAL :: R88_RIPRUF 
 
+!=======================================================================
+!                                                                      !
+!  Ubot         Wind-induced, bed wave orbital U-velocity (m/s) at     !
+!                 RHO-points.                                          !
+!  Ur           Bottom U-momentum above bed (m/s) at RHO-points.       !
+!  Vbot         Wind-induced, bed wave orbital V-velocity (m/s) at     !
+!                 RHO-points.                                          !
+!  Vr           Bottom V-momentum above bed (m/s) at RHO-points.       !
+!  bustrc       Kinematic bottom stress (m2/s2) due currents in the    !
+!                 XI-direction at RHO-points.                          !
+!  bustrw       Kinematic bottom stress (m2/s2) due to wind-induced    !
+!                 waves the XI-direction at horizontal RHO-points.     !
+!  bustrcwmax   Kinematic bottom stress (m2/s2) due to maximum wind    !
+!                 and currents in the XI-direction at RHO-points.      !
+!  bvstrc       Kinematic bottom stress (m2/s2) due currents in the    !
+!                 ETA-direction at RHO-points.                         !
+!  bvstrw       Kinematic bottom stress (m2/s2) due to wind-induced    !
+!                 waves the ETA-direction at horizontal RHO-points.    !
+!  bvstrcwmax   Kinematic bottom stress (m2/s2) due to maximum wind    !
+!                 and currents in the ETA-direction RHO-points.        !
+!                                                                      !
+!=======================================================================
   real(SP), allocatable :: Ubot(:)
   real(SP), allocatable :: Vbot(:)
   real(SP), allocatable :: Ur(:)
@@ -136,7 +158,8 @@ MODULE MOD_WAVE_CURRENT_INTERACTION
    ALLOCATE(Dwave(0:MT));            Dwave       = 0.0_SP
    ALLOCATE(DIRBOT(0:MT));           DIRBOT      = 0.0_SP
    ALLOCATE(SPEC_DENSITY(0:MT,MSC)); SPEC_DENSITY= 0.0_SP
-# if !defined (WAVE_OFFLINE)
+
+#  if !defined (WAVE_OFFLINE)
    IF(OUT_WAVE_PARTITION .OR. OUT_WAVE_PARTITION_SPARSE)THEN
     ALLOCATE(HS_WIND(0:MT));                HS_WIND             = -999       
     ALLOCATE(DIRDEG_WIND(0:MT));            DIRDEG_WIND         = -999
@@ -147,7 +170,7 @@ MODULE MOD_WAVE_CURRENT_INTERACTION
     ALLOCATE(TPEAK_SWELL_ALL(0:MT,50));     TPEAK_SWELL_ALL     = -999
     ALLOCATE(TPEAK_SWELL_POS_ALL(0:MT,50)); TPEAK_SWELL_POS_ALL = -999              
    END IF 
-# endif 
+#  endif
 !---------------Coordinates of Center Pionts around the Nodes-----------------------!
 !!$# if defined (SPHERICAL)
 !!$   ALLOCATE(XCA(M))             ;XCA       = ZERO

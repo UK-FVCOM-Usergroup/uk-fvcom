@@ -1342,7 +1342,7 @@
 !***********************************************************************
 !                                                                      *
       SUBROUTINE SWANOUT(DEP2)    !AC2   ,SPCSIG,HSIBC,KGRPNT)                     
-#     if defined (WAVE_CURRENT_INTERACTION)
+#     if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
 !                                                                      *
 !***********************************************************************
 !
@@ -1362,13 +1362,8 @@
 #     if defined (MULTIPROCESSOR)
       USE MOD_PAR
 #     endif
-#     if !defined (WAVE_OFFLINE)      
       USE MOD_STATION_TIMESERIES, ONLY : OUT_STATION_TIMESERIES_ON,OUT_WAVE_PARTITION,NSTA,NODE_STA
       USE MOD_SPARSE_TIMESERIES, ONLY : OUT_WAVE_SPARSE_TIMESERIES_ON,OUT_WAVE_PARTITION_SPARSE 
-#     else
-      USE MOD_STATION_TIMESERIES, ONLY : OUT_STATION_TIMESERIES_ON,NSTA,NODE_STA
-      USE MOD_SPARSE_TIMESERIES, ONLY : OUT_WAVE_SPARSE_TIMESERIES_ON,OUT_WAVE_PARTITION_SPARSE 
-#     endif
       USE W3PARTMD
 !
 !  3. Method
@@ -1509,7 +1504,7 @@
       DIRBOT    = 0.0_SP
       SPEC_DENSITY = 0.0_SP
 !    
-#  if !defined (WAVE_OFFLINE)
+
 !---------------- WAVE_SPARSE_TIMESERIES --------------yzhang&jqi---
       IF((OUT_STATION_TIMESERIES_ON .AND. OUT_WAVE_PARTITION) .OR.     &
          (OUT_WAVE_SPARSE_TIMESERIES_ON .AND. OUT_WAVE_PARTITION_SPARSE))THEN
@@ -1564,7 +1559,7 @@
 # endif
       END IF    
 !-------------------WAVE_SPARSE_TIMESERIES-----yzhang&jqi---
-# endif
+
       DO IG = 1, MT
           INDX = IG    !KGRPNT(IX,IY)
 !          IF ( HSIBC(INDX) .GT. 1.E-25 ) THEN

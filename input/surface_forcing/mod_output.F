@@ -198,6 +198,55 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END:DUMP_ICE "
 
   END SUBROUTINE DUMP_ICE
+
+! EJA <
+  SUBROUTINE DUMP_SOLAR(NOW)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    REAL(SP) :: hour, mean
+    INTEGER :: STATUS, I
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START:DUMP_SOLAR "
+
+    IF (PAR)THEN
+# if defined(MULTIPROCESSOR)
+       CALL PCOLLECT(MYID,MSRID,NPROCS,NMAP,SAT,satgl)
+       CALL PCOLLECT(MYID,MSRID,NPROCS,NMAP,DPT,dptgl)
+       CALL PCOLLECT(MYID,MSRID,NPROCS,NMAP,CLD,cldgl)
+# endif
+    END IF
+
+    IF (.NOT. MSR) RETURN
+
+    hour = DAYS(NOW - ZEROTIME) * 24.0_SP
+
+    write(ipt,*) "time", hour
+
+    mean = sum(satgl(1:mGL))/real(MGL,SP)
+    if(isnan(mean)) call fatal_error("Satgl is nan")
+    write(ipt,*) "SATGL: min/max/mean",minval(Satgl(1:MGL)),maxval(Satgl(1:MGL)),mean
+
+    mean = sum(dptgl(1:mGL))/real(MGL,SP)
+    if(isnan(mean)) call fatal_error("Dptgl is nan")
+    write(ipt,*) "DPTGL: min/max/mean",minval(Dptgl(1:MGL)),maxval(Dptgl(1:MGL)),mean
+
+    mean = sum(cldgl(1:mGL))/real(MGL,SP)
+    if(isnan(mean)) call fatal_error("Cldgl is nan")
+    write(ipt,*) "CLDGL: min/max/mean",minval(Cldgl(1:MGL)),maxval(Cldgl(1:MGL)),mean
+
+    WRITE(satunit) hour
+    write(satunit)(satgl(i),i=1,mgl)
+
+    WRITE(dptunit) hour
+    write(dptunit)(dptgl(i),i=1,mgl)
+
+    WRITE(cldunit) hour
+    write(cldunit)(cldgl(i),i=1,mgl)
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END:DUMP_SOLAR "
+
+  END SUBROUTINE DUMP_SOLAR
+! EJA >
   
     
 END MODULE binout
@@ -239,16 +288,20 @@ MODULE MOD_output
     IF(ICE_MODEL) THEN
        CALL DUMP_ICE(NOW)
     END IF
-
+! EJA <
+    IF(HEATING_SOLAR_ON) THEN
+       CALL DUMP_SOLAR(NOW)
+    END IF
+! EJA >
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END:DUMP_BINARY"
 
   END SUBROUTINE DUMP_BINARY
   
 
 !/////////////////////////////////////////////////////////////
-  Subroutine MAKE_BINARY_OUTFILE(WNDNM,HFXNM,EVPNM,AIPNM,SATNM,SPQNM,CLDNM)
+  Subroutine MAKE_BINARY_OUTFILE(WNDNM,HFXNM,EVPNM,AIPNM,SATNM,SPQNM,CLDNM,DPTNM)
     IMPLICIT NONE
-    CHARACTER(LEN=*), INTENT(IN) :: WNDNM,HFXNM,EVPNM,AIPNM,SATNM,SPQNM,CLDNM
+    CHARACTER(LEN=*), INTENT(IN) :: WNDNM,HFXNM,EVPNM,AIPNM,SATNM,SPQNM,CLDNM,DPTNM
     integer status
     INTEGER(ITIME) :: dummy
     CHARACTER(LEN=4) :: FLAG
@@ -333,11 +386,22 @@ MODULE MOD_output
           cldgl => CLD
        END IF
     END IF
+! EJA <
+    IF(DPT_ON) THEN
+       CALL FOPEN(DPTUNIT,DPTNM,'our')
+
+       IF(PAR) THEN
+          ALLOCATE(DPTgl(0:MGL))
+       ELSE
+          dptgl => DPT
+       END IF
+    END IF
+! EJA >
 
 
     ! CHECK TO MAKE SURE ATLEAST ONE IS ACTIVE
     IF (.not. PRECIPITATION_ON .and. .not. HEATING_ON .and. &
-      & .not. WIND_ON .and. .not. AIRPRESSURE_ON .and. .not. ICE_MODEL)  &
+      & .not. WIND_ON .and. .not. AIRPRESSURE_ON .and. .not. ICE_MODEL .and. .not. HEATING_SOLAR_ON)  &
          CALL FATAL_ERROR("FOUND NO BINARY FORCING INPUT FILES?")
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END:MAKE_BINARY_OUTFILE "
@@ -427,10 +491,11 @@ MODULE MOD_output
 
        NCF  => ADD(NCF,VAR)
 
-       IF(ASSOCIATED(LNGWV)) THEN
+!       IF(ASSOCIATED(LNGWV)) THEN
           ! WTSURF - NET HEAT FLUX
-          VAR  => NC_MAKE_PVAR(name='lngwv',&
-               & values=LNGWV, DIM1= DIM_node, DIM2= DIM_time)
+!          VAR  => NC_MAKE_PVAR(name='lngwv',&
+          VAR  => NC_MAKE_PVAR(name='long_wave',&
+               & values=LWR, DIM1= DIM_node, DIM2= DIM_time)
           
           ATT  => NC_MAKE_ATT(name='long_name',values='long wave radiation') 
           VAR  => ADD(VAR,ATT)
@@ -448,7 +513,7 @@ MODULE MOD_output
           VAR  => ADD(VAR,ATT)
           
           NCF  => ADD(NCF,VAR)
-       END IF
+!       END IF
 
        IF(ASSOCIATED(SENSE)) THEN
           ! WTSURF - NET HEAT FLUX
@@ -716,7 +781,8 @@ MODULE MOD_output
     END IF
 
     IF(ICE_MODEL) THEN
-       VAR  => NC_MAKE_PVAR(name='SAT',&
+!       VAR  => NC_MAKE_PVAR(name='SAT',&
+       VAR  => NC_MAKE_PVAR(name='air_temperature',&
             & values=SAT, DIM1= DIM_node, DIM2= DIM_time)
 
        ATT  => NC_MAKE_ATT(name='long_name',values='Air Temperature') 
@@ -763,6 +829,29 @@ MODULE MOD_output
 
        NCF  => ADD(NCF,VAR)
 
+       VAR  => NC_MAKE_PVAR(name='relative_humidity',&
+            & values=RH, DIM1= DIM_node, DIM2= DIM_time)
+
+       ATT  => NC_MAKE_ATT(name='long_name',values='Relative Humidity') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='description',values='Sea surface relative humidity') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='units',values='kg/kg') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='type',values='data') 
+       VAR  => ADD(VAR,ATT)
+
+       NCF  => ADD(NCF,VAR)
+
 
        VAR  => NC_MAKE_PVAR(name='cloud_cover',&
             & values=CLD, DIM1= DIM_node, DIM2= DIM_time)
@@ -788,6 +877,85 @@ MODULE MOD_output
        NCF  => ADD(NCF,VAR)
 
     END IF
+
+! EJA <
+    IF(HEATING_SOLAR_ON) THEN
+!       VAR  => NC_MAKE_PVAR(name='SAT',&
+       VAR  => NC_MAKE_PVAR(name='air_temperature',&
+            & values=SAT, DIM1= DIM_node, DIM2= DIM_time)
+
+       ATT  => NC_MAKE_ATT(name='long_name',values='Air Temperature') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='description',values='Sea surface air temperature') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='units',values='degree (C)') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='type',values='data') 
+       VAR  => ADD(VAR,ATT)
+
+       NCF  => ADD(NCF,VAR)
+
+
+       VAR  => NC_MAKE_PVAR(name='dew_point',&
+            & values=DPT, DIM1= DIM_node, DIM2= DIM_time)
+
+       ATT  => NC_MAKE_ATT(name='long_name',values='Dew Point') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='description',values='Dew Point Temperature') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='units',values='degree (C)') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='type',values='data') 
+       VAR  => ADD(VAR,ATT)
+
+       NCF  => ADD(NCF,VAR)
+
+
+       VAR  => NC_MAKE_PVAR(name='cloud_cover',&
+            & values=CLD, DIM1= DIM_node, DIM2= DIM_time)
+
+       ATT  => NC_MAKE_ATT(name='long_name',values='Cloud Cover') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='description',values='Cloud cover, 0 - 1') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='units',values=' ') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='type',values='data') 
+       VAR  => ADD(VAR,ATT)
+
+       NCF  => ADD(NCF,VAR)
+
+    END IF
+
+! EJA >
+
 
     IF (WIND_TYPE=='speed' .and. WIND_ON) THEN
 
