@@ -47,8 +47,7 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-
-           TOPDIR        =  /home/jzge/data00/ERSEM/1DV_experiment_from_L4/FVCOM40_source_20160726
+           TOPDIR        = $(HOME)/Code/FVCOM4
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
@@ -58,7 +57,7 @@
             INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -P -C -traditional
+            DEF_FLAGS     = -C
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -80,10 +79,10 @@ dashL= $(empty) -L
 
 
 #--------------------------------------------------------------------------
-#	STANDARD LIBRARIES FOR DATA AND TIME IN fVCOM:
+#  STANDARD LIBRARIES FOR DATA AND TIME IN fVCOM:
 #
-	    DTLIBS	= -ljulian
-	    DTINCS	=
+             DTLIBS       = -ljulian
+             DTINCS       =
 #
 #--------------------------------------------------------------------------
 #        NETCDF OUTPUT      NETCDF IS NOW REQUIRED TO COMPILE FVCOM
@@ -93,8 +92,8 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       = -L/opt/netcdf-ifort-17/lib -lnetcdff -lnetcdf
-             IOINCS       = -I/opt/netcdf-ifort-17/include
+             IOLIBS       =  -L$(INSTALLDIR)/lib -lnetcdff -lnetcdf
+             IOINCS       =  -I$(INSTALLDIR)/include
 #--------------------------------------------------------------------------
 
 
@@ -178,8 +177,8 @@ dashL= $(empty) -L
 
 #             PROJLIBS       = -L$(INSTALLDIR)/lib -lfproj4 -lproj -lm
 #             PROJINCS       = -I$(INSTALLDIR)/include
-#             PROJLIBS       = -lfproj4 -lproj -lm
-#             PROJINCS       =
+             PROJLIBS       = -lfproj4 -lproj -lm
+             PROJINCS       =
 
 #--------------------------------------------------------------------------
 #        DATA_ASSIMILATION  INCLUDE NUDGING BASED DATA ASSIMILATION FOR
@@ -192,7 +191,7 @@ dashL= $(empty) -L
 
              FLAG_7 = -DDATA_ASSIM
 #             include ${PETSC_DIR}/bmake/common/variables
-             OILIB  = -L/opt/intel/2017/compilers_and_libraries_2017.0.098/linux/mkl/lib/intel64 -lmkl_lapack95_ilp64 -lmkl_intel_ilp64 -lmkl_core -lmkl_sequential
+#             OILIB  = -lmkl_lapack -lmkl_em64t -lguide -lpthread
 
 #             OILIB  = -L/usr/local/share/Intel-Compilers/mkl/lib/em64t -lmkl_lapack -lmkl_em64t -lguide -lpthread
 
@@ -232,8 +231,8 @@ dashL= $(empty) -L
 #   !!!!!! ONLY ONE OF THE FLAGS BELOW CAN BE AND MUST BE CHOSEN
 #---------------------------------------------------------------------------
 
-#             FLAG_10  = -DGCN
-             FLAG_10  = -DGCY1
+             FLAG_10  = -DGCN
+#             FLAG_10  = -DGCY1
 #             FLAG_10 = -DGCY2
 
 #--------------------------------------------------------------------------
@@ -244,9 +243,9 @@ dashL= $(empty) -L
 #              do_turbulence interface and will not work.
 #--------------------------------------------------------------------------
 
-            FLAG_11 = -DGOTM
-            GOTMLIB       = -L$(HOME)/local/gotm/lib -lturbulence -lutil
-            GOTMINCS      = -I$(HOME)/local/gotm/include
+#            FLAG_11 = -DGOTM
+#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil #-lmeanflow
+#            GOTMINCS      = -I../GOTM_source/
 
 #--------------------------------------------------------------------------
 #       EQUILIBRIUM TIDE
@@ -488,15 +487,14 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
-#         COMPILER = -DIFORT
-#         CPP      = /lib/cpp
-#         CPPFLAGS = $(DEF_FLAGS) -DINTEL -P -I/opt/mpi/mpibull2-current/include
-#         FC       = ifort
-#         DEBFLGS  = #-check all
-#         OPT      = -xP -I/opt/mpi/mpibull2-current/include  -g -no-prec-div -no-prec-sqrt -traceback  -warn
-#         OILIB   = -L/opt/intel/cmkl/10.0.1.014/lib/em64t -Wl,-rpath=/opt/intel/cmkl/10.0.1.014/lib/em64t -lmkl_lapack -lmkl_sequential -lguide -lmkl_em64t -lpthread -L/opt/mpi/mpibull2-current/lib -lmpi -L/usr/lib64 -lrt -libverbs -L/opt/mpi/mpibull2-current/lib/pmi -lpmi
-#         CC       = icc
-#         CFLAGS   = -O3  -xS -I/opt/mpi/mpibull2-current/include
+         CPP      = cpp
+         COMPILER = -DINTEL
+         FC       = mpiifort
+         DEBFLGS  =
+         OPT      = -O3 -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost
+         CLIB     =
+         CC       = mpiicc
+         CFLAGS   =
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML) Debugging
 #--------------------------------------------------------------------------
