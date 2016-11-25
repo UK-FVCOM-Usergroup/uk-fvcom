@@ -362,8 +362,8 @@ dashL= $(empty) -L
 #            BIOLIB   = -L$(TOPDIR)/BIO_source -lbiomodule
 #            BIOINCS  = -I$(TOPDIR)/BIO_source
             FLAG_25 = -DFABM
-            BIOLIB       = -L$(HOME)/local/fabm/fvcom/lib -lfabm
-            BIOINCS      = -I$(HOME)/local/fabm/fvcom/include
+            BIOLIB       = -L$(HOME)/Models/FABM-ERSEM/lib -lfabm
+            BIOINCS      = -I$(HOME)/Models/FABM-ERSEM/include
 #            FLAG_101 = -DOFFLINE_FABM
 #--------------------------------------------------------------------------
 #         Dynamic/Thermodynamic Ice
