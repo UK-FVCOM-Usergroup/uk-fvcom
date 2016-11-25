@@ -57,7 +57,7 @@
             INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -C
+            DEF_FLAGS     = -P -traditional
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -92,8 +92,8 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -L$(INSTALLDIR)/lib -lnetcdff -lnetcdf
-             IOINCS       =  -I$(INSTALLDIR)/include
+             IOLIBS       = -L/gpfs1/apps/netcdf/intelmpi/lib -lnetcdff -lnetcdf # -lhdf5_hl -lhdf5 -lz -lcurl -lm
+             IOINCS       = -I/gpfs1/apps/netcdf/intelmpi/include -I/gpfs1/apps/hdf5/intelmpi/include
 #--------------------------------------------------------------------------
 
 
@@ -124,7 +124,7 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO SELECT SPHERICAL COORDINATES
 #--------------------------------------------------------------------------
 
-#            FLAG_2 = -DSPHERICAL
+#             FLAG_2 = -DSPHERICAL
 
 #--------------------------------------------------------------------------
 #        FLOODYING/DRYING   INCLUDE WET/DRY TREATMENT OF DOMAIN
@@ -134,7 +134,7 @@ dashL= $(empty) -L
 #                           UNCOMMENT TO INCLUDE FLOODYING/DRYING
 #--------------------------------------------------------------------------
 
-#             FLAG_3 = -DWET_DRY
+             FLAG_3 = -DWET_DRY
 
 #--------------------------------------------------------------------------
 #        MULTI_PROCESSOR    INCLUDES PARALLELIZATION WITH MPI
@@ -145,7 +145,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
              FLAG_4 = -DMULTIPROCESSOR
-             PARLIB = -L$(INSTALLDIR)/lib -lmetis
+             PARLIB = -lmetis -L$(LIBDIR)
 
 #--------------------------------------------------------------------------
 #        WATER_QUALITY      INCLUDE EPA WATER QUALITY MOD
@@ -173,12 +173,12 @@ dashL= $(empty) -L
 #
 #--------------------------------------------------------------------------
 
-#             FLAG_6 = -DPROJ
+             FLAG_6 = -DPROJ
 
-#             PROJLIBS       = -L$(INSTALLDIR)/lib -lfproj4 -lproj -lm
-#             PROJINCS       = -I$(INSTALLDIR)/include
-             PROJLIBS       = -lfproj4 -lproj -lm
-             PROJINCS       =
+             PROJLIBS       = $(LIBDIR) -lfproj4 -lproj -lm
+             PROJINCS       = $(INCDIR)
+#             PROJLIBS       = -lfproj4 -lproj -lm
+#             PROJINCS       =
 
 #--------------------------------------------------------------------------
 #        DATA_ASSIMILATION  INCLUDE NUDGING BASED DATA ASSIMILATION FOR
