@@ -486,7 +486,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
-         CPP      = cpp
+         CPP      = mpiicc -E
          COMPILER = -DINTEL
          FC       = mpiifort
          DEBFLGS  =
