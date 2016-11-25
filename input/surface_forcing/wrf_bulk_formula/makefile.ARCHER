@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+# Compile the libraries in serial for the WRF bulk conversion tool.
+
+PACKAGES      = hdf5-1.8.15-patch1 netcdf-4.1.3
+FVCOM         = /fs4/n01/n01/pica/src/uk-fvcom/FVCOM_source/
+FVCOMLIBS     = $(FVCOM)/libs/install/
+INSTALLDIR    = $(FVCOM)/input/surface_forcing/wrf_bulk_formula/install/
+# for mod_time stuff.
+MODS          = $(FVCOM)
+DEF_FLAGS     = -C
+COMPILER      = -DGFORTRAN
+FC            = ftn
+CC            = fcc
+CPP           = ftn -E
+CPPFLAGS      = $(DEF_FLAGS) -DGFORTRAN
+CXXFLAGS      = -O2
+CFLAGS        = -O2
+FFLAGS        = -O2 -ffree-line-length-none
+LIBS          = -L$(NETCDF_DIR)/lib -lnetcdf -lnetcdff -I$(NETCDF_DIR)/include -L$(FVCOMLIBS)/lib -ljulian
+EXEC          = wrf_to_fvcom
+
+all:
+	$(FC) -I$(MODS) $(MODS)/mod_time.o $(EXEC).f90 $(FFLAGS) $(LIBS) -o $(EXEC)
+
+libs:
+	mkdir libs || true
+	for item in $(PACKAGES); do (tar xf $$item.tar.gz -Clibs/) || exit 7; done
+	cd libs/hdf5-1.8.15-patch1 && ./configure CC=$(CC) CFLAGS=$(CFLAGS) CXX=$(CC) CXXFLAGS=$(CXXFLAGS) F77=$(FC) FFLAGS=$(FFLAGS) --prefix=$(INSTALLDIR)
+	cd libs/hdf5-1.8.15-patch1 && make -j install
+	cd libs/netcdf-4.1.3 && ./configure CC=$(CC) CFLAGS=$(CFLAGS) CXX=$(CC) CXXFLAGS=$(CXXFLAGS) F77=$(FC) F90=$(FC) FFLAGS=$(FFLAGS) --prefix=$(INSTALLDIR) --build=$(MACHTYPE) CPPFLAGS=-I$(INSTALLDIR)/include LDFLAGS=-L$(INSTALLDIR)/lib
+	cd libs/netcdf-4.1.3 && make -j install
+
+clean:
+	rm -rf libs $(EXEC)
+
+clobber:
+	rm -rf libs $(EXEC)
+	rm -rf $(INSTALLDIR)*
+

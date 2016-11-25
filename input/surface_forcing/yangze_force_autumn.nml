@@ -1,0 +1,17 @@
+&NML_SURFACE_FORCE
+ INPUT_DIR       = '../../../Autumn_1/yangze_input',
+ OUTPUT_DIR      = '../../../Autumn_1/yangze_input',
+ INPUT_FILE             = 'yangze',
+ INPUT_FILE_TYPE        = 'binary speed',
+ OUTPUT_FILE            = 'yangze_forcing.nc',
+ OUTPUT_FILE_TYPE       = 'unstructured',
+ GRID_FILE              = 'yangze_grd.dat',
+ GRID_FILE_UNITS        = 'degrees',
+ PROJECTION_REFERENCE   = 'none',
+ DATE_FORMAT            = 'YMD',
+ START_DATE             = '2005-10-15 00:00:00',
+ TIMEZONE               = 'UTC',
+ END_DATE               = '2005-11-30 18:00:00',
+ OUT_INTERVAL           = 'seconds=21600.0',
+ ZERO_TIME              = '2005-10-15 00:00:00'
+/
