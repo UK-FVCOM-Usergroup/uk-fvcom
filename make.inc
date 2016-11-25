@@ -362,7 +362,6 @@ dashL= $(empty) -L
 #            BIOLIB   = -L$(TOPDIR)/BIO_source -lbiomodule
 #            BIOINCS  = -I$(TOPDIR)/BIO_source
             FLAG_25 = -DFABM
-            FLAG_26 = -DFABM_DIAG_OUT
             BIOLIB       = -L$(HOME)/local/fabm/fvcom/lib -lfabm
             BIOINCS      = -I$(HOME)/local/fabm/fvcom/include
 #            FLAG_101 = -DOFFLINE_FABM
