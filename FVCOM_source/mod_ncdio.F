@@ -82,7 +82,18 @@ MODULE MOD_NCDIO
   
 
 #  if defined (SEDIMENT)
+
+#  if defined (ORIG_SED)
   USE mod_sed
+#  elif defined (CSTMS_SED)
+  USE mod_sed_cstms
+#  endif
+
+! J. Ge for fluid mud layer
+#  if defined (FLUID_MUD)
+  Use Mod_Fluid_Mud
+#  endif
+! J. Ge for fluid mud layer
 #  endif
 
 #  if defined (WAVE_CURRENT_INTERACTION)    
@@ -203,22 +214,50 @@ CONTAINS
 
     IF(NCAV_ON)THEN
 
-       IF(NC_AVG%FTIME%NEXT_IO < IntTime) CALL ADD_AVERAGE
+!       !qxu IF(NC_AVG%FTIME%NEXT_IO < IntTime) CALL ADD_AVERAGE
+!       IF(NC_AVG%FTIME%PREV_IO < IntTime) CALL ADD_AVERAGE
+!       write(*,*) 'NC_AVG%FTIME%PREV_IO=',NC_AVG%FTIME%PREV_IO
+!       write(*,*) '             IntTime=',IntTime
+!       !CALL ADD_AVERAGE
+!       !IF((NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL)  == IntTime)THEN
+!       !DAS{ ADD for AVG TIMES
+!       !IF(abs(NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL-IntTime)<0.1_SP*IMDTI)THEN
+!       IF(abs(NC_AVG%FTIME%NEXT_IO -IntTime)<0.1_SP*IMDTI)THEN
+!       !DAS}
+!          CALL DIVIDE_AVERAGE
+!
+!          IF(USE_MPI_IO_MODE) THEN
+!             CALL MPI_IO_SYNCHRONIZE(NCAV_CODE)
+!          ELSE
+!             CALL CALL_FUNC(NCAV_CODE,status)
+!             IF (status/=0) call fatal_error("ARCHIVE:: Bad NCAV_CODE",&
+!                  & "Could not retrieve valid function pointer?")
+!          END IF
+!
+!          CALL ZERO_AVERAGE
+!
+!         END IF
 
-       
-       !IF((NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL)  == IntTime)THEN
-       IF(abs(NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL-IntTime)<0.1_SP*IMDTI)THEN
-          CALL DIVIDE_AVERAGE
 
-          IF(USE_MPI_IO_MODE) THEN
-             CALL MPI_IO_SYNCHRONIZE(NCAV_CODE)
-          ELSE
-             CALL CALL_FUNC(NCAV_CODE,status)
-             IF (status/=0) call fatal_error("ARCHIVE:: Bad NCAV_CODE",&
-                  & "Could not retrieve valid function pointer?")
-          END IF
+          ! Start averaging data at Next_IO
+          IF(NC_AVG%FTIME%NEXT_IO < IntTime) CALL ADD_AVERAGE
+          write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO
+          write(*,*) '             IntTime=',IntTime
+          
+          ! When average interval is complete - write to file
+          IF((NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL)  == IntTime)THEN
 
-          CALL ZERO_AVERAGE
+             CALL DIVIDE_AVERAGE
+
+             IF(USE_MPI_IO_MODE) THEN
+                CALL MPI_IO_SYNCHRONIZE(NCAV_CODE)
+             ELSE
+                CALL CALL_FUNC(NCAV_CODE,status)
+                IF (status/=0) call fatal_error("ARCHIVE:: Bad NCAV_CODE",&
+                & "Could not retrieve valid function pointer?")
+             END IF
+
+             CALL ZERO_AVERAGE
 
        END IF
     END IF
@@ -545,12 +584,14 @@ CONTAINS
        END IF
        
 #   if defined (BioGen)
+       IF(BIOLOGICAL_MODEL)THEN
        IF(NC_BIO)THEN
           NCF2 => BIO_FILE_OBJECT()
           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,BIO_FILE_OBJECT() )
        END IF
-#   endif      
+       END IF
+#   endif    
 
 #   if defined (FABM)
        IF(NC_FABM)THEN
@@ -558,8 +599,8 @@ CONTAINS
           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,BIO_FILE_OBJECT() )
        END IF
-#   endif
-
+#   endif  
+       
 #   if defined (WATER_QUALITY)
        IF(NC_WQM)THEN
           NCF2 => WQM_FILE_OBJECT()
@@ -573,7 +614,17 @@ CONTAINS
       NCF2 => SED_FILE_OBJECT()
       NCF => ADD(NCF,NCF2)
 !!$      NCF => ADD(NCF,SED_FILE_OBJECT() )
+
+! J. Ge for fluid mud layer
+#   if defined (FLUID_MUD) 
+      NCF2 => FLUID_MUD_FILE_OBJECT()
+      NCF => ADD(NCF,NCF2)
+!!$      NCF => ADD(NCF,SED_FILE_OBJECT() )
+#   endif 
+! J. Ge for fluid mud layer
+
     END IF
+
 #   endif      
 
 #   if defined (DYE_RELEASE)
@@ -784,12 +835,14 @@ CONTAINS
     END IF
 
 #   if defined (BioGen)
+    IF(BIOLOGICAL_MODEL)THEN
     IF(NCAV_BIO)THEN
       NCF_TMP => BIO_FILE_OBJECT()
       NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$      NC_AVG_DATA => ADD(NC_AVG_DATA,BIO_FILE_OBJECT() )
     END IF
-#   endif      
+    END IF
+#   endif   
 
 #   if defined (FABM)
     IF(NCAV_FABM)THEN
@@ -797,7 +850,7 @@ CONTAINS
       NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$      NC_AVG_DATA => ADD(NC_AVG_DATA,BIO_FILE_OBJECT() )
     END IF
-#   endif
+#   endif   
 
 #   if defined (WATER_QUALITY)
     IF(NCAV_WQM)THEN
@@ -812,6 +865,13 @@ CONTAINS
       NCF_TMP => SED_FILE_OBJECT()
       NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$      NC_AVG_DATA => ADD(NC_AVG_DATA,SED_FILE_OBJECT() )
+! J. Ge for fluid mud layer
+#   if defined (FLUID_MUD)
+      NCF_TMP => FLUID_MUD_FILE_OBJECT()
+      NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+!!$      NC_AVG_DATA => ADD(NC_AVG_DATA,SED_FILE_OBJECT() )
+#   endif
+! J. Ge for fluid mud layer
     ENDIF
 #   endif      
 
@@ -1213,9 +1273,11 @@ CONTAINS
     END IF
 
 #   if defined (BioGen)
+    IF(BIOLOGICAL_MODEL)THEN
     NC_RST2 => BIO_FILE_OBJECT()
     NC_RST => ADD(NC_RST,NC_RST2)
 !!$    NC_RST => ADD(NC_RST,BIO_FILE_OBJECT() )
+    END IF
 #   endif      
 
 #   if defined (FABM)
@@ -1235,6 +1297,13 @@ CONTAINS
       NC_RST2 => SED_FILE_OBJECT()
       NC_RST => ADD(NC_RST,NC_RST2)
 !!$      NC_RST => ADD(NC_RST,SED_FILE_OBJECT() )
+! J. Ge for fluid mud layer
+#   if defined (FLUID_MUD)
+      NC_RST2 => FLUID_MUD_FILE_OBJECT()
+      NC_RST => ADD(NC_RST,NC_RST2)
+!!$      NC_RST => ADD(NC_RST,SED_FILE_OBJECT() )
+#   endif   
+! J. Ge for fluid mud layer
     ENDIF
 #   endif      
 
@@ -1345,8 +1414,21 @@ CONTAINS
     USE mod_ICE
     USE mod_ICE2D
 # endif
+
 # if defined (SEDIMENT)
-    USE mod_sed
+
+#  if defined (ORIG_SED)
+  USE mod_sed
+#  elif defined (CSTMS_SED)
+  USE mod_sed_cstms
+#  endif
+
+! J. Ge for fluid mud layer
+# if defined (FLUID_MUD)
+  USE Mod_Fluid_Mud
+# endif
+! J. Ge for fluid mud layer
+
 # endif
 
 !# if defined (WAVE_CURRENT_INTERACTION)
@@ -2127,6 +2209,7 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:EL1")
        EL1 = 0.0_SP
 # endif
+
     END IF
 
     ! ALLOCATE THE NEW FILE OBJECT
@@ -2208,7 +2291,6 @@ CONTAINS
        NCF  => ADD(NCF,VAR)
     END IF
 # endif
-
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END ZETA_FILE_OBJECT"
 
@@ -4136,6 +4218,16 @@ CONTAINS
        EL_ATMO = 0.0_SP
 # endif
 
+    ! ------ New: Karsten Lettmann, 2016, June ---------------
+    ! add the atmospheric pressure elevation
+# if defined(AIR_PRESSURE)
+       ALLOCATE(EL_AIR(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:EL_AIR")
+       EL_AIR = 0.0_SP
+# endif      
+    ! -------- end new -------------------------------------
+
+
     END IF
 
   ! ALLOCATE THE NEW FILE OBJECT
@@ -4316,7 +4408,7 @@ CONTAINS
 
 # if defined (EQUI_TIDE)
     VAR  => NC_MAKE_AVAR(name='el_eqi',&
-         & values=el_eqi, DIM1= DIM_node)
+         & values=el_eqi, DIM1= DIM_node, DIM2= DIM_time)
     
     ATT  => NC_MAKE_ATT(name='long_name',values='Equilibrium tide adjustment height') 
     VAR  => ADD(VAR,ATT)
@@ -4329,7 +4421,7 @@ CONTAINS
     
 # if defined (ATMO_TIDE)
     VAR  => NC_MAKE_AVAR(name='el_atmo',&
-         & values=el_atmo, DIM1= DIM_node)
+         & values=el_atmo, DIM1= DIM_node, DIM2= DIM_time)
     
     ATT  => NC_MAKE_ATT(name='long_name',values='Atmospheric tide adjustment height') 
     VAR  => ADD(VAR,ATT)
@@ -4339,6 +4431,23 @@ CONTAINS
        
     NCF  => ADD(NCF,VAR)
 # endif
+
+
+    ! ------ New: Karsten Lettmann, 2016, June ---------------
+    ! add the atmospheric pressure elevation
+# if defined(AIR_PRESSURE)
+    VAR  => NC_MAKE_AVAR(name='el_press',&
+         & values=EL_AIR, DIM1= DIM_node, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='AIR-Pressure Induced Water Surface Elevation') 
+    VAR  => ADD(VAR,ATT)
+       
+    ATT  => NC_MAKE_ATT(name='units',values='meters') 
+    VAR  => ADD(VAR,ATT)
+       
+    NCF  => ADD(NCF,VAR)
+# endif      
+    ! -------- end new -------------------------------------
 
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END RESTART_EXTRAS_FILE_OBJECT"
@@ -6403,12 +6512,280 @@ CONTAINS
 # endif
 
 
+! J. Ge for fluid mud layer
+# if defined (FLUID_MUD)
+  FUNCTION FLUID_MUD_FILE_OBJECT() RESULT(NCF)
+    USE MOD_SED
+    IMPLICIT NONE
+   INTEGER :: status
+   LOGICAL, SAVE :: IOPROC_ALLOCATED1 = .FALSE.
+   LOGICAL, SAVE :: IOPROC_ALLOCATED2 = .FALSE.
+   LOGICAL, SAVE :: IOPROC_ALLOCATED3 = .FALSE.
+   TYPE(NCFILE), POINTER :: NCF
+   TYPE(NCVAR),  POINTER :: VAR
+   TYPE(NCATT),  POINTER :: ATT
+   INTEGER :: II, IERR, len
+   INTEGER :: DEST, SOURCE, TAGI,TAGC
+   INTEGER, PARAMETER :: TAG = 70077
+   INTEGER, PARAMETER :: TAG_I = 71077
+   INTEGER, PARAMETER :: TAG_C = 72077
+# if defined(MULTIPROCESSOR)
+   INTEGER :: STAT(MPI_STATUS_SIZE)
+# endif
+
+   REAL(SP),SAVE, POINTER :: SLD_P(:,:)
+   REAL(SP),SAVE, POINTER :: BLD_P(:)
+   REAL(SP),SAVE, POINTER :: BED_P(:,:)
+   REAL(SP),SAVE, POINTER :: BOT_P(:)
+
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START FLUID_MUD_FILE_OBJECT"  
+  ! ALLOCATE THE NEW FILE OBJECT
+   NCF => NEW_FILE()
+
+
+  IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED1) THEN
+
+     IOPROC_ALLOCATED1 = .true.
+
+     allocate(D_FMLcm(MGL),stat=status)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ELF_FML")
+     D_FMLcm = 0.0_SP
+
+     allocate(WETNODES_FML(MGL),stat=status)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ELF_FML")
+     WETNODES_FML = 0.0_SP
+
+     allocate(WETCELLS_FML(NGL),stat=status)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ELF_FML")
+     WETCELLS_FML = 0.0_SP
+
+     allocate(WETNODES_CUR(MGL),stat=status)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ELF_FML")
+     WETNODES_CUR = 0.0_SP
+
+     allocate(WETCELLS_CUR(NGL),stat=status)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ELF_FML")
+     WETCELLS_CUR = 0.0_SP
+
+    allocate(UA_FML(NGL),stat=status)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UA_FML")
+     UA_FML = 0.0_sp
+
+     allocate(VA_FML(NGL),stat=status)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UA_FML")
+     VA_FML = 0.0_sp
+
+  END IF
+
+
+    ! fluid_mud_thickness
+    VAR  => NC_MAKE_AVAR(name='fluid_mud_thickness',&
+       & values=D_FMLcm, DIM1= DIM_node, DIM2= DIM_time)
+         
+    ATT  => NC_MAKE_ATT(name='long_name',values='thickness of fluid mud layer')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note1',values='this is for near bed process')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note2',values='dimensions are length')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='units',values='cm')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    ! wet nodes FML
+    VAR  => NC_MAKE_AVAR(name='wet_nodes_fml',&
+       & values=WETNODES_FML, DIM1= DIM_node, DIM2= DIM_time)
+         
+    ATT  => NC_MAKE_ATT(name='long_name',values='wet node of fml')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note1',values='this is for near bed process')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note2',values='dimensions are length')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='units',values='/')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    ! wet cells FML
+    VAR  => NC_MAKE_AVAR(name='wet_cells_fml',&
+       & values=WETCELLS_FML, DIM1= DIM_nele, DIM2= DIM_time)
+         
+    ATT  => NC_MAKE_ATT(name='long_name',values='wet cell of fml')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note1',values='this is for near bed process')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note2',values='dimensions are length')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='units',values='/')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    ! wet nodes CUR
+    VAR  => NC_MAKE_AVAR(name='wet_nodes_cur',&
+       & values=WETNODES_CUR, DIM1= DIM_node, DIM2= DIM_time)
+         
+    ATT  => NC_MAKE_ATT(name='long_name',values='wet node of current')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note1',values='this is for near bed process')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note2',values='dimensions are length')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='units',values='/')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    ! wet cells CUR
+    VAR  => NC_MAKE_AVAR(name='wet_cells_cur',&
+       & values=WETCELLS_CUR, DIM1= DIM_nele, DIM2= DIM_time)
+         
+    ATT  => NC_MAKE_ATT(name='long_name',values='wet cell of current')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note1',values='this is for near bed process')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note2',values='dimensions are length')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='units',values='/')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    ! fluid mud source/sink
+    VAR  => NC_MAKE_AVAR(name='fluid_mud_source_sink',&
+       & values=Source_Fluid_Mud, DIM1= DIM_node, DIM2= DIM_time)
+         
+    ATT  => NC_MAKE_ATT(name='long_name',values='source and sink term of fluid mud')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note1',values='this is for near bed process')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='note2',values='dimensions are m/s')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='units',values='m/s')
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! ua_fml
+    VAR  => NC_MAKE_AVAR(name='ua_fml',&
+         & values=ua_fml, DIM1= DIM_nele, DIM2 = DIM_time)
+
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='x-component flow speed of fluid m&
+         &ud layer') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m/s') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    ! va_fml
+    VAR  => NC_MAKE_AVAR(name='va_fml',&
+         & values=va_fml, DIM1= DIM_nele, DIM2 = DIM_time)
+
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='y-component flow speed of fluid m&
+         &ud layer') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m/s') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END FLUID_MUD_FILE_OBJECT"
+  End FUNCTION FLUID_MUD_FILE_OBJECT
+# endif
+! J. Ge for fluid mud layer
+
 
 
 !=============================================================
 # if defined (SEDIMENT)
   FUNCTION SED_FILE_OBJECT() RESULT(NCF)
-    USE MOD_SED
+
+#  if defined (ORIG_SED)
+  USE mod_sed
+#  elif defined (CSTMS_SED)
+  USE mod_sed_cstms
+#  endif
+
     IMPLICIT NONE
 
    INTEGER :: status
@@ -6473,8 +6850,6 @@ CONTAINS
   VAR  => ADD(VAR,ATT)
 
   NCF  => ADD(NCF,VAR)
-
-
 
   !-------------------------------------------------- 
   !sediment concentration
@@ -6558,9 +6933,6 @@ CONTAINS
   END IF
 # endif
 
-
-
-
   if(bedload)then
   Do II=1,nsed        
     BLD_P => sed(ii)%bflx(1:m) 
@@ -6605,6 +6977,24 @@ CONTAINS
     NULLIFY(SLD_P)
   
   END DO
+
+    if(nsed>1)then
+      VAR  => NC_MAKE_AVAR(name='todal_ssc', &
+          & values=csed, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+      ATT  => NC_MAKE_ATT(name='long_name',values=TRIM('Total Suspended Sed &
+           &Conc of all sediment classes')) 
+      VAR  => ADD(VAR,ATT)
+
+      ATT  => NC_MAKE_ATT(name='units',values='g/L') 
+      VAR  => ADD(VAR,ATT)
+
+      ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+      VAR  => ADD(VAR,ATT)
+
+      NCF  => ADD(NCF,VAR)
+    endif
+
   endif
 
   Do II=1,nsed

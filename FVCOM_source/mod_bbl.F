@@ -68,7 +68,11 @@ Use Mod_Prec
 Use Mod_Types
 Use ALL_VARS
 Use Lims
+# if defined (ORIG_SED)
 Use Mod_Sed
+# elif defined (CSTMS_SED)
+Use Mod_Sed_CSTMS
+# endif
 USE TIMECOMM
 USE SWCOMM3
 USE VARS_WAVE
@@ -77,6 +81,29 @@ USE MOD_WAVE_CURRENT_INTERACTION
 implicit none
 
 public
+
+!=======================================================================
+!                                                                      !
+!  Ubot         Wind-induced, bed wave orbital U-velocity (m/s) at     !
+!                 RHO-points.                                          !
+!  Ur           Bottom U-momentum above bed (m/s) at RHO-points.       !
+!  Vbot         Wind-induced, bed wave orbital V-velocity (m/s) at     !
+!                 RHO-points.                                          !
+!  Vr           Bottom V-momentum above bed (m/s) at RHO-points.       !
+!  bustrc       Kinematic bottom stress (m2/s2) due currents in the    !
+!                 XI-direction at RHO-points.                          !
+!  bustrw       Kinematic bottom stress (m2/s2) due to wind-induced    !
+!                 waves the XI-direction at horizontal RHO-points.     !
+!  bustrcwmax   Kinematic bottom stress (m2/s2) due to maximum wind    !
+!                 and currents in the XI-direction at RHO-points.      !
+!  bvstrc       Kinematic bottom stress (m2/s2) due currents in the    !
+!                 ETA-direction at RHO-points.                         !
+!  bvstrw       Kinematic bottom stress (m2/s2) due to wind-induced    !
+!                 waves the ETA-direction at horizontal RHO-points.    !
+!  bvstrcwmax   Kinematic bottom stress (m2/s2) due to maximum wind    !
+!                 and currents in the ETA-direction RHO-points.        !
+!                                                                      !
+!=======================================================================
 
   integer , allocatable :: Iconv(:)
 
@@ -518,8 +545,8 @@ logical :: iterate
           ELSE
             phic(i)=ATAN2(Vcur(i),Ucur(i))
           ENDIF
-          phicw(i)=Dwave(i)-phic(i)  
-         !phicw(i,j)=1.5_r8*pi-Dwave(i,j)-phic(i,j)-angler(i,j)
+          !phicw(i)=Dwave(i)-phic(i)  
+          phicw(i)=1.5_sp*pi-Dwave(i)-phic(i) !-angler(i,j)
     end do
 !
 !-----------------------------------------------------------------------
@@ -789,8 +816,11 @@ logical :: iterate
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,Ubot      , Vbot       )
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,Ur        , Vr         )
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,TauCWmax               ) 
+# if defined (ORIG_SED)
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,bottom                 )
-
+# elif defined (CSTMS_SED)
+    IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,sedbed%bottom                 )
+# endif
 # endif
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "End: sg_bbl"
@@ -1277,8 +1307,11 @@ subroutine mb_bbl
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,Ubot      , Vbot       )
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,Ur        , Vr         )
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,tauCWmax               ) 
+# if defined (ORIG_SED)
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,bottom                 )
-
+# elif defined (CSTMS_SED)
+    IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,sedbed%bottom                 )
+# endif
 # endif
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "End: mb_bbl"
@@ -1331,7 +1364,7 @@ subroutine ssw_bbl
       real(sp) :: sg_ustarc, sg_ustarcw, sg_ustarwm, sg_znot, sg_znotp
       real(sp) :: sg_zr, sg_zrozn, sg_z1, sg_z1ozn, sg_z2, twopi, zd1, zd2
       real(sp) :: zoMIN, zoMAX
-      real(sp) :: coef_fd
+      real(sp) :: coef_fd,temp
 
       real(sp), parameter :: absolute_zoMIN = 5.0d-5  ! in Harris-Wiberg
 !!    real(r8), parameter :: absolute_zoMIN = 5.0d-8  ! in Harris-Wiberg
@@ -1618,10 +1651,11 @@ subroutine ssw_bbl
             endif
     else
             IF (zoDEF(i).lt.absolute_zoMIN) THEN
+               temp = zoDEF(i)
                zoDEF(i)=absolute_zoMIN
                IF (MSR) THEN
-                 PRINT *, ' Warning: default zo < 0.05 mm, replaced with:',&
-     &                 zoDEF
+                 PRINT *, ' Warning: default zo (',temp,') <',absolute_zoMIN,' mm, replaced with:',&
+     &                 zoDEF(i)
                 END IF
             END IF
             zo=zoDEF(i)
@@ -1857,8 +1891,11 @@ subroutine ssw_bbl
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,Ubot      , Vbot       )
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,Ur        , Vr         )
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,taucwmax               ) 
+# if defined (ORIG_SED)
     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,bottom                 )
-
+# elif defined (CSTMS_SED)
+    IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,sedbed%bottom                 )
+# endif
 # endif
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "End: ssw_bbl"

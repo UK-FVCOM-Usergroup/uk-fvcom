@@ -41,7 +41,7 @@
 .F.o:
 	$(CPP) $(CPPARGS) $(PETSC_FC_INCLUDES) $*.F > $*.f90
 	$(FC)  -c $(FFLAGS) $(INCS) $*.f90
-#	\rm $*.f90
+	\rm $*.f90
 
 .F90.o:
 	$(CPP) $(CPPFLAGS) $(CPPDEFS) $(INCLDIR) $< > $*.f  
@@ -60,7 +60,8 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	eqs_of_state.F	mod_bulk.F	mod_interp.F	mod_par.F	\
 	mod_par_special.F		mod_ncll.F	mod_nctools.F	\
 	mod_wd.F	mod_sng.F	mod_heatflux.F	mod_solar.F	\
-	mod_fabm_data.F mod_input.F	mod_fabm_3D.F	mod_force.F	mod_obcs.F	mod_petsc.F	\
+	mod_fabm_data.F mod_input.F	mod_fabm_3D.F	mod_force.F	\
+	mod_obcs.F	mod_petsc.F	\
 	mod_semi_implicit.F		mod_non_hydro.F	mod_set_time.F	\
 	ice_kinds_mod.F	ice_model_size.F		ice_domain.F	\
 	ice_constants.F	ice_fileunits.F	ice_state.F	ice_work.F	\
@@ -68,7 +69,6 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	ice_flux_in.F	ice_itd.F	ice_mechred.F	ice_itd_linear.F\
 	ice_scaling.F	ice_atmo.F	ice_ocean.F	ice_therm_vertical.F\
 	ice_init.F	ice_therm_itd.F	mod_ice2d.F	mod_ice.F	\
-	mod_nesting.F \
 	mod_startup.F	mod_wqm.F	mod_ncdio.F	mod_setup.F	\
 	mod_newinp.F	particle.F	linklist.F	mod_lag.F	\
 	mod_northpole.F mod_pwp.F	mod_dye.F	mod_optimal_interpolation.F\
@@ -77,8 +77,11 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	mod_obcs3.F	mod_sed.F	mod_enkf.F	mod_etkf.F	\
 	mod_rrk.F	mod_rrkf_obs.F	mod_rrkassim.F	mod_enkf_ncd.F	\
 	enkf_ncdio.F	mod_enkf_obs.F	mod_enkfassim.F mod_assim.F	\
-	mod_visit.F     mod_plbc.F mod_dam.F		\
-	mod_station_timeseries.F	mod_boundschk.F mod_heatflux_gl.F
+	mod_nesting.F	mod_visit.F     mod_plbc.F mod_dam.F		\
+	mod_station_timeseries.F	mod_sparse_timeseries.F 	\
+	mod_boundschk.F mod_heatflux_gl.F	mod_esmf_nesting.F	\
+	mod_cstms_vars.F	mod_flocmod.F	mod_sed_cstms.F		\
+	mod_fluid_mud.F 
 
 MODS_W = mod_main_wave.F	swmod1.F	swmod2.F	swmod3.F\
 	mod_action_im.F mod_action_ex.F mod_wavesetup.F 		\
@@ -105,14 +108,15 @@ MAIN  =	fvcom.F		genmap.F	tge.F		longshore_flow.F\
 MAIN_W = ocpmix.F	ocpcre.F	ocpids.F	\
 	swanpre1.F	swanpre2.F	swanser.F	swanmain.F	\
 	swancom1.F	swancom2.F	swancom3.F	swancom4.F	\
-	swancom5.F
+	swancom5.F	w3part.F
 
 COBJS = func_pointer.c
 
 
-#BIOGEN	= mod_bio_3D.F	mod_onedtide.F
-SRCS = $(BIOGEN) $(MODS)  $(MODS_W) $(MAIN) $(MAIN_W)
-# 
+BIOGEN	= mod_bio_3D.F	mod_onedtide.F
+
+SRCS = $(MODS) $(MODS_W) $(MAIN) $(BIOGEN) $(MAIN_W)
+
 # object list is composed of free (*.F) and fixed (*.F90) source
 FVCOM_OBJS = $(COBJS:.c=.o) $(SRCS:.F=.o) $(FIXED:.F90=.o) 
 
@@ -139,7 +143,7 @@ libfvcom: $(FVCOM_OBJS)
 #--------------------------------------------------------------------------
 
 depend:
-		./makedepf90 -d $(SRCS) >> makedepends
+		makedepf90 -d mod_prec.o $(SRCS) >> makedepends
 
 #--------------------------------------------------------------------------
 #  Target to make all.
@@ -205,4 +209,3 @@ Makefiles::
 includes::
 include ./makedepends
 include ./make.inc
-# DO NOT DELETE

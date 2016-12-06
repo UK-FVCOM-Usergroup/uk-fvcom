@@ -27,7 +27,7 @@
 !/===========================================================================/
 
 !==============================================================================!
-!  VERSION 3.2.2
+!  VERSION 4.0
 !==============================================================================!
 
 PROGRAM FVCOM
@@ -451,10 +451,16 @@ PROGRAM FVCOM
 
 # if defined (GOTM)
   USE MOD_GOTM 
-# endif    
+# endif  
+  
 # if defined (SEDIMENT)
+# if defined (ORIG_SED)
   USE MOD_SED 
+# elif defined (CSTMS_SED)
+  USE MOD_SED_CSTMS 
 # endif
+# endif
+
 # if defined (MEAN_FLOW)
   USE MOD_MEANFLOW
   USE MOD_OBCS2
@@ -498,7 +504,8 @@ PROGRAM FVCOM
   USE MOD_PWP
 # endif
 
-  USE MOD_STATION_TIMESERIES  
+  USE MOD_STATION_TIMESERIES 
+  USE MOD_SPARSE_TIMESERIES
 
   !------------------------------------------------------------------------------|
   IMPLICIT NONE
@@ -624,8 +631,12 @@ PROGRAM FVCOM
   !  GET THE PARAMETERS OF BIOLOGICAL MODEL                                      !
   !==============================================================================!
 #  if defined (BioGen)
-   KBV=KB
-   CALL GET_PARAMETER
+   IF(BIOLOGICAL_MODEL)THEN
+     KBV=KB
+!     CALL GET_PARAMETER("./"//trim(input_dir)//"/"//trim(BIOLOGICAL_MODEL_FILE))
+     CALL GET_PARAMETER_NEW("./"//trim(input_dir)//"/"//trim(BIOLOGICAL_MODEL_FILE))
+     CALL BIO_PARAMETER_REPORT
+   END IF
 !   RIVER_TS_SETTING = 'NONE' !No bio river yet
 #  endif
 
@@ -737,7 +748,7 @@ PROGRAM FVCOM
   !==============================================================================!
   !  CALL ARCHIVE TO SETUP THE OUTPUT AND DUMP CONSTANT VALUES                   !
   !==============================================================================!
-  CALL BCOND_GCN(8)
+  CALL BCOND_GCN(8,0)
   
   CALL ARCHIVE
   ! ORDER MATTERS - ARCHIVE_NEST MUST GO AFTER ARCHIVE DURING SETUP!
@@ -759,6 +770,9 @@ PROGRAM FVCOM
 
   CALL SET_PROBES(PROBES_ON,PROBES_NUMBER,PROBES_FILE)
   IF(OUT_STATION_TIMESERIES_ON)CALL READ_STATION_FILE
+# if defined (WAVE_CURRENT_INTERACTION)
+  IF(OUT_WAVE_SPARSE_TIMESERIES_ON)CALL SPARSE_STATION
+# endif
 
   ! Setup Bounds checking (shutdown if variables exceed threshold)
   CALL SETUP_BOUNDSCHK !bounds checking
@@ -771,9 +785,18 @@ PROGRAM FVCOM
   CALL INIT_GOTM
 # endif
   
-  IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
-  IF(OUT_STATION_TIMESERIES_ON) TIME_SERIES = STARTTIME + INTERVAL_TIME_SERIES
-
+  IF(OUT_STATION_TIMESERIES_ON)THEN
+    CALL GET_OUTPUT_FILE_INTERVAL(TRIM(OUT_INTERVAL),INTERVAL_TIME_SERIES)
+    CALL OUT_STATION_TIMESERIES
+    TIME_SERIES = STARTTIME + INTERVAL_TIME_SERIES
+  END IF
+# if defined (WAVE_CURRENT_INTERACTION)
+  IF(OUT_WAVE_SPARSE_TIMESERIES_ON)THEN
+    CALL GET_OUTPUT_FILE_INTERVAL(TRIM(OUT_INTERVAL_SPARSE),WAVE_INTERVAL_TIME_SERIES)
+    CALL OUT_WAVE_SPARSE_TIMESERIES
+    WAVE_TIME_SERIES = STARTTIME + WAVE_INTERVAL_TIME_SERIES
+  END IF
+# endif
   !==============================================================================!
   !  SELECT THE RUN MODE AND EXECUTE THE MAIN LOOP
   !==============================================================================!
@@ -845,6 +868,9 @@ PROGRAM FVCOM
 
         CALL DUMP_PROBE_DATA
         IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
+# if defined (WAVE_CURRENT_INTERACTION)
+        IF(OUT_WAVE_SPARSE_TIMESERIES_ON) CALL OUT_WAVE_SPARSE_TIMESERIES
+# endif
         !==============================================================================!
         !  CALL SHUTDOWN CHECK TO LOOK FOR BAD VALUES                                  !
         !==============================================================================!
@@ -990,6 +1016,10 @@ PROGRAM FVCOM
 
              CALL DUMP_PROBE_DATA
              IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
+#            if defined (WAVE_CURRENT_INTERACTION)
+             IF(OUT_WAVE_SPARSE_TIMESERIES_ON) CALL OUT_WAVE_SPARSE_TIMESERIES
+#            endif
+
 
 #            if defined (LAG_PARTICLE)
              CALL LAG_UPDATE
@@ -1057,6 +1087,9 @@ PROGRAM FVCOM
 
            CALL DUMP_PROBE_DATA
            IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
+#          if defined (WAVE_CURRENT_INTERACTION)
+           IF(OUT_WAVE_SPARSE_TIMESERIES_ON)CALL OUT_WAVE_SPARSE_TIMESERIES
+#          endif
            !==============================================================================!
            !  CALL SHUTDOWN CHECK TO LOOK FOR BAD VALUES                                  !
            !==============================================================================!
@@ -2037,6 +2070,9 @@ IF (ENKF_memberCONTR ==1 ) THEN
 
         CALL DUMP_PROBE_DATA
         IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
+# if defined (WAVE_CURRENT_INTERACTION)
+        IF(OUT_WAVE_SPARSE_TIMESERIES_ON)CALL OUT_WAVE_SPARSE_TIMESERIES
+# endif
         !==============================================================================!
         !  CALL SHUTDOWN CHECK TO LOOK FOR BAD VALUES                                  !
         !==============================================================================!

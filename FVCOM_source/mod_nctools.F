@@ -992,6 +992,7 @@ SUBROUTINE READ_ATT_TYPE(NCID,VARID,ATT)
 
   len=ATT%LEN
   write(clen,'(I4.4)') len
+  status = 1
   select case(ATT%XTYPE)
   case(NF90_BYTE)
      allocate(ATT%int(len),stat=status)
@@ -1097,6 +1098,7 @@ SUBROUTINE WRITE_ATT_TYPE(ncid,varid,ATT)
        & write(IPT,*) "START WRITE_ATT_TYPE"
 
   len=ATT%LEN
+  status=1
   select case(ATT%XTYPE)
   case(NF90_BYTE)
      status = nf90_put_att(NCID,VARID,&
@@ -4316,7 +4318,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START NC_WRITE_VAR:"
 
   IF(.NOT. ASSOCIATED(VAR)) CALL FATAL_ERROR &
-       & ("NC_WRITE_VAR: Variable object argument is not assocaited!")
+       & ("NC_WRITE_VAR: Variable object argument is not associated!")
 
   ! INITIALIZE SOME MEMORY
   STATUS=0
@@ -4698,7 +4700,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ELSE        
 
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects SCL_INT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects SCL_INT data is NOT associated!")
         END IF
      END IF
 
@@ -4773,7 +4775,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ELSE        
 
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects VEC_FLT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects VEC_FLT data is NOT associated!")
         END IF
      END IF
 
@@ -4865,7 +4867,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ELSE        
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects ARR_INT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects ARR_INT data is NOT associated!")
         END IF
      END IF
      nsize=ubound(VAR%ARR_INT,1)
@@ -4959,7 +4961,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
 
     IF(.NOT. ASSOCIATED(VAR%cub_INT))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects CUB_INT data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects CUB_INT data is NOT associated!")
      END IF
 
      nsize=ubound(VAR%CUB_INT,1)
@@ -5055,7 +5057,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
 
     IF(.NOT. ASSOCIATED(VAR%fda_INT))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects FDA_INT data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects FDA_INT data is NOT associated!")
      END IF
 
      nsize=ubound(VAR%FDA_INT,1)
@@ -5163,7 +5165,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ELSE        
 
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects SCL_FLT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects SCL_FLT data is NOT associated!")
         END IF
      END IF
 
@@ -5227,7 +5229,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
        ELSE        
           
           CALL PRINT_VAR(VAR)
-          CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects VEC_FLT data is NOT assocaited!")
+          CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects VEC_FLT data is NOT associated!")
        END IF
     END IF
 
@@ -5319,7 +5321,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ELSE        
 
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects ARR_FLT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects ARR_FLT data is NOT associated!")
         END IF
      END IF
 
@@ -5417,7 +5419,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
 
     IF(.NOT. ASSOCIATED(VAR%cub_FLT))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects CUB_FLT data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects CUB_FLT data is NOT associated!")
      END IF
 
      nsize=ubound(VAR%CUB_FLT,1)
@@ -5513,7 +5515,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
 
     IF(.NOT. ASSOCIATED(VAR%fda_FLT))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects FDA_FLT data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects FDA_FLT data is NOT associated!")
      END IF
 
      nsize=ubound(VAR%FDA_FLT,1)
@@ -5621,7 +5623,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ELSE        
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects SCL_DBL data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects SCL_DBL data is NOT associated!")
         END IF
      END IF
 
@@ -5685,7 +5687,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
        ELSE        
           
           CALL PRINT_VAR(VAR)
-          CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects VEC_DBL data is NOT assocaited!")
+          CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects VEC_DBL data is NOT associated!")
        END IF
     END IF
 
@@ -5776,7 +5778,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ELSE        
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects ARR_DBL data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects ARR_DBL data is NOT associated!")
         END IF
      END IF
      
@@ -5870,7 +5872,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
 
     IF(.NOT. ASSOCIATED(VAR%CUB_DBL))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects CUB_DBL data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects CUB_DBL data is NOT associated!")
      END IF
 
      nsize=ubound(VAR%CUB_DBL,1)
@@ -5963,7 +5965,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
 
     IF(.NOT. ASSOCIATED(VAR%FDA_DBL))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects FDA_DBL data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects FDA_DBL data is NOT associated!")
      END IF
 
      nsize=ubound(VAR%FDA_DBL,1)
@@ -6064,7 +6066,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ELSE
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects SCL_CHR data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects SCL_CHR data is NOT associated!")
         END IF
      END IF
      
@@ -6120,7 +6122,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
      IF(.NOT. ASSOCIATED(VAR%VEC_CHR))THEN 
         CALL PRINT_VAR(VAR)
         CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects VEC_CH&
-             &R data is NOT assocaited!")
+             &R data is NOT associated!")
      END IF
 
      VEC_CHR => VAR%VEC_CHR
@@ -6359,7 +6361,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START NC_READ_VAR:"
 
   IF(.NOT. ASSOCIATED(VAR)) CALL FATAL_ERROR &
-       & ("NC_READ_VAR: Variable object argument is not assocaited!")
+       & ("NC_READ_VAR: Variable object argument is not associated!")
 
   ! INITIALIZE SOME MEMORY
   nlen=0
@@ -6810,7 +6812,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
            IF(size(VAR%FDA_FLT)==1) VAR%SCL_FLT=>VAR%FDA_FLT(1,1,1,1)
         ELSE        
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects SCL_FLT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects SCL_FLT data is NOT associated!")
         END IF
 
      END IF
@@ -6872,7 +6874,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
         ELSE        
 
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects VEC_FLT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects VEC_FLT data is NOT associated!")
         END IF
      END IF
 
@@ -6991,7 +6993,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
         ELSE        
 
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects ARR_FLT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects ARR_FLT data is NOT associated!")
         END IF
      END IF
      
@@ -7116,7 +7118,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
 
     IF(.NOT. ASSOCIATED(VAR%CUB_FLT))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_READ_VAR: Variable objects CUB_FLT data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_READ_VAR: Variable objects CUB_FLT data is NOT associated!")
      END IF
      
 
@@ -7242,7 +7244,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
 
     IF(.NOT. ASSOCIATED(VAR%FDA_FLT))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_READ_VAR: Variable objects FDA_FLT data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_READ_VAR: Variable objects FDA_FLT data is NOT associated!")
      END IF
      
 
@@ -7384,7 +7386,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
         ELSE        
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects SCL_DBL data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects SCL_DBL data is NOT associated!")
         END IF
 
      END IF
@@ -7447,7 +7449,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
         ELSE        
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects VEC_DBL data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects VEC_DBL data is NOT associated!")
         END IF
      END IF
 
@@ -7563,7 +7565,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
         ELSE        
 
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects ARR_DBL data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects ARR_DBL data is NOT associated!")
         END IF
      END IF
      
@@ -7683,7 +7685,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
 
     IF(.NOT. ASSOCIATED(VAR%CUB_DBL))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_READ_VAR: Variable objects CUB_DBL data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_READ_VAR: Variable objects CUB_DBL data is NOT associated!")
      END IF
      
      IF (SER_READ) THEN
@@ -7808,7 +7810,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
 
     IF(.NOT. ASSOCIATED(VAR%FDA_DBL))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_READ_VAR: Variable objects FDA_DBL data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_READ_VAR: Variable objects FDA_DBL data is NOT associated!")
      END IF
      
      IF (SER_READ) THEN
@@ -7949,7 +7951,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
         ELSE        
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects SCL_INT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects SCL_INT data is NOT associated!")
         END IF
      END IF
      
@@ -8010,7 +8012,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
         ELSE        
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects VEC_INT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects VEC_INT data is NOT associated!")
         END IF
      END IF
 
@@ -8124,7 +8126,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
         ELSE        
            
            CALL PRINT_VAR(VAR)
-           CALL FATAL_ERROR("NC_READ_VAR: Variable objects ARR_INT data is NOT assocaited!")
+           CALL FATAL_ERROR("NC_READ_VAR: Variable objects ARR_INT data is NOT associated!")
         END IF
      END IF
 
@@ -8241,7 +8243,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
 
     IF(.NOT. ASSOCIATED(VAR%CUB_INT))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_READ_VAR: Variable objects CUB_INT data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_READ_VAR: Variable objects CUB_INT data is NOT associated!")
      END IF
      
      IF (SER_READ) THEN
@@ -8366,7 +8368,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
 
     IF(.NOT. ASSOCIATED(VAR%FDA_INT))THEN 
         CALL PRINT_VAR(VAR)
-        CALL FATAL_ERROR("NC_READ_VAR: Variable objects FDA_INT data is NOT assocaited!")
+        CALL FATAL_ERROR("NC_READ_VAR: Variable objects FDA_INT data is NOT associated!")
      END IF
      
      IF (SER_READ) THEN
@@ -8503,7 +8505,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
        ELSE
           CALL PRINT_VAR(VAR)
           CALL FATAL_ERROR("NC_READ_VAR: Variable objects scl_chr&
-               & data is NOT assocaited!")
+               & data is NOT associated!")
        END IF
 
      END IF
@@ -8559,7 +8561,7 @@ SUBROUTINE NC_READ_VAR(VAR,STKCNT,STKRNG,IOSTART,IOCOUNT,IOSTRIDE,DEALERID,PARAL
     IF(.NOT. ASSOCIATED(VAR%vec_chr))THEN 
         CALL PRINT_VAR(VAR)
         CALL FATAL_ERROR("NC_READ_VAR: Variable objects vec_chr&
-             & data is NOT assocaited!")
+             & data is NOT associated!")
      END IF
 
      IF (SER_READ .OR. DEALER .EQ. MYID) THEN
@@ -8777,10 +8779,10 @@ FUNCTION IS_VALID_ITIME(VAR1,VAR2,tzone) RESULT(RES)
   logical :: found, res
 
   IF(.NOT. ASSOCIATED(VAR1)) CALL FATAL_ERROR &
-       & ("IS_VALID_INT2_MJD: Variable object argument is not assocaited!")
+       & ("IS_VALID_INT2_MJD: Variable object argument is not associated!")
 
   IF(.NOT. ASSOCIATED(VAR2)) CALL FATAL_ERROR &
-       & ("IS_VALID_INT2_MJD: Variable object argument is not assocaited!")
+       & ("IS_VALID_INT2_MJD: Variable object argument is not associated!")
 
   RES = .false.
 
@@ -9002,7 +9004,7 @@ FUNCTION IS_VALID_FLOAT_DAYS(VAR,tzone) RESULT(RES)
   logical :: found, res
 
   IF(.NOT. ASSOCIATED(VAR)) CALL FATAL_ERROR &
-       & ("IS_VALID_FLOAT_MJD: Variable object argument is not assocaited!")
+       & ("IS_VALID_FLOAT_MJD: Variable object argument is not associated!")
   
   RES = .false.
 
@@ -9062,7 +9064,7 @@ FUNCTION IS_VALID_FLOAT_SECONDS(VAR,tzone) RESULT(RES)
   logical :: found, res
 
   IF(.NOT. ASSOCIATED(VAR)) CALL FATAL_ERROR &
-       & ("IS_VALID_FLOAT_MJD: Variable object argument is not assocaited!")
+       & ("IS_VALID_FLOAT_MJD: Variable object argument is not associated!")
   
   RES = .false.
 
@@ -9447,11 +9449,11 @@ SUBROUTINE UPDATE_FILE_BRACKET(NCF,NOW,status)
   INTEGER      :: STATUS
 
   IF(.NOT. ASSOCIATED(NCF)) CALL FATAL_ERROR &
-       & ("UPDATE_FILE_BRACKET: FILE object argument is not assocaited!")
+       & ("UPDATE_FILE_BRACKET: FILE object argument is not associated!")
 
   IF (.NOT. ASSOCIATED(NCF%FTIME)) THEN
      CALL PRINT_FILE(NCF)
-     CALL FATAL_ERROR("UPDATE_FILE_BRACKET: FILE object's FTIME is not assocaited!")
+     CALL FATAL_ERROR("UPDATE_FILE_BRACKET: FILE object's FTIME is not associated!")
   END IF
 
   FTM => NCF%FTIME
@@ -9734,7 +9736,7 @@ FUNCTION SET_FILE_TIME_TYPE(NCF) RESULT(RES)
   LOGICAL :: FOUND, VALID
   
   IF(.NOT. ASSOCIATED(NCF)) CALL FATAL_ERROR &
-       & ("SET_FILE_TIME_TYPE: FILE object argument is not assocaited!")
+       & ("SET_FILE_TIME_TYPE: FILE object argument is not associated!")
   
   RES = -1
   
@@ -9937,12 +9939,12 @@ FUNCTION GET_FILE_TIME_NCF(NCF,STKCNT) RESULT(THETIME)
   TYPE(NCFTIME), POINTER :: FTM
 
    IF(.NOT. ASSOCIATED(NCF)) CALL FATAL_ERROR &
-       & ("GET_FILE_TIME_NCF: FILE object argument is not assocaited!")
+       & ("GET_FILE_TIME_NCF: FILE object argument is not associated!")
   
 
    IF(.NOT. ASSOCIATED(NCF%FTIME)) THEN
       CALL PRINT_FILE(NCF)
-      CALL FATAL_ERROR("GET_FILE_TIME_NCF: FILE object's FTIME is not assocaited!")
+      CALL FATAL_ERROR("GET_FILE_TIME_NCF: FILE object's FTIME is not associated!")
    END IF
 
    FTM =>NCF%FTIME
@@ -9967,7 +9969,7 @@ FUNCTION GET_FILE_TIME_NCFTIME(FTM,STKCNT) RESULT(THETIME)
   LOGICAL FOUND
 
    IF(.NOT. ASSOCIATED(FTM)) THEN
-      CALL FATAL_ERROR("GET_FILE_TIME_NCFTIME: THE ARGUMENT FTM is not assocaited!")
+      CALL FATAL_ERROR("GET_FILE_TIME_NCFTIME: THE ARGUMENT FTM is not associated!")
    END IF
 
 

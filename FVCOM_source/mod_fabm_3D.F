@@ -17,6 +17,14 @@ MODULE MOD_FABM_3D
   ! For reading FABM forcing data from NetCDF:
   USE MOD_NCTOOLS
 
+# if defined (SEDIMENT)
+# if defined (ORIG_SED)
+  USE MOD_SED,only:csed
+# elif defined (CSTMS_SED)
+  USE MOD_SED_CSTMS,only:csed
+# endif
+# endif
+
   IMPLICIT NONE
 
   PRIVATE
@@ -37,6 +45,12 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE,TARGET :: DEPTH(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
   REAL(SP), ALLOCATABLE,TARGET :: BOTTOM_STRESS(:)
+# if defined (SEDIMENT)
+  REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM(:,:)   ! mg/m^3
+  REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM_g(:,:) ! g/m^3
+  REAL(SP), ALLOCATABLE,TARGET :: SPM_ABS_FABM(:,:)
+  REAL(SP), ALLOCATABLE,TARGET :: SPM_BB_FABM(:,:)
+# endif
   REAL(SP), ALLOCATABLE        :: FABM_OLD_BOTTOM_THICKNESS(:)
   REAL(SP) :: DAYS_SINCE_YEAR_START
   LOGICAL :: COMPUTE_DAYS_SINCE_YEAR_START
@@ -164,6 +178,9 @@ MODULE MOD_FABM_3D
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
     ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:M,:))
+!    call fabm_link_data(model,spm1_from_host_model,fvcom_model_name(1:M,:)) ! FOR NEW SPM variables defined in ERSEM/src/shared.F90
+
+
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:M,:))
     call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
     call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:M))
@@ -174,7 +191,35 @@ MODULE MOD_FABM_3D
     ! TODO send standard_variables%number_of_days_since_start_of_the_year [scalar!] - must be a real number with fraction indicating time of day
 
     ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
+# if defined (SEDIMENT)
+!RJT June_2016
+    ! Suspended sediment concentration from FVCOM - currently only one variable
+    ! and for testing purposes it is constant everywhere. 
+    ! The commented code would only work if SPM was part of the
+    ! standard_variable list. We are taking a shortcut here by using ESS as the
+    ! hook, which is not a standard variable
+    IF (model%variable_needs_values(standard_variables%mass_concentration_of_suspended_matter)) THEN
+       ALLOCATE(SPM_FABM_g(0:MT,KB))
+       call fabm_link_bulk_data(model,standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:)) 
+    END IF
 
+    IF (model%variable_needs_values(type_bulk_standard_variable(name='mass_concentration_of_silt'))) THEN
+       ALLOCATE(SPM_FABM(0:MT,KB))
+       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='mass_concentration_of_silt'),SPM_FABM(1:M,:))
+    END IF
+
+    IF (model%variable_needs_values(type_bulk_standard_variable(name='absorption_of_silt'))) THEN
+       ALLOCATE(SPM_ABS_FABM(0:MT,KB))
+       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='absorption_of_silt'),SPM_ABS_FABM(1:M,:))
+    END IF
+
+    IF (model%variable_needs_values(type_bulk_standard_variable(name='backscatter_of_silt'))) THEN
+       ALLOCATE(SPM_BB_FABM(0:MT,KB))
+       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='backscatter_of_silt'),SPM_BB_FABM(1:M,:))
+    END IF
+
+! RJT June_2016
+# endif
     ! Cell thickness in m (from D and DZ)
     IF (model%variable_needs_values(standard_variables%cell_thickness)) THEN
        ALLOCATE(CELL_THICKNESS(0:MT,KB))
@@ -218,6 +263,7 @@ MODULE MOD_FABM_3D
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
     ALLOCATE(FABM_ALL_SF(0:MT,size(model%surface_state_variables))); FABM_ALL_SF =  0.001_SP
     ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)));           FABM_F       =  0.001_SP
+!    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)));        FABM_MEAN    =  0.001_SP
     ALLOCATE(FABM_TOTALS(size(model%conserved_quantities)));         FABM_TOTALS = 0
 
     ! Provide FABM with pointers to state variable data.
@@ -301,6 +347,65 @@ MODULE MOD_FABM_3D
          ! Bottom stress from square of shear velocity - multiply with density
          BOTTOM_STRESS = TAUBM_N*(1+RHO1(:,KBM1))*1000
       END IF
+# if defined (SEDIMENT)
+!RJT June_2016
+! One of these two will be true (either using light or light_iop)
+! Light.F90 in ERSEM uses silt concentration
+      ! Aggregate FVCOM SPM variables into a single one for passing on to ERSEM
+      IF (ALLOCATED(SPM_FABM)) THEN
+         ! Pass on SPM concentrations in mg/m3. FVCOM units are in Kg/m3!! needs
+         ! to be scaled!
+         ! FVCOM variable would be sed(nsed)%conc...
+            SPM_FABM = CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+      END IF
+      IF (ALLOCATED(SPM_FABM_g)) THEN
+         ! Pass on SPM concentrations in g/m3. FVCOM units are in Kg/m3!! needs
+         ! to be scaled!
+         ! FVCOM variable would be sed(nsed)%conc...
+            SPM_FABM_g = CSED*10.0_SP**3.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+      END IF
+      ! Light_iop.F90 only needs absorption and backscattering so do the
+      ! aggregation here. Specific absorption and backscattering are hard coded
+      ! here. Should be in namelist... ideally in FABM.yaml but this requires
+      ! addiging the variables to ERSEM code (share.F90, CMakelist, ERSEM model
+      ! library) as they should be new variables and a new light_iop_spm.F90
+      ! file. 
+      IF (ALLOCATED(SPM_ABS_FABM)) THEN
+         ! Pass on SPM absorptions in 1/m FVCOM. Make it depth dependent here
+         ! for testing purposes.
+        DO K=1,KBM1
+         SPM_ABS_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
+                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
+         WHERE (D*ZZ(:,K) .le. MIN_DEPTH)    SPM_ABS_FABM(:,K) = 0.0_SP
+         WHERE (D*ZZ(:,K) .ge. 15.0_SP)      SPM_ABS_FABM(:,K) = 1.0_SP
+
+        ENDDO
+      ! using hard coded absorption coefficient. If using SPM concentrations,
+      ! this will need to be the specific absorption coefficient x SPM
+      ! concentraions. 
+        !SPM_ABS_FABM = SPM_ABS_FABM*0.7_SP
+        SPM_ABS_FABM = SPM_ABS_FABM*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+      END IF
+
+      IF (ALLOCATED(SPM_BB_FABM)) THEN
+         ! Pass on SPM backscatter coefficient in 1/m FVCOM. 
+        DO K=1,KBM1
+         SPM_BB_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
+                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
+         WHERE (D*ZZ(:,K) .le. MIN_DEPTH)    SPM_BB_FABM(:,K) = 0.0_SP
+         WHERE (D*ZZ(:,K) .ge. 15.0_SP)      SPM_BB_FABM(:,K) = 1.0_SP
+        ENDDO
+      ! using hard coded backscattering coefficient. If using SPM
+      ! concentrations, this will need to be the specific backscattering
+      ! coefficient x SPM concentraions
+        !SPM_BB_FABM = SPM_BB_FABM*0.1_SP
+        SPM_BB_FABM = SPM_BB_FABM*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+      END IF
+
+
+! RJT June_2016
+
+# endif
 
       IF (COMPUTE_DAYS_SINCE_YEAR_START) THEN
          string_local = WRITE_DATETIME(IntTime,3,'UTC')
@@ -436,6 +541,7 @@ SUBROUTINE FABM_UPDATE
      ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
      IF (FABM_DEBUG) THEN
        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_BCOND'
+!       WHERE (ISNAN(FABM_F)) FABM_F = ZERO
        IF (ANY(ISNAN(FABM_F))) CALL FATAL_ERROR("NaNs found in FABM state at the end of FABM_UPDATE.")
      ELSE
        VALID = CHECK_STATE(.TRUE.)

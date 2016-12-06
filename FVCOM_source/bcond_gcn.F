@@ -43,7 +43,7 @@
 !                                                                              |
 !==============================================================================|
 
-   SUBROUTINE BCOND_GCN(IDX)
+   SUBROUTINE BCOND_GCN(IDX,K_RK)
 
 !==============================================================================|
    USE ALL_VARS
@@ -93,7 +93,7 @@
    REAL(SP),POINTER :: eta_lcl(:), eta_gbl(:) ,elfgeo_gbl(:),elfgeo_lcl(:)
 
    INTEGER  I,J,K,I1,I2,J1,J2,II,L1,L2,IERR
-   INTEGER  cdx,ndx,KDAM_TMP
+   INTEGER  cdx,ndx,KDAM_TMP,K_RK
 
 !!$!=================|DEBUG|============================
 !!$   LOGICAL, save :: INIT=.false.
@@ -112,8 +112,8 @@
 !==============================================================================|
    IF(OBC_ELEVATION_FORCING_ON) CALL BCOND_ASL
    CALL BCOND_ASL_CLP
-   CALL BCOND_GWI
-   CALL BCOND_BKI
+   CALL BCOND_GWI(K_RK)
+   CALL BCOND_BKI(K_RK)
    CALL BCOND_ORE
 
 !
@@ -608,7 +608,7 @@
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS,SED=SEDDIS)
 # endif
 # if defined(BioGen)
-         CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
+         IF(BIOLOGICAL_MODEL)CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
 # endif
 # if defined(FABM)
          IF (FABM_MODEL) CALL UPDATE_RIVERS(IntTime,QDIS,FABMR=FABMDIS)
@@ -747,13 +747,30 @@
 
 # if defined (OFFLINE_SEDIMENT)
       CALL UPDATE_OFFLINE_FORCING(IntTime,offline_u,  offline_v, offline_w&
-                                        &,offline_s1, offline_el,offline_kh&
+                                        &,offline_s1, offline_t1,offline_el,offline_kh&
+# if defined (GOTM)
+                                        &,offline_teps &
+# else
+                                        &,offline_q2, offline_q2l &
+# endif
                                         &,offline_wn, offline_wc)
 # endif
+
 # if defined (FABM) && defined (OFFLINE_FABM)
       IF (FABM_MODEL) CALL UPDATE_OFFLINE_FABM_FORCING(IntTime,offlineb_u,  offlineb_v, offlineb_w&
                                         &,offlineb_s1,offlineb_t1, offlineb_el,offlineb_kh&
                                         &,offlineb_wn, offlineb_wc,offlineb_uard_obcn)
+# endif
+
+# if defined (OFFLINE_BIOLOGY)
+      CALL UPDATE_OFFLINE_BIOLOGY_FORCING(IntTime,offline_u,  offline_v, offline_w&
+                                        &,offline_s1, offline_t1,offline_el,offline_kh&
+# if defined (GOTM)
+                                        &,offline_teps &
+# else
+                                        &,offline_q2, offline_q2l &
+# endif
+                                        &,offline_wn, offline_wc)
 # endif
 
 !

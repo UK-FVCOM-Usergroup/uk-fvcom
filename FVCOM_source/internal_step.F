@@ -61,7 +61,11 @@ SUBROUTINE INTERNAL_STEP
   USE NON_HYDRO
 # endif
 # if defined (SEDIMENT)
-  USE MOD_SED, only : morpho_model, morpho_factor
+# if defined (ORIG_SED)
+  USE MOD_SED
+# elif defined (CSTMS_SED)
+  USE MOD_SED_CSTMS
+# endif
 # endif
 # if defined (DYE_RELEASE)
   USE MOD_DYE
@@ -133,11 +137,16 @@ SUBROUTINE INTERNAL_STEP
     V   = OFFLINEB_V 
     WTS = OFFLINEB_W
     S1  = OFFLINEB_S1
+! J. Ge added to avoid negative value of salinity----!
+    WHERE(S1<0.0_SP)
+       S1=0.0_SP
+    END WHERE
+!----------------------------------------------------!
     T1  = OFFLINEB_T1
     KH  = OFFLINEB_KH
     EL  = OFFLINEB_EL
     UARD_OBCN = OFFLINEB_UARD_OBCN ! this doesn't need broadcasting
-#if defined (WET_DRY)
+# if defined (WET_DRY)
     iswetn = INT(OFFLINEB_WN)
     iswetnt = iswetn
     iswetc = INT(OFFLINEB_WC)
@@ -187,6 +196,11 @@ SUBROUTINE INTERNAL_STEP
 ! ONLY SOLUTION IS TO SAVE UARD_OBCN AS PART OF THE OFFLINE FORCING OPTION - 
 ! UARD_OBCN is now part of the offline_file_object
 #  if defined (FABM)
+! J. Ge added to avoid negative value of salinity----!
+    WHERE(S1<0.0_SP)
+       S1=0.0_SP
+    END WHERE
+!----------------------------------------------------!
     CALL FABM_UPDATE
     CALL FABM_UPDATE_DEPTH
 #  endif
@@ -194,18 +208,20 @@ SUBROUTINE INTERNAL_STEP
      CALL FATAL_ERROR("YOU CAN'T RUN FABM OFFLINE WITHOUT A FABM_MODEL")
   ENDIF
 
+  RETURN
+
 # endif
 !----END IF OFFLINE FABM
 !----loop end for offline FABM
 
 
 !----OFFLINE SEDIMENT UPDATE
-# if defined (OFFLINE_SEDIMENT)
+# if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
   !----SPECIFY THE SURFACE FORCING OF INTERNAL MODES-----------------------------!
 # if defined (GCN)
-  CALL BCOND_GCN(8)
+  CALL BCOND_GCN(8,0)
 #   else
-  CALL BCOND_GCY(8)
+  CALL BCOND_GCY(8,0)
 # endif
 
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -224,12 +240,22 @@ SUBROUTINE INTERNAL_STEP
   V   = OFFLINE_V 
   WTS = OFFLINE_W
   S1  = OFFLINE_S1
+  T1  = OFFLINE_T1
   KH  = OFFLINE_KH
   EL  = OFFLINE_EL
+# if defined (GOTM)
+  TEPS = OFFLINE_TEPS
+# else
+  Q2  = OFFLINE_Q2
+  Q2L = OFFLINE_Q2L
+# endif
+  
+# if defined (WET_DRY)
   iswetn = INT(OFFLINE_WN)
   iswetnt = iswetn
   iswetc = INT(OFFLINE_WC)
   iswetct = iswetc
+# endif
   D = H + EL
   DT = D
   DTFA = D
@@ -239,12 +265,15 @@ SUBROUTINE INTERNAL_STEP
 # if defined(MULTIPROCESSOR)
   IF(PAR)THEN
     CALL AEXCHANGE(EC,MYID,NPROCS,U,V)
-    CALL AEXCHANGE(NC,MYID,NPROCS,S1,KH,WTS)
-    CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
+    CALL AEXCHANGE(NC,MYID,NPROCS,S1,T1)
+    CALL AEXCHANGE(NC,MYID,NPROCS,KH,WTS)
     CALL AEXCHANGE(NC,MYID,NPROCS,EL,D,DT)
     CALL AEXCHANGE(NC,MYID,NPROCS,DTFA)
     CALL AEXCHANGE(EC,MYID,NPROCS,D1,DT1)
+# if defined (WET_DRY)
+    CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
     CALL AEXCHANGE(EC,MYID,NPROCS,iswetc,iswetct)
+# endif
   END IF
 # endif
 
@@ -260,8 +289,6 @@ SUBROUTINE INTERNAL_STEP
 
 
 
-  CALL BOTTOM_ROUGHNESS
-
 !==============================================================================!
 !    SEDIMENT MODEL SECTION  
 !      Advance Sed Model (Erode/Deposit/Advect/Diffuse)      
@@ -271,6 +298,9 @@ SUBROUTINE INTERNAL_STEP
 !      morpho_model and morpho_factor are stored and set in mod_sed.F              
 !==============================================================================!
 # if defined (SEDIMENT)
+
+  CALL BOTTOM_ROUGHNESS
+
   DPDAYS = days(inttime)
   SPDAYS = DPDAYS
   IF(SEDIMENT_MODEL)CALL ADVANCE_SED(DTI,spdays,taubm_n(1:m))
@@ -283,12 +313,15 @@ SUBROUTINE INTERNAL_STEP
 
 # endif
 
+# if defined (BioGen)
+  IF(BIOLOGICAL_MODEL)CALL BIO_3D1D                           
+# endif
+
+
+  RETURN
+
 # endif
 !----loop end for offline sediment
-! return statement moved outside so that both codes could be used at the same time
-# if defined (OFFLINE_FABM)  || defined (OFFLINE_SEDIMENT)
-  RETURN
-# endif
 
 
 
@@ -312,9 +345,9 @@ SUBROUTINE INTERNAL_STEP
 
   !----SPECIFY THE SOLID BOUNDARY CONDITIONS OF U&V INTERNAL MODES---------------!
 #   if defined (GCN)
-    CALL BCOND_GCN(5)
+    CALL BCOND_GCN(5,0)
 #   else
-    CALL BCOND_GCY(5)
+    CALL BCOND_GCY(5,0)
 #   endif
 
 #   if defined(MULTIPROCESSOR)
@@ -325,9 +358,9 @@ SUBROUTINE INTERNAL_STEP
 
   !----SPECIFY THE SURFACE FORCING OF INTERNAL MODES-----------------------------!
 # if defined (GCN)
-  CALL BCOND_GCN(8)
+  CALL BCOND_GCN(8,0)
 #   else
-  CALL BCOND_GCY(8)
+  CALL BCOND_GCY(8,0)
 # endif
 
   ! New Open Boundary Condition ----3
@@ -606,9 +639,9 @@ SUBROUTINE INTERNAL_STEP
 #  endif
 
 #  if defined (GCN)
-   CALL BCOND_GCN(1)
+   CALL BCOND_GCN(1,0)
 #  else
-   CALL BCOND_GCY(1)
+   CALL BCOND_GCY(1,0)
 #  endif
 
    IF(NESTING_ON )THEN
@@ -732,9 +765,9 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (NH)  
 #   if defined (GCN)
-    CALL BCOND_GCN(3)    ! Boundary Condition on U/V At River Input           !
+    CALL BCOND_GCN(3,0)    ! Boundary Condition on U/V At River Input           !
 #   else
-    CALL BCOND_GCY(3)    ! Boundary Condition on U/V At River Input           !
+    CALL BCOND_GCY(3,0)    ! Boundary Condition on U/V At River Input           !
 #   endif
 
 # if defined (PLBC)
@@ -765,9 +798,9 @@ SUBROUTINE INTERNAL_STEP
 #  if defined (TWO_D_MODEL) 
 
 #   if defined (GCN)
-    CALL BCOND_GCN(8)
+    CALL BCOND_GCN(8,0)
 #   else
-    CALL BCOND_GCY(8)
+    CALL BCOND_GCY(8,0)
 #   endif
 
     UAC = UA
@@ -1038,6 +1071,8 @@ SUBROUTINE INTERNAL_STEP
      
      ! There is a bug in the advection of turbulent kinetic energy
      ! when using the GOTM MODULE
+! RJT It does indeed crash after a few iterations. Not having advection of
+! turbulence quantities limits the usability of GOTM with fvcom...
      
      !     CALL ADV_Q(TKE,TKEF)     !!Advection of Tubulent Kinetic Energy
      !     CALL ADV_Q(TEPS,TEPSF)   !!Advection of Turbulent Dissipation Rate 
@@ -1131,6 +1166,10 @@ SUBROUTINE INTERNAL_STEP
 !      morpho_model and morpho_factor are stored and set in mod_sed.F              
 !==============================================================================!
 # if defined (SEDIMENT)
+# if defined (DATA_ASSIM)
+  IF(ASSIM_FLAG.AND.(SST_ASSIM.OR.SSTGRD_ASSIM.OR.SSHGRD_ASSIM.OR.TSGRD_ASSIM))THEN
+# endif
+
    DPDAYS = days(inttime)
    SPDAYS = DPDAYS
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -1152,17 +1191,33 @@ SUBROUTINE INTERNAL_STEP
 
   ENDIF
 
+# if defined (DATA_ASSIM)
+  ENDIF
+# endif
+
 # endif
   
 #   if defined (BioGen)
-  CALL BIO_3D1D                          
+  IF(BIOLOGICAL_MODEL)CALL BIO_3D1D
+                           
 #   endif
 
 #   if defined (FABM)
+# if defined (DATA_ASSIM)
+  IF(ASSIM_FLAG.AND.(SST_ASSIM.OR.SSTGRD_ASSIM.OR.SSHGRD_ASSIM.OR.TSGRD_ASSIM))THEN
+# endif
   IF (FABM_MODEL) THEN
+! J. Ge added to avoid negative value of salinity----!
+    WHERE(S1<0.0_SP)
+       S1=0.0_SP
+    END WHERE
+!----------------------------------------------------!
      CALL FABM_UPDATE
      CALL FABM_UPDATE_DEPTH
   END IF
+# if defined (DATA_ASSIM)
+  ENDIF
+# endif
 #   endif
 
   !==============================================================================!
@@ -1251,6 +1306,16 @@ SUBROUTINE INTERNAL_STEP
 !     END IF
 
 #   if !defined (ONE_D_MODEL)
+!J. Ge for tracer advection
+     IF(BACKWARD_ADVECTION==.TRUE.)THEN
+       IF(BACKWARD_STEP==1)THEN
+        T0 = T1
+       ELSEIF(BACKWARD_STEP==2)THEN
+         T2 = T0
+         T0 = T1
+       ENDIF
+     ENDIF
+!J. Ge for tracer advection
      T1 = TF1                                       !Update to new time level  !
 #   endif
 
@@ -1338,7 +1403,17 @@ SUBROUTINE INTERNAL_STEP
 !     END IF
 
 #   if !defined (ONE_D_MODEL)
-     S1 = SF1                                       !Update to new time level  !
+!J. Ge for tracer advection
+     IF(BACKWARD_ADVECTION==.TRUE.)THEN
+       IF(BACKWARD_STEP==1)THEN
+        S0 = S1
+       ELSEIF(BACKWARD_STEP==2)THEN
+         S2 = S0
+         S0 = S1
+       ENDIF
+     ENDIF
+!J. Ge for tracer advection
+     S1 = SF1                                     !Update to new time level  !
 #   endif
 
      CALL N2E3D(S1,S)                               !Shift to Elements         !
@@ -1523,9 +1598,9 @@ SUBROUTINE INTERNAL_STEP
     IF(ASSIM_FLAG==0 .AND. (.NOT. SST_ASSIM .AND. .NOT. SSTGRD_ASSIM .AND. .NOT. SSHGRD_ASSIM .AND. .NOT. TSGRD_ASSIM) )CALL CURRENT_ASSIMILATION
     IF(ASSIM_FLAG==1 .AND. (SST_ASSIM .OR. SSTGRD_ASSIM .OR. SSHGRD_ASSIM .OR. TSGRD_ASSIM)) CALL CURRENT_ASSIMILATION
 #   if defined (GCN)
-    CALL BCOND_GCN(5)
+    CALL BCOND_GCN(5,0)
 #   else
-    CALL BCOND_GCY(5)
+    CALL BCOND_GCY(5,0)
 #   endif
   END IF
 !==============================================================================!
