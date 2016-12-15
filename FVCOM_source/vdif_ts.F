@@ -175,21 +175,37 @@ SUBROUTINE VDIF_TS(NCON1,F)
 
                  ZDEP = Z(I,K)*D(I)
 
+!       SPECIFIED PARAMETERS FOR ROSA/UK WATERS CASE (DECEMBER 2016)
+                    IF(D(I) < 50.0_SP) THEN
+                       RHEAT=0.77_SP
+                       ZETA1=1.1_SP
+                       ZETA2=10.0_SP
+                    ELSE IF(D(I) > 100.0_SP) THEN
+                       RHEAT=0.58_SP
+                       ZETA1=0.35_SP
+                       ZETA2=23.0_SP
+                    ELSE
+                       TMP1=(D(I)-50.0_SP)/(100.0_SP-50.0_SP)
+                       RHEAT=0.77_SP+(0.58_SP-0.77_SP)*TMP1
+                       ZETA1=1.1_SP+ (0.35_SP-1.1_SP )*TMP1
+                       ZETA2=10.0_SP+ (23.0_SP-10.0_SP )*TMP1
+                    END IF
+
 ! zlai: include the gom method to consider different surface heat penetration
-                 IF(D(I) < 100.0_SP) THEN
-                    RHEAT=0.78_SP
-                    ZETA1=1.4_SP
-                    ZETA2=6.3_SP
-                 ELSE IF(D(I) > 150.0_SP) THEN
-                    RHEAT=0.58_SP
-                    ZETA1=0.35_SP
-                    ZETA2=23.0_SP
-                 ELSE
-                    TMP1=(D(I)-100.0_SP)/(150.0_SP-100.0_SP)
-                    RHEAT=0.78_SP+(0.58_SP-0.78_SP)*TMP1
-                    ZETA1=1.4_SP+ (0.35_SP-1.4_SP )*TMP1
-                    ZETA2=6.3_SP+ (23.0_SP-6.3_SP )*TMP1
-                 END IF
+!                 IF(D(I) < 100.0_SP) THEN
+!                    RHEAT=0.78_SP
+!                    ZETA1=1.4_SP
+!                    ZETA2=6.3_SP
+!                 ELSE IF(D(I) > 150.0_SP) THEN
+!                    RHEAT=0.58_SP
+!                    ZETA1=0.35_SP
+!                    ZETA2=23.0_SP
+!                 ELSE
+!                    TMP1=(D(I)-100.0_SP)/(150.0_SP-100.0_SP)
+!                    RHEAT=0.78_SP+(0.58_SP-0.78_SP)*TMP1
+!                    ZETA1=1.4_SP+ (0.35_SP-1.4_SP )*TMP1
+!                    ZETA2=6.3_SP+ (23.0_SP-6.3_SP )*TMP1
+!                 END IF
 ! zlai: include the gom method to consider different surface heat penetration
 
                  RAD(I,K)=SWRADF(I)*(RHEAT*EXP(ZDEP/ZETA1)+(1-RHEAT)*EXP(ZDEP/ZETA2))
