@@ -165,7 +165,49 @@ SUBROUTINE VDIF_TS(NCON1,F)
 #    else
               IF(ISWETN(I) == 1)THEN
 #    endif
+
+! Jadon: avoid overcooling or overheating in the region (depth<2m)
+                 IF(D(I)<2.0_SP)THEN
+                    WFSURF(I) = 0.0_SP
+                    SWRADF(I) = 0.0_SP
+                 END IF
+! Jadon: avoid overcooling or overheating in the region (depth<2m)
+
                  ZDEP = Z(I,K)*D(I)
+
+!       SPECIFIED PARAMETERS FOR ROSA/UK WATERS CASE (DECEMBER 2016)
+                    IF(D(I) < 50.0_SP) THEN
+                       RHEAT=0.65
+                       ZETA1=1._SP
+                       ZETA2=15.0_SP
+                    ELSE IF(D(I) > 100.0_SP) THEN
+                       RHEAT=0.58_SP
+                       ZETA1=0.35_SP
+                       ZETA2=23.0_SP
+                    ELSE
+                       TMP1=(D(I)-50.0_SP)/(100.0_SP-50.0_SP)
+                       RHEAT=0.65_SP+(0.58_SP-0.65_SP)*TMP1
+                       ZETA1=1._SP+ (0.35_SP-1._SP )*TMP1
+                       ZETA2=15.0_SP+ (23.0_SP-15.0_SP )*TMP1
+                    END IF
+
+! zlai: include the gom method to consider different surface heat penetration
+!                 IF(D(I) < 100.0_SP) THEN
+!                    RHEAT=0.78_SP
+!                    ZETA1=1.4_SP
+!                    ZETA2=6.3_SP
+!                 ELSE IF(D(I) > 150.0_SP) THEN
+!                    RHEAT=0.58_SP
+!                    ZETA1=0.35_SP
+!                    ZETA2=23.0_SP
+!                 ELSE
+!                    TMP1=(D(I)-100.0_SP)/(150.0_SP-100.0_SP)
+!                    RHEAT=0.78_SP+(0.58_SP-0.78_SP)*TMP1
+!                    ZETA1=1.4_SP+ (0.35_SP-1.4_SP )*TMP1
+!                    ZETA2=6.3_SP+ (23.0_SP-6.3_SP )*TMP1
+!                 END IF
+! zlai: include the gom method to consider different surface heat penetration
+
                  RAD(I,K)=SWRADF(I)*(RHEAT*EXP(ZDEP/ZETA1)+(1-RHEAT)*EXP(ZDEP/ZETA2))
 #    if defined (WET_DRY)
               END IF

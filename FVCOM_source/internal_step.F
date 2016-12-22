@@ -1130,7 +1130,7 @@ SUBROUTINE INTERNAL_STEP
 #   endif
         !end !defined (ONE_D_MODEL)                                    !                          !
 
-     IF(CASENAME(1:3) == 'aqu')THEN
+     IF(CASENAME(1:3) == 'gom')THEN
         CALL VDIF_TS_GOM(1,TF1)
      ELSE  
 #   if !defined (ONE_D_MODEL)
