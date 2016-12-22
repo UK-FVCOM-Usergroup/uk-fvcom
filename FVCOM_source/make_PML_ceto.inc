@@ -387,7 +387,7 @@ dashL= $(empty) -L
 #         AIR_PRESSURE FROM SURFACE FORCING
 #--------------------------------------------------------------------------
 
-#            FLAG_28 = -DAIR_PRESSURE
+            FLAG_28 = -DAIR_PRESSURE
 
 #--------------------------------------------------------------------------
 # Visit online simulation mode
