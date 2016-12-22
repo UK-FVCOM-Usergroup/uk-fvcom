@@ -2312,8 +2312,8 @@ IF(PAR) THEN
    WRITE(chr_id,'(I3.3)') ID
 WRITE(IPT,*)'!=============================================================================!'
 WRITE(IPT,*)'!                                                                             !'
-WRITE(IPT,*)'! RUNNING IN PARALLEL: '//trim(chr_np)//' Processors                          !'
-WRITE(IPT,*)'! MYID is '//trim(chr_id)//'                                                  !'
+WRITE(IPT,*)'! RUNNING IN PARALLEL: '//trim(chr_np)//' Processors                                        !'
+WRITE(IPT,*)'! MYID is '//trim(chr_id)//'                                                                !'
 WRITE(IPT,*)'!=============================================================================!'
 END IF
    RETURN
