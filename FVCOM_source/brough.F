@@ -91,10 +91,22 @@ SUBROUTINE BOTTOM_ROUGHNESS
      END WHERE
      
      ! SET A MINIMUM VALUE FOR CBC
-     WHERE (CBC < CBCMIN)
-        CBC=CBCMIN
-     END WHERE
-
+!Jadon Ge
+     if(BOTTOM_ROUGHNESS_KIND .eq. CNSTNT) THEN
+        WHERE (CBC < CBCMIN)
+          CBC=CBCMIN
+        END WHERE
+     else if(BOTTOM_ROUGHNESS_KIND .eq. STTC) THEN
+       DO I=1,N
+         IF(CBC(I)<NUNI_CBCMIN(I))CBC(I)=NUNI_CBCMIN(I)
+         ! Tuning the bottom friction in the Changjiang channel
+         ! , river mouth and the inner Hangzhou Bay
+!         IF(NUNI_CBCMIN(I)<0.001.AND.NUNI_CBCMIN(I)>0.0007)CBC(I)=CBC(I)*0.4 !0.4
+!         IF(NUNI_CBCMIN(I)<0.0006.AND.NUNI_CBCMIN(I)>0.0004)CBC(I)=CBC(I)*0.15 !0.2
+!         IF(NUNI_CBCMIN(I)<0.0005)CBC(I)=CBC(I)*0.09 !0.2
+       END DO
+     end if
+!Jadon Ge
 
   !==============================================================================|
   CASE(BR_GOTM) !GOTM FORMULATION FOR BOTTOM FRICTION    |
