@@ -58,6 +58,7 @@ MODULE MOD_FABM_3D
   LOGICAL :: USE_FABM_SALINITY
   LOGICAL :: USE_FABM_BOTTOM_THICKNESS
   LOGICAL :: FABM_DEBUG
+  LOGICAL :: PRINT_STATE
 
   NAMELIST /NML_FABM/                 &
          & STARTUP_FABM_TYPE,         &
@@ -469,6 +470,7 @@ MODULE MOD_FABM_3D
 
 SUBROUTINE FABM_UPDATE
      USE MOD_PAR
+     USE MOD_NESTING
 
      INTEGER :: IFABM
      LOGICAL :: VALID
@@ -477,7 +479,11 @@ SUBROUTINE FABM_UPDATE
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
      IF (FABM_DEBUG) THEN
-       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_SOURCES'
+       PRINT_STATE = .TRUE.
+       IF (.NOT.CHECK_STATE(.TRUE.)) THEN
+          WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_SOURCES'
+       END IF
+       PRINT_STATE = .FALSE.
      END IF
 
      ! Vertical movement (e.g., sinking or floating)
@@ -528,6 +534,9 @@ SUBROUTINE FABM_UPDATE
 # endif
      IF (FABM_DEBUG) THEN
        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_MIXING'
+     END IF
+     IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
+            CALL SET_VAR(intTime,FABM_ALL=FABM_F)
      END IF
 
 # if defined (MULTIPROCESSOR)
@@ -2094,12 +2103,35 @@ END SUBROUTINE FABM_ADV
 
      CHARACTER(LEN=256) :: string
 
-     INTEGER :: I,K
+     INTEGER :: I,K,IFABM
 
      I = location(1)
      K = location(2)
      WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,",Z=",G0.4," m,DZ=",G0.4," m, H=",G0.4," m, WET =",I0,", TOTAL_DEPTH =",G0.4," m)")') &
             NGID(I),K,LON(I),LAT(I),-ZZ(I,K)*D(I),DZ(I,K)*D(I),H(I),ISWETN(I),D(I)
+     IF (PRINT_STATE) THEN 
+
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'TEMPERATURE',T1(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'SALINITY',S1(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'DENSITY',DENSITY(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'CELL_THICKNESS',CELL_THICKNESS(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'PRESSURE',PRESSURE(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'BOTTOM_STRESS',BOTTOM_STRESS(I)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'WIND_SPEED',WIND_SPEED(I)
+       
+       DO IFABM=1,size(model%state_variables)
+         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_F(I,K,IFABM)
+       END DO
+ 
+       DO IFABM=1,size(model%state_variables)
+         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_ALL(I,K,IFABM)
+       END DO
+     
+       DO IFABM=1,size(model%bottom_state_variables)
+         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%bottom_state_variables(IFABM)%name),FABM_ALL_BT(I,IFABM)
+       END DO
+     END IF
+     
   END FUNCTION
 
 !==========================================================================

@@ -241,8 +241,8 @@ CONTAINS
 
           ! Start averaging data at Next_IO
           IF(NC_AVG%FTIME%NEXT_IO < IntTime) CALL ADD_AVERAGE
-          write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO
-          write(*,*) '             IntTime=',IntTime
+!          write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO
+!          write(*,*) '             IntTime=',IntTime
           
           ! When average interval is complete - write to file
           IF((NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL)  == IntTime)THEN
@@ -5940,9 +5940,11 @@ CONTAINS
 
   END FUNCTION FABM_FILE_OBJECT
 
-  FUNCTION ADD_FABM_VARIABLE(variable,pdata,pdata_hz) result(VAR)
+  FUNCTION ADD_FABM_VARIABLE(variable,pdata,pdata_hz,pdata3) result(VAR)
      USE fabm 
      class (type_external_variable),intent(in) :: variable
+   
+     REAL(SP), POINTER, OPTIONAL :: pdata3(:,:,:)
      REAL(SP), POINTER, OPTIONAL :: pdata(:,:)
      REAL(SP), POINTER, OPTIONAL :: pdata_hz(:)
      TYPE(NCVAR),  POINTER :: VAR
@@ -5951,7 +5953,10 @@ CONTAINS
      if (present(pdata)) then
        VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
            & values=pdata, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
-     elseif (present(pdata_hz)) then
+     elseif (present(pdata3)) then
+       VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
+           & values=pdata3, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
+      elseif (present(pdata_hz)) then
        VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
            & values=pdata_hz, DIM1= DIM_node, DIM2=DIM_time)
      else

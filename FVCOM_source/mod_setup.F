@@ -587,7 +587,7 @@ CONTAINS
           XM = XL
           YM = YL
           
-          ! USE PROJECTION TOOL BOX TO CONVERT TO METERS
+          ! USE PROJECTION TOOL BOX TO CONVERT TO DEGREES
         IF (SERIAL) THEN
            CALL meters2degrees(XL(1:MT),YL(1:MT), &
             & PROJECTION_REFERENCE,VX(1:MT),VY(1:MT),MT)
