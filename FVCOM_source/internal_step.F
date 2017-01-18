@@ -137,10 +137,12 @@ SUBROUTINE INTERNAL_STEP
     KH  = OFFLINEB_KH
     EL  = OFFLINEB_EL
     UARD_OBCN = OFFLINEB_UARD_OBCN ! this doesn't need broadcasting
+#if defined (WET_DRY)
     iswetn = INT(OFFLINEB_WN)
     iswetnt = iswetn
     iswetc = INT(OFFLINEB_WC)
     iswetct = iswetc
+# endif
     D = H + EL
     DT = D
     DTFA = D
@@ -152,11 +154,13 @@ SUBROUTINE INTERNAL_STEP
       CALL AEXCHANGE(EC,MYID,NPROCS,U,V)
       CALL AEXCHANGE(NC,MYID,NPROCS,S1,KH,WTS)
       CALL AEXCHANGE(NC,MYID,NPROCS,T1)
-      CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
       CALL AEXCHANGE(NC,MYID,NPROCS,EL,D,DT)
       CALL AEXCHANGE(NC,MYID,NPROCS,DTFA)
       CALL AEXCHANGE(EC,MYID,NPROCS,D1,DT1)
+# if defined (WET_DRY)
+      CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
       CALL AEXCHANGE(EC,MYID,NPROCS,iswetc,iswetct)
+# endif
     END IF
 # endif
 

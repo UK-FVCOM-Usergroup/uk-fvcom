@@ -776,15 +776,11 @@ MODULE CONTROL
     CHARACTER(LEN=80) STARTUP_BIO_TYPE  !!TYPE OF BIO START
 #if defined (FABM)
     LOGICAL FABM_MODEL
-    CHARACTER(LEN=80) STARTUP_FABM_TYPE  !!TYPE OF FABM START
 #endif
     LOGICAL SEDIMENT_MODEL
     CHARACTER(LEN=80) SEDIMENT_MODEL_FILE
 # if defined (OFFLINE_SEDIMENT)
     CHARACTER(LEN=80) OFFLINE_SEDIMENT_FILE
-# endif
-# if defined (OFFLINE_FABM)
-    CHARACTER(LEN=80) OFFLINE_FABM_FILE
 # endif
     CHARACTER(LEN=80) SEDIMENT_PARAMETER_TYPE
     CHARACTER(LEN=80) SEDIMENT_PARAMETER_FILE
@@ -843,14 +839,10 @@ MODULE CONTROL
          & DATA_ASSIMILATION,             &
          & DATA_ASSIMILATION_FILE,        &
          & BIOLOGICAL_MODEL,              &
-         & STARTUP_BIO_TYPE,              &
 !!$         & BIOLOGICAL_MODEL_FILE,         &
+         & STARTUP_BIO_TYPE,              &
 # if defined (FABM)
          & FABM_MODEL,                    &
-         & STARTUP_FABM_TYPE,             &
-#   if defined (OFFLINE_FABM)
-         & OFFLINE_FABM_FILE,             &
-#   endif
 # endif
          & SEDIMENT_MODEL,                &
          & SEDIMENT_MODEL_FILE,           &

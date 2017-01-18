@@ -34,7 +34,10 @@ SUBROUTINE SET_STARTUP_TYPE
 # endif    
 # if defined (BioGen)
   USE MOD_BIO_3D
-# endif    
+# endif 
+# if defined(FABM)
+  USE MOD_FABM_DATA
+# endif   
   IMPLICIT NONE
   INTEGER :: II
 

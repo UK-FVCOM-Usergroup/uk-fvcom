@@ -92,7 +92,7 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -lnetcdf
+             IOLIBS       =  -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz -lm
              IOINCS       =
 #--------------------------------------------------------------------------
 
@@ -276,7 +276,7 @@ dashL= $(empty) -L
 #        Physics, 54, 325-362, 1984
 #--------------------------------------------------------------------------
 
-            FLAG_15 = -DMPDATA
+#            FLAG_15 = -DMPDATA
 
 #--------------------------------------------------------------------------
 #         Run Two-D Barotropic Mode Only
@@ -359,7 +359,7 @@ dashL= $(empty) -L
 #         CALCULATE THE NET HEAT FLUX IN MODEL
 #--------------------------------------------------------------------------
 
-             FLAG_27 = -DHEATING_CALCULATED
+#             FLAG_27 = -DHEATING_CALCULATED
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
