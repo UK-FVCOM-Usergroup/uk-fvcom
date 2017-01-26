@@ -502,6 +502,12 @@ SUBROUTINE FABM_UPDATE
 
      ! Advection and horizontal diffusion
      CALL FABM_ADV  ! This applies advection and horizontal diffusion operators to FABM_ALL to compute forecast field FABM_F
+     IF (FABM_DEBUG) THEN
+       PRINT_STATE = .TRUE.
+        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_ADV'
+       PRINT_STATE = .FALSE.
+      END IF
+
 
      ! Redirect FABM to forecast pelagic state FABM_F to ensure that any further FABM calls (check_state, check_conservation)
      ! operate on the right data.
@@ -516,10 +522,6 @@ SUBROUTINE FABM_UPDATE
 #   endif
 
      IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
-     IF (FABM_DEBUG) THEN
-       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_ADV'
-     END IF
-
      ! Remove the impact of FABM_ADV on the open boundary nodes that experience inflow.
      ! For those, we want to run water column simulations that only include sources, residual vertical movement and vertical mixing.
      CALL FABM_BCOND_PREPARE
@@ -2118,7 +2120,14 @@ END SUBROUTINE FABM_ADV
        WRITE (IPT,'("  ",A,": ",G12.5)') 'PRESSURE',PRESSURE(I,K)
        WRITE (IPT,'("  ",A,": ",G12.5)') 'BOTTOM_STRESS',BOTTOM_STRESS(I)
        WRITE (IPT,'("  ",A,": ",G12.5)') 'WIND_SPEED',WIND_SPEED(I)
-       
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'surface_downwelling_shortwave_flux',SWRAD_WATTS(I)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'LATITUDE',LAT(I)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'LONGITUDE',LON(I)
+      IF (COMPUTE_DAYS_SINCE_YEAR_START) THEN
+                WRITE (IPT,'("  ",A,": ",G12.5)') 'number_of_days_since_start_of_the_year', DAYS_SINCE_YEAR_START
+      END IF
+
+
        DO IFABM=1,size(model%state_variables)
          WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_F(I,K,IFABM)
        END DO
