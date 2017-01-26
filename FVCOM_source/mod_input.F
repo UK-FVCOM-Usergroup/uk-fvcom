@@ -1580,7 +1580,7 @@ CONTAINS
 
 # if defined (OFFLINE_FABM)
     ! Check FABM file and open
-
+    IF (FABM_MODEL) THEN
        ! TEST FILE NAME
        charnum = index (OFFLINE_FABM_FILE,".nc",back)
        if (charnum /= len_trim(OFFLINE_FABM_FILE)-2)&
@@ -1597,7 +1597,7 @@ CONTAINS
           CALL NC_LOAD(NCF)
            FILEHEAD => ADD(FILEHEAD,NCF)
         end if
-
+     END IF
 # endif
 
     !Check RIVER files and open
