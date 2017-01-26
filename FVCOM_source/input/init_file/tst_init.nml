@@ -1,0 +1,11 @@
+&NML_INIT
+INPUT_DIR       = '../../../input',
+OUTPUT_DIR      = '../../../input',
+START_DATE      = '2007-01-01 00:00:00',
+TIMEZONE        = 'UTC',
+DATE_FORMAT     = 'YMD',
+GRID_FILE       = '1D_grd.dat',
+GRID_FILE_UNITS = 'meters',
+OLD_INIT_FILE   = '1D_its.dat'
+/
+

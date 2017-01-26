@@ -77,7 +77,6 @@ MODULE MOD_DYE
           & DYE_ON,                 &
           & DYE_RELEASE_START,      &
           & DYE_RELEASE_STOP,       &
-          & USE_REAL_WORLD_TIME,    &
           & KSPE_DYE,               &
           & MSPE_DYE,               &
           & K_SPECIFY,              &
@@ -104,8 +103,9 @@ MODULE MOD_DYE
    USE ALL_VARS
    IMPLICIT NONE
    INTEGER NCT
-   INTEGER NDB
-   
+   INTEGER NDB, status
+   INTEGER(ITIME) :: tstep
+   CHARACTER(LEN=4) :: BFLAG,EFLAG
 # if !defined (DOUBLE_PRECISION)
    NDB = 1       !!GWC BASE THIS ON KIND
 # else
@@ -130,6 +130,37 @@ MODULE MOD_DYE
 !   ALLOCATE(betain(0:MT,KB))       ;betain    = ZERO
 !   ALLOCATE(betaout(0:MT,KB))       ;betaout    = ZERO
 
+!   add convert time
+    SELECT CASE(USE_REAL_WORLD_TIME)
+      CASE(.TRUE.)
+          
+        DYESTART = READ_DATETIME(DYE_RELEASE_START,DATE_FORMAT,TIMEZONE,status)
+        if (status == 0 ) &
+           & Call Fatal_Error("Could not read the date string START_DATE: "//trim(DYE_RELEASE_START))
+
+        DYESTOP = READ_DATETIME(DYE_RELEASE_STOP,DATE_FORMAT,TIMEZONE,status)
+        if (status == 0) &
+           & Call Fatal_Error("Could not read the date string END_DATE: "//trim(DYE_RELEASE_STOP))
+
+        if(DYESTART .GT. DYESTOP) &
+           & Call Fatal_Error("Runfile Start_Date exceeds or equal to Stop_Date")
+          
+      CASE(.FALSE.) ! THIS MODEL IS USING IDEALIZED TIME
+
+        ! GET THE START AND END INFORMATION
+        CALL IDEAL_TIME_STRING2TIME(DYE_RELEASE_START,BFLAG,DYESTART,tstep)
+        CALL IDEAL_TIME_STRING2TIME(DYE_RELEASE_STOP,EFLAG,DYESTOP,tstep)
+
+        ! SANITY CHECK
+        IF (BFLAG /= EFLAG) CALL FATAL_ERROR&
+           ('IDEALIZED MODEL TIME SPECIFICATION IS INCORRENT',&
+           &'BEGIN AND END CAN BE IN EITHER CYCLES OR TIME BUT NOT MIXED',&
+           & trim(dye_release_start),trim(dye_release_stop) )
+
+    END SELECT
+!   end add convert time
+
+
    RETURN
    END SUBROUTINE ALLOC_VARS_DYE
 
@@ -141,10 +172,9 @@ MODULE MOD_DYE
    USE CONTROL
 
    IMPLICIT NONE
-   integer :: ios, i, status
+   integer :: ios, i
    Character(Len=120):: FNAME
-   CHARACTER(LEN=4) :: BFLAG,EFLAG
-   INTEGER(ITIME) :: tstep
+
 
    if(DBG_SET(dbg_sbr)) &
         & write(IPT,*) "Subroutine Begins: set_dye_param;"
@@ -167,35 +197,6 @@ MODULE MOD_DYE
        Call Fatal_Error('Can Not Read NameList NML_DYE_RELEASE from file:' //trim(FNAME))
     end if
 
-!   add convert time
-    SELECT CASE(USE_REAL_WORLD_TIME)
-      CASE(.TRUE.)
-          
-        DYESTART = READ_DATETIME(DYE_RELEASE_START,DATE_FORMAT,TIMEZONE,status)
-        if (status == 0 ) &
-           & Call Fatal_Error("Could not read the date string DYE_RELEASE_START: "//trim(DYE_RELEASE_START))
-
-        DYESTOP = READ_DATETIME(DYE_RELEASE_STOP,DATE_FORMAT,TIMEZONE,status)
-        if (status == 0) &
-           & Call Fatal_Error("Could not read the date string DYE_RELEASE_STOP: "//trim(DYE_RELEASE_STOP))
-
-        if(DYESTART .GT. DYESTOP) &
-           & Call Fatal_Error("Runfile Start_Date exceeds or equal to Stop_Date")
-          
-      CASE(.FALSE.) ! THIS MODEL IS USING IDEALIZED TIME
-
-        ! GET THE START AND END INFORMATION
-        CALL IDEAL_TIME_STRING2TIME(DYE_RELEASE_START,BFLAG,DYESTART,tstep)
-        CALL IDEAL_TIME_STRING2TIME(DYE_RELEASE_STOP,EFLAG,DYESTOP,tstep)
-
-        ! SANITY CHECK
-        IF (BFLAG /= EFLAG) CALL FATAL_ERROR&
-           ('IDEALIZED MODEL TIME SPECIFICATION IS INCORRENT',&
-           &'BEGIN AND END CAN BE IN EITHER CYCLES OR TIME BUT NOT MIXED',&
-           & trim(dye_release_start),trim(dye_release_stop) )
-
-    END SELECT
-!   end add convert time
 
     REWIND(NMLUNIT)
 

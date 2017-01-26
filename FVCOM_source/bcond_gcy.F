@@ -42,7 +42,7 @@
 !                                                                              |
 !==============================================================================|
 
-   SUBROUTINE BCOND_GCY(IDX)
+   SUBROUTINE BCOND_GCY(IDX,K_RK)
 
 !==============================================================================|
    USE ALL_VARS
@@ -89,7 +89,7 @@
    REAL(SP),POINTER :: eta_lcl(:), eta_gbl(:) ,elfgeo_gbl(:),elfgeo_lcl(:)
 
    INTEGER  I,J,K,I1,I2,J1,J2,II,L1,L2,IERR
-   INTEGER  cdx,ndx
+   INTEGER  cdx,ndx,K_RK
 
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: bcond_gcy: ",idx
@@ -102,8 +102,8 @@
 
    IF(OBC_ELEVATION_FORCING_ON) CALL BCOND_ASL
    CALL BCOND_ASL_CLP
-   CALL BCOND_GWI
-   CALL BCOND_BKI
+   CALL BCOND_GWI(K_RK)
+   CALL BCOND_BKI(K_RK)
    CALL BCOND_ORE
 
 !
@@ -500,7 +500,7 @@
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS,SED=SEDDIS)
 # endif
 # if defined(BioGen)
-         CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
+         IF(BIOLOGICAL_MODEL)CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
 # endif
 # if defined(FABM)
          IF (FABM_MODEL) CALL UPDATE_RIVERS(IntTime,QDIS,FABMR=FABMDIS)

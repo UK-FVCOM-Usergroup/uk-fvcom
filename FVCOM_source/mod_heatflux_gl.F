@@ -325,7 +325,11 @@ MODULE MOD_HEATFLUX
      ZO=CHARN*USR*USR/GRAV+0.11_SP*VISA/USR
      RR=ZO*USR/VISA
      L=ZU/ZET
+#    if !defined(DOUBLE_PRECISION)
      ZOQ=AMIN1(1.15e-4_SP,5.5e-5_SP/(RR**0.6_SP)) 
+#    else
+     ZOQ=DMIN1(1.15e-4_SP,5.5e-5_SP/(RR**0.6_SP)) 
+#    endif
      ZOT=ZOQ
      CALL PSIU_26(ZU/L,PSIU_26S)
      USR=UT*VON/(LOG(ZU/ZO)-PSIU_26S)
@@ -359,7 +363,11 @@ MODULE MOD_HEATFLUX
        TKT=XLAMX*VISW/(SQRT(RHOA/RHOW)*USR)
      ELSE
        XLAMX=6.0_SP
+#    if !defined(DOUBLE_PRECISION)
        TKT=AMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*USR))
+#    else
+       TKT=DMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*USR))
+#    endif
      END IF
 !           cool skin
 
@@ -379,7 +387,11 @@ MODULE MOD_HEATFLUX
 
 
 !****** compute transfer coeffs relative to ut @ meas. ht ********
+#  if !defined(DOUBLE_PRECISION)
    CD=TAU/RHOA/UT/AMAX1(.1_SP,DU)
+#  else
+   CD=TAU/RHOA/UT/DMAX1(.1_SP,DU)
+#  endif
    CH=-USR*TSR/UT/(DT-DTER*JCOOL)
    CE=-USR*QSR/(DQ-DQER*JCOOL)/UT
 
@@ -414,7 +426,11 @@ MODULE MOD_HEATFLUX
      F=ZET*ZET/(1._SP+ZET*ZET)
      PSI=(1._SP-F)*PSIK+F*PSIC
    ELSE
+#    if !defined(DOUBLE_PRECISION)
      C=AMIN1(50._SP,.35_SP*ZET)
+#    else
+     C=DMIN1(50._SP,.35_SP*ZET)
+#    endif
      PSI=-((1._SP+2._SP/3._SP*ZET)**1.5_SP+.6667_SP     &
          *(ZET-14.28_SP)/EXP(C)+8.525_SP)
    END IF
@@ -439,7 +455,11 @@ MODULE MOD_HEATFLUX
      F=ZET*ZET/(1._SP+ZET*ZET)
      PSI=(1._SP-F)*PSIK+F*PSIC
    ELSE
+#    if !defined(DOUBLE_PRECISION)
      C=AMIN1(50._SP,.35_SP*ZET)
+#    else
+     C=DMIN1(50._SP,.35_SP*ZET)
+#    endif
      PSI=-((1._SP+1.0_SP*ZET)**1.0_SP+.667_SP*(ZET-14.28_SP)/EXP(C)+8.525_SP)
    END IF
    

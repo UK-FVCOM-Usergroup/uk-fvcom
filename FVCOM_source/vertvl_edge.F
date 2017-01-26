@@ -238,8 +238,18 @@
    WBOTTOM = 0.0_SP
    WTS = 0.0_SP
 
+#  if defined (ICE)
+#  if defined (SEMI_IMPLICIT)
+   WTS(:,1) = -(QEVAP+QPREC+QPICE)*ROFVROS    !!yding
+#  else
+   WTS(:,1) = -(QEVAP+QPREC)*ROFVROS 
+#  endif
+#  else
+
 ! QXU changed sign of evap/precip
    WTS(:,1) = -(QEVAP+QPREC)*ROFVROS 
+
+#  endif
 
    ! SET BOTTOM VELOCITY
    WBOTTOM(1:M)=  BFWDIS(1:M)/ART1(1:M)
@@ -506,7 +516,19 @@
          TMP1=EL(I)*FLOAT(KBM1)-(WTS(I,KB)-WBOTTOM(I))*DTI/DZ(I,1)
 #        endif
          TMP1=TMP1/FLOAT(KBM1)
+
+#   if defined (ICE_EMBEDDING)
+         DTFA(I)=TMP1+H(I)-QTHICE(I)     !!yding   
+
+         IF (DTFA(I)-MIN_DEPTH<1.0E-5_SP) THEN   !!yding
+          DTFA(I) = MIN_DEPTH                    !!yding
+         END IF                                  !!yding
+
+#   else
+
          DTFA(I)=TMP1+H(I)
+#   endif
+
          DO K=2,KB
            WTS(I,K)=WTS(I,K)-FLOAT(K-1)/FLOAT(KBM1)*(WTS(I,KB)-WBOTTOM(I))
          END DO

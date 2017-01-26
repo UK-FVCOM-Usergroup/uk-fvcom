@@ -19,6 +19,7 @@
 Module Input_Util
 
 Use Mod_Prec 
+Use Mod_Utils
 Implicit None
 
 character(len=1), parameter :: com_char = '!'
@@ -33,6 +34,13 @@ Interface Get_Val
   Module Procedure Get_String_Val
   Module Procedure Get_Logical_Val
   Module Procedure Get_Integer_Val
+End Interface
+
+Interface Get_Val_Array
+  Module Procedure Get_Float_Val_Array
+  Module Procedure Get_string_Val_Array
+  Module Procedure Get_Logical_Val_Array
+  Module Procedure Get_Integer_Val_Array
 End Interface
 
 !----------------------------------------
@@ -273,6 +281,288 @@ contains
     endif
   endif
   End Subroutine Get_String_Val
+
+
+  !---------------------------------------------------------------------
+  !Get_Float_Val_Array -> Return Float Array
+  !---------------------------------------------------------------------
+  Subroutine Get_Float_Val_Array(fval,filename,argname,size,echo)  
+  implicit none
+
+  character(len=*), intent(in ) :: filename
+  character(len=*), intent(in ) :: argname
+  integer,intent(in)            :: SIZE
+  real(sp),dimension(size), intent(out) :: fval
+  logical, optional,intent(in)  :: echo
+ 
+ 
+
+  character(len=80) :: argval
+  character(len=80) :: argtype
+  integer           :: ierr
+  integer           :: iscan
+  integer           :: ntemp
+  real(sp)          :: ftemp
+  real(sp)          :: REALVEC(150)
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "Start:Get_Float_Val_Array "
+
+  !make sure file exists
+  if(.not.check_exist(filename))then
+    call error('Get_Val','halt','error reading: '//trim(argname), &
+              'file: '//trim(filename)//' does not exist') 
+  endif
+
+  !read in 
+  ISCAN = SCAN_FILE3(filename,argname,FVEC = REALVEC,NSZE = NTEMP)
+  IF(ISCAN /= 0)THEN
+     WRITE(IPT,*)'ERROR READING: ',trim(argname),': ',ISCAN
+     call error('Get_Val','halt','error reading variable: '//trim(argname), &
+        'does not exist in file: '//trim(filename)) 
+  END IF
+
+  IF(NTEMP > SIZE)THEN
+    WRITE(*,*)'EXPECTED SIZE:',SIZE
+    WRITE(*,*)'AND READ: ',REALVEC(1:ntemp)
+    call error('Get_Val','warning','warning reading variable: '//trim(argname), &
+        'number of specified size in : '//trim(filename)//' in not eq&
+        &ual to expected size,specified size is used in the model  ')
+  ELSEIF(NTEMP < SIZE)THEN
+    WRITE(*,*)'EXPECTED SIZE:',SIZE
+    WRITE(*,*)'AND READ: ',REALVEC
+    call error('Get_Val','halt','error reading variable: '//trim(argname), &
+        'number of specified size in : '//trim(filename)//' in not eq&
+        &ual to expected size ')
+  END IF
+  
+  FVAL(1:SIZE)= REALVEC(1:SIZE)
+
+  ! echo to screen 
+  if(present(echo))then
+    if(echo)then 
+      write(*,'(A20,<size>F10.4)')trim(argname)//': ',fval(1:SIZE)
+    endif
+  end if
+    
+  if(dbg_set(dbg_sbr)) write(ipt,*) "End: Get_Float_Val_Array "  
+
+  End Subroutine Get_Float_Val_Array
+
+
+
+
+
+  !---------------------------------------------------------------------
+  !Get_Float_Val_Array -> Return Float Array
+  !---------------------------------------------------------------------
+  Subroutine Get_Integer_Val_Array(ival,filename,argname,size,echo)  
+  implicit none
+
+  character(len=*), intent(in ) :: filename
+  character(len=*), intent(in ) :: argname
+  integer,intent(in)            :: SIZE
+  integer,dimension(size), intent(out) :: ival
+  logical, optional,intent(in)  :: echo
+ 
+ 
+
+  character(len=80) :: argval
+  character(len=80) :: argtype
+  integer           :: ierr
+  integer           :: iscan
+  integer           :: ntemp
+  real(sp)          :: ftemp
+  real(sp)          :: REALVEC(150)
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Get_Integer_Val_Array"
+
+  !make sure file exists
+  if(.not.check_exist(filename))then
+    call error('Get_Val','halt','error reading: '//trim(argname), &
+              'file: '//trim(filename)//' does not exist') 
+  endif
+
+  !read in 
+  ISCAN = SCAN_FILE3(filename,argname,FVEC = REALVEC,NSZE = NTEMP)
+  IF(ISCAN /= 0)THEN
+     WRITE(IPT,*)'ERROR READING',trim(argname),': ',ISCAN
+     call error('Get_Val','halt','error reading variable: '//trim(argname), &
+        'does not exist in file: '//trim(filename)) 
+  END IF
+  print*,ntemp, size
+  IF(NTEMP > SIZE)THEN
+    WRITE(*,*)'EXPECTED SIZE:',SIZE
+    WRITE(*,*)'AND READ: ',REALVEC(1:ntemp)
+    call error('Get_Val','warning','warning reading variable: '//trim(argname), &
+        'number of specified size in : '//trim(filename)//' in not eq&
+        &ual to expected size,specified size is used in the model  ')
+  ELSEIF(NTEMP < SIZE)THEN
+    WRITE(*,*)'EXPECTED SIZE:',SIZE
+    WRITE(*,*)'AND READ: ',REALVEC
+    call error('Get_Val','halt','error reading variable: '//trim(argname), &
+        'number of specified size in : '//trim(filename)//' in not eq&
+        &ual to expected size ')
+  END IF
+
+  iVAL(1:SIZE)= REALVEC(1:SIZE)
+
+  ! echo to screen 
+  if(present(echo))then
+    if(echo)then 
+      write(*,'(A20,<size>I10)')trim(argname)//': ',ival(1:SIZE)
+    endif
+  end if
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "End: Get_Integer_Val_Array"    
+
+  End Subroutine Get_Integer_Val_Array
+
+
+
+
+  !---------------------------------------------------------------------
+  !Get_Float_Val_Array -> Return Float Array
+  !---------------------------------------------------------------------
+  Subroutine Get_Logical_Val_Array(cval,filename,argname,size,echo)  
+  implicit none
+
+  character(len=*), intent(in ) :: filename
+  character(len=*), intent(in ) :: argname
+  integer,intent(in)            :: SIZE
+  logical,dimension(size), intent(out) :: cval
+  logical, optional,intent(in)  :: echo
+ 
+ 
+
+  character(len=80) :: argval
+  character(len=80) :: argtype
+  integer           :: ierr,i
+  integer           :: iscan
+  integer           :: ntemp
+  real(sp)          :: ftemp
+  character(len=80), dimension(100):: CHARVEC
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Get_Logical_Val_Array" 
+
+  !make sure file exists
+  if(.not.check_exist(filename))then
+    call error('Get_Val','halt','error reading: '//trim(argname), &
+              'file: '//trim(filename)//' does not exist') 
+  endif
+
+  !read in 
+  ISCAN = SCAN_FILE3(filename,argname,CVEC = CHARVEC,NSZE = NTEMP)
+  IF(ISCAN /= 0)THEN
+     WRITE(IPT,*)'ERROR READING:',trim(argname),': ',ISCAN
+     call error('Get_Val','halt','error reading variable: '//trim(argname), &
+        'does not exist in file: '//trim(filename)) 
+  END IF
+ 
+  IF(NTEMP > SIZE)THEN
+    WRITE(*,*)'EXPECTED SIZE:',SIZE
+    WRITE(*,*)'AND READ: ',CHARVEC(1:ntemp)
+    call error('Get_Val','warning','warning reading variable: '//trim(argname), &
+        'number of specified size in : '//trim(filename)//' in not eq&
+        &ual to expected size,specified size is used in the model  ')
+  ELSEIF(NTEMP < SIZE)THEN
+    WRITE(*,*)'EXPECTED SIZE:',SIZE
+    WRITE(*,*)'AND READ: ',CHARVEC
+    call error('Get_Val','halt','error reading variable: '//trim(argname), &
+        'number of specified size in : '//trim(filename)//' in not eq&
+        &ual to expected size ')
+  END IF
+
+  do i=1,size
+     IF((trim(CHARVEC(i))== "T" .OR. trim(CHARVEC(i))=="F").and.(len(trim(CHARVEC(i)))==1))THEN
+        if(trim(CHARVEC(i)) == "T")cVAL(i)=.true.
+        if(trim(CHARVEC(i)) == "F")cVAL(i)=.false.
+     end if
+  end do
+
+  ! echo to screen 
+  if(present(echo))then
+    if(echo)then 
+      write(*,'(A20,<size>L10)')trim(argname)//': ',cval(1:SIZE)
+    endif
+  end if
+    
+  if(dbg_set(dbg_sbr)) write(ipt,*) "End: Get_Logical_Val_Array"   
+
+  End Subroutine Get_Logical_Val_Array
+
+
+
+
+
+
+
+
+  !---------------------------------------------------------------------
+  !Get_String_Val_Array -> Return String Array
+  !---------------------------------------------------------------------
+  Subroutine Get_String_Val_Array(sval,filename,argname,size,echo)  
+  implicit none
+
+  character(len=*), intent(in ) :: filename
+  character(len=*), intent(in ) :: argname
+  integer,intent(in)            :: SIZE
+  character(len=*),dimension(size), intent(out) :: sval
+  logical, optional,intent(in)  :: echo
+ 
+ 
+
+  character(len=80) :: argval
+  character(len=80) :: argtype
+  integer           :: ierr,i
+  integer           :: iscan
+  integer           :: ntemp
+  real(sp)          :: ftemp
+  character(len=80), dimension(100):: CHARVEC
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Get_String_Val_Array" 
+
+  !make sure file exists
+  if(.not.check_exist(filename))then
+    call error('Get_Val','halt','error reading: '//trim(argname), &
+              'file: '//trim(filename)//' does not exist') 
+  endif
+
+  !read in 
+  ISCAN = SCAN_FILE3(filename,argname,CVEC = CHARVEC,NSZE = NTEMP)
+  IF(ISCAN /= 0)THEN
+     WRITE(IPT,*)'ERROR READING:',trim(argname),': ',ISCAN
+     call error('Get_Val','halt','error reading variable: '//trim(argname), &
+        'does not exist in file: '//trim(filename)) 
+  END IF
+ 
+  IF(NTEMP > SIZE)THEN
+    WRITE(*,*)'EXPECTED SIZE:',SIZE
+    WRITE(*,*)'AND READ: ',CHARVEC(1:ntemp)
+    call error('Get_Val','warning','warning reading variable: '//trim(argname), &
+        'number of specified size in : '//trim(filename)//' in not eq&
+        &ual to expected size,specified size is used in the model  ')
+  ELSEIF(NTEMP < SIZE)THEN
+    WRITE(*,*)'EXPECTED SIZE:',SIZE
+    WRITE(*,*)'AND READ: ',CHARVEC
+    call error('Get_Val','halt','error reading variable: '//trim(argname), &
+        'number of specified size in : '//trim(filename)//' in not eq&
+        &ual to expected size ')
+  END IF
+
+
+  sVAL(1:SIZE)= CHARVEC(1:SIZE)
+
+  ! echo to screen 
+  if(present(echo))then
+    if(echo)then 
+      write(*,'(A20,<size>A10)')trim(argname)//': ',sval(1:SIZE)
+    endif
+  end if
+    
+  if(dbg_set(dbg_sbr)) write(ipt,*) "End: Get_String_Val_Array"   
+
+  End Subroutine Get_String_Val_Array
+
 
 
   !---------------------------------------------------------------------

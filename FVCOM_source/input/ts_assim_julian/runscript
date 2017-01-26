@@ -1,0 +1,22 @@
+#!/bin/sh
+
+#PBS -l nodes=1:ppn=1
+#PBS -e ts.err
+#PBS -o ts.log
+#PBS -N ts
+#PBS -q serial
+
+#define MPI PATH
+OMPI_HOME=/home/software/mpi/openmpi1.3.4-intel
+
+#
+# Setup the OpenMPI topology 
+#
+n_proc=$(cat $PBS_NODEFILE | wc -l)
+
+cd $PBS_O_WORKDIR
+
+./xts_clim --filename=ARC_ts.nml
+
+
+exit 0

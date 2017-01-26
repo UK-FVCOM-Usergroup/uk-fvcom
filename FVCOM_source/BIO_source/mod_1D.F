@@ -5,8 +5,12 @@ MODULE MOD_1D
 !******************************************************************
      IMPLICIT NONE
      SAVE
-     INTEGER, PARAMETER    :: SPP              = SELECTED_REAL_KIND(6,30)
-     INTEGER, PARAMETER    :: DPP              = SELECTED_REAL_KIND(12,300)
+#    if !defined (DOUBLE_PRECISION)
+     INTEGER, PARAMETER    :: SPP = SELECTED_REAL_KIND(6,30)
+#    else
+     INTEGER, PARAMETER    :: SPP = SELECTED_REAL_KIND(12,300)
+#    endif
+     INTEGER, PARAMETER    :: DPP = SELECTED_REAL_KIND(12,300)
      INTEGER               :: KBV              ! VERTICAL LAYERS
      INTEGER               :: KBVM1            ! VERTICAL LAYERS MINUS 1
      INTEGER               :: NTT              ! TOTAL NUMBER OF STATE VARIALBES
@@ -15,7 +19,7 @@ MODULE MOD_1D
      CHARACTER(LEN=50)               :: STRUCTURE     ! MODEL STRUCTURE
      CHARACTER(LEN=50), ALLOCATABLE  :: BIO_NAME(:,:) ! VARIABLE NAME FOR NETCDF OUTPUT
 
-!     REAL(SPP), PARAMETER   :: ZERO             = 0.0_SPP
+!     REAL(SPP), PARAMETER  :: ZERO             = 0.0_SPP
      REAL(SPP), ALLOCATABLE :: BIO_VAR(:,:)     ! ENSEMBLE VARIABLES FOR MIXING
      REAL(SPP), ALLOCATABLE :: DELTA_D(:)       ! LAYER THICKNESS
      REAL(SPP), ALLOCATABLE :: DELTA_Z(:)       ! LAYER BETWEEN SIGMA CENTRE

@@ -15,7 +15,15 @@ MODULE MOD_FABM_3D
   USE MOD_PAR
 
   ! For reading FABM forcing data from NetCDF:
-  USE MOD_NCDIO
+  USE MOD_NCTOOLS
+
+# if defined (SEDIMENT)
+# if defined (ORIG_SED)
+  USE MOD_SED,only:csed
+# elif defined (CSTMS_SED)
+  USE MOD_SED_CSTMS,only:csed
+# endif
+# endif
 
   IMPLICIT NONE
 
@@ -37,6 +45,12 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE,TARGET :: DEPTH(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
   REAL(SP), ALLOCATABLE,TARGET :: BOTTOM_STRESS(:)
+# if defined (SEDIMENT)
+  REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM(:,:)   ! mg/m^3
+  REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM_g(:,:) ! g/m^3
+  REAL(SP), ALLOCATABLE,TARGET :: SPM_ABS_FABM(:,:)
+  REAL(SP), ALLOCATABLE,TARGET :: SPM_BB_FABM(:,:)
+# endif
   REAL(SP), ALLOCATABLE        :: FABM_OLD_BOTTOM_THICKNESS(:)
   REAL(SP) :: DAYS_SINCE_YEAR_START
   LOGICAL :: COMPUTE_DAYS_SINCE_YEAR_START
@@ -44,6 +58,7 @@ MODULE MOD_FABM_3D
   LOGICAL :: USE_FABM_SALINITY
   LOGICAL :: USE_FABM_BOTTOM_THICKNESS
   LOGICAL :: FABM_DEBUG
+  LOGICAL :: PRINT_STATE
 
   NAMELIST /NML_FABM/                 &
          & STARTUP_FABM_TYPE,         &
@@ -52,7 +67,8 @@ MODULE MOD_FABM_3D
 #  endif
          & USE_FABM_SALINITY,         &
          & USE_FABM_BOTTOM_THICKNESS, &
-         & FABM_DEBUG
+         & FABM_DEBUG, &
+         & FABM_DIAG_OUT
 
   TYPE (type_bulk_standard_variable),PARAMETER :: mass_concentration_of_solute &
      = type_bulk_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
@@ -95,6 +111,7 @@ MODULE MOD_FABM_3D
    USE_FABM_SALINITY = .FALSE.
    USE_FABM_BOTTOM_THICKNESS = .FALSE.
    FABM_DEBUG = .FALSE.
+   FABM_DIAG_OUT = .TRUE.
 
    END SUBROUTINE NAME_LIST_INITIALIZE_FABM  
 
@@ -140,8 +157,11 @@ MODULE MOD_FABM_3D
 
    SUBROUTINE FABM_ALLOCATE()
     INTEGER :: IFABM
-
+    
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_ALLOCATE"
     ALLOCATE(MASK_NONE(M)); MASK_NONE = 1
+
+    call CONFIGURE_OUTPUT
 
     ! Tell FABM about the extents of the spatial domain.
     call fabm_set_domain(model,M,KB)
@@ -159,6 +179,9 @@ MODULE MOD_FABM_3D
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
     ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
     call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:M,:))
+!    call fabm_link_data(model,spm1_from_host_model,fvcom_model_name(1:M,:)) ! FOR NEW SPM variables defined in ERSEM/src/shared.F90
+
+
     call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:M,:))
     call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
     call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:M))
@@ -169,7 +192,35 @@ MODULE MOD_FABM_3D
     ! TODO send standard_variables%number_of_days_since_start_of_the_year [scalar!] - must be a real number with fraction indicating time of day
 
     ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
+# if defined (SEDIMENT)
+!RJT June_2016
+    ! Suspended sediment concentration from FVCOM - currently only one variable
+    ! and for testing purposes it is constant everywhere. 
+    ! The commented code would only work if SPM was part of the
+    ! standard_variable list. We are taking a shortcut here by using ESS as the
+    ! hook, which is not a standard variable
+    IF (model%variable_needs_values(standard_variables%mass_concentration_of_suspended_matter)) THEN
+       ALLOCATE(SPM_FABM_g(0:MT,KB))
+       call fabm_link_bulk_data(model,standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:)) 
+    END IF
 
+    IF (model%variable_needs_values(type_bulk_standard_variable(name='mass_concentration_of_silt'))) THEN
+       ALLOCATE(SPM_FABM(0:MT,KB))
+       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='mass_concentration_of_silt'),SPM_FABM(1:M,:))
+    END IF
+
+    IF (model%variable_needs_values(type_bulk_standard_variable(name='absorption_of_silt'))) THEN
+       ALLOCATE(SPM_ABS_FABM(0:MT,KB))
+       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='absorption_of_silt'),SPM_ABS_FABM(1:M,:))
+    END IF
+
+    IF (model%variable_needs_values(type_bulk_standard_variable(name='backscatter_of_silt'))) THEN
+       ALLOCATE(SPM_BB_FABM(0:MT,KB))
+       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='backscatter_of_silt'),SPM_BB_FABM(1:M,:))
+    END IF
+
+! RJT June_2016
+# endif
     ! Cell thickness in m (from D and DZ)
     IF (model%variable_needs_values(standard_variables%cell_thickness)) THEN
        ALLOCATE(CELL_THICKNESS(0:MT,KB))
@@ -213,7 +264,7 @@ MODULE MOD_FABM_3D
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
     ALLOCATE(FABM_ALL_SF(0:MT,size(model%surface_state_variables))); FABM_ALL_SF =  0.001_SP
     ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)));           FABM_F       =  0.001_SP
-    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)));        FABM_MEAN    =  0.001_SP
+!    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)));        FABM_MEAN    =  0.001_SP
     ALLOCATE(FABM_TOTALS(size(model%conserved_quantities)));         FABM_TOTALS = 0
 
     ! Provide FABM with pointers to state variable data.
@@ -246,7 +297,7 @@ MODULE MOD_FABM_3D
     ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%state_variables))) ; XFLUX_OBCB  =  0.0_SP
     ALLOCATE(PFABMPXB(MT,size(model%state_variables)))        ; PFABMPXB    = ZERO
     ALLOCATE(PFABMPYB(MT,size(model%state_variables)))        ; PFABMPYB    = ZERO
-
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_ALLOCATE"
    END SUBROUTINE
 
    SUBROUTINE PREPARE_ENVIRONMENT()
@@ -297,6 +348,65 @@ MODULE MOD_FABM_3D
          ! Bottom stress from square of shear velocity - multiply with density
          BOTTOM_STRESS = TAUBM_N*(1+RHO1(:,KBM1))*1000
       END IF
+# if defined (SEDIMENT)
+!RJT June_2016
+! One of these two will be true (either using light or light_iop)
+! Light.F90 in ERSEM uses silt concentration
+      ! Aggregate FVCOM SPM variables into a single one for passing on to ERSEM
+      IF (ALLOCATED(SPM_FABM)) THEN
+         ! Pass on SPM concentrations in mg/m3. FVCOM units are in Kg/m3!! needs
+         ! to be scaled!
+         ! FVCOM variable would be sed(nsed)%conc...
+            SPM_FABM = CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+      END IF
+      IF (ALLOCATED(SPM_FABM_g)) THEN
+         ! Pass on SPM concentrations in g/m3. FVCOM units are in Kg/m3!! needs
+         ! to be scaled!
+         ! FVCOM variable would be sed(nsed)%conc...
+            SPM_FABM_g = CSED*10.0_SP**3.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+      END IF
+      ! Light_iop.F90 only needs absorption and backscattering so do the
+      ! aggregation here. Specific absorption and backscattering are hard coded
+      ! here. Should be in namelist... ideally in FABM.yaml but this requires
+      ! addiging the variables to ERSEM code (share.F90, CMakelist, ERSEM model
+      ! library) as they should be new variables and a new light_iop_spm.F90
+      ! file. 
+      IF (ALLOCATED(SPM_ABS_FABM)) THEN
+         ! Pass on SPM absorptions in 1/m FVCOM. Make it depth dependent here
+         ! for testing purposes.
+        DO K=1,KBM1
+         SPM_ABS_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
+                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
+         WHERE (D*ZZ(:,K) .le. MIN_DEPTH)    SPM_ABS_FABM(:,K) = 0.0_SP
+         WHERE (D*ZZ(:,K) .ge. 15.0_SP)      SPM_ABS_FABM(:,K) = 1.0_SP
+
+        ENDDO
+      ! using hard coded absorption coefficient. If using SPM concentrations,
+      ! this will need to be the specific absorption coefficient x SPM
+      ! concentraions. 
+        !SPM_ABS_FABM = SPM_ABS_FABM*0.7_SP
+        SPM_ABS_FABM = SPM_ABS_FABM*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+      END IF
+
+      IF (ALLOCATED(SPM_BB_FABM)) THEN
+         ! Pass on SPM backscatter coefficient in 1/m FVCOM. 
+        DO K=1,KBM1
+         SPM_BB_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
+                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
+         WHERE (D*ZZ(:,K) .le. MIN_DEPTH)    SPM_BB_FABM(:,K) = 0.0_SP
+         WHERE (D*ZZ(:,K) .ge. 15.0_SP)      SPM_BB_FABM(:,K) = 1.0_SP
+        ENDDO
+      ! using hard coded backscattering coefficient. If using SPM
+      ! concentrations, this will need to be the specific backscattering
+      ! coefficient x SPM concentraions
+        !SPM_BB_FABM = SPM_BB_FABM*0.1_SP
+        SPM_BB_FABM = SPM_BB_FABM*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+      END IF
+
+
+! RJT June_2016
+
+# endif
 
       IF (COMPUTE_DAYS_SINCE_YEAR_START) THEN
          string_local = WRITE_DATETIME(IntTime,3,'UTC')
@@ -309,7 +419,7 @@ MODULE MOD_FABM_3D
 
    SUBROUTINE FABM_INITIALIZE_STATE()
       INTEGER :: K
-
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_STATE" 
       IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIALIZE_STATE called before FABM_ALLOCATE")
 
       CALL PREPARE_ENVIRONMENT
@@ -330,11 +440,14 @@ MODULE MOD_FABM_3D
 # else
       call fabm_set_mask(model,MASK_NONE)
 # endif
-
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE" 
 
    END SUBROUTINE FABM_INITIALIZE_STATE
 
    SUBROUTINE FABM_INITIALIZE_DIAGNOSTICS()
+
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_DIAGNOSTICS" 
+
       ! Provide FABM with pointer to the dummy mask ("nothing masked") to ensure even diagnostics on dry points have a value.
       call fabm_set_mask(model,MASK_NONE)
 
@@ -351,18 +464,26 @@ MODULE MOD_FABM_3D
 
       ! Compute initial value of conserved quantity integrals
       CALL CHECK_CONSERVATION
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE" 
+
    END SUBROUTINE FABM_INITIALIZE_DIAGNOSTICS
 
 SUBROUTINE FABM_UPDATE
      USE MOD_PAR
+     USE MOD_NESTING
 
      INTEGER :: IFABM
      LOGICAL :: VALID
+     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE" 
 
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
      IF (FABM_DEBUG) THEN
-       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_SOURCES'
+       PRINT_STATE = .TRUE.
+       IF (.NOT.CHECK_STATE(.TRUE.)) THEN
+          WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_SOURCES'
+       END IF
+       PRINT_STATE = .FALSE.
      END IF
 
      ! Vertical movement (e.g., sinking or floating)
@@ -414,6 +535,9 @@ SUBROUTINE FABM_UPDATE
      IF (FABM_DEBUG) THEN
        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_MIXING'
      END IF
+     IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
+            CALL SET_VAR(intTime,FABM_ALL=FABM_F)
+     END IF
 
 # if defined (MULTIPROCESSOR)
      IF(PAR)CALL FABM_EXCHANGE(FABM_F)
@@ -426,6 +550,7 @@ SUBROUTINE FABM_UPDATE
      ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
      IF (FABM_DEBUG) THEN
        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_BCOND'
+!       WHERE (ISNAN(FABM_F)) FABM_F = ZERO
        IF (ANY(ISNAN(FABM_F))) CALL FATAL_ERROR("NaNs found in FABM state at the end of FABM_UPDATE.")
      ELSE
        VALID = CHECK_STATE(.TRUE.)
@@ -463,6 +588,8 @@ END SUBROUTINE REPORT_FABM
 SUBROUTINE FABM_UPDATE_SALINITY
    INTEGER :: I
 
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE_SALINITY" 
+
    ! Note that FABM salinity is expressed in g/L, NOT in g/kg as absolute salinity (TEOS 2010), which would come closer to PSU.
    ! Hence, we here divide by density in kg/L to get g/kg.
    ! [NB density residual rho will be the density computed previously for the old salinity value]
@@ -485,6 +612,8 @@ SUBROUTINE FABM_UPDATE_SALINITY
 
    ! Use updated salinity also on elements
    CALL N2E3D(S1,S)
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_UPDATE_SALINITY" 
+
 END SUBROUTINE FABM_UPDATE_SALINITY
 
 SUBROUTINE FABM_UPDATE_DEPTH
@@ -525,7 +654,7 @@ SUBROUTINE FABM_UPDATE_DEPTH
 #  endif
 
    END DO
-
+! Extend H to halo nodes
 # if defined (MULTIPROCESSOR)
    IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,H )
 # endif
@@ -644,7 +773,9 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_SOURCES :"
 
      CALL PREPARE_ENVIRONMENT
-
+# if defined (WET_DRY)
+     call fabm_set_mask(model,ISWETN(1:M))
+# endif
      ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
      DO K=1,KBM1
         CALL fabm_get_light_extinction(model,1,M,K,DUMMY)
@@ -656,10 +787,10 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
         CALL fabm_get_light(model,1,KBM1,I)
      END DO
 
-     FLUX_SF = 0
-     FLUX_BT = 0
-     SMS_SF = 0
-     SMS_BT = 0
+     FLUX_SF = 0.
+     FLUX_BT = 0.
+     SMS_SF = 0.
+     SMS_BT = 0.
 
      ! Get sources-sinks for interface-attached state variables, and cross-interface
      ! fluxes (air-sea gas exchange, sedimentation, pelagic-benthic diffusion flux)
@@ -1164,6 +1295,7 @@ END SUBROUTINE FABM_MIXING
   REAL(SP), DIMENSION(0:MT,KB)     :: FABM_FRESH    !! for source term which also bring mass volume
   INTEGER ITERA, NTERA
 #  endif
+   REAL(SP) :: FABM_MEAN
 
 
 
@@ -1236,6 +1368,7 @@ END SUBROUTINE FABM_MIXING
      PFPY  = 0.0_SP
      PFPXD = 0.0_SP
      PFPYD = 0.0_SP
+     FABM_MEAN = SUM(FABM_ALL(1:M,K,IFABM))/M
      DO I=1,M
         DO J=1,NTSN(I)-1
            I1=NBSN(I,J)
@@ -1243,20 +1376,20 @@ END SUBROUTINE FABM_MIXING
 
 #    if defined (WET_DRY)
          IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
-          FFD=0.5_SP*(FABM_ALL(I,K,IFABM)+FABM_ALL(I2,K,IFABM)-FABM_MEAN(I,K,IFABM)-FABM_MEAN(I2,K,IFABM))
+          FFD=0.5_SP*((FABM_ALL(I,K,IFABM)-FABM_MEAN)+(FABM_ALL(I2,K,IFABM)-FABM_MEAN))
           FF1=0.5_SP*(FABM_ALL(I,K,IFABM)+FABM_ALL(I2,K,IFABM))
 	 ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
-          FFD=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I,K,IFABM)-FABM_MEAN(I1,K,IFABM)-FABM_MEAN(I,K,IFABM))
+          FFD=0.5_SP*((FABM_ALL(I1,K,IFABM)-FABM_MEAN)+(FABM_ALL(I,K,IFABM)-FABM_MEAN))
           FF1=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I,K,IFABM))
 	 ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
-          FFD=FABM_ALL(I,K,IFABM)-FABM_MEAN(I,K,IFABM)
+          FFD=FABM_ALL(I,K,IFABM)-FABM_MEAN
           FF1=FABM_ALL(I,K,IFABM)
 	 ELSE
-          FFD=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM)-FABM_MEAN(I1,K,IFABM)-FABM_MEAN(I2,K,IFABM))
+          FFD=0.5_SP*((FABM_ALL(I1,K,IFABM)-FABM_MEAN)+(FABM_ALL(I2,K,IFABM)-FABM_MEAN))
           FF1=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM))
 	 END IF 
 #    else	 
-           FFD=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM)-FABM_MEAN(I1,K,IFABM)-FABM_MEAN(I2,K,IFABM))
+           FFD=0.5_SP*((FABM_ALL(I1,K,IFABM)-FABM_MEAN)+(FABM_ALL(I2,K,IFABM)-FABM_MEAN))
            FF1=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM))
 #    endif	 
 	 
@@ -1970,11 +2103,35 @@ END SUBROUTINE FABM_ADV
 
      CHARACTER(LEN=256) :: string
 
-     INTEGER :: I,K
+     INTEGER :: I,K,IFABM
 
      I = location(1)
      K = location(2)
-     WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,",Z=",G0.4," m,DZ=",G0.4," m)")') NGID(I),K,LON(I),LAT(I),ZZ(I,K)*D(I),DZ(I,K)*D(I)
+     WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,",Z=",G0.4," m,DZ=",G0.4," m, H=",G0.4," m, WET =",I0,", TOTAL_DEPTH =",G0.4," m)")') &
+            NGID(I),K,LON(I),LAT(I),-ZZ(I,K)*D(I),DZ(I,K)*D(I),H(I),ISWETN(I),D(I)
+     IF (PRINT_STATE) THEN 
+
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'TEMPERATURE',T1(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'SALINITY',S1(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'DENSITY',DENSITY(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'CELL_THICKNESS',CELL_THICKNESS(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'PRESSURE',PRESSURE(I,K)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'BOTTOM_STRESS',BOTTOM_STRESS(I)
+       WRITE (IPT,'("  ",A,": ",G12.5)') 'WIND_SPEED',WIND_SPEED(I)
+       
+       DO IFABM=1,size(model%state_variables)
+         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_F(I,K,IFABM)
+       END DO
+ 
+       DO IFABM=1,size(model%state_variables)
+         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_ALL(I,K,IFABM)
+       END DO
+     
+       DO IFABM=1,size(model%bottom_state_variables)
+         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%bottom_state_variables(IFABM)%name),FABM_ALL_BT(I,IFABM)
+       END DO
+     END IF
+     
   END FUNCTION
 
 !==========================================================================
@@ -2222,6 +2379,127 @@ SUBROUTINE UPDATE_FABM_INPUTS(NOW)
       FABM_INPUT => FABM_INPUT%NEXT
    END DO
 END SUBROUTINE UPDATE_FABM_INPUTS
+
+SUBROUTINE CONFIGURE_OUTPUT()
+   USE yaml_types
+   USE yaml,yaml_parse=>parse,yaml_error_length=>error_length
+   USE fabm_types,only: output_none, output_instantaneous
+
+   CHARACTER(LEN=*),PARAMETER       :: PATH = 'fabm_output.yaml'
+   LOGICAL                          :: FOUND
+   CLASS (type_node),       POINTER :: node
+   INTEGER, PARAMETER               :: yaml_unit = 901
+   CHARACTER(LEN=yaml_error_length) :: yaml_error
+   TYPE (type_error),       POINTER :: config_error
+   CLASS (type_dictionary), POINTER :: variablemap
+   TYPE (type_key_value_pair),POINTER :: pair
+   LOGICAL                          :: IN_OUTPUT
+   LOGICAL                          :: success
+
+   INQUIRE(FILE=PATH,EXIST=FOUND)
+   IF (.NOT.FOUND) RETURN
+
+   WRITE (IPT,*) 'Reading FABM output configuration from '//PATH
+
+   node => yaml_parse(PATH,yaml_unit,yaml_error)
+   IF (yaml_error/='') CALL FATAL_ERROR(TRIM(yaml_error))
+   IF (.not.ASSOCIATED(node)) CALL FATAL_ERROR('No configuration information found in '//PATH//'.')
+
+   ! Disable output for all variables by default
+   model%state_variables(:)%output = output_none
+   model%bottom_state_variables(:)%output = output_none
+   model%surface_state_variables(:)%output = output_none
+   model%diagnostic_variables(:)%save = .false.
+   model%horizontal_diagnostic_variables(:)%save = .false.
+
+   SELECT TYPE (node)
+   CLASS IS (type_dictionary)
+      variablemap => node%get_dictionary('variables',required=.false.,error=config_error)
+      if (associated(config_error)) CALL FATAL_ERROR(PATH//': '//TRIM(config_error%message))
+      pair => variablemap%first
+      DO WHILE (ASSOCIATED(pair))
+         SELECT TYPE (value=>pair%value)
+         CLASS IS (type_scalar)
+            IN_OUTPUT = value%to_logical(.TRUE.,success)
+            IF (.not.success) CALL FATAL_ERROR(PATH//': '//trim(value%path)//' is set to "'//trim(value%string)//'", which cannot be interpreted as a Boolean value.')
+            CALL SELECT_FOR_OUTPUT(TRIM(pair%key),IN_OUTPUT)
+         CLASS IS (type_null)
+            CALL FATAL_ERROR(PATH//': '//TRIM(value%path)//' must be set to a Boolean value, not to null.')
+         CLASS IS (type_dictionary)
+            CALL FATAL_ERROR(PATH//': '//TRIM(value%path)//' must be set to a Boolean value, not to a dictionary.')
+         END SELECT
+         pair => pair%next
+      END DO
+   CLASS IS (type_node)
+      CALL FATAL_ERROR(PATH//' should must a dictionary with key: value pairs at the root level, not a single value. Are you missing a trailing colon?')
+   END SELECT
+
+CONTAINS
+
+   SUBROUTINE SELECT_FOR_OUTPUT(NAME,IN_OUTPUT)
+      CHARACTER(LEN=*),INTENT(IN) :: NAME
+      LOGICAL,         INTENT(IN) :: IN_OUTPUT
+
+      CHARACTER(LEN=LEN(NAME)) :: NAME_
+      LOGICAL :: FOUND
+      INTEGER :: IFABM
+      INTEGER :: IASTERISK
+      INTEGER :: ISTOP
+      INTEGER :: OUTPUT_FLAG
+
+      IASTERISK = INDEX(NAME,'*')
+      IF (IASTERISK/=0) THEN
+         IF (IASTERISK/=LEN_TRIM(NAME)) CALL FATAL_ERROR(PATH//': invalid expression "'//TRIM(NAME)//'". The * symbol can only appear as last character.')
+         ISTOP = IASTERISK-1
+         NAME_ = NAME(1:ISTOP)
+      ELSE
+         ISTOP = attribute_length
+         NAME_ = NAME
+      END IF
+
+      OUTPUT_FLAG = output_instantaneous
+      IF (.NOT.IN_OUTPUT) OUTPUT_FLAG = output_none
+
+      FOUND = .FALSE.
+      DO IFABM=1,SIZE(model%state_variables)
+         IF (model%state_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%state_variables(IFABM)%output = OUTPUT_FLAG
+            WRITE (IPT,*) '- '//TRIM(model%state_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      DO IFABM=1,SIZE(model%bottom_state_variables)
+         IF (model%bottom_state_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%bottom_state_variables(IFABM)%output = OUTPUT_FLAG
+            WRITE (IPT,*) '- '//TRIM(model%bottom_state_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      DO IFABM=1,SIZE(model%surface_state_variables)
+         IF (model%surface_state_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%surface_state_variables(IFABM)%output = OUTPUT_FLAG
+            WRITE (IPT,*) '- '//TRIM(model%surface_state_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      DO IFABM=1,SIZE(model%diagnostic_variables)
+         IF (model%diagnostic_variables(IFABM)%output/=output_none .and. model%diagnostic_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%diagnostic_variables(IFABM)%save = IN_OUTPUT
+            WRITE (IPT,*) '- '//TRIM(model%diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      DO IFABM=1,SIZE(model%horizontal_diagnostic_variables)
+         IF (model%horizontal_diagnostic_variables(IFABM)%output/=output_none .and. model%horizontal_diagnostic_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%horizontal_diagnostic_variables(IFABM)%save = IN_OUTPUT
+            WRITE (IPT,*) '- '//TRIM(model%horizontal_diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
+            FOUND = .TRUE.
+         END IF
+      END DO
+      IF (.NOT.FOUND) CALL FATAL_ERROR(PATH//': FABM variable with name "'//TRIM(NAME)//'" not found.')
+   END SUBROUTINE
+
+END SUBROUTINE
 
 # endif
 
