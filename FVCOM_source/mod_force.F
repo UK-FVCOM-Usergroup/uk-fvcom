@@ -1487,7 +1487,8 @@ CONTAINS
        !=========================
        ! TIME SERIES FORCING DATA
     CASE("FVCOM JULIAN TIME SERIES ELEVATION FORCING FILE", &
-         & "FVCOM TIME SERIES ELEVATION FORCING FILE")
+         & "FVCOM TIME SERIES ELEVATION FORCING FILE", &
+         & "FVCOM nesting TIME SERIES FILE")
        !=========================
 
        ALLOCATE(TIDE_FORCING_COMMENTS(1))
@@ -3934,7 +3935,8 @@ CONTAINS
     SELECT CASE(TRIM(ATT%CHR(1)))
        !=================================
        ! TIME SERIES OBC TEMPERATURE NUDGING DATA
-    CASE("FVCOM TIME SERIES OBC TS FILE")
+    CASE("FVCOM TIME SERIES OBC TS FILE", & 
+        & "FVCOM nesting TIME SERIES FILE")
        !==================================         
 
        OBC_T_TYPE = OBC_T_SIGMA
