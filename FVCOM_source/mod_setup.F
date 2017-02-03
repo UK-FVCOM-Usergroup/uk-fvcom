@@ -352,13 +352,20 @@ CONTAINS
           write(IPT,*) "! Setting Staticly Variable Bottom Roughness"
        end if
 
-       CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B)
+!       CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B)
+!Jadon Ge
+       CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B,NUNI_CBCMIN)
+!Jadon Ge
               
     else if(BOTTOM_ROUGHNESS_KIND .eq. CNSTNT) THEN
        
        CC_Z0B    = BOTTOM_ROUGHNESS_LENGTHSCALE
        CC_Z0B(0) = 0.0_SP
        
+!Jadon Ge
+!       CBCMIN    = BOTTOM_ROUGHNESS_MINIMUM
+!       CBCMIN(0) = 0.0_SP
+!Jadon Ge
     else
        CALL FATAL_ERROR&
             &("HORIZONTAL_MIXING_KIND ERROR",&
