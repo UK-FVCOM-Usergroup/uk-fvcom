@@ -10,18 +10,20 @@ INSTALLDIR    = $(FVCOM)/input/surface_forcing/wrf_bulk_formula/install/
 MODS          = $(FVCOM)
 DEF_FLAGS     = -C
 COMPILER      = -DGFORTRAN
-FC            = gfortran -ffree-line-length-none
-CC            = gcc
-CPP           = /lib/cpp
+FC            = mpif90
+CC            = mpicc
+CXX           = mpicxx
+CPP           = mpicc -E
 CPPFLAGS      = $(DEF_FLAGS) -DGFORTRAN
 CXXFLAGS      = -O2
-CFLAGS        = -O2
-FFLAGS        = -O2
-LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -lnetcdff -I$(INSTALLDIR)/include -I$(FVCOMLIBS)include -L$(FVCOMLIBS)lib -ljulian
+CFLAGS        = -O2 -std=c99
+FFLAGS        = -O2 -ffree-line-length-none -Wall -Wno-pedantic -Wno-maybe-uninitialized -Wno-unused-variable
+LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -lnetcdff -L$(FVCOMLIBS)lib -ljulian
+INCS          = -I/usr/lib64/gfortran/modules/mpich/ -I/usr/include -I$(INSTALLDIR)/include -I$(FVCOMLIBS)include -I/usr/lib64/gfortran/modules
 EXEC          = wrf_to_fvcom
 
 all:
-	$(FC) -I$(MODS) $(MODS)/mod_time.o $(EXEC).f90 $(FFLAGS) $(LIBS) -o $(EXEC)
+	$(FC) -I$(MODS) $(MODS)/mod_time.o $(EXEC).f90 $(FFLAGS) $(LIBS) $(INCS) -o $(EXEC)
 
 libs:
 	mkdir libs || true
