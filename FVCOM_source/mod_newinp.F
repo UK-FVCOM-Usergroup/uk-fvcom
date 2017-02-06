@@ -340,7 +340,7 @@ contains
   ! echo to screen 
   if(present(echo))then
     if(echo)then 
-      write(*,'(A20,<size>F10.4)')trim(argname)//': ',fval(1:SIZE)
+      write(*,'(A20,F10.4)')trim(argname)//': ',fval(1:SIZE)
     endif
   end if
     
@@ -409,7 +409,7 @@ contains
   ! echo to screen 
   if(present(echo))then
     if(echo)then 
-      write(*,'(A20,<size>I10)')trim(argname)//': ',ival(1:SIZE)
+      write(*,'(A20,I10)')trim(argname)//': ',ival(1:SIZE)
     endif
   end if
 
@@ -482,7 +482,7 @@ contains
   ! echo to screen 
   if(present(echo))then
     if(echo)then 
-      write(*,'(A20,<size>L10)')trim(argname)//': ',cval(1:SIZE)
+      write(*,'(A20,L10)')trim(argname)//': ',cval(1:SIZE)
     endif
   end if
     
@@ -555,7 +555,7 @@ contains
   ! echo to screen 
   if(present(echo))then
     if(echo)then 
-      write(*,'(A20,<size>A10)')trim(argname)//': ',sval(1:SIZE)
+      write(*,'(A20,A10)')trim(argname)//': ',sval(1:SIZE)
     endif
   end if
     
