@@ -190,7 +190,7 @@ Module Scalar
 !	 END IF
  
 !J. Ge for tracer advection
-         IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+         IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
            IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
             FFD=0.5_SP*(f(I,K)+f(I2,K))
             FF1=0.5_SP*(f(I,K)+f(I2,K))
@@ -241,7 +241,7 @@ Module Scalar
 !         ffd=0.5_sp*(f(i1,k)+f(i2,k)) !-fmean1(i1,k)-fmean1(i2,k))
 !         ff1=0.5_sp*(f(i1,k)+f(i2,k))
 !J. Ge for tracer advection	 
-         IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+         IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
            FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
            FF1=0.5_SP*(f(I1,K)+f(I2,K))
          ELSE
@@ -282,7 +282,7 @@ Module Scalar
 !             FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
 !             FF1=0.5_SP*(f(I1,K)+f(I2,K))
 !J. Ge for tracer advection
-             IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+             IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
                FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
                FF1=0.5_SP*(f(I1,K)+f(I2,K))
              ELSE
@@ -496,7 +496,7 @@ Module Scalar
 !       fij1=f(ia,k)+dxa*pfpx(ia)+dya*pfpy(ia)
 !       fij2=f(ib,k)+dxb*pfpx(ib)+dyb*pfpy(ib)
 !J. Ge for tracer advection
-       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+       IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
          fij1=f(ia,k)+dxa*pfpx(ia)+dya*pfpy(ia)
          fij2=f(ib,k)+dxb*pfpx(ib)+dyb*pfpy(ib)
        ELSE
@@ -630,7 +630,7 @@ Module Scalar
 !J. Ge for tracer advection
        !w_tmp = wvel(1:kb)
        !dz_tmp= dz(i,1:kbm1)
-       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+       IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
          ftmp = f(i,1:kbm1)
          !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
          call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),dz(i,1:kbm1),vflux)
@@ -649,7 +649,7 @@ Module Scalar
 !J. Ge for tracer advection
        !w_tmp = wts(i,1:kb)
        !dz_tmp= dz(i,1:kbm1)
-       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+       IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
          ftmp = f(i,1:kbm1)
          !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
          call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
@@ -668,7 +668,7 @@ Module Scalar
 !J. Ge for tracer advection
        !w_tmp = wts(i,1:kb)
        !dz_tmp= dz(i,1:kbm1)
-       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+       IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
          !ftmp = f(i,1:kbm1)
          !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
          call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
@@ -745,7 +745,7 @@ Module Scalar
           do k=1,kbm1
             fpoint = f(jj,k)
 !J. Ge for tracer advection
-            IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+            IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
               fpoint = f(jj,k)
             ELSE
               IF(BACKWARD_STEP==1)THEN
