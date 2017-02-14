@@ -2473,35 +2473,35 @@ CONTAINS
       DO IFABM=1,SIZE(model%state_variables)
          IF (model%state_variables(IFABM)%name(1:ISTOP)==NAME_) then
             model%state_variables(IFABM)%output = OUTPUT_FLAG
-            WRITE (IPT,*) '- '//TRIM(model%state_variables(IFABM)%name)//' =',IN_OUTPUT
+!            WRITE (IPT,*) '- '//TRIM(model%state_variables(IFABM)%name)//' =',IN_OUTPUT
             FOUND = .TRUE.
          END IF
       END DO
       DO IFABM=1,SIZE(model%bottom_state_variables)
          IF (model%bottom_state_variables(IFABM)%name(1:ISTOP)==NAME_) then
             model%bottom_state_variables(IFABM)%output = OUTPUT_FLAG
-            WRITE (IPT,*) '- '//TRIM(model%bottom_state_variables(IFABM)%name)//' =',IN_OUTPUT
+!            WRITE (IPT,*) '- '//TRIM(model%bottom_state_variables(IFABM)%name)//' =',IN_OUTPUT
             FOUND = .TRUE.
          END IF
       END DO
       DO IFABM=1,SIZE(model%surface_state_variables)
          IF (model%surface_state_variables(IFABM)%name(1:ISTOP)==NAME_) then
             model%surface_state_variables(IFABM)%output = OUTPUT_FLAG
-            WRITE (IPT,*) '- '//TRIM(model%surface_state_variables(IFABM)%name)//' =',IN_OUTPUT
+!            WRITE (IPT,*) '- '//TRIM(model%surface_state_variables(IFABM)%name)//' =',IN_OUTPUT
             FOUND = .TRUE.
          END IF
       END DO
       DO IFABM=1,SIZE(model%diagnostic_variables)
          IF (model%diagnostic_variables(IFABM)%output/=output_none .and. model%diagnostic_variables(IFABM)%name(1:ISTOP)==NAME_) then
             model%diagnostic_variables(IFABM)%save = IN_OUTPUT
-            WRITE (IPT,*) '- '//TRIM(model%diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
+!            WRITE (IPT,*) '- '//TRIM(model%diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
             FOUND = .TRUE.
          END IF
       END DO
       DO IFABM=1,SIZE(model%horizontal_diagnostic_variables)
          IF (model%horizontal_diagnostic_variables(IFABM)%output/=output_none .and. model%horizontal_diagnostic_variables(IFABM)%name(1:ISTOP)==NAME_) then
             model%horizontal_diagnostic_variables(IFABM)%save = IN_OUTPUT
-            WRITE (IPT,*) '- '//TRIM(model%horizontal_diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
+!            WRITE (IPT,*) '- '//TRIM(model%horizontal_diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
             FOUND = .TRUE.
          END IF
       END DO
