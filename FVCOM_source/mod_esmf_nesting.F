@@ -375,6 +375,7 @@ CHARACTER(LEN=80), ALLOCATABLE :: NEST_FNAMES(:),NEST_FNAMES_CELL(:)
     CHARACTER(LEN=80) :: PATHNFILE, TEMP,TEMP2
     INTEGER :: ISCAN,IOS,sender,IERR
 
+# if defined(MULTIPROCESSOR)
     IF(MSR)THEN
 
        !============================================
@@ -461,6 +462,7 @@ CHARACTER(LEN=80), ALLOCATABLE :: NEST_FNAMES(:),NEST_FNAMES_CELL(:)
     
     CALL MPI_BCAST(NESTID,NNODE,MPI_INTEGER,SENDER,MPI_FVCOM_GROUP,IERR)
 
+#endif
      RETURN
   END SUBROUTINE LOAD_NESTING_NODE_FILE
   !==============================================================================!
@@ -477,6 +479,7 @@ CHARACTER(LEN=80), ALLOCATABLE :: NEST_FNAMES(:),NEST_FNAMES_CELL(:)
     INTEGER :: ISCAN,IOS,sender,IERR
     INTEGER, PARAMETER :: NESTUNIT1=32
 
+# if defined(MULTIPROCESSOR)
     IF(MSR)THEN
 
        !============================================
@@ -564,6 +567,7 @@ CHARACTER(LEN=80), ALLOCATABLE :: NEST_FNAMES(:),NEST_FNAMES_CELL(:)
     
     CALL MPI_BCAST(NESTCID,NCELL*2,MPI_INTEGER,SENDER,MPI_FVCOM_GROUP,IERR)
 
+#endif
      RETURN
   END SUBROUTINE LOAD_NESTING_CELL_FILE
   !==============================================================================!
@@ -600,6 +604,7 @@ SUBROUTINE GENMAP_NEST(NG)
 
 !JQI  TYPE(MAP), POINTER, DIMENSION(:) :: E_MAP,N_MAP
 
+# if defined (MULTIPROCESSOR)
   if (dbg_set(dbg_sbr)) &
        & write(IPT,*) "START: GENMAP_NCNEST"
 
@@ -896,6 +901,7 @@ SUBROUTINE GENMAP_NEST(NG)
 
   if (dbg_set(dbg_sbr)) &
        & write(IPT,*) "END: GENMAP_NCNEST"   
+#endif
 
   RETURN
 END SUBROUTINE GENMAP_NEST
