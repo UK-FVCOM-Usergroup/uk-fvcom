@@ -4,7 +4,7 @@ mod_types.o : mod_types.F mod_prec.o mod_prec.o
 mod_time.o : mod_time.F mod_prec.o mod_prec.o 
 mod_main.o : mod_main.F mod_types.o mod_time.o mod_prec.o mod_prec.o 
 mod_spherical.o : mod_spherical.F mod_main.o mod_prec.o mod_main.o mod_prec.o 
-mod_utils.o : mod_utils.F swmod1.o mod_main.o mod_main.o mod_main.o mod_prec.o mod_prec.o 
+mod_utils.o : mod_utils.F swmod1.o mod_main.o mod_main.o mod_main.o mod_prec.o mod_prec.o mod_spherical.o 
 mod_clock.o : mod_clock.F mod_utils.o mod_main.o mod_time.o mod_prec.o mod_prec.o 
 eqs_of_state.o : eqs_of_state.F mod_prec.o mod_utils.o mod_main.o mod_prec.o 
 mod_bulk.o : mod_bulk.F mod_prec.o mod_prec.o 
@@ -13,7 +13,7 @@ mod_par.o : mod_par.F mod_main.o mod_time.o mod_main.o mod_utils.o mod_types.o m
 mod_par_special.o : mod_par_special.F mod_main.o mod_time.o mod_main.o mod_utils.o mod_types.o mod_prec.o 
 mod_ncll.o : mod_ncll.F mod_main.o mod_interp.o mod_utils.o mod_time.o mod_prec.o 
 mod_nctools.o : mod_nctools.F mod_main.o mod_par_special.o mod_main.o mod_ncll.o mod_prec.o 
-mod_wd.o : mod_wd.F mod_par_special.o mod_main.o mod_prec.o mod_prec.o 
+mod_wd.o : mod_wd.F mod_par.o mod_par_special.o mod_main.o mod_prec.o mod_prec.o 
 mod_sng.o : mod_sng.F mod_utils.o mod_prec.o 
 mod_heatflux.o : mod_heatflux.F mod_main.o mod_prec.o mod_utils.o mod_main.o mod_prec.o 
 mod_solar.o : mod_solar.F mod_main.o mod_prec.o mod_utils.o mod_main.o mod_prec.o 
@@ -35,7 +35,7 @@ ice_grid.o : ice_grid.F ice_model_size.o mod_main.o mod_utils.o ice_work.o ice_f
 ice_albedo.o : ice_albedo.F ice_state.o ice_grid.o ice_constants.o ice_domain.o ice_kinds_mod.o mod_prec.o 
 ice_calendar.o : ice_calendar.F ice_fileunits.o ice_constants.o mod_prec.o 
 ice_flux.o : ice_flux.F ice_state.o ice_constants.o ice_domain.o ice_kinds_mod.o mod_prec.o 
-ice_flux_in.o : ice_flux_in.F ice_work.o ice_state.o ice_albedo.o ice_grid.o mod_main.o ice_fileunits.o ice_calendar.o ice_flux.o ice_constants.o ice_domain.o ice_kinds_mod.o mod_prec.o 
+ice_flux_in.o : ice_flux_in.F ice_work.o ice_state.o ice_albedo.o ice_grid.o mod_main.o ice_fileunits.o ice_calendar.o ice_flux.o ice_constants.o ice_domain.o ice_kinds_mod.o mod_prec.o mod_utils.o
 ice_itd.o : ice_itd.F ice_calendar.o ice_work.o ice_grid.o ice_flux.o ice_domain.o ice_fileunits.o ice_state.o ice_constants.o ice_model_size.o ice_kinds_mod.o mod_prec.o 
 ice_mechred.o : ice_mechred.F ice_flux.o ice_work.o ice_calendar.o ice_domain.o ice_fileunits.o ice_grid.o ice_itd.o ice_state.o ice_constants.o ice_model_size.o mod_prec.o 
 ice_itd_linear.o : ice_itd_linear.F ice_fileunits.o ice_calendar.o ice_itd.o ice_state.o ice_constants.o ice_domain.o ice_kinds_mod.o ice_model_size.o mod_prec.o 
@@ -116,7 +116,7 @@ print_vals.o : print_vals.F mod_assim.o mod_par_special.o mod_obcs.o mod_main.o 
 coords_n_const.o : coords_n_const.F mod_setup.o mod_input.o mod_prec.o 
 shape_coef_gcn.o : shape_coef_gcn.F mod_spherical.o mod_utils.o mod_prec.o 
 shape_coef_gcy.o : shape_coef_gcy.F mod_spherical.o mod_utils.o mod_main.o mod_prec.o 
-depth_grad.o : depth_grad.F mod_par_special.o mod_main.o mod_prec.o 
+depth_grad.o : depth_grad.F mod_par.o mod_par_special.o mod_main.o mod_prec.o 
 grid_metrics.o : grid_metrics.F mod_dam.o mod_nesting.o mod_sparse_timeseries.o mod_station_timeseries.o mod_setup.o mod_northpole.o mod_main.o mod_obcs.o mod_par_special.o mod_prec.o 
 cntrl_prmtrs.o : cntrl_prmtrs.F mod_heatflux_gl.o mod_nesting.o mod_ncdio.o mod_time.o mod_assim.o mod_utils.o mod_main.o mod_main.o mod_prec.o 
 init_sed.o : init_sed.F mod_sed_cstms.o mod_main.o mod_sed.o mod_prec.o eqs_of_state.o mod_main.o mod_input.o mod_nctools.o mod_utils.o mod_prec.o 
