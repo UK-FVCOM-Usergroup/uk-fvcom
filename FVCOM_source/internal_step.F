@@ -1216,6 +1216,12 @@ SUBROUTINE INTERNAL_STEP
      CALL FABM_UPDATE_DEPTH
   END IF
 # if defined (DATA_ASSIM)
+  ELSEIF (.NOT. DATA_ASSIMILATION) THEN
+!----------------------------------------------------!
+  IF (FABM_MODEL) THEN
+     CALL FABM_UPDATE
+     CALL FABM_UPDATE_DEPTH
+  ENDIF
   ENDIF
 # endif
 #   endif
