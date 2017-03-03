@@ -5924,7 +5924,9 @@ CONTAINS
           NCF  => ADD(NCF,VAR)
         END IF
       END DO
+   END IF
 
+   IF (ISET/=2.AND.FABM_DIAG_OUT) THEN
       DO II=1,size(model%conserved_quantities)
         VAR  => NC_MAKE_AVAR(name=TRIM(model%conserved_quantities(II)%name),       &
            & values=FABM_TOTALS(II), DIM1=DIM_time)
