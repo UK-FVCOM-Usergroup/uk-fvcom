@@ -570,6 +570,7 @@ CONTAINS
        if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: MGL =",NESTING_GRID%MGL
        if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: NGL =",NESTING_GRID%NGL
 
+
        ALLOCATE(H_L(0:NESTING_GRID%MT));          H_L   = 0.0_SP
        ALLOCATE(H1_L(0:NESTING_GRID%NT));         H1_L  = 0.0_SP
        ALLOCATE(ZZ_L(0:NESTING_GRID%MT,KBM1_L));  ZZ_L  = 0.0_SP
@@ -1320,7 +1321,6 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      
      N_max = RBUF
      DEALLOCATE(RBUF)
-     
           
      ! REPORT ANY DISCREPANCY IN GRID LOCATIONS
      Dmax= max(maxval(E_max),maxval(N_max))
@@ -1330,12 +1330,14 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
            write(IPT,*) "! NESTING GRID MATCH ERROR:"
            write(IPT,*) "! Largest Cell Error:",maxval(E_max)
            write(IPT,*) "! Largest Node Error:",maxval(N_max)
+ !           write(IPT,*) "! Global Element indices: EGID_X =",EID
+
         ELSE
            write(IPT,*) "! NESTING GRID MATCH IS EXACT!"
         end if
      END if
      DEALLOCATE(E_MAX,N_MAX)
-     
+  
      
 !============================================
 ! Make a list of the local Nesting nodes
@@ -1441,6 +1443,12 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 
      DEALLOCATE(TEMP3)
      DEALLOCATE(TEMP4)
+!RJT debuggin nesting 
+       write(IPT,*) "! Global nodal indices: NGID_X ="
+     DO I=1,LG%MT
+       write(IPT,*)NGID(LG%NLID_X(I))
+     ENDDO 
+
 
   END IF ! END IF IOPROC
 

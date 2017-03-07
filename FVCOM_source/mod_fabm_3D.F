@@ -45,6 +45,11 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE,TARGET :: DEPTH(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
   REAL(SP), ALLOCATABLE,TARGET :: BOTTOM_STRESS(:)
+! DUMMY VARIABLE TO FIX VALUES IN SELECTED ERSEM VARIABLES
+! RJT use sparingly 
+!  REAL(SP), ALLOCATABLE,TARGET :: ERSEM1(:,:)
+!  INTEGER :: ERSEMid
+!RJT 
 # if defined (SEDIMENT)
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM(:,:)   ! mg/m^3
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM_g(:,:) ! g/m^3
@@ -78,7 +83,7 @@ MODULE MOD_FABM_3D
   REAL(SP), POINTER :: FABM_SALT_DENSITY(:,:)
   REAL(SP), POINTER :: FABM_BOTTOM_THICKNESS(:)
 
-  INTEGER, ALLOCATABLE, TARGET :: MASK_NONE(:)
+  INTEGER, ALLOCATABLE, TARGET :: MASK_NONE(:), MASK_SAFE(:)
 
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
@@ -157,9 +162,15 @@ MODULE MOD_FABM_3D
 
    SUBROUTINE FABM_ALLOCATE()
     INTEGER :: IFABM
-    
+!RJT for fix ERSEM variable
+   CHARACTER(LEN=256) :: NAME_
+!    TYPE(type_bulk_variable_id) :: ID
+!RJT
+
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_ALLOCATE"
     ALLOCATE(MASK_NONE(M)); MASK_NONE = 1
+!    ALLOCATE(MASK_SAFE(0:MT)); MASK_SAFE = 1  ! in case we need to restrict
+!    ERSEM depths to deeper columns than set by ISWETN mask
 
     call CONFIGURE_OUTPUT
 
@@ -266,6 +277,22 @@ MODULE MOD_FABM_3D
     ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)));           FABM_F       =  0.001_SP
 !    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)));        FABM_MEAN    =  0.001_SP
     ALLOCATE(FABM_TOTALS(size(model%conserved_quantities)));         FABM_TOTALS = 0
+
+! link model variable to dummy ERSEM1 variable. 
+!   NAME_ ='O2_o'
+!      DO IFABM=1,SIZE(model%state_variables)
+!       write(ipt,*) "FABM state_variable ", TRIM(model%state_variables(IFABM)%name)
+!         IF (TRIM(model%state_variables(IFABM)%name)==TRIM(NAME_)) then
+!       ALLOCATE(ERSEM1(0:MT,KB))
+!       ERSEM1 = 350.0_SP
+!       ERSEMid = IFABM
+!      write(ipt,*) "FABM ALLOCATE: FOUND VARIABLE ",TRIM(NAME_)," in the model configuration" 
+ 
+!    ELSE 
+!      write(ipt,*) "FABM ALLOCATE: unabled to find ",TRIM(NAME_)," in the model configuration" 
+!    END IF
+!   ENDDO
+
 
     ! Provide FABM with pointers to state variable data.
     DO IFABM=1,size(model%state_variables)
@@ -562,6 +589,8 @@ SUBROUTINE FABM_UPDATE
 # if !defined (ONE_D_MODEL)
      FABM_ALL = FABM_F      ! Update to new time level
 # endif
+! RESTORE OXYGEN VALUES TO OUR CONSTANT VALUE RJT
+!     FABM_ALL(:,:,ERSEMid) = ERSEM1
 
      ! Redirect FABM to new pelagic state FABM_ALL to ensure that any future FABM calls operate on the right data.
      DO IFABM=1,size(model%state_variables)
@@ -776,7 +805,11 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
 
      CALL PREPARE_ENVIRONMENT
 # if defined (WET_DRY)
+! make the mask more restricted RJT
+!      WHERE(D < 1.0_SP) MASK_SAFE=0
+!     call fabm_set_mask(model,MASK_SAFE(1:M))
      call fabm_set_mask(model,ISWETN(1:M))
+!     MASK_SAFE = 1 ! restore to no mask
 # endif
      ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
      DO K=1,KBM1
@@ -2006,7 +2039,9 @@ END SUBROUTINE FABM_ADV
            XFLUX2D=0.0_SP
            DO K=1,KBM1
             T2D=T2D+FABM_F(J,K,IFABM)*DZ(J,K)
-            T2D_NEXT=T2D_NEXT+FABM_F(J1,K,IFABM)*DZ(J1,K)
+!           T2D_NEXT=T2D_NEXT+FABM_F(J1,K,IFABM)*DZ(J1,K) ! RJT ORIGINAL similar
+!           to mod_bio_3D.F
+            T2D_NEXT=T2D_NEXT+FABM_F(J1,K,IFABM)*DZ(J,K)  ! for Mass preserving we need DZ at boundary
             XFLUX2D=XFLUX2D+XFLUX_OBCB(I,K,IFABM)           !XFLUX_OBCB is set in ADVECTION routine
            END DO
 
@@ -2020,7 +2055,12 @@ END SUBROUTINE FABM_ADV
            ! For the new depth-explicit value at the boundary, combine the forecast depth-averaged value
            ! with the differences from the the depth-averaged value as forecast for the neighbouring node.
            DO K=1,KBM1
-             FABM_F(J,K,IFABM)=T2D_OBC+(FABM_F(J1,K,IFABM)-T2D_NEXT)
+!             FABM_F(J,K,IFABM)=T2D_OBC+(FABM_F(J1,K,IFABM)-T2D_NEXT)  !
+!             Original code similar to mod_bio_3D.F
+            ! Mass Preserving implementation
+            FABM_F(J,K,IFABM) = FABM_F(J1,K,IFABM)*(T2D_OBC / T2D_NEXT) ! proportionality per layer. T2 have concentrations units
+            ! Other alternatives 
+!            FABM_F(J,K,IFABM) = FABM_F(J1,K,IFABM) ! See bcon_scal_OBC.F for this crazyness
            END DO
 
          DO K=1,KBM1
