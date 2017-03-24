@@ -561,7 +561,7 @@ MODULE MOD_ACTION_EX
 !# if defined (PLBC)
 !    UN =  - CANX*DLTYE(I)
 !# endif
-    EXFLUX=-UN*((1.0+SIGN(1.0,UN))*FIJ1(:,:,2)+(1.0-SIGN(1.0,UN))*FIJ1(:,:,1))*0.5
+    EXFLUX=-UN*((1.0+SIGN(1.0_SP,UN))*FIJ1(:,:,2)+(1.0-SIGN(1.0_SP,UN))*FIJ1(:,:,1))*0.5
 
 #   if defined (ICE)                                 
     C_ICE=(aice(IA,1)+aice(IB,1))/2.0_SP
