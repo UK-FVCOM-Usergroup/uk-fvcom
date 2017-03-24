@@ -818,6 +818,13 @@ SUBROUTINE ALLOC_PROBE(PROBE,N)
 
       USE MOD_PREC
       USE ALL_VARS
+# if defined (SEDIMENT)
+# if defined (ORIG_SED)
+      USE MOD_SED,only:csed
+# elif defined (CSTMS_SED)
+      USE MOD_SED_CSTMS,only:csed
+# endif
+# endif
 # if defined (ICE)
       USE MOD_ICE
       USE MOD_ICE2D
