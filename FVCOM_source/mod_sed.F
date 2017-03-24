@@ -289,9 +289,9 @@ integer, parameter    :: n_bed_chars = 3
 !     "bed thickness","bed age","bed porosity"]
 !character(len=80), dimension(n_bed_chars) :: bed_units =  [character(len=80) :: & 
 !     "m","days","-"]
-character(len=80), dimension(n_bed_chars) :: bed_snames = (/"bed_thick","bed_age","bed_por"/)
-character(len=80), dimension(n_bed_chars) :: bed_lnames = (/"bed thickness","bed age","bed porosity"/)
-character(len=80), dimension(n_bed_chars) :: bed_units = (/"m","days","-"/)
+character(len=9), dimension(n_bed_chars) :: bed_snames = (/"bed_thick","bed_age  ","bed_por  "/)
+character(len=13), dimension(n_bed_chars) :: bed_lnames = (/"bed thickness","bed age      ","bed porosity "/)
+character(len=4), dimension(n_bed_chars) :: bed_units = (/"m   ","days","-   "/)
 
 integer, parameter    :: ithck = 1
 integer, parameter    :: iaged = 2
@@ -375,18 +375,74 @@ integer, parameter    :: n_bot_vars  = 22
 !       "m","kg/m^3","m/s","N/m^2","days","m","m","m","kg","m","m","m","m","m"&
 !      ,"m","m","m","m","m","m","-","-"] 
 character(len=80), dimension(n_bot_vars) :: bot_snames = &
-      (/"bot_sd50","bot_dens","bot_wset","bot_tauc","bot_actv","bot_nthck",&
-      "bot_lthck","bot_dthck","bot_tmass","morph","rip_length","&
-      &rip_height","wav_excur","def_rough","app_rough","Niku_rough","b&
-      &io_rough","bfm_rough","bld_rough","wave_bbl","bot_phi","bedflag"/)
+      (/"bot_sd50  ",&
+        "bot_dens  ",&
+        "bot_wset  ",&
+        "bot_tauc  ",&
+        "bot_actv  ",&
+        "bot_nthck ",&
+        "bot_lthck ",&
+        "bot_dthck ",&
+        "bot_tmass ",&
+        "morph     ",&
+        "rip_length",&
+        "rip_height",&
+        "wav_excur ",&
+        "def_rough ",&
+        "app_rough ",&
+        "Niku_rough",&
+        "bio_rough ",&
+        "bfm_rough ",&
+        "bld_rough ",&
+        "wave_bbl  ",&
+        "bot_phi   ",&
+        "bedflag   "/)
 character(len=80), dimension(n_bot_vars) :: bot_lnames = &
-      (/"bot_sd50","bot_dens","bot_wset","bot_tauc","bot_actv","sedlayer_depth_current_iteration",&
-      "sedlayer_dapth_last_iteration","sedlayer_depth_net_change","bot_tmass","morph","rip_length","&
-      &rip_height","wav_excur","def_rough","app_rough","Niku_rough","b&
-      &io_rough","bfm_rough","bld_rough","wave_bbl","bot_phi","bedflag"/)
-character(len=80), dimension(n_bot_vars) :: bot_units = (/"m","kg&
-     &/m^3","m/s","N/m^2","days","m","m","m","kg","m","m","m","m","m"&
-     &,"m","m","m","m","m","m","-","-"/)
+      (/"bot_sd50                        ",&
+        "bot_dens                        ",&
+        "bot_wset                        ",&
+        "bot_tauc                        ",&
+        "bot_actv                        ",&
+        "sedlayer_depth_current_iteration",&
+        "sedlayer_dapth_last_iteration   ",&
+        "sedlayer_depth_net_change       ",&
+        "bot_tmass                       ",&
+        "morph                           ",&
+        "rip_length                      ",&
+        "rip_height                      ",&
+        "wav_excur                       ",&
+        "def_rough                       ",&
+        "app_rough                       ",&
+        "Niku_rough                      ",&
+        "bio_rough                       ",&
+        "bfm_rough                       ",&
+        "bld_rough                       ",&
+        "wave_bbl                        ",&
+        "bot_phi                         ",&
+        "bedflag                         "/)
+character(len=80), dimension(n_bot_vars) :: bot_units = &
+      (/"m     ",&
+        "kg/m^3",&
+        "m/s   ",&
+        "N/m^2 ",&
+        "days  ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "kg    ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "-     ",&
+        "-     "/)
 
 integer, parameter    :: isd50  = 1  
 integer, parameter    :: idens  = 2
