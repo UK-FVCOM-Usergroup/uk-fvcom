@@ -214,6 +214,10 @@ contains
 !--------------------------------------------------
 
   do i=1,m
+    ! Skip transport at this node if the bedflag has been set to zero.
+    if (bottom(i,bflag) == 0) then
+       cycle
+    endif
     do k=1,nbed
       bottom(i,nthck) = bottom(i,nthck) + bed(i,k,ithck)
     end do
@@ -1234,15 +1238,15 @@ End Subroutine Read_Sed_Params
 
 
   if(SEAGRASS_BOTTOM .and. MIXED_BED)then
-      MBOTP = 34     ! Bottom properties
+      MBOTP = 35     ! Bottom properties
   elseif(SEAGRASS_BOTTOM .and. .not.(MIXED_BED))then
-      MBOTP = 25     ! Bottom properties
+      MBOTP = 26     ! Bottom properties
   elseif(COHESIVE_BED.or.SED_BIODIFF)then
-      MBOTP = 31     ! Bottom properties
-  elseif(MIXED_BED)then
       MBOTP = 32     ! Bottom properties
+  elseif(MIXED_BED)then
+      MBOTP = 33     ! Bottom properties
   else
-      MBOTP = 23     ! Bottom properties
+      MBOTP = 24     ! Bottom properties
   endif
   allocate(idBott(MBOTP))
 
@@ -1436,6 +1440,10 @@ End Subroutine Read_Sed_Params
   
   ! update bottom properties using new bed fractions
   do i=1,m
+    ! Skip transport at this node if the bedflag has been set to zero.
+    if (bottom(i,bflag) == 0) then
+       cycle
+    endif
     sum1 = 1.0 ; sum2 = 1.0 ; sum3 = 1.0 ; sum4 = 1.0
     do ised=1,nst
       if(SEDIMENT_PARAMETER_TYPE/=UNIFORM)then
@@ -1484,6 +1492,10 @@ End Subroutine Read_Sed_Params
   mfac = dim(morpho_factor,1.0) 
   !calculate active layer thickness 
   do i=1,m
+    ! Skip transport at this node if the bedflag has been set to zero.
+    if (bottom(i,bflag) == 0) then
+       cycle
+    endif
     bottom(i,iactv) = mfac*max(0.,.007*(taub(i)-bottom(i,itauc)))+6.0*bottom(i,isd50)
   end do
 
@@ -1860,6 +1872,10 @@ End Subroutine Read_Sed_Params
     !  Compute angle between currents and waves (radians).
     !
     do i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
 # if defined (WAVE_CURRENT_INTERACTION)
        if(BEDLOAD_SOULSBY)then
           if(MB_BBL_USE.or.SG_BBL_USE.or.SSW_BBL_USE)then
@@ -1918,6 +1934,10 @@ End Subroutine Read_Sed_Params
        smgdr=SQRT(smgd)*sed(ised)%Sd50*sed(ised)%Srho
        !
        do i=1,m
+          ! Skip transport at this node if the bedflag has been set to zero.
+          if (bottom(i,bflag) == 0) then
+             cycle
+          endif
 # if defined (WAVE_CURRENT_INTERACTION)
           if(BEDLOAD_SOULSBY)then
              if(MB_BBL_USE.or.SG_BBL_USE.or.SSW_BBL_USE)then
@@ -2322,6 +2342,10 @@ End Subroutine Read_Sed_Params
     !  Srho must be >1000, due to (s-1) in BBL routines.
     !
     DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
        cff3=0.0_sp
        DO ised=1,NST
           cff3=cff3+sedbed%bed_mass(i,1,nnew,ised)
@@ -2411,6 +2435,10 @@ End Subroutine Read_Sed_Params
 !  end do
 
   do i=1,m
+    ! Skip transport at this node if the bedflag has been set to zero.
+    if (bottom(i,bflag) == 0) then
+       cycle
+    endif
     DO k=1,kbm1
        Hz_inv(k)=1.0_sp/(dt(i)*dz(i,k))
     END DO
@@ -2428,6 +2456,10 @@ End Subroutine Read_Sed_Params
 !
 
     SED_LOOP: DO ised=1,NST
+    ! Skip transport at this node if the bedflag has been set to zero.
+    if (bottom(i,bflag) == 0) then
+        cycle
+    endif
     DO k=1,kbm1
        qc(k)=sed(ised)%conc(i,k)
     END DO
@@ -2651,6 +2683,10 @@ End Subroutine Read_Sed_Params
     !  after both fluxes are applied.
     !
     NODE_LOOP : DO i=1,m
+    ! Skip transport at this node if the bedflag has been set to zero.
+    if (bottom(i,bflag) == 0) then
+        cycle
+    endif
 # if defined (WET_DRY)
        if(iswetn(i)/=1)cycle  ! no calculation when dry node
 # endif
@@ -2714,6 +2750,10 @@ End Subroutine Read_Sed_Params
     Settling = 0.0_SP
     do ised=1,nst
        do i=1,m
+          ! Skip transport at this node if the bedflag has been set to zero.
+          if (bottom(i,bflag) == 0) then
+             cycle
+          endif
 # if defined (WET_DRY)
           if(iswetn(i)==1)then
 # endif
@@ -2768,6 +2808,10 @@ End Subroutine Read_Sed_Params
 !  If we want a 1 day avg, then need 24 values.
 !
   NODE_LOOP : DO i=1,m
+  ! Skip transport at this node if the bedflag has been set to zero.
+  if (bottom(i,bflag) == 0) then
+     cycle
+  endif
 # if defined (WET_DRY)
     if(iswetn(i)/=1)cycle  ! no calculation when dry node
 # endif
@@ -2910,6 +2954,10 @@ End Subroutine Read_Sed_Params
     !
     if(SUSLOAD)then
        I_LOOP : DO i=1,m
+          ! Skip transport at this node if the bedflag has been set to zero.
+          if (bottom(i,bflag) == 0) then
+             cycle
+          endif
           !
           !  The deposition and resuspension of sediment on the bottom "bed"
           !  is due to precipitation flux FC(:,0), already computed, and the
@@ -2964,6 +3012,10 @@ End Subroutine Read_Sed_Params
     !-----------------------------------------------------------------------
     !
     I_LOOP_CB : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
        !       Calculate active layer thickness, bottom(i,iactv).
        !       (trunk version allows this to be zero...this has minimum of 6*D50)
        bottom(i,iactv)=MAX(0.0_sp,                                 &
@@ -3087,6 +3139,10 @@ End Subroutine Read_Sed_Params
  
 
     J_LOOP2 : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
 
        !
        !          Calculate net deposition and erosion
@@ -3337,6 +3393,10 @@ End Subroutine Read_Sed_Params
 
     J_LOOP3 : DO i=1,m
        IF (bottom(i,iactv).gt.bed(i,1,ithck)) THEN
+          ! Skip transport at this node if the bedflag has been set to zero.
+          if (bottom(i,bflag) == 0) then
+             cycle
+          endif
 
           IF (Nbed.eq.1) THEN
              bottom(i,iactv)=bed(i,1,ithck)
@@ -3709,6 +3769,10 @@ End Subroutine Read_Sed_Params
     !
     if(SUSLOAD)then
        NODE_LOOP : DO i=1,m
+          ! Skip transport at this node if the bedflag has been set to zero.
+          if (bottom(i,bflag) == 0) then
+             cycle
+          endif
           !
           !  The deposition and resuspension of sediment on the bottom "bed"
           !  is due to precipitation flux FC(:,0), already computed, and the
@@ -3763,6 +3827,10 @@ End Subroutine Read_Sed_Params
     !-----------------------------------------------------------------------
     !
     NODE_LOOP_CB : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
        !    Calculate active layer thickness, bottom(i,iactv).
        !    (trunk version allows this to be zero...this has minimum of 6*D50)
        bottom(i,iactv)=MAX(0.0_sp,                                 &
@@ -3887,6 +3955,10 @@ End Subroutine Read_Sed_Params
     END DO NODE_LOOP_CB
 
     NODE_LOOP2 : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
 
        !
        !          Calculate net deposition and erosion
@@ -4146,6 +4218,10 @@ End Subroutine Read_Sed_Params
     END DO NODE_LOOP2
 
     NODE_LOOP3 : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
 
        IF (bottom(i,iactv).gt.bed(i,1,ithck)) THEN
           IF (Nbed.eq.1) THEN
@@ -4510,6 +4586,10 @@ End Subroutine Read_Sed_Params
     !
     if (SUSLOAD)then
        NODE_LOOP : DO i=1,m
+          ! Skip transport at this node if the bedflag has been set to zero.
+          if (bottom(i,bflag) == 0) then
+             cycle
+          endif
           !
           !  The deposition and resuspension of sediment on the bottom "bed"
           !  is due to precipitation flux FC(:,0), already computed, and the
@@ -4563,6 +4643,10 @@ End Subroutine Read_Sed_Params
     !-----------------------------------------------------------------------
     !
     NODE_LOOP2 : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
        !   Calculate active layer thickness, bottom(i,iactv).
        !   (trunk version allows this to be zero...this has minimum of 6*D50)
        bottom(i,iactv)=MAX(0.0_sp,                                 &
@@ -4733,6 +4817,10 @@ End Subroutine Read_Sed_Params
 
 
     NODE_LOOP3 : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
        IF (bottom(i,iactv).gt.bed(i,1,ithck)) THEN
           IF (Nbed.eq.1) THEN
              bottom(i,iactv)=bed(i,1,ithck)
@@ -4973,6 +5061,10 @@ End Subroutine Read_Sed_Params
     !
     if(SUSLOAD)then
        NODE_LOOP : DO i=1,m
+          ! Skip transport at this node if the bedflag has been set to zero.
+          if (bottom(i,bflag) == 0) then
+             cycle
+          endif
           SED_LOOP: DO ised=1,NST
              !
              !  The deposition and resuspension of sediment on the bottom "bed"
@@ -5093,6 +5185,10 @@ End Subroutine Read_Sed_Params
     !  levels. Create new layers at bottom to maintain Nbed.
     !
     NODE_LOOP2 : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
        !
        !  Calculate active layer thickness, bottom(i,iactv).
        !
@@ -5304,6 +5400,10 @@ End Subroutine Read_Sed_Params
     !
     !      print *, 'Mixing...'
     NODE_LOOP : DO i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
        !
        !  Set mixing coefficient profile
        !  (hardwire uniform mixing)
@@ -5498,6 +5598,10 @@ End Subroutine Read_Sed_Params
 
     do ised=1,nst
        do i=1,m
+          ! Skip transport at this node if the bedflag has been set to zero.
+          if (bottom(i,bflag) == 0) then
+             cycle
+          endif
 # if defined (WET_DRY)
           if(iswetn(i)==1)then
 # endif
@@ -5627,6 +5731,10 @@ End Subroutine Read_Sed_Params
     end do
 
     do i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
        do k=1,kbm1
           if(sed_conc(i,k)>2.5)then
              !        vol_conc(i,k)=sed_conc(i,k)/2650.0
@@ -5721,6 +5829,10 @@ End Subroutine Read_Sed_Params
 
   !calculate new thickness
   do i=1,m
+       ! Skip transport at this node if the bedflag has been set to zero.
+       if (bottom(i,bflag) == 0) then
+          cycle
+       endif
     do k=1,nbed
       bottom(i,nthck) = bottom(i,nthck) + bed(i,k,ithck)
     end do
@@ -5728,12 +5840,20 @@ End Subroutine Read_Sed_Params
 
   !calculate new delta
   do i=1,m
+    ! Skip transport at this node if the bedflag has been set to zero.
+    if (bottom(i,bflag) == 0) then
+       cycle
+    endif
     bottom(i,dthck) = bottom(i,dthck) + bottom(i,nthck) - bottom(i,lthck)
   end do
 
   !calculate new total mass
   do i=1,m
     bottom(i,tmass) = 0.0 
+    ! Skip transport at this node if the bedflag has been set to zero.
+    if (bottom(i,bflag) == 0) then
+       cycle
+    endif
     do ised=1,nsed
       do k=1,nbed
         bottom(i,tmass) = bottom(i,tmass) + sedbed%bed_mass(i,k,nnew,ised)

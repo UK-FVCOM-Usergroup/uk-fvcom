@@ -419,6 +419,7 @@ integer, allocatable :: isand(:)    ! Non-cohesive sediment
 !   idbzm           Bed biodifusivity zm.                              !
 !   idbzp           Bed biodifusivity phi.                             !
 !   idprp           Cohesive behavior.                                 !
+!   bflag           Transport active (0=no, 1=yes).                    !
 !                                                                      !
 !   nTbiom          Number of hours for depth integration              !
 !=======================================================================
@@ -472,6 +473,7 @@ integer, allocatable :: isand(:)    ! Non-cohesive sediment
 !                   bottom(:,:,idprp) => cohesive behavior             !
 !                   bottom(:,:,isgrH) => Seagrass height               !
 !                   bottom(:,:,isgrD) => Seagrass shoot density        !
+!                   bottom(:,:,bflag) => active flag (0=no, 1=yes)     !
 !  ero_flux       Flux from erosion.                                   !
 !  settling_flux  Flux from settling.                                  !
 !  tcr_min         minimum shear for erosion
@@ -490,7 +492,7 @@ integer, allocatable :: isand(:)    ! Non-cohesive sediment
 !
       integer,  pointer  :: n_bot_vars 
       integer,  pointer  :: n_bed_chars
-      character(len=80), dimension(34) :: bot_snames = &
+      character(len=80), dimension(35) :: bot_snames = &
        (/"bot_sd50 ",&
          "bot_dens ",&
          "bot_wsed ",&
@@ -524,8 +526,9 @@ integer, allocatable :: isand(:)    ! Non-cohesive sediment
          "bot_dbzp ",&
          "bot_dprp ",&
          "bot_sgrD ",&
-         "bot_sgrH "/)
-      character(len=80), dimension(34) :: bot_lnames = &
+         "bot_sgrH ",&
+         "bedflag  "/)
+      character(len=80), dimension(35) :: bot_lnames = &
       (/"mean grain diameter                ",&
         "mean grain density                 ",&
         "mean settle velocity               ",&
@@ -559,8 +562,9 @@ integer, allocatable :: isand(:)    ! Non-cohesive sediment
         "diffusivity db_zphi                ",&
         "cohesive behavior                  ",&
         "seagrass shoot density             ",&
-        "seagrass height                    " /)
-      character(len=80), dimension(34) :: bot_units = &
+        "seagrass height                    ",&
+        "bedflag                            "/)
+      character(len=80), dimension(35) :: bot_units = &
             (/"m     ",&
               "kg/m^3",&
               "m/s   ",&
@@ -594,7 +598,8 @@ integer, allocatable :: isand(:)    ! Non-cohesive sediment
               "m     ",&
               "-     ",&
               "-     ",&
-              "m     "/)
+              "m     ",&
+              "-     "/)
 
       character(len=80), dimension(5) :: bed_snames = (/"bed_thick",&
                                                         "bed_age  ",&
@@ -668,6 +673,8 @@ integer, allocatable :: isand(:)    ! Non-cohesive sediment
       integer            :: isgrD          ! seagrass shoot density
       integer            :: isgrH          ! seagrass height
 !----------------------------------------------------------------
+!bedflag (0=no transport/no deposition, 1=transport/deposition)
+      integer, parameter :: bflag = 33     ! diffusivity db_zphi
 
       real(sp),dimension(:,:), pointer :: bottom
 
