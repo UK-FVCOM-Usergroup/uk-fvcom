@@ -215,7 +215,7 @@ contains
 
   do i=1,m
     ! Skip transport at this node if the bedflag has been set to zero.
-    if (bottom(i,bflag) == 0) then
+    if (bottom(i,bflag) < 1.0) then
        cycle
     endif
     do k=1,nbed
@@ -1441,7 +1441,7 @@ End Subroutine Read_Sed_Params
   ! update bottom properties using new bed fractions
   do i=1,m
     ! Skip transport at this node if the bedflag has been set to zero.
-    if (bottom(i,bflag) == 0) then
+    if (bottom(i,bflag) < 1.0) then
        cycle
     endif
     sum1 = 1.0 ; sum2 = 1.0 ; sum3 = 1.0 ; sum4 = 1.0
@@ -1493,7 +1493,7 @@ End Subroutine Read_Sed_Params
   !calculate active layer thickness 
   do i=1,m
     ! Skip transport at this node if the bedflag has been set to zero.
-    if (bottom(i,bflag) == 0) then
+    if (bottom(i,bflag) < 1.0) then
        cycle
     endif
     bottom(i,iactv) = mfac*max(0.,.007*(taub(i)-bottom(i,itauc)))+6.0*bottom(i,isd50)
@@ -1873,7 +1873,7 @@ End Subroutine Read_Sed_Params
     !
     do i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -1935,7 +1935,7 @@ End Subroutine Read_Sed_Params
        !
        do i=1,m
           ! Skip transport at this node if the bedflag has been set to zero.
-          if (bottom(i,bflag) == 0) then
+          if (bottom(i,bflag) < 1.0) then
              cycle
           endif
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -2343,7 +2343,7 @@ End Subroutine Read_Sed_Params
     !
     DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
        cff3=0.0_sp
@@ -2436,7 +2436,7 @@ End Subroutine Read_Sed_Params
 
   do i=1,m
     ! Skip transport at this node if the bedflag has been set to zero.
-    if (bottom(i,bflag) == 0) then
+    if (bottom(i,bflag) < 1.0) then
        cycle
     endif
     DO k=1,kbm1
@@ -2457,7 +2457,7 @@ End Subroutine Read_Sed_Params
 
     SED_LOOP: DO ised=1,NST
     ! Skip transport at this node if the bedflag has been set to zero.
-    if (bottom(i,bflag) == 0) then
+    if (bottom(i,bflag) < 1.0) then
         cycle
     endif
     DO k=1,kbm1
@@ -2684,7 +2684,7 @@ End Subroutine Read_Sed_Params
     !
     NODE_LOOP : DO i=1,m
     ! Skip transport at this node if the bedflag has been set to zero.
-    if (bottom(i,bflag) == 0) then
+    if (bottom(i,bflag) < 1.0) then
         cycle
     endif
 # if defined (WET_DRY)
@@ -2751,7 +2751,7 @@ End Subroutine Read_Sed_Params
     do ised=1,nst
        do i=1,m
           ! Skip transport at this node if the bedflag has been set to zero.
-          if (bottom(i,bflag) == 0) then
+          if (bottom(i,bflag) < 1.0) then
              cycle
           endif
 # if defined (WET_DRY)
@@ -2809,7 +2809,7 @@ End Subroutine Read_Sed_Params
 !
   NODE_LOOP : DO i=1,m
   ! Skip transport at this node if the bedflag has been set to zero.
-  if (bottom(i,bflag) == 0) then
+  if (bottom(i,bflag) < 1.0) then
      cycle
   endif
 # if defined (WET_DRY)
@@ -2955,7 +2955,7 @@ End Subroutine Read_Sed_Params
     if(SUSLOAD)then
        I_LOOP : DO i=1,m
           ! Skip transport at this node if the bedflag has been set to zero.
-          if (bottom(i,bflag) == 0) then
+          if (bottom(i,bflag) < 1.0) then
              cycle
           endif
           !
@@ -3013,7 +3013,7 @@ End Subroutine Read_Sed_Params
     !
     I_LOOP_CB : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
        !       Calculate active layer thickness, bottom(i,iactv).
@@ -3140,7 +3140,7 @@ End Subroutine Read_Sed_Params
 
     J_LOOP2 : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
 
@@ -3394,7 +3394,7 @@ End Subroutine Read_Sed_Params
     J_LOOP3 : DO i=1,m
        IF (bottom(i,iactv).gt.bed(i,1,ithck)) THEN
           ! Skip transport at this node if the bedflag has been set to zero.
-          if (bottom(i,bflag) == 0) then
+          if (bottom(i,bflag) < 1.0) then
              cycle
           endif
 
@@ -3770,7 +3770,7 @@ End Subroutine Read_Sed_Params
     if(SUSLOAD)then
        NODE_LOOP : DO i=1,m
           ! Skip transport at this node if the bedflag has been set to zero.
-          if (bottom(i,bflag) == 0) then
+          if (bottom(i,bflag) < 1.0) then
              cycle
           endif
           !
@@ -3828,7 +3828,7 @@ End Subroutine Read_Sed_Params
     !
     NODE_LOOP_CB : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
        !    Calculate active layer thickness, bottom(i,iactv).
@@ -3956,7 +3956,7 @@ End Subroutine Read_Sed_Params
 
     NODE_LOOP2 : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
 
@@ -4219,7 +4219,7 @@ End Subroutine Read_Sed_Params
 
     NODE_LOOP3 : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
 
@@ -4587,7 +4587,7 @@ End Subroutine Read_Sed_Params
     if (SUSLOAD)then
        NODE_LOOP : DO i=1,m
           ! Skip transport at this node if the bedflag has been set to zero.
-          if (bottom(i,bflag) == 0) then
+          if (bottom(i,bflag) < 1.0) then
              cycle
           endif
           !
@@ -4644,7 +4644,7 @@ End Subroutine Read_Sed_Params
     !
     NODE_LOOP2 : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
        !   Calculate active layer thickness, bottom(i,iactv).
@@ -4818,7 +4818,7 @@ End Subroutine Read_Sed_Params
 
     NODE_LOOP3 : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
        IF (bottom(i,iactv).gt.bed(i,1,ithck)) THEN
@@ -5062,7 +5062,7 @@ End Subroutine Read_Sed_Params
     if(SUSLOAD)then
        NODE_LOOP : DO i=1,m
           ! Skip transport at this node if the bedflag has been set to zero.
-          if (bottom(i,bflag) == 0) then
+          if (bottom(i,bflag) < 1.0) then
              cycle
           endif
           SED_LOOP: DO ised=1,NST
@@ -5186,7 +5186,7 @@ End Subroutine Read_Sed_Params
     !
     NODE_LOOP2 : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
        !
@@ -5401,7 +5401,7 @@ End Subroutine Read_Sed_Params
     !      print *, 'Mixing...'
     NODE_LOOP : DO i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
        !
@@ -5599,7 +5599,7 @@ End Subroutine Read_Sed_Params
     do ised=1,nst
        do i=1,m
           ! Skip transport at this node if the bedflag has been set to zero.
-          if (bottom(i,bflag) == 0) then
+          if (bottom(i,bflag) < 1.0) then
              cycle
           endif
 # if defined (WET_DRY)
@@ -5732,7 +5732,7 @@ End Subroutine Read_Sed_Params
 
     do i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
        do k=1,kbm1
@@ -5830,7 +5830,7 @@ End Subroutine Read_Sed_Params
   !calculate new thickness
   do i=1,m
        ! Skip transport at this node if the bedflag has been set to zero.
-       if (bottom(i,bflag) == 0) then
+       if (bottom(i,bflag) < 1.0) then
           cycle
        endif
     do k=1,nbed
@@ -5841,7 +5841,7 @@ End Subroutine Read_Sed_Params
   !calculate new delta
   do i=1,m
     ! Skip transport at this node if the bedflag has been set to zero.
-    if (bottom(i,bflag) == 0) then
+    if (bottom(i,bflag) < 1.0) then
        cycle
     endif
     bottom(i,dthck) = bottom(i,dthck) + bottom(i,nthck) - bottom(i,lthck)
@@ -5851,7 +5851,7 @@ End Subroutine Read_Sed_Params
   do i=1,m
     bottom(i,tmass) = 0.0 
     ! Skip transport at this node if the bedflag has been set to zero.
-    if (bottom(i,bflag) == 0) then
+    if (bottom(i,bflag) < 1.0) then
        cycle
     endif
     do ised=1,nsed
