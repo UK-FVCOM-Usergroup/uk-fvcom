@@ -516,7 +516,11 @@ CONTAINS
     !----------------------------------------------------------------
 #   if defined(SEDIMENT)
     IF(MORPHO_MODEL .and. SED_HOT_START)THEN
+#   if defined(ORIG_SED)
     VAR => FIND_VAR(NC_START,'h',FOUND)
+#   elif defined(CSTMS_SED)
+    VAR => FIND_VAR(NC_START,'h_morpho',FOUND)
+#   endif
     IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'h'&
          & IN THE HOTSTART FILE OBJECT")
     CALL NC_CONNECT_AVAR(VAR, h)
