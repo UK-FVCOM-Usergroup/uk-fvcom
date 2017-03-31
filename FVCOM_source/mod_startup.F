@@ -541,7 +541,7 @@ CONTAINS
     CALL N2E2D(D,D1)
     CALL N2E2D(DT,DT1)
 
-    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_SSH"
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_SSH"
 
   END SUBROUTINE READ_SSH
 !==============================================================================!
