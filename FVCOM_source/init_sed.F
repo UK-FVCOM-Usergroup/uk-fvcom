@@ -161,12 +161,30 @@
   implicit none 
   integer  :: i,k,ised,kbed
   real(sp) :: cff1
+  real(sp), allocatable :: tmp(:)
 !
 !-----------------------------------------------------------------------
 !  Initialize sediment bed properties.
 !-----------------------------------------------------------------------
 !
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Init_Sed" 
+
+  !set up the bedflag
+  ! bedflag = 0. => deactive erosion/deposition
+  ! bedflag = 1. => normal erosion/deposition
+  if(BEDFLAG_TYPE/=CNSTNT)then
+    allocate(tmp(0:mt)) ; tmp = 0.0
+    call LOAD_BEDFLAG(tmp)
+    bottom(0:mt,bflag) = tmp(0:mt)
+    do i=1,m
+      write(ipt,*) "BEDFLAG: ", bottom(i,bflag)
+    enddo
+    deallocate(tmp)
+  else
+    do i=1,m
+      bottom(i,bflag) = 1.0
+    end do
+  endif
 
   nnew=1
   nstp=2
