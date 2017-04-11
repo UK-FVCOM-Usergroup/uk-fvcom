@@ -787,6 +787,7 @@ MODULE CONTROL
 # endif
     CHARACTER(LEN=80) SEDIMENT_PARAMETER_TYPE
     CHARACTER(LEN=80) SEDIMENT_PARAMETER_FILE
+    REAL(SP) :: SEDIMENT_MIXING_RATIO
     CHARACTER(LEN=80) BEDFLAG_TYPE 
     CHARACTER(LEN=80) BEDFLAG_FILE 
 
@@ -856,6 +857,7 @@ MODULE CONTROL
 # endif
          & SEDIMENT_PARAMETER_TYPE,       &
          & SEDIMENT_PARAMETER_FILE,       &
+         & SEDIMENT_MIXING_RATIO,         &
          & BEDFLAG_TYPE,                  &
          & BEDFLAG_FILE,                  &
          & ICING_MODEL,                   &
