@@ -189,18 +189,16 @@ MODULE MOD_FABM_3D
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
     ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
-    call fabm_link_bulk_data(model,standard_variables%temperature,T1(1:M,:))
-!    call fabm_link_data(model,spm1_from_host_model,fvcom_model_name(1:M,:)) ! FOR NEW SPM variables defined in ERSEM/src/shared.F90
+    call model%link_interior_data(standard_variables%temperature,T1(1:M,:))
+!    call model%link_interior_data(spm1_from_host_model,fvcom_model_name(1:M,:)) ! FOR NEW SPM variables defined in ERSEM/src/shared.F90
 
 
-    call fabm_link_bulk_data(model,standard_variables%practical_salinity,S1(1:M,:))
-    call fabm_link_horizontal_data(model,standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
-    call fabm_link_horizontal_data(model,standard_variables%longitude,LON(1:M))
-    call fabm_link_horizontal_data(model,standard_variables%latitude,LAT(1:M))
-    call fabm_link_horizontal_data(model,standard_variables%bottom_depth,D(1:M))
-    call fabm_link_horizontal_data(model,standard_variables%bottom_depth_below_geoid,H(1:M))
-
-    ! TODO send standard_variables%number_of_days_since_start_of_the_year [scalar!] - must be a real number with fraction indicating time of day
+    call model%link_interior_data(standard_variables%practical_salinity,S1(1:M,:))
+    call model%link_horizontal_data(standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
+    call model%link_horizontal_data(standard_variables%longitude,LON(1:M))
+    call model%link_horizontal_data(standard_variables%latitude,LAT(1:M))
+    call model%link_horizontal_data(standard_variables%bottom_depth,D(1:M))
+    call model%link_horizontal_data(standard_variables%bottom_depth_below_geoid,H(1:M))
 
     ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
 # if defined (SEDIMENT)
@@ -212,22 +210,22 @@ MODULE MOD_FABM_3D
     ! hook, which is not a standard variable
     IF (model%variable_needs_values(standard_variables%mass_concentration_of_suspended_matter)) THEN
        ALLOCATE(SPM_FABM_g(0:MT,KB))
-       call fabm_link_bulk_data(model,standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:)) 
+       call model%link_interior_data(standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:)) 
     END IF
 
     IF (model%variable_needs_values(type_bulk_standard_variable(name='mass_concentration_of_silt'))) THEN
        ALLOCATE(SPM_FABM(0:MT,KB))
-       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='mass_concentration_of_silt'),SPM_FABM(1:M,:))
+       call model%link_interior_data(type_bulk_standard_variable(name='mass_concentration_of_silt'),SPM_FABM(1:M,:))
     END IF
 
     IF (model%variable_needs_values(type_bulk_standard_variable(name='absorption_of_silt'))) THEN
        ALLOCATE(SPM_ABS_FABM(0:MT,KB))
-       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='absorption_of_silt'),SPM_ABS_FABM(1:M,:))
+       call model%link_interior_data(type_bulk_standard_variable(name='absorption_of_silt'),SPM_ABS_FABM(1:M,:))
     END IF
 
     IF (model%variable_needs_values(type_bulk_standard_variable(name='backscatter_of_silt'))) THEN
        ALLOCATE(SPM_BB_FABM(0:MT,KB))
-       call fabm_link_bulk_data(model,type_bulk_standard_variable(name='backscatter_of_silt'),SPM_BB_FABM(1:M,:))
+       call model%link_interior_data(type_bulk_standard_variable(name='backscatter_of_silt'),SPM_BB_FABM(1:M,:))
     END IF
 
 ! RJT June_2016
@@ -235,41 +233,41 @@ MODULE MOD_FABM_3D
     ! Cell thickness in m (from D and DZ)
     IF (model%variable_needs_values(standard_variables%cell_thickness)) THEN
        ALLOCATE(CELL_THICKNESS(0:MT,KB))
-       call fabm_link_bulk_data(model,standard_variables%cell_thickness,CELL_THICKNESS(1:M,:))
+       call model%link_interior_data(standard_variables%cell_thickness,CELL_THICKNESS(1:M,:))
     END IF
 
     ! Density in kg m-3 (from RHO1)
     IF (model%variable_needs_values(standard_variables%density)) THEN
        ALLOCATE(DENSITY(0:MT,KB))
-       call fabm_link_bulk_data(model,standard_variables%density,DENSITY(1:M,:))
+       call model%link_interior_data(standard_variables%density,DENSITY(1:M,:))
     END IF
 
     ! Cell center depth in m (from D and ZZ)
     IF (model%variable_needs_values(standard_variables%depth)) THEN
        ALLOCATE(DEPTH(0:MT,KB))
-       call fabm_link_bulk_data(model,standard_variables%depth,DEPTH(1:M,:))
+       call model%link_interior_data(standard_variables%depth,DEPTH(1:M,:))
     END IF
 
     ! Pressure in dbar (from gravity, depth and reference density)
     IF (model%variable_needs_values(standard_variables%pressure)) THEN
        ALLOCATE(PRESSURE(0:MT,KB))
-       call fabm_link_bulk_data(model,standard_variables%pressure,PRESSURE(1:M,:))
+       call model%link_interior_data(standard_variables%pressure,PRESSURE(1:M,:))
     END IF
 
     ! Wind speed in m s-1 (from UUWIND, VVWIND)
     IF (model%variable_needs_values(standard_variables%wind_speed)) THEN
        ALLOCATE(WIND_SPEED(0:MT))
-       call fabm_link_horizontal_data(model,standard_variables%wind_speed,WIND_SPEED(1:M))
+       call model%link_horizontal_data(standard_variables%wind_speed,WIND_SPEED(1:M))
     END IF
 
     ! Bottom stress in Pa (from square of bottom shear velocity TAUBM_N)
     IF (model%variable_needs_values(standard_variables%bottom_stress)) THEN
        ALLOCATE(BOTTOM_STRESS(0:MT))
-       call fabm_link_horizontal_data(model,standard_variables%bottom_stress,BOTTOM_STRESS(1:M))
+       call model%link_horizontal_data(standard_variables%bottom_stress,BOTTOM_STRESS(1:M))
     END IF
 
     COMPUTE_DAYS_SINCE_YEAR_START = model%variable_needs_values(standard_variables%number_of_days_since_start_of_the_year)
-    IF (COMPUTE_DAYS_SINCE_YEAR_START) call fabm_link_scalar_data(model,standard_variables%number_of_days_since_start_of_the_year,DAYS_SINCE_YEAR_START)
+    IF (COMPUTE_DAYS_SINCE_YEAR_START) call model%link_scalar(standard_variables%number_of_days_since_start_of_the_year,DAYS_SINCE_YEAR_START)
 
     ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
@@ -296,13 +294,13 @@ MODULE MOD_FABM_3D
 
     ! Provide FABM with pointers to state variable data.
     DO IFABM=1,size(model%state_variables)
-      CALL fabm_link_bulk_state_data(model,IFABM,FABM_ALL(1:M,:,IFABM))
+      CALL model%link_interior_state_data(IFABM,FABM_ALL(1:M,:,IFABM))
     END DO
     DO IFABM=1,size(model%bottom_state_variables)
-      CALL fabm_link_bottom_state_data(model,IFABM,FABM_ALL_BT(1:M,IFABM))
+      CALL model%link_bottom_state_data(IFABM,FABM_ALL_BT(1:M,IFABM))
     END DO
     DO IFABM=1,size(model%surface_state_variables)
-      CALL fabm_link_surface_state_data(model,IFABM,FABM_ALL_SF(1:M,IFABM))
+      CALL model%link_surface_state_data(IFABM,FABM_ALL_SF(1:M,IFABM))
     END DO
 
     CALL INITIALIZE_FABM_INPUTS()
@@ -539,7 +537,7 @@ SUBROUTINE FABM_UPDATE
      ! Redirect FABM to forecast pelagic state FABM_F to ensure that any further FABM calls (check_state, check_conservation)
      ! operate on the right data.
      DO IFABM=1,size(model%state_variables)
-       CALL fabm_link_bulk_state_data(model,IFABM,FABM_F(1:M,:,IFABM))
+       CALL model%link_interior_state_data(IFABM,FABM_F(1:M,:,IFABM))
      END DO
 
 #   if defined (MULTIPROCESSOR)
@@ -594,7 +592,7 @@ SUBROUTINE FABM_UPDATE
 
      ! Redirect FABM to new pelagic state FABM_ALL to ensure that any future FABM calls operate on the right data.
      DO IFABM=1,size(model%state_variables)
-       CALL fabm_link_bulk_state_data(model,IFABM,FABM_ALL(1:M,:,IFABM))
+       CALL model%link_interior_state_data(IFABM,FABM_ALL(1:M,:,IFABM))
      END DO
 
 # if defined (MULTIPROCESSOR)
