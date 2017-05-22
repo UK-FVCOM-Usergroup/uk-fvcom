@@ -147,7 +147,7 @@ MODULE MOD_FORCE
 # endif
      ! ADD MORE HERE!
   END TYPE A_RIVER_FILE
-  TYPE(A_RIVER_FILE), ALLOCATABLE :: RIVER_FORCING(:)
+  TYPE(A_RIVER_FILE), ALLOCATABLE,PUBLIC :: RIVER_FORCING(:)
 
 
 
@@ -11780,7 +11780,7 @@ CONTAINS
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS, I, J, NRSF,IND,NS
 #if defined (FABM)
-    INTEGER :: IFABM
+    INTEGER :: IFABM,JJ,J1,J2
 #endif
 
     IF(.NOT. ALLOCATED(FLUX)) CALL FATAL_ERROR &
@@ -12864,6 +12864,26 @@ CONTAINS
              END DO
 
              DEALLOCATE(CURRENT)
+! If variable is not present, decide whether it gets diluted or not
+!          ELSE IF ( model%state_variables(IFABM)%no_river_dilution) THEN 
+           ELSE
+             IF(RIVER_TS_SETTING == 'calculated') THEN
+               IF(NUMQBC > 0) THEN
+                 IF(RIVER_INFLOW_LOCATION == 'node') THEN
+                   DO J=1,NUMQBC
+                     JJ=INODEQ(J)
+                     FABMR(J,IFABM)=SUM(FABM_ALL(JJ,1:KBM1,IFABM))/KBM1
+                   ENDDO
+                 ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+                   DO J=1,NUMQBC
+                     J1=N_ICELLQ(J,1)
+                     J2=N_ICELLQ(J,2)
+                     FABMR(J,IFABM)=0.5*SUM(FABM_ALL(J1,1:KBM1,IFABM))/KBM1 + 0.5*SUM(FABM_ALL(J2,1:KBM1,IFABM))/KBM1
+                   END DO
+                 END IF ! IF node or edge
+               END IF ! if NUMQBC > 0
+             END IF
+!             
           ENDIF  ! If data is available for the current state variable in the current river file
        END DO ! For each pelagic FABM state variable
 
