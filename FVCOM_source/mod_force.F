@@ -12184,7 +12184,7 @@ CONTAINS
   
 # if defined (HEATING_CALCULATED)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
          t1k=t1(i,1)+273.16_sp
          ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
@@ -12194,7 +12194,7 @@ CONTAINS
 
 # if defined (HEATING_CALCULATED_GL)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
 	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
 !         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
          t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
@@ -12311,7 +12311,7 @@ CONTAINS
   
 # if defined (HEATING_CALCULATED)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
          t1k=t1(i,1)+273.16_sp
          ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
@@ -12321,7 +12321,7 @@ CONTAINS
 
 # if defined (HEATING_CALCULATED_GL)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
 	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
 !         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
          t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
@@ -12405,7 +12405,7 @@ CONTAINS
   
 # if defined (HEATING_CALCULATED)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
 	      
          t1k=t1(i,1)+273.16_sp
          ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
@@ -12415,7 +12415,7 @@ CONTAINS
 
 # if defined (HEATING_CALCULATED_GL)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
 	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
 !         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
          t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
@@ -12445,7 +12445,7 @@ CONTAINS
     REAL(SP) :: WDS
     REAL(SP) :: HSB,HLB,TAU
     REAL(SP), DIMENSION(0:NT) :: WDSN
-    REAL(SP) :: t1c,hlv          ! ejw 8/16/2006
+    REAL(SP) :: t1c,hlv,slc          ! ejw 8/16/2006
 
     IF(.NOT. ALLOCATED(EVAP_CAL)) CALL FATAL_ERROR &
          &("THE EVAPORATIOn  PASSED TO UPDATE IS NOT ALLOCATED")
@@ -12473,7 +12473,7 @@ CONTAINS
          WDS = WDS/FLOAT(NTVE(I))
 
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
          t1c=t1(i,1)
          hlv=(2.501_sp-0.00237_sp*t1c)*1.0e6_sp
          EVAP_CAL(I) = HLB/hlv*1e-3   ! formular from roms, converted to m/s.                            
@@ -12583,9 +12583,10 @@ CONTAINS
          WDS = WDS/FLOAT(NTVE(I))
 
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
           t1c=t1(i,1)
-         hlv=(2.501_sp-0.00237_sp*t1c)*1.0e6_sp
+          slc=s1(i,1)
+         hlv=(2.501_sp-0.00237_sp*t1c)*(1-slc/1000._sp)*1.0e6_sp !from Sharqawy et al, 2010
          EVAP_CAL(I) = HLB/hlv*1e-3   ! formular from roms, converted to m/s by
                               ! dividing fresh water density. Negative upward.
        END DO
@@ -12653,7 +12654,7 @@ CONTAINS
 
        WDSN(1:NT) = SQRT(UUWIND(1:NT)*UUWIND(1:NT)+VVWIND(1:NT)*VVWIND(1:NT))
 
-       DO I=1,M
+       DO I=1,MT
          WDS = 0.0_SP
          DO J=1,NTVE(I)
            WDS = WDS + WDSN(NBVE(I,J))
@@ -12661,10 +12662,12 @@ CONTAINS
          WDS = WDS/FLOAT(NTVE(I))
 
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+              S1(I,1),RHO1(I,1),DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
 
          t1c=t1(i,1)
-         hlv=(2.501_sp-0.00237_sp*t1c)*1.0e6_sp
+         slc=s1(i,1)
+         hlv=(2.501_sp-0.00237_sp*t1c)*(1-slc/1000._sp)*1.0e6_sp !from Sharqawy et al, 2010
+         !hlv=(2.501_sp-0.00237_sp*t1c)*1.0e6_sp
          EVAP_CAL(I) = HLB/hlv*1e-3   ! formular from roms, converted to m/s by
                                       ! dividing fresh water density. Negative upward.
        END DO

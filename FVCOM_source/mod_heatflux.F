@@ -176,7 +176,7 @@ MODULE MOD_HEATFLUX
 !==============================================================================|
 
 !==============================================================================|
-   SUBROUTINE COARE26Z(UR,ZU,TA,ZT,RH,ZQ,PA,TS,DLW,DSW,TAU,HSB,HLB,LAT)
+   SUBROUTINE COARE26Z(UR,ZU,TA,ZT,RH,ZQ,PA,TS,SS,RHO,DLW,DSW,TAU,HSB,HLB,LAT)
 !  A=coare26(u,zu,Ta,zt,rh,zq,Pa,Ts,dlw,dsw)
 ! Simplified non-vectorized version of coare2.6 code
 ! with cool skin option retained but warm layer and 
@@ -186,18 +186,18 @@ MODULE MOD_HEATFLUX
 ! current vectors, if latter available. Output:
 ! A = [tau qsen qlat Cd Ch Ce Cdn_10 Chn_10 Cen_10].
  
-   REAL(SP) :: UR,ZU,TA,ZT,RH,ZQ,PA,TS,DLW,DSW,TAU,HSB,HLB,LAT,LE,L,JCOOL,L10
+   REAL(SP) :: UR,ZU,TA,ZT,RH,ZQ,PA,TS,SS,RHO,DLW,DSW,TAU,HSB,HLB,LAT,LE,L,JCOOL,L10
    REAL(SP) :: U,US,T,P,RL,RS,QSAT26S,QS,Q,ZI,BETA,VON,FDG,TDK,GRVS,GRAV,RGAS
    REAL(SP) :: CPA,CPV,RHOA,VISA,AL,BE,CPW,RHOW,VISW,TCW,BIGC,WETC,RNS,RNL,DU
    REAL(SP) :: DT,DQ,UG,DTER,DQER,UT,U10,USR,ZO10,CD10,CH10,CT10,ZOT10,CD,CT,CC
-   REAL(SP) :: RIBCU,RIBU,NITS,ZETU,PSIU_26S,PSIT_26S,TSR,QSR,TKT,CHARN,ZET
+   REAL(SP) :: RIBCU,RIBU,NITS,ZETU,PSIU_26S,PSIT_26S,TSR,QSR,TKT,CHARN,ZET,TDS
    REAL(SP) :: ZO,ZOQ,ZOT,BF,QOUT,DELS,QCOL,ALQ,XLAMX,CH,CE,CDN_10,CHN_10,CEN_10,RR
    
    INTEGER  :: I
 ! Set jcool=0 if Ts is surface, =1 if Ts is bulk.
 ! rcb checked 6/9/04
 ! set jcool=1 if Ts is bulk, 0 if Ts is true skin jcool=1;
-   JCOOL=1.
+   JCOOL=0.
 ! rename variables from fairall et al coare3 code
  
 
@@ -207,6 +207,8 @@ MODULE MOD_HEATFLUX
    US=0*UR
 !  water temperature (deg C)
    TS=TS
+!  Salinity in g/l
+   TDS=SS*(1+RHO)
 !  BULK AIR TEMPERATURE (C) AT HEIGHT ZT(m)
    T=TA
 !  RELATIVE HUMIDITY (%) AT HEIGHT zq(M)
@@ -220,7 +222,8 @@ MODULE MOD_HEATFLUX
    RS=DSW
 !  CONVERT RH TO SPECIFIC HUMIDITY (G/KG)
    CALL QSAT26(TS,P,QSAT26S)
-   QS=0.98_SP*QSAT26S/1000._SP
+   QS=(1.0_SP-0.0006_SP*TDS-0.0046_SP)*QSAT26S/1000._SP !From Ahmadzadeh et al., 2011
+!   QS=0.98_SP*QSAT26S/1000._SP
 !  SPECIFIC HUMIDITY OF AIR (G/KG)  
    CALL QSAT26(T,P,QSAT26S)
    Q=(0.01_SP*RH)*QSAT26S/1000._SP
@@ -242,7 +245,7 @@ MODULE MOD_HEATFLUX
    GRAV=GRVS
 ! ************AIR CONSTANTS **************
    RGAS=287.1_SP
-   LE=(2.501_SP-0.00237_SP*TS)*1000000._SP
+   LE=(2.501_SP-0.00237_SP*TS)*(1-SS/1000._SP)*1000000._SP
    CPA=1004.67_SP
    CPV=CPA*(1._SP+0.84_SP*Q)
    RHOA=P*100._SP/(RGAS*(T+TDK)*(1+0.61_SP*Q))
