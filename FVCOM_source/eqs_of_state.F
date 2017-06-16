@@ -80,9 +80,9 @@ MODULE EQS_OF_STATE
 
   PUBLIC
 
-  INTERFACE FOFONOFF_MILLARD
-     MODULE PROCEDURE FOFONOFF_MILLARD_1D
-     MODULE PROCEDURE FOFONOFF_MILLARD_2D
+  INTERFACE DENS_URMIA
+     MODULE PROCEDURE DENS_URMIA_1D
+     MODULE PROCEDURE DENS_URMIA_2D
   END INTERFACE
 
   INTERFACE DENS2G
@@ -101,8 +101,8 @@ MODULE EQS_OF_STATE
   PRIVATE DENS2_1D
   PRIVATE DENS2_2D
 
-  PRIVATE FOFONOFF_MILLARD_1D
-  PRIVATE FOFONOFF_MILLARD_2D
+  PRIVATE DENS_URMIA_1D
+  PRIVATE DENS_URMIA_2D
 
   PRIVATE SVAN
   PRIVATE THETA
@@ -119,15 +119,13 @@ CONTAINS
   !  calculates: rho1(nnode) density at nodes				       |
   !  calculates: rho (ncell) density at elements				       |
   !==============================================================================|
-  SUBROUTINE FOFONOFF_MILLARD_2D(MYS,MYT,MYP,PREF, MYRHO)               
+  SUBROUTINE DENS_URMIA_2D(MYS,MYT,MYRHO)               
     
     !------------------------------------------------------------------------------|
     IMPLICIT NONE
-    REAL(SP), INTENT(IN), DIMENSION(:,:) :: MYS,MYT,MYP
-    REAL(SP), INTENT(IN) :: PREF
+    REAL(SP), INTENT(IN), DIMENSION(:,:) :: MYS,MYT
     REAL(SP), INTENT(INOUT), DIMENSION(:,:):: MYRHO
     INTEGER :: I,K,ub1,lb1,ub2,lb2
-    REAL(SP)  ::PT,SVA,SIGMA
     !==============================================================================|
 
     ! SET DIMS USING MY S
@@ -144,13 +142,6 @@ CONTAINS
     if(lb2 /= lbound(myt,2)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
     if(ub2 /= ubound(myt,2)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
 
-    ! CHECK MY P
-    if(lb1 /= lbound(myp,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
-    if(ub1 /= ubound(myp,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
-
-    if(lb2 /= lbound(myp,2)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
-    if(ub2 /= ubound(myp,2)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
-
     ! CHECK MY RHO
     if(lb1 /= lbound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
     if(ub1 /= ubound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
@@ -160,25 +151,25 @@ CONTAINS
 
     
 
-    DO I=lb1,ub1
-       DO K=lb2,ub2  
+   ! DO I=lb1,ub1
+   !    DO K=lb2,ub2  
 
-          PT  = THETA(MYS(I,K),MYT(I,K),MYP(I,K),PREF)
-          SVA = SVAN(MYS(I,K),PT,MYP(I,K),SIGMA)
-          MYRHO(I,K) = SIGMA*1.e-3_SP
-       END DO
-    END DO
+   !       PT  = THETA(MYS(I,K),MYT(I,K),MYP(I,K),PREF)
+   !       SVA = SVAN(MYS(I,K),PT,MYP(I,K),SIGMA)
+   !       MYRHO(I,K) = SIGMA*1.e-3_SP
+   !    END DO
+   ! END DO
+    MYRHO = MYS*MYS*7.6131E-9_SP+MYS*6.1977E-4_SP+0.9985_SP-1.0_SP
 
     !----------------TRANSFORM TO FACE CENTER--------------------------------------
 
-  END SUBROUTINE FOFONOFF_MILLARD_2D
+  END SUBROUTINE DENS_URMIA_2D
   !==============================================================================|
-  SUBROUTINE FOFONOFF_MILLARD_1D(MYS,MYT,MYP,PREF, MYRHO)               
+  SUBROUTINE DENS_URMIA_1D(MYS,MYT,MYRHO)               
     
     !------------------------------------------------------------------------------|
     IMPLICIT NONE
-    REAL(SP), INTENT(IN), DIMENSION(:) :: MYS,MYT,MYP
-    REAL(SP), INTENT(IN) :: PREF
+    REAL(SP), INTENT(IN), DIMENSION(:) :: MYS,MYT
     REAL(SP), INTENT(INOUT), DIMENSION(:):: MYRHO
     INTEGER :: I,K,ub1,lb1
     REAL(SP)  ::PT,SVA,SIGMA
@@ -192,24 +183,15 @@ CONTAINS
     if(lb1 /= lbound(myt,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
     if(ub1 /= ubound(myt,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
 
-    ! CHECK MY P
-    if(lb1 /= lbound(myp,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
-    if(ub1 /= ubound(myp,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
-
     ! CHECK MY RHO
     if(lb1 /= lbound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
     if(ub1 /= ubound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
 
-    DO K=lb1,ub1
-       
-       PT  = THETA(MYS(K),MYT(K),MYP(K),PREF)
-       SVA = SVAN(MYS(K),PT,MYP(K),SIGMA)
-       MYRHO(K) = SIGMA*1.e-3_SP
-    END DO
+    MYRHO = MYS*MYS*7.6131E-9_SP+MYS*6.1977E-4_SP+0.9985_SP-1.0_SP
 
     !----------------TRANSFORM TO FACE CENTER--------------------------------------
 
-  END SUBROUTINE FOFONOFF_MILLARD_1D
+  END SUBROUTINE DENS_URMIA_1D
   !==============================================================================|
 
   ! GENERIC CALL FOR FVCOM
@@ -218,19 +200,19 @@ CONTAINS
 
     !------------------------------------------------------------------------------|
     IMPLICIT NONE
-    INTEGER :: K
-    REAL(SP), PARAMETER ::PR = 0.0_SP
-    REAL(SP), DIMENSION(0:MT,1:KB) :: RZU
+    !INTEGER :: K
+    !REAL(SP), PARAMETER ::PR = 0.0_SP
+    !REAL(SP), DIMENSION(0:MT,1:KB) :: RZU
     !==============================================================================|
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START: DENS1"
 
     ! The thickness of the water column
     ! Is not the depth realtive to z=0
-    DO K=1,KBM1
-       RZU(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:))*0.1_SP
-    END DO
+    !DO K=1,KBM1
+    !   RZU(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:))*0.1_SP
+    !END DO
 
-    CALL FOFONOFF_MILLARD_2D(S1,T1,RZU,PR,RHO1)
+    CALL DENS_URMIA_2D(S1,T1,RHO1)
     RHO1(:,KB)=0.0_SP
     RHO1(0,:)=0.0_SP
 
