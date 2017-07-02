@@ -159,7 +159,8 @@ CONTAINS
    !       MYRHO(I,K) = SIGMA*1.e-3_SP
    !    END DO
    ! END DO
-    MYRHO = MYS*MYS*7.6131E-9_SP+MYS*6.1977E-4_SP+0.9985_SP-1.0_SP
+    MYRHO = MYS*MYS*7.6131E-9_SP+MYS*6.1977E-4_SP+0.9985_SP &
+            & -3.084E-4_SP*(MYT-25.0_SP)-1.0_SP
 
     !----------------TRANSFORM TO FACE CENTER--------------------------------------
 
@@ -187,7 +188,8 @@ CONTAINS
     if(lb1 /= lbound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
     if(ub1 /= ubound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
 
-    MYRHO = MYS*MYS*7.6131E-9_SP+MYS*6.1977E-4_SP+0.9985_SP-1.0_SP
+    MYRHO = MYS*MYS*7.6131E-9_SP+MYS*6.1977E-4_SP+0.9985_SP &
+            & -3.084E-4_SP*(MYT-25.0_SP)-1.0_SP
 
     !----------------TRANSFORM TO FACE CENTER--------------------------------------
 
