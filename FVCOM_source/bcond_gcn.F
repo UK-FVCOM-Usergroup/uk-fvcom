@@ -685,9 +685,10 @@
          WTSURF_WATTS = WTSURF_WATTS * RAMP
 
 # if defined (HEATING_CALCULATED)
-         SPCP=4.2174E3_SP
-         ROSEA = 1.023E3_SP
-         SPRO = SPCP*ROSEA
+         SPRO=1.0_SP
+         ! SPCP=4.2174E3_SP
+         ! ROSEA = 1.023E3_SP
+         ! SPRO = SPCP*ROSEA
 # else
          SPCP= 4.186E3_SP
          ROSEA = 1.000E3_SP

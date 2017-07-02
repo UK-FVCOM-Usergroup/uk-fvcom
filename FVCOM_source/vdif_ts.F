@@ -61,10 +61,10 @@ SUBROUTINE VDIF_TS(NCON1,F)
   !   REAL(SP), DIMENSION(0:MT,KB)  :: F
   !   REAL(SP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF,RAD
   !   REAL(SP), DIMENSION(M)        :: KHBOTTOM,WFSURF,SWRADF
-  REAL(DP) :: TMP,TMP1,TMP2,TMP3,QTMP,GW,ZDEP,FKH,UMOLPR,WETFAC
+  REAL(DP) :: TMP,TMP1,TMP2,TMP3,QTMP,GW,ZDEP,FKH,UMOLPR,WETFAC,ALB2
   REAL(SP), DIMENSION(0:MT,KB)  :: F
   REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF,RAD
-  REAL(DP), DIMENSION(M)        :: KHBOTTOM,WFSURF,SWRADF,SASURF
+  REAL(DP), DIMENSION(M)        :: KHBOTTOM,WFSURF,SWRADF,SASURF,SWB,ZBOT
   REAL(DP), DIMENSION(M)        :: COSGAMA1,COSGAMA2
 
 # if defined (THIN_DAM)
@@ -76,6 +76,7 @@ SUBROUTINE VDIF_TS(NCON1,F)
   UMOLPR = UMOL*1.E0_SP
   SASURF = 0.0_SP
   GW = 0.0_DP
+  ALB2 = 0.8_SP
   !
   !------------------------------------------------------------------------------!
   !                                                                              !
@@ -120,6 +121,9 @@ SUBROUTINE VDIF_TS(NCON1,F)
      RAD    = 0.0_SP
      WFSURF = 0.0_SP
      SWRADF = 0.0_SP
+     SWB = 0.0_SP
+     ZBOT = 0.0_SP
+
      IF(HEATING_TYPE == 'flux')THEN
         !     DO I=1,M
         !       WFSURF(I)=WTSURF(I)
@@ -130,6 +134,10 @@ SUBROUTINE VDIF_TS(NCON1,F)
         SWRADF(1:M)=SWRAD(1:M)
         SASURF=0.0_SP
 
+        DO I = 1, M
+          ZBOT(I) = Z(I,KB)*D(I)
+          SWB(I)=SWRADF(I)*(RHEAT*EXP(ZBOT(I)/ZETA1)+(1-RHEAT)*EXP(ZBOT(I)/ZETA2))*ALB2
+        END DO
         DO K = 1, KB
            DO I = 1, M
 #    if !defined (WET_DRY)
@@ -137,12 +145,17 @@ SUBROUTINE VDIF_TS(NCON1,F)
 #    else
               IF(ISWETN(I) == 1)THEN
 #    endif
-                 ZDEP = Z(I,K)*D(I)
-                 RAD(I,K)=SWRADF(I)*(RHEAT*EXP(ZDEP/ZETA1)+(1-RHEAT)*EXP(ZDEP/ZETA2))
+             ZDEP = Z(I,K)*D(I)
+             RAD(I,K)=SWRADF(I)*(RHEAT*EXP(ZDEP/ZETA1)+(1-RHEAT)*EXP(ZDEP/ZETA2)) &
+                 &-SWB(I)*(RHEAT*EXP((ZBOT(I)-ZDEP)/ZETA1)+(1-RHEAT)*EXP((ZBOT(I)-ZDEP)/ZETA2))
 #    if defined (WET_DRY)
               END IF
 # endif
            END DO
+        END DO
+        !The heat absorbed by the bottom is immediately returned to the lowest water layer
+        DO I = 1, M
+           RAD(I,KB)=0.0_SP
         END DO
      END IF
 

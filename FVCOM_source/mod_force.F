@@ -12152,7 +12152,7 @@ CONTAINS
     REAL(SP) :: WDS
     REAL(SP) :: HSB,HLB,TAU,USR,DTER
     REAL(SP), DIMENSION(0:NT) :: WDSN
-    REAL(SP) :: t1k,ulw_airf       ! ejw 8/16/2006
+    REAL(SP) :: t1k,S1K,A,B,C,D,ulw_airf,SPH,ROS,ALB1       ! ejw 8/16/2006
 
     IF(.NOT. ALLOCATED(HEAT_SWV)) CALL FATAL_ERROR &
          &("THE HEAT SHORTWAVE VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
@@ -12392,8 +12392,12 @@ CONTAINS
        CALL NC_POINT_VAR(DSW_AIR_P,VPP)        
 
        DSW_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
-!
 
+       ALB1=0.06_SP
+       DO I=1,M
+         DSW_AIR(I)=DSW_AIR(I)*(1-ALB1)
+       END DO
+!
        WDSN(1:NT) = SQRT(UUWIND(1:NT)*UUWIND(1:NT)+VVWIND(1:NT)*VVWIND(1:NT))
 
        DO I=1,M  
@@ -12411,6 +12415,19 @@ CONTAINS
          ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
          HEAT_SWV(I)  = DSW_AIR(I)
+         !CALL SP_HEAT(T1(I,1),S1(I,1),SPH)
+         S1K=S1(I,1)
+         A=5.328_SP-0.0976_SP*S1K+.000404_SP*S1K*S1K
+         B=-0.006913_SP+0.0007351_SP*S1K-0.00000315_SP*S1K*S1K
+         C=0.0000096_SP-0.000001927_SP*S1K+0.00000000823_SP*S1K*S1K
+         D=0.0000000025_SP+0.000000001666_SP*S1K-0.000000000007125_SP*S1K*S1K
+         SPH=(A+B*t1k+C*t1k*t1k+D*t1k*t1k*t1k)*1000.0_SP
+         ROS=(RHO(I,1)+1.0_SP)*1.0e3_SP
+         ! IF (I==1000) THEN
+         !    WRITE(IPT,*) ROS, SPH
+         ! END IF
+         HEAT_NET(I)=HEAT_NET(I)/(SPH*ROS)
+         HEAT_SWV(I)=HEAT_SWV(I)/(SPH*ROS)
 # endif
 
 # if defined (HEATING_CALCULATED_GL)
