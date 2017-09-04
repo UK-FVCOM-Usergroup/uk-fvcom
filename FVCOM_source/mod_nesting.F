@@ -1443,11 +1443,6 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 
      DEALLOCATE(TEMP3)
      DEALLOCATE(TEMP4)
-!RJT debuggin nesting 
-       write(IPT,*) "! Global nodal indices: NGID_X ="
-     DO I=1,LG%MT
-       write(IPT,*)NGID(LG%NLID_X(I))
-     ENDDO 
 
 
   END IF ! END IF IOPROC
