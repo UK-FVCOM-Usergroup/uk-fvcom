@@ -54,6 +54,10 @@
    USE MOD_WD
    USE MOD_BULK
 
+# if defined(FABM)
+   USE MOD_FABM_DATA
+!   USE fabm
+# endif
 #  if defined (WATER_QUALITY)
    USE MOD_WQM
 #  endif
@@ -94,6 +98,9 @@
 
    INTEGER  I,J,K,I1,I2,J1,J2,II,L1,L2,IERR
    INTEGER  cdx,ndx,KDAM_TMP,K_RK
+# if defined(FABM)
+   INTEGER JJ,IFABM
+# endif
 
 !!$!=================|DEBUG|============================
 !!$   LOGICAL, save :: INIT=.false.

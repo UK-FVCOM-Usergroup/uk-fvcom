@@ -563,7 +563,9 @@ SUBROUTINE FABM_UPDATE
      CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
 # endif
      IF (FABM_DEBUG) THEN
+       PRINT_STATE = .TRUE.
        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_MIXING'
+       PRINT_STATE = .FALSE.
      END IF
      IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
             CALL SET_VAR(intTime,FABM_ALL=FABM_F)
@@ -2055,14 +2057,20 @@ END SUBROUTINE FABM_ADV
 
            ! For the new depth-explicit value at the boundary, combine the forecast depth-averaged value
            ! with the differences from the the depth-averaged value as forecast for the neighbouring node.
-           DO K=1,KBM1
-!             FABM_F(J,K,IFABM)=T2D_OBC+(FABM_F(J1,K,IFABM)-T2D_NEXT)  !
-!             Original code similar to mod_bio_3D.F
-            ! Mass Preserving implementation
-            FABM_F(J,K,IFABM) = FABM_F(J1,K,IFABM)*(T2D_OBC / T2D_NEXT) ! proportionality per layer. T2 have concentrations units
-            ! Other alternatives 
-!            FABM_F(J,K,IFABM) = FABM_F(J1,K,IFABM) ! See bcon_scal_OBC.F for this crazyness
-           END DO
+           ! Only do this if the tracer does not equal zero across the water column (otherwise the result
+           ! is NaN).
+           IF (T2D_NEXT /= 0) THEN
+            DO K=1,KBM1
+!              FABM_F(J,K,IFABM)=T2D_OBC+(FABM_F(J1,K,IFABM)-T2D_NEXT)  !
+!              Original code similar to mod_bio_3D.F
+             ! Mass Preserving implementation
+             FABM_F(J,K,IFABM) = FABM_F(J1,K,IFABM)*(T2D_OBC / T2D_NEXT) ! proportionality per layer. T2 have concentrations units
+             ! Other alternatives 
+!             FABM_F(J,K,IFABM) = FABM_F(J1,K,IFABM) ! See bcon_scal_OBC.F for this crazyness
+            END DO
+           ELSE
+            FABM_F(J, 1:KBM1,IFABM) = T2D_OBC
+           END IF
 
          DO K=1,KBM1
            ! Minimum and maximum of the values at [horizontally] neighboring cell centers.
