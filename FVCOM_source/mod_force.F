@@ -12865,8 +12865,8 @@ CONTAINS
 
              DEALLOCATE(CURRENT)
 ! If variable is not present, decide whether it gets diluted or not
-!          ELSE IF ( model%state_variables(IFABM)%no_river_dilution) THEN 
-           ELSE
+          ELSE IF ( model%state_variables(IFABM)%no_river_dilution) THEN 
+!           ELSE
              IF(RIVER_TS_SETTING == 'calculated') THEN
                IF(NUMQBC > 0) THEN
                  IF(RIVER_INFLOW_LOCATION == 'node') THEN
