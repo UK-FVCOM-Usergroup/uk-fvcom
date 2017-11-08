@@ -126,8 +126,13 @@ SUBROUTINE EXTERNAL_STEP
 !
 !------SAVE VALUES FROM CURRENT TIME STEP--------------------------------------!
 !
+# if defined (WET_DRY)
+  ELRK1 = EL1 - DELF1
+  ELRK  = EL - DELF
+# else
   ELRK1 = EL1
   ELRK  = EL
+# endif
   UARK  = UA
   VARK  = VA
 
