@@ -1445,13 +1445,14 @@ SUBROUTINE INTERNAL_STEP
                 IF(dbg_set(dbg_log))THEN
                     WRITE(IPT,*)IINT, 'Clipping ',S1(I,K),'salinity to zero at lon,lat,depth,node:',LON(I),LAT(I),-ZZ(I,K)*D(I),NGID(I)
                 ENDIF
-            ENDIF
+            ENDDO
         ENDDO
         ! Do the actual replacement of negative values with zeros.
         WHERE(S1<0.0_SP)
             S1=0.0_SP
         END WHERE
-    ENDDO
+    ENDIF
+
     !----------------------------------------------------!
 
      CALL N2E3D(S1,S)                               !Shift to Elements         !
