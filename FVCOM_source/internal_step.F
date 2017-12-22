@@ -1438,6 +1438,13 @@ SUBROUTINE INTERNAL_STEP
      S1 = SF1                                     !Update to new time level  !
 #   endif
 
+    ! Pierre Cazenave added to avoid negative value of salinity even in non-FABM runs----!
+    WHERE(S1<0.0_SP)
+        S1=0.0_SP
+        IF(dbg_set(dbg_log))   WRITE(IPT,*)IINT, 'Clipping salinity to zero at', NGID(I),LON(I),LAT(I)
+    END WHERE
+    !----------------------------------------------------!
+
      CALL N2E3D(S1,S)                               !Shift to Elements         !
 
 #    if defined (SEMI_IMPLICIT)
