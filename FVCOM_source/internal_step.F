@@ -1440,13 +1440,16 @@ SUBROUTINE INTERNAL_STEP
 
     ! Pierre Cazenave: Added to avoid negative salinities even in non-FABM runs. Gives a useful warning.
     IF(MINVAL(S1)<0.0_SP)THEN
-        DO K=1,KBM1
-            DO I=1,N
-                IF(dbg_set(dbg_log))THEN
-                    WRITE(IPT,*)IINT, 'Clipping ',S1(I,K),'salinity to zero at lon,lat,depth,node:',LON(I),LAT(I),-ZZ(I,K)*D(I),NGID(I)
-                ENDIF
+        ! Write to the log file where we're replacing negative salinities.
+        IF(dbg_set(dbg_log))THEN
+            DO K=1,KBM1
+                DO I=1,N
+                    IF(S1(I,K)<0.0_SP)THEN
+                        WRITE(IPT,*)IINT, 'Clipping ',S1(I,K),'salinity to zero at lon,lat,depth,node:',LON(I),LAT(I),-ZZ(I,K)*D(I),NGID(I)
+                    ENDIF
+                ENDDO
             ENDDO
-        ENDDO
+        ENDIF
         ! Do the actual replacement of negative values with zeros.
         WHERE(S1<0.0_SP)
             S1=0.0_SP
