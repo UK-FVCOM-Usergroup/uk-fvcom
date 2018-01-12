@@ -1301,7 +1301,7 @@
      hsb=-rhoa*cpa*usr*tsr ! flux out
      hlb=-rhoa*Le*usr*qsr  ! flux out
      qout=Rnl+hsb+hlb
-     dels=Rns*(0.065+11*tkt-6.6e-5/tkt*(1-exp(-tkt/8.0e-4)))
+     dels=Rns*(0.065+11.0*tkt-6.6e-5/tkt*(1.0-exp(-tkt/8.0e-4)))
      qcol=qout-dels
      alq=Al*qcol+be*hlb*cpw/Le
      if (alq>0) then
