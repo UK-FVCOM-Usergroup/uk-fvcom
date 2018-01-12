@@ -248,6 +248,7 @@ MODULE MOD_HEATFLUX
    T=TA
 !  RELATIVE HUMIDITY (%) AT HEIGHT zq(M)
    RH=RH
+! ----- new: Karsten Lettmann, Feb. 2016 --------------------------
 !  SURFACE PRESSURE (mb)
 !   P=PA
    P=PA/100.  !ejw 8/15/2011 from pa to mb in this subroutine only
@@ -255,12 +256,24 @@ MODULE MOD_HEATFLUX
    RL=DLW
 !  DOWNWARD SHORTWAVE RADIATION (W/m2)
    RS=DSW
-!  CONVERT RH TO SPECIFIC HUMIDITY (G/KG)
+!  CONVERT RH TO SPECIFIC HUMIDITY at sea surface(G/KG)
    CALL QSAT26(TS,P,QSAT26S)
-   QS=0.98_SP*QSAT26S/1000._SP
-!  SPECIFIC HUMIDITY OF AIR (G/KG)  
-   CALL QSAT26(T,P,QSAT26S)
-   Q=(0.01_SP*RH)*QSAT26S/1000._SP
+   QS=0.98_SP*QSAT26S/1000._SP   ! and convert to KG/KG
+
+   ! ------ new J Kirchner , Oct 2017 --------------------
+   ! Switch off the calculation of specific humidity and use values
+   ! for specific humidity that are stored in heatflux input file
+   !
+#  if !defined (USE_SPEC_HUM_FOR_HEAT_FLUX)
+   !  SPECIFIC HUMIDITY OF AIR (G/KG)
+   CALL QSAT26(T,P,QSAT26S)                      ! original line
+   Q=(0.01_SP*RH)*QSAT26S/1000._SP               ! and convert to KG/KG / original line
+#  else
+   ! here it is assumed RH already contains specific humidity
+   ! in units KG/KG
+   Q = RH
+#  endif
+! ----------end new -------------------------------------
 !            print *,'qq',Q
 !   SET RAIN TO ZERO RAIN=0*U
 !   SET RAIN RATE (MM/HR) - KEEP AS OPTION
