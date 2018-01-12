@@ -204,6 +204,8 @@ MODULE MOD_HEATFLUX
 ! rcb checked 6/9/04
 ! set jcool=1 if Ts is bulk, 0 if Ts is true skin jcool=1;
 ! Changes to code:
+! - changed line for zetu to original coare3 code
+!   ZETU=CC*RIBU*(1._SP + 27._SP/9._SP*RIBU/CC)
 ! - introduce a small epsi to stabilize similar to ROMS implementation in file bulk_fluxes.F
 ! --------- New. karsten Lettmann -----
 #  if !defined (NO_COOL_SKIN_HEAT_FLUX)
@@ -311,7 +313,15 @@ MODULE MOD_HEATFLUX
    IF(RIBU < 0)THEN
      ZETU=CC*RIBU/(1._SP+RIBU/RIBCU)
    ELSE
-     ZETU=CC*RIBU/(1._SP+27._SP/(9*RIBU*CC))
+     ! ------ new : Karsten Lettmann, 2017 Dec --------
+     ! The following line was different from COARE 3.0 code
+     ! This inconsistency was already found in mod_heatflux_gl.F
+     ! MDR, corrected from F90 version
+     !
+     ! ZETU=CC*RIBU/(1._SP+27._SP/(9*RIBU*CC))      ! original FVCOM line
+     ! ZETU=CC*RIBU*(1._SP + 27._SP/9._SP*RIBU/CC)  ! original coare3
+     ZETU  =CC*RIBU*(1._SP + 3._SP       *RIBU/CC)  ! slightly changed
+     ! ---- end new -----------------------------------
    END IF
 
    L10=ZU/ZETU
