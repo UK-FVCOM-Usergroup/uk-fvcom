@@ -1280,6 +1280,7 @@
    do i=1,nits
      zet=von*grav*zu*(tsr*(1.+0.61*q)+0.61*ta*qsr)/(ta*(usr*usr)*(1.+0.61*q) + epsi)
      zo=charn*usr*usr/grav+0.11*visa/(usr+epsi) ! surface roughness
+
      rr=zo*usr/visa
      L=zu/(zet+epsi)
      zoq=min(1.15e-4,5.5e-5/rr**0.6) ! mositure roughness
