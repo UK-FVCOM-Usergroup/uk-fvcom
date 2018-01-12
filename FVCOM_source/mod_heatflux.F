@@ -203,10 +203,16 @@ MODULE MOD_HEATFLUX
 ! Set jcool=0 if Ts is surface, =1 if Ts is bulk.
 ! rcb checked 6/9/04
 ! set jcool=1 if Ts is bulk, 0 if Ts is true skin jcool=1;
+
 ! Changes to code:
 ! - changed line for zetu to original coare3 code
 !   ZETU=CC*RIBU*(1._SP + 27._SP/9._SP*RIBU/CC)
+! - Changed number of iteration in Bulk loop to NITS = 3
 ! - introduce a small epsi to stabilize similar to ROMS implementation in file bulk_fluxes.F
+
+
+
+
 ! --------- New. karsten Lettmann -----
 #  if !defined (NO_COOL_SKIN_HEAT_FLUX)
    JCOOL=1. ! original line
@@ -248,10 +254,13 @@ MODULE MOD_HEATFLUX
 !   SET RAIN RATE (MM/HR) - KEEP AS OPTION
 
 !  ***********SET LOCAL CONSTANTS *********
-!    PBL HEIGHT (M)
-   ZI=600._SP
+   !ZI:  PBL HEIGHT (M)
+   !Zi:  Height (m) of atmospheric boundary layer (in ROMS: blk_Zabl = 600.m)
+   ZI = 600.0_SP
+
 !     LATITUDE (DEG,N=+)- GEORGES BANK
 !        LAT=42.
+
 ! ************SET CONSTANTS **************
    BETA=1.2_SP
    VON=0.4_SP
