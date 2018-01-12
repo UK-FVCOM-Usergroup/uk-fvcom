@@ -190,10 +190,11 @@ MODULE MOD_HEATFLUX
    REAL(SP) :: U,US,T,P,RL,RS,QSAT26S,QS,Q,ZI,BETA,VON,FDG,TDK,GRVS,GRAV,RGAS
    REAL(SP) :: CPA,CPV,RHOA,VISA,AL,BE,CPW,RHOW,VISW,TCW,BIGC,WETC,RNS,RNL,DU
    REAL(SP) :: DT,DQ,UG,DTER,DQER,UT,U10,USR,ZO10,CD10,CH10,CT10,ZOT10,CD,CT,CC
-   REAL(SP) :: RIBCU,RIBU,NITS,ZETU,PSIU_26S,PSIT_26S,TSR,QSR,TKT,CHARN,ZET
+   REAL(SP) :: RIBCU,RIBU,ZETU,PSIU_26S,PSIT_26S,TSR,QSR,TKT,CHARN,ZET
    REAL(SP) :: ZO,ZOQ,ZOT,BF,QOUT,DELS,QCOL,ALQ,XLAMX,CH,CE,CDN_10,CHN_10,CEN_10,RR
    
    INTEGER  :: I
+   INTEGER  :: NITS  ! new, Karsten Lettmann
 ! Set jcool=0 if Ts is surface, =1 if Ts is bulk.
 ! rcb checked 6/9/04
 ! set jcool=1 if Ts is bulk, 0 if Ts is true skin jcool=1;
@@ -287,7 +288,10 @@ MODULE MOD_HEATFLUX
    RIBCU=-ZU/(ZI*0.004_SP*(BETA**3))
    RIBU=-GRAV*ZU*((DT-DTER*JCOOL)+.61_SP*TA*DQ)/(TA*(UT**2))
 !       same as edson
-   NITS=3._SP   
+   ! Number of iterations of Coare Algorithm default
+   ! Orignal 6 iterations
+   ! ROMS uses 3 iterations
+   NITS=3
    IF(RIBU < 0)THEN
      ZETU=CC*RIBU/(1._SP+RIBU/RIBCU)
    ELSE
