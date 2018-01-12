@@ -208,6 +208,7 @@ MODULE MOD_HEATFLUX
 ! - changed line for zetu to original coare3 code
 !   ZETU=CC*RIBU*(1._SP + 27._SP/9._SP*RIBU/CC)
 ! - Changed number of iteration in Bulk loop to NITS = 3
+! - Set wind to have at least 0.1 m/s
 ! - introduce a small epsi to stabilize similar to ROMS implementation in file bulk_fluxes.F
 
 
@@ -228,6 +229,17 @@ MODULE MOD_HEATFLUX
 
 ! wind speed (m/s) at height zr (m)
    U=UR
+
+!  --------- New. Karsten Lettmann ---------
+!  Always have some small wind to make the algorithm more stable
+!  At the moment U > 0.1 m/s is set
+#  if !defined(DOUBLE_PRECISION)
+   U=AMAX1(.1_SP,U)
+#  else
+   U=DMAX1(.1_SP,U)
+#  endif
+!  -----------------------------------------
+
 !  surface current speed in the wind direction(m/s)
    US=0*UR
 !  water temperature (deg C)
