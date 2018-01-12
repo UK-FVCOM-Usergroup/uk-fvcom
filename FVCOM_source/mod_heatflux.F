@@ -198,7 +198,16 @@ MODULE MOD_HEATFLUX
 ! Set jcool=0 if Ts is surface, =1 if Ts is bulk.
 ! rcb checked 6/9/04
 ! set jcool=1 if Ts is bulk, 0 if Ts is true skin jcool=1;
-   JCOOL=1.
+! --------- New. karsten Lettmann -----
+#  if !defined (NO_COOL_SKIN_HEAT_FLUX)
+   JCOOL=1. ! original line
+#  else
+   !  Switch off the cool skin effect, as it might cause problems
+   ! Cool skin is not used
+   JCOOL=0.0_SP
+#  endif
+! ---------end new ----------------------------
+
 ! rename variables from fairall et al coare3 code
  
 
