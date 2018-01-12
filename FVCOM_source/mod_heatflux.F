@@ -510,12 +510,30 @@ MODULE MOD_HEATFLUX
 
 !-----------------------------------------------------------
    SUBROUTINE QSAT26(T,P,QS)
-! computes saturation specific humidity
+   ! computes saturation specific humidity in g/kg
+   !
+   ! For Literature see e.g.:
+   !     - https://en.wikipedia.org/wiki/Clausius%E2%80%93Clapeyron_relation
+   !     - Jacobsen, Fundamentals of atmospheric modelling, page 28-33, 45
+   !       QS follows from eq (2.32) and p_d = P - ES
+
+   ! Input variables are:
+   ! T  : Temperature in °C
+   ! P  : total air pressure in hPa = mbar
+
    IMPLICIT NONE
    REAL(SP) :: T,P,QS,ES
-   
+
+   ! first, calulate the saturation water pressure ES in hPa
+   ! Using a modified form of the August-Roche-Magnus formula
    ES=6.112_SP*EXP(17.502_SP*T/(T+241.0_SP))     &
       *(1.0007_SP+3.46_SP*0.000001_SP*P)
+
+   !second, specific humidity in (g water vapour) / (kg moist air)
+   !
+   ! 622 = 1000 * eps with eps = 0.622 = R_d / R_v (ratio of gas constants)
+   ! 0.378 = 1 - eps
+   !
    QS=ES*622/(P-.378_SP*ES)
    
    RETURN
