@@ -195,9 +195,16 @@ MODULE MOD_HEATFLUX
    
    INTEGER  :: I
    INTEGER  :: NITS  ! new, Karsten Lettmann
+
+   ! ---- new : Karsten Lettmann , Jan. 2018 --------
+   REAL(SP) :: EPSI = 1.0e-16_SP   ! small value to stabilize the code
+   ! -------- end new -------------------------------
+
 ! Set jcool=0 if Ts is surface, =1 if Ts is bulk.
 ! rcb checked 6/9/04
 ! set jcool=1 if Ts is bulk, 0 if Ts is true skin jcool=1;
+! Changes to code:
+! - introduce a small epsi to stabilize similar to ROMS implementation in file bulk_fluxes.F
 ! --------- New. karsten Lettmann -----
 #  if !defined (NO_COOL_SKIN_HEAT_FLUX)
    JCOOL=1. ! original line
@@ -332,11 +339,11 @@ MODULE MOD_HEATFLUX
 !*************** bulk loop ************
     do I=1,nits
 !   DO I=1,1
-     ZET=VON*GRAV*ZU/TA*(TSR*(1._SP+0.61_SP*Q)+0.61_SP*TA*QSR)/   &
-         (USR*USR)/(1._SP+0.61_SP*Q)
-     ZO=CHARN*USR*USR/GRAV+0.11_SP*VISA/USR
+     ZET=VON*GRAV*ZU*(TSR*(1._SP+0.61_SP*Q)+0.61_SP*TA*QSR)/   &
+         (TA*(USR*USR)*(1._SP+0.61_SP*Q) + EPSI)
+     ZO=CHARN*USR*USR/GRAV+0.11_SP*VISA/(USR+EPSI)
      RR=ZO*USR/VISA
-     L=ZU/ZET
+     L=ZU/(ZET+EPSI)
 #    if !defined(DOUBLE_PRECISION)
      ZOQ=AMIN1(1.15e-4_SP,5.5e-5_SP/(RR**0.6_SP)) 
 #    else
@@ -345,6 +352,13 @@ MODULE MOD_HEATFLUX
      ZOT=ZOQ
      CALL PSIU_26(ZU/L,PSIU_26S)
      USR=UT*VON/(LOG(ZU/ZO)-PSIU_26S)
+     ! ----- new, KL -------
+#    if !defined(DOUBLE_PRECISION)
+     USR=AMAX1(EPSI,USR)
+#    else
+     USR=DMAX1(EPSI,USR)
+#    endif
+     ! ---- end new --------
      CALL PSIT_26(ZT/L,PSIT_26S)
      TSR=-(DT-DTER*JCOOL)*VON*FDG/(LOG(ZT/ZOT)-PSIT_26S)
      CALL PSIT_26(ZQ/L,PSIT_26S)
@@ -369,14 +383,14 @@ MODULE MOD_HEATFLUX
      QCOL=QOUT-DELS
      ALQ=AL*QCOL+BE*HLB*CPW/LE
      IF(ALQ > 0)THEN
-       XLAMX=6._SP/(1._SP+(BIGC*ALQ/USR**4)**0.75_SP)**0.333_SP
-       TKT=XLAMX*VISW/(SQRT(RHOA/RHOW)*USR)
+       XLAMX=6._SP/(1._SP+(BIGC*ALQ/(USR+EPSI)**4)**0.75_SP)**0.333_SP
+       TKT=XLAMX*VISW/(SQRT(RHOA/RHOW)*(USR+EPSI))
      ELSE
        XLAMX=6.0_SP
 #    if !defined(DOUBLE_PRECISION)
-       TKT=AMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*USR))
+       TKT=AMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*(USR+EPSI)))
 #    else
-       TKT=DMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*USR))
+       TKT=DMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*(USR+EPSI)))
 #    endif
      END IF
 !           cool skin
@@ -387,7 +401,7 @@ MODULE MOD_HEATFLUX
 
 !****** compute fluxes ******************************************
 !             wind stress
-   TAU=RHOA*USR*USR*DU/UT
+   TAU=RHOA*USR*USR*DU/(UT+EPSI)
 !              sensible heat flux
    HSB=RHOA*CPA*USR*TSR
 !              latent heat flux
@@ -396,12 +410,12 @@ MODULE MOD_HEATFLUX
 
 !****** compute transfer coeffs relative to ut @ meas. ht ********
 #  if !defined(DOUBLE_PRECISION)
-   CD=TAU/RHOA/UT/AMAX1(.1_SP,DU)
+   CD=TAU/RHOA/(UT+EPSI)/AMAX1(.1_SP,DU)
 #  else
-   CD=TAU/RHOA/UT/DMAX1(.1_SP,DU)
+   CD=TAU/RHOA/(UT+EPSI)/DMAX1(.1_SP,DU)
 #  endif
-   CH=-USR*TSR/UT/(DT-DTER*JCOOL)
-   CE=-USR*QSR/(DQ-DQER*JCOOL)/UT
+   CH=-USR*TSR/(UT+EPSI)/(DT-DTER*JCOOL)
+   CE=-USR*QSR/(DQ-DQER*JCOOL)/(UT+EPSI)
 
 !****** compute 10-m neutral coeff relative to ut ****************
    CDN_10=VON*VON/LOG(10._SP/ZO)/LOG(10._SP/ZO)
