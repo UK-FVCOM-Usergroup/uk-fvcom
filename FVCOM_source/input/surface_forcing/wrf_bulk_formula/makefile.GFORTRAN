@@ -10,10 +10,10 @@ INSTALLDIR    = $(FVCOM)/input/surface_forcing/wrf_bulk_formula/install/
 MODS          = $(FVCOM)
 DEF_FLAGS     = -C
 COMPILER      = -DGFORTRAN
-FC            = mpif90
-CC            = mpicc
-CXX           = mpicxx
-CPP           = mpicc -E
+FC            = gfortran
+CC            = gcc
+CXX           = gcc
+CPP           = /lib/cpp
 CPPFLAGS      = $(DEF_FLAGS) -DGFORTRAN
 CXXFLAGS      = -O2
 CFLAGS        = -O2 -std=c99
