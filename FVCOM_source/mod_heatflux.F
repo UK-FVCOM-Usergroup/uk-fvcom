@@ -274,6 +274,20 @@ MODULE MOD_HEATFLUX
    Q = RH
 #  endif
 ! ----------end new -------------------------------------
+
+
+! -------- new : some debugging output ---------------
+!   print*,'===================== some output ================'
+!   print*,'------- U10     : ', U
+!   print*,'------- P       : ', P
+!   print*,'------- QS      : ', QS
+!   print*,'------- Q       : ', Q
+!   print*,'------- Tair    : ', T
+!   print*,'------- Twater  : ', TS
+!   print*,'------- SW      : ', RS
+!   print*,'------- LW      : ', DLW
+   ! ------------------------------------------
+
 !            print *,'qq',Q
 !   SET RAIN TO ZERO RAIN=0*U
 !   SET RAIN RATE (MM/HR) - KEEP AS OPTION
@@ -450,6 +464,15 @@ MODULE MOD_HEATFLUX
    HSB=RHOA*CPA*USR*TSR
 !              latent heat flux
    HLB=RHOA*LE*USR*QSR
+
+! -------- new : some debugging output ---------------
+!   print*,' '
+!   print*,'the fluxes:'
+!   print*,'------- Tau     : ', TAU
+!   print*,'------- HSB     : ', HSB
+!   print*,'------- HLB     : ', HLB
+! ------------------------------------------
+
 
 
 !****** compute transfer coeffs relative to ut @ meas. ht ********
