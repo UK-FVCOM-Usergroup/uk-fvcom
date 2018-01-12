@@ -17,7 +17,7 @@ CPPFLAGS      = $(DEF_FLAGS) -DGFORTRAN
 CXXFLAGS      = -O2
 CFLAGS        = -O2
 FFLAGS        = -O2
-LIBS          = -L$(INSTALLDIR)/lib -lnetcdf -lnetcdff -I$(INSTALLDIR)/include -I$(FVCOMLIBS)include -L$(FVCOMLIBS)lib -ljulian
+LIBS          = -I$(FVCOMLIBS)include -I/usr/include -lnetcdf -lnetcdff -I/usr/lib64/gfortran/modules/mpich/ -I/usr/lib64/gfortran/modules -L$(FVCOMLIBS)lib -ljulian
 EXEC          = wrf_to_fvcom
 
 all:
