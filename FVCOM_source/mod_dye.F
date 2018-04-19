@@ -118,17 +118,19 @@ MODULE MOD_DYE
 !==============================================================================!
    ALLOCATE(DYE(0:MT,KB))           ;DYE    = ZERO
    ALLOCATE(DYEF(0:MT,KB))          ;DYEF    = ZERO
-!   ALLOCATE(DYEMEAN(0:MT,KB))       ;DYEMEAN    = ZERO
-!   ALLOCATE(DYE_S(0:MT,KB))          ;DYE_S    = ZERO
-!   ALLOCATE(DYE_SF(0:MT,KB))          ;DYE_SF    = ZERO
-!   ALLOCATE(WWWS(0:MT,KB))          ;WWWS    = ZERO
-!   ALLOCATE(WWWSF(0:MT,KB))          ;WWWSF    = ZERO
-!   ALLOCATE(DTWWWS(0:MT))       ;DTWWWS    = ZERO
+# if defined (MPDATA)
+   !ALLOCATE(DYEMEAN(0:MT,KB))       ;DYEMEAN    = ZERO
+   ALLOCATE(DYE_S(0:MT,KB))          ;DYE_S    = ZERO
+   ALLOCATE(DYE_SF(0:MT,KB))          ;DYE_SF    = ZERO
+   ALLOCATE(WWWS(0:MT,KB))          ;WWWS    = ZERO
+   ALLOCATE(WWWSF(0:MT,KB))          ;WWWSF    = ZERO
+   ALLOCATE(DTWWWS(0:MT))       ;DTWWWS    = ZERO
 
-!   ALLOCATE(zzzflux(0:MT,KB))          ;zzzflux    = ZERO 
-!   ALLOCATE(beta(0:MT,KB))       ;beta    = ZERO  
-!   ALLOCATE(betain(0:MT,KB))       ;betain    = ZERO
-!   ALLOCATE(betaout(0:MT,KB))       ;betaout    = ZERO
+   ALLOCATE(zzzflux(0:MT,KB))          ;zzzflux    = ZERO
+   ALLOCATE(beta(0:MT,KB))       ;beta    = ZERO
+   ALLOCATE(betain(0:MT,KB))       ;betain    = ZERO
+   ALLOCATE(betaout(0:MT,KB))       ;betaout    = ZERO
+# endif
 
 !   add convert time
     SELECT CASE(USE_REAL_WORLD_TIME)
