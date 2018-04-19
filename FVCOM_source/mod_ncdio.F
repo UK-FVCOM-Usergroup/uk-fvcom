@@ -2940,6 +2940,24 @@ CONTAINS
 
     NCF  => ADD(NCF,VAR)
 
+    ! WW
+    VAR  => NC_MAKE_AVAR(name='ww',&
+         & values=WW, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Upward Water Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
     ! UARD_OBCN
     VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
          & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
