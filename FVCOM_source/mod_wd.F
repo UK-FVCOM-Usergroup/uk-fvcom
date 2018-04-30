@@ -315,6 +315,14 @@ MODULE MOD_WD
        ISWETN(I) = 0
      END IF
    END DO
+   
+! ------- New: Karsten Lettmann, 2017 Jan --------------------------   
+#   if defined(MULTIPROCESSOR)
+     ! ------- New Karsten Lettmann, Jan 2017 ------------
+     IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,ISWETN) !Interprocessor Exchange   !
+#    endif
+! ----------------- end new ----------------------------------------
+
 !------------------------------------------------------------------------------!
    CASE(3)    !! SHIFT VARIABLES AT END OF INTERNAL MODE
 !------------------------------------------------------------------------------!
