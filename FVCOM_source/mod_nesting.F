@@ -2150,10 +2150,12 @@ END SUBROUTINE GENMAP_NESTING
   !
   !===========================================================================!  
   SUBROUTINE ARCHIVE_NEST
+    USE MOD_SET_TIME, ONLY : GET_OUTPUT_FILE_INTERVAL
     IMPLICIT NONE
     INTEGER :: STATUS,I
     TYPE(NEST_DATA), POINTER :: D
     TYPE(GRID), POINTER :: G
+    TYPE(TIME) :: INTERVAL_TIME
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START ARCHIVE_NEST"
 
@@ -2175,6 +2177,14 @@ END SUBROUTINE GENMAP_NESTING
     ! EXIT EARLY IF WE ARE ONLY SETTING UP THE NESTING INPUT
     IF(.not. NCNEST_ON) RETURN
 
+    IF(MOD((EndTime - StartTime),INTERVAL_TIME_NCNEST*NCNEST_BLOCKSIZE) /= ZeroTime) &
+          CALL FATAL_ERROR("The simulation time (EndTime-StartTime) should be divided", &
+	    " by INTERVAL_TIME_NCNEST*NCNEST_BLOCKSIZE")
+    CALL GET_OUTPUT_FILE_INTERVAL(TRIM(RST_OUT_INTERVAL),INTERVAL_TIME)
+    IF(MOD(INTERVAL_TIME,INTERVAL_TIME_NCNEST*NCNEST_BLOCKSIZE) /= ZeroTime) &
+          CALL FATAL_ERROR("The restart interval (RST_OUT_INTERVAL) should be divided", &
+            " by INTERVAL_TIME_NCNEST*NCNEST_BLOCKSIZE")
+
     ! STORE DATA AT TIME INTERVAL TIME_INTERVAL
     IF(TIME_INTERVAL <= IntTime)THEN
      DO I =1,NCNEST_NUM
@@ -2185,7 +2195,8 @@ END SUBROUTINE GENMAP_NESTING
      TIME_INTERVAL = IntTime + INTERVAL_TIME_NCNEST
     
     ! WRITE THE FILE IF IT IS TIME
-    IF(NCNEST_DATA(1)%IDX == NCNEST_BLOCKSIZE) then
+    IF(NCNEST_DATA(1)%IDX == NCNEST_BLOCKSIZE .or.    &
+       IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
        
        IF(USE_MPI_IO_MODE) THEN
           CALL MPI_IO_SYNCHRONIZE(NESTING_CODE)
@@ -2204,29 +2215,29 @@ END SUBROUTINE GENMAP_NESTING
     END IF
     END IF
 
-    ! WRITE THE FILE AT THE END OF RUN, OR IF THE RESTART FILE JUST GOT DUMPED!
-    IF(IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
+!    ! WRITE THE FILE AT THE END OF RUN, OR IF THE RESTART FILE JUST GOT DUMPED!
+!    IF(IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
        
-      DO I =1,NCNEST_NUM
-        D=>NCNEST_DATA(I)
-        G=>NCNEST_GRIDS(I)
-        CALL ASSIGN2BLOCK(D,G)
-      END DO
+!      DO I =1,NCNEST_NUM
+!        D=>NCNEST_DATA(I)
+!        G=>NCNEST_GRIDS(I)
+!        CALL ASSIGN2BLOCK(D,G)
+!      END DO
       
-      IF(USE_MPI_IO_MODE) THEN
-        CALL MPI_IO_SYNCHRONIZE(NESTING_CODE)
-      ELSE
-        CALL CALL_FUNC(NESTING_CODE,status)
-        IF (status/=0) call fatal_error("ARCHIVE:: Bad NESTING_CODE",&
-            & "Could not retrieve valid function pointer?")
-      END IF
+!      IF(USE_MPI_IO_MODE) THEN
+!        CALL MPI_IO_SYNCHRONIZE(NESTING_CODE)
+!      ELSE
+!        CALL CALL_FUNC(NESTING_CODE,status)
+!        IF (status/=0) call fatal_error("ARCHIVE:: Bad NESTING_CODE",&
+!            & "Could not retrieve valid function pointer?")
+!      END IF
 
-      DO I =1,NCNEST_NUM
-        D=>NCNEST_DATA(I)
-        CALL RESET_BLOCK(D)
-      END DO
+!      DO I =1,NCNEST_NUM
+!        D=>NCNEST_DATA(I)
+!        CALL RESET_BLOCK(D)
+!      END DO
        
-    END IF
+!    END IF
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END ARCHIVE_NEST"
   END SUBROUTINE ARCHIVE_NEST
@@ -2635,6 +2646,13 @@ END SUBROUTINE GENMAP_NESTING
           D%RNG(1)=1
           D%RNG(2)=NCNEST_BLOCKSIZE
           
+       ELSE IF (NCNEST_ON) THEN
+          NCF%CONNECTED = .FALSE.
+          CALL NC_WRITE_FILE(NCF)
+          NCF%FTIME%NEXT_STKCNT=1
+          D%RNG(1)=1
+          D%RNG(2)=NCNEST_BLOCKSIZE
+
        ELSE
           Call Set_File_Stack(NCF,STARTTIME,IMDTI)
           NCF%CONNECTED = .TRUE.
@@ -3768,10 +3786,12 @@ END SUBROUTINE GENMAP_NESTING
   !
   !===========================================================================!  
   SUBROUTINE ARCHIVE_NEST_WAVE
+    USE MOD_SET_TIME, ONLY : GET_OUTPUT_FILE_INTERVAL
     IMPLICIT NONE
     INTEGER :: STATUS,I
     TYPE(NEST_DATA_WAVE), POINTER :: D
     TYPE(GRID), POINTER :: G
+    TYPE(TIME) :: INTERVAL_TIME
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START ARCHIVE_NEST_WAVE"
 
@@ -3793,6 +3813,14 @@ END SUBROUTINE GENMAP_NESTING
     ! EXIT EARLY IF WE ARE ONLY SETTING UP THE NESTING INPUT
     IF(.not. NCNEST_ON_WAVE) RETURN
 
+    IF(MOD((EndTime - StartTime),INTERVAL_TIME_NCNEST_WAVE*NCNEST_BLOCKSIZE_WAVE) /= ZeroTime) &
+          CALL FATAL_ERROR("The simulation time (EndTime-StartTime) should be divided", &
+	    " by INTERVAL_TIME_NCNEST_WAVE*NCNEST_BLOCKSIZE_WAVE")
+    CALL GET_OUTPUT_FILE_INTERVAL(TRIM(RST_OUT_INTERVAL),INTERVAL_TIME)
+    IF(MOD(INTERVAL_TIME,INTERVAL_TIME_NCNEST_WAVE*NCNEST_BLOCKSIZE_WAVE) /= ZeroTime) &
+          CALL FATAL_ERROR("The restart interval (RST_OUT_INTERVAL) should be divided", &
+            " by INTERVAL_TIME_NCNEST_WAVE*NCNEST_BLOCKSIZE_WAVE")
+
     ! STORE DATA EVERYTIME
     IF(TIME_INTERVAL_WAVE <= IntTime)THEN
      DO I =1,NCNEST_NUM_WAVE
@@ -3803,7 +3831,8 @@ END SUBROUTINE GENMAP_NESTING
      TIME_INTERVAL_WAVE = IntTime + INTERVAL_TIME_NCNEST_WAVE
     
     ! WRITE THE FILE IF IT IS TIME
-    IF(NCNEST_DATA_WAVE(1)%IDX == NCNEST_BLOCKSIZE_WAVE) then
+    IF(NCNEST_DATA_WAVE(1)%IDX == NCNEST_BLOCKSIZE_WAVE .or.   &
+       IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
        
        IF(USE_MPI_IO_MODE) THEN
           CALL MPI_IO_SYNCHRONIZE(NESTING_CODE_WAVE)
@@ -3821,29 +3850,29 @@ END SUBROUTINE GENMAP_NESTING
      END IF  
     END IF
 
-    ! WRITE THE FILE AT THE END OF RUN, OR IF THE RESTART FILE JUST GOT DUMPED!
-    IF(IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
+!    ! WRITE THE FILE AT THE END OF RUN, OR IF THE RESTART FILE JUST GOT DUMPED!
+!    IF(IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
        
-      DO I =1,NCNEST_NUM_WAVE
-        D=>NCNEST_DATA_WAVE(I)
-        G=>NCNEST_GRIDS_WAVE(I)
-        CALL ASSIGN2BLOCK_WAVE(D,G)
-      END DO
+!      DO I =1,NCNEST_NUM_WAVE
+!        D=>NCNEST_DATA_WAVE(I)
+!        G=>NCNEST_GRIDS_WAVE(I)
+!        CALL ASSIGN2BLOCK_WAVE(D,G)
+!      END DO
       
-      IF(USE_MPI_IO_MODE) THEN
-        CALL MPI_IO_SYNCHRONIZE(NESTING_CODE_WAVE)
-      ELSE
-        CALL CALL_FUNC(NESTING_CODE_WAVE,status)
-        IF (status/=0) call fatal_error("ARCHIVE:: Bad NESTING_CODE (WAVE)",&
-            & "Could not retrieve valid function pointer?")
-      END IF
+!      IF(USE_MPI_IO_MODE) THEN
+!        CALL MPI_IO_SYNCHRONIZE(NESTING_CODE_WAVE)
+!      ELSE
+!        CALL CALL_FUNC(NESTING_CODE_WAVE,status)
+!        IF (status/=0) call fatal_error("ARCHIVE:: Bad NESTING_CODE (WAVE)",&
+!            & "Could not retrieve valid function pointer?")
+!      END IF
 
-      DO I =1,NCNEST_NUM_WAVE
-        D=>NCNEST_DATA_WAVE(I)
-        CALL RESET_BLOCK_WAVE(D)
-      END DO
+!      DO I =1,NCNEST_NUM_WAVE
+!        D=>NCNEST_DATA_WAVE(I)
+!        CALL RESET_BLOCK_WAVE(D)
+!      END DO
        
-    END IF
+!    END IF
     
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END ARCHIVE_NEST_WAVE"
   END SUBROUTINE ARCHIVE_NEST_WAVE
