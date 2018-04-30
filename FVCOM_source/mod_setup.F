@@ -289,7 +289,8 @@ CONTAINS
             END IF
             
             call ADEAL(MYID,MSRID,NPROCS,EXMAP,xc_buf,xmc)
-            call ADEAL(MYID,MSRID,NPROCS,EXMAP,xc_buf,ymc)
+!JQI            call ADEAL(MYID,MSRID,NPROCS,EXMAP,xc_buf,ymc)
+            call ADEAL(MYID,MSRID,NPROCS,EXMAP,yc_buf,ymc)
             
             IF (MSR) THEN
                 deallocate(xc_buf, lonc_buf)
