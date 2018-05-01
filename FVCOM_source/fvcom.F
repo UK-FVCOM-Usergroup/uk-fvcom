@@ -429,9 +429,6 @@ PROGRAM FVCOM
 # if defined (BioGen)
   USE MOD_BIO_3D
 # endif    
-# if defined (FABM)
-  USE MOD_FABM_3D
-# endif
 # if defined (DYE_RELEASE)
   USE MOD_DYE
 # endif
@@ -585,13 +582,6 @@ PROGRAM FVCOM
   !   SETUP THE DOMAIN FOR PARALLEL OR SERIAL RUNNING                            !
   !==============================================================================!
   CALL SETUP_DOMAIN
-
-  !==============================================================================!
-  !  GET THE PARAMETERS OF FABM                                      !
-  !==============================================================================!
-#  if defined (FABM)
-  IF (FABM_MODEL) CALL FABM_FVCOM_INITIALIZE
-#  endif
 
   !==============================================================================!
   !   ALLOCATE ALL DOMAIN SIZE VARIABLES HERE                                    !

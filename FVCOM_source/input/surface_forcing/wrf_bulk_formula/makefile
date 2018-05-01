@@ -3,7 +3,7 @@
 # Compile the libraries in serial for the WRF bulk conversion tool.
 
 PACKAGES      = hdf5-1.8.15-patch1 netcdf-4.1.3
-FVCOM         = $(HOME)/Code/uk-fvcom/FVCOM_source
+FVCOM         = /home_nfs/pica/src/uk-fvcom/FVCOM_source
 FVCOMLIBS     = $(FVCOM)/libs/install/
 INSTALLDIR    = $(FVCOM)/input/surface_forcing/wrf_bulk_formula/install/
 # for mod_time stuff.

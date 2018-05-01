@@ -49,11 +49,6 @@ MODULE MOD_STARTUP
   USE MOD_BIO_3D
 # endif
 
-# if defined (FABM)
-  USE MOD_FABM_DATA
-  USE MOD_FABM_3D
-# endif
-
 # if defined (NH)
   USE NON_HYDRO, ONLY: W4ZT, NHQDRX, NHQDRY, NHQDRZ, NHQ2DX, NHQ2DY
 # endif
@@ -361,35 +356,6 @@ CONTAINS
 
 #   endif
 
-#   if defined (FABM)
-    IF (FABM_MODEL) THEN
-
-      if (dbg_set(dbg_log)) write(ipt,*) &
-         & "! INITIALIZING FABM VARIABLES"
-
-      CALL FABM_ALLOCATE
-
-! SET STARTUP VALUES FOR FABM VARIABLES
-      SELECT CASE(STARTUP_FABM_TYPE)
-      CASE(STARTUP_TYPE_OBSERVED) 
-        CALL FATAL_ERROR("STARTUP_FABM_TYPE='observed' is not supported.")
-      CASE(STARTUP_TYPE_LINEAR)
-        CALL FATAL_ERROR("STARTUP_FABM_TYPE='linear' is not supported.")
-      CASE(STARTUP_TYPE_CONSTANT)
-        CALL FABM_INITIALIZE_STATE
-      CASE(STARTUP_TYPE_DEFAULT)
-        CALL FATAL_ERROR("STARTUP_FABM_TYPE='default' is not supported.")
-      CASE(STARTUP_TYPE_SETVALUES)
-        CALL FABM_INITIALIZE_STATE
-        CALL READ_FABM
-      CASE DEFAULT
-        CALL FATAL_ERROR("UNKNOWN STARTUP_FABM_TYPE")
-      END SELECT
-      CALL FABM_INITIALIZE_DIAGNOSTICS
-      CALL FABM_UPDATE_SALINITY
-    ENDIF
-#   endif
-
     ! ONCE WE HAVE STARTED THE MODEL POINT THE START FILE OBJECT TO
     ! ITS OWN OUTPUT TO RELOAD OLD TIME STATES
     IF(.not. associated(NC_START,NC_RST)) THEN
@@ -516,7 +482,11 @@ CONTAINS
     !----------------------------------------------------------------
 #   if defined(SEDIMENT)
     IF(MORPHO_MODEL .and. SED_HOT_START)THEN
+#   if defined(ORIG_SED)
     VAR => FIND_VAR(NC_START,'h',FOUND)
+#   elif defined(CSTMS_SED)
+    VAR => FIND_VAR(NC_START,'h_morpho',FOUND)
+#   endif
     IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'h'&
          & IN THE HOTSTART FILE OBJECT")
     CALL NC_CONNECT_AVAR(VAR, h)
@@ -2093,55 +2063,6 @@ CONTAINS
 
 # endif
 
-# if defined (FABM)
-!==============================================================================!
-  SUBROUTINE READ_FABM
-    IMPLICIT NONE
-    TYPE(NCVAR),  POINTER :: VAR
-    LOGICAL :: FOUND
-    INTEGER :: STKCNT, IFABM
-    REAL(SP),POINTER :: FABM_TMP(:,:)
-    REAL(SP),POINTER :: FABM_TMP_HZ(:)
-    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_FABM" 
-
-    STKCNT = NC_START%FTIME%PREV_STKCNT
-
-    DO IFABM = 1,size(model%state_variables)
-      ! LOAD FABM PELAGIC STATE VARIABLES
-      VAR => FIND_VAR(NC_START,TRIM(model%state_variables(IFABM)%name),FOUND)
-      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
-         & TRIM(model%state_variables(IFABM)%name)//" IN THE HOTSTART FILE OBJECT")
-      FABM_TMP => FABM_ALL(1:,1:,IFABM)
-      CALL NC_CONNECT_PVAR(VAR,FABM_TMP)
-      CALL NC_READ_VAR(VAR,STKCNT)
-    END DO
-
-
-    DO IFABM = 1,size(model%bottom_state_variables)
-      ! LOAD BOTTOM-BOUND FABM STATE VARIABLES
-      VAR => FIND_VAR(NC_START,TRIM(model%bottom_state_variables(IFABM)%name),FOUND)
-      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
-         & TRIM(model%bottom_state_variables(IFABM)%name)//" IN THE HOTSTART FILE OBJECT")
-      FABM_TMP_HZ => FABM_ALL_BT(1:,IFABM)
-      CALL NC_CONNECT_PVAR(VAR,FABM_TMP_HZ)
-      CALL NC_READ_VAR(VAR,STKCNT)
-   END DO
-
-    DO IFABM = 1,size(model%surface_state_variables)
-      ! LOAD SURFACE-BOUND FABM STATE VARIABLES
-      VAR => FIND_VAR(NC_START,TRIM(model%surface_state_variables(IFABM)%name),FOUND)
-      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
-         & TRIM(model%surface_state_variables(IFABM)%name)//" IN THE HOTSTART FILE OBJECT")
-      FABM_TMP_HZ => FABM_ALL_SF(1:,IFABM)
-      CALL NC_CONNECT_PVAR(VAR,FABM_TMP_HZ)
-      CALL NC_READ_VAR(VAR,STKCNT)
-    END DO
-
-   IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_FABM" 
-
- END SUBROUTINE READ_FABM
-!==============================================================================!
-# endif
 
 
 # if defined (MEAN_FLOW)

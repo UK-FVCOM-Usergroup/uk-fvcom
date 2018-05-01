@@ -591,15 +591,7 @@ CONTAINS
 !!$          NCF => ADD(NCF,BIO_FILE_OBJECT() )
        END IF
        END IF
-#   endif    
-
-#   if defined (FABM)
-       IF(NC_FABM)THEN
-          NCF2 => FABM_FILE_OBJECT(1)
-          NCF => ADD(NCF,NCF2)
-!!$          NCF => ADD(NCF,BIO_FILE_OBJECT() )
-       END IF
-#   endif  
+#   endif      
        
 #   if defined (WATER_QUALITY)
        IF(NC_WQM)THEN
@@ -842,15 +834,7 @@ CONTAINS
 !!$      NC_AVG_DATA => ADD(NC_AVG_DATA,BIO_FILE_OBJECT() )
     END IF
     END IF
-#   endif   
-
-#   if defined (FABM)
-    IF(NCAV_FABM)THEN
-      NCF_TMP => FABM_FILE_OBJECT(2)
-      NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
-!!$      NC_AVG_DATA => ADD(NC_AVG_DATA,BIO_FILE_OBJECT() )
-    END IF
-#   endif   
+#   endif      
 
 #   if defined (WATER_QUALITY)
     IF(NCAV_WQM)THEN
@@ -1279,12 +1263,6 @@ CONTAINS
 !!$    NC_RST => ADD(NC_RST,BIO_FILE_OBJECT() )
     END IF
 #   endif      
-
-#   if defined (FABM)
-    NC_RST2 => FABM_FILE_OBJECT(3)
-    NC_RST => ADD(NC_RST,NC_RST2)
-!!$    NC_RST => ADD(NC_RST,BIO_FILE_OBJECT() )
-#   endif
 
 #   if defined (WATER_QUALITY)
     NC_RST2 => WQM_FILE_OBJECT()
@@ -2930,6 +2908,24 @@ CONTAINS
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='units',values='s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! WW
+    VAR  => NC_MAKE_AVAR(name='ww',&
+         & values=WW, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Upward Water Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
@@ -5841,156 +5837,6 @@ CONTAINS
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END BIO_FILE_OBJECT"
 
   END FUNCTION BIO_FILE_OBJECT
-# endif
-!=============================================================
-# if defined (FABM)
-  FUNCTION FABM_FILE_OBJECT(iset) RESULT(NCF)
-   USE MOD_FABM_DATA
-   USE fabm, ONLY: fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
-   USE fabm_types, ONLY: output_none
-   IMPLICIT NONE
-
-   INTEGER,INTENT(IN) :: iset
-   INTEGER :: status
-   LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
-   TYPE(NCFILE), POINTER :: NCF
-   TYPE(NCVAR),  POINTER :: VAR
-   TYPE(NCATT),  POINTER :: ATT
-   INTEGER :: II
-   REAL(SP), POINTER :: pdata(:,:), pdata_hz(:)
-
-   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START FABM_FILE_OBJECT"
-
-   IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
-
-     IOPROC_ALLOCATED = .true.
-
-     ALLOCATE(FABM_ALL(MGL,KB,size(model%state_variables)),STAT=STATUS)
-     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL")
-     FABM_ALL = 0.0_SP
-
-     ALLOCATE(FABM_ALL_BT(MGL,size(model%bottom_state_variables)),STAT=STATUS)
-     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_BT")
-     FABM_ALL_BT = 0.0_SP
-
-     ALLOCATE(FABM_ALL_SF(MGL,size(model%surface_state_variables)),STAT=STATUS)
-     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_SF")
-     FABM_ALL_SF = 0.0_SP
-
-   END IF
-
-  ! ALLOCATE THE NEW FILE OBJECT
-   NCF => NEW_FILE()
-
-   DO II=1,size(model%state_variables)
-   ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
-   ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
-   ! SHOULD HAVE THE SAME NAME A THOSE USED ON THE OTHER PROCESSORS!
-     IF (model%state_variables(II)%output/=output_none.or.ISET==3) THEN
-       pdata => FABM_ALL(1:M,1:KB,II)
-       VAR => ADD_FABM_VARIABLE(model%state_variables(II),pdata=pdata)
-       NCF  => ADD(NCF,VAR)
-     END IF
-   END DO
-
-   DO II=1,size(model%bottom_state_variables)
-     IF (model%bottom_state_variables(II)%output/=output_none.or.ISET==3) THEN
-       pdata_hz => FABM_ALL_BT(1:M,II)
-       VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),pdata_hz=pdata_hz)
-       NCF  => ADD(NCF,VAR)
-     END IF
-   END DO
-
-   DO II=1,size(model%surface_state_variables)
-     IF (model%surface_state_variables(II)%output/=output_none.or.ISET==3) THEN
-       pdata_hz => FABM_ALL_SF(1:M,II)
-       VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),pdata_hz=pdata_hz)
-       NCF  => ADD(NCF,VAR)
-     END IF
-   END DO
-
-   IF (ISET/=3.AND.FABM_DIAG_OUT) THEN
-      ! Normal output, not restart, so include diagnostics.
-      DO II=1,size(model%diagnostic_variables)
-        IF (model%diagnostic_variables(II)%save) THEN
-          VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),pdata=fabm_get_bulk_diagnostic_data(model,II))
-          NCF  => ADD(NCF,VAR)
-        END IF
-      END DO
-
-      DO II=1,size(model%horizontal_diagnostic_variables)
-        IF (model%horizontal_diagnostic_variables(II)%save) THEN
-          VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=fabm_get_horizontal_diagnostic_data(model,II))
-          NCF  => ADD(NCF,VAR)
-        END IF
-      END DO
-   END IF
-
-   IF (ISET/=2.AND.FABM_DIAG_OUT) THEN
-      DO II=1,size(model%conserved_quantities)
-        VAR  => NC_MAKE_AVAR(name=TRIM(model%conserved_quantities(II)%name),       &
-           & values=FABM_TOTALS(II), DIM1=DIM_time)
-        ATT  => NC_MAKE_ATT(name='long_name',values=TRIM(model%conserved_quantities(II)%long_name)) 
-        VAR  => ADD(VAR,ATT)
-        ATT  => NC_MAKE_ATT(name='units',values=TRIM(model%conserved_quantities(II)%units)//'*m3')
-        VAR  => ADD(VAR,ATT)
-        NCF  => ADD(NCF,VAR)
-      END DO
-   END IF
-
-   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END FABM_FILE_OBJECT"
-
-  END FUNCTION FABM_FILE_OBJECT
-
-  FUNCTION ADD_FABM_VARIABLE(variable,pdata,pdata_hz,pdata3) result(VAR)
-     USE fabm 
-     class (type_external_variable),intent(in) :: variable
-   
-     REAL(SP), POINTER, OPTIONAL :: pdata3(:,:,:)
-     REAL(SP), POINTER, OPTIONAL :: pdata(:,:)
-     REAL(SP), POINTER, OPTIONAL :: pdata_hz(:)
-     TYPE(NCVAR),  POINTER :: VAR
-     TYPE(NCATT),  POINTER :: ATT
-
-     if (present(pdata)) then
-       VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
-           & values=pdata, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
-     elseif (present(pdata3)) then
-       VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
-           & values=pdata3, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
-      elseif (present(pdata_hz)) then
-       VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
-           & values=pdata_hz, DIM1= DIM_node, DIM2=DIM_time)
-     else
-        CALL FATAL_ERROR("ADD_FABM_VARIABLE: pdata/pdata_hz not provided")
-     end if
-
-     ATT  => NC_MAKE_ATT(name='long_name',values=TRIM(variable%long_name)) 
-     VAR  => ADD(VAR,ATT)
-
-!    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_water_temperature') 
-!    VAR  => ADD(VAR,ATT)
-
-     ATT  => NC_MAKE_ATT(name='units',values=TRIM(variable%units) )
-     VAR  => ADD(VAR,ATT)
-
-     ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
-     VAR  => ADD(VAR,ATT)
-
-     ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
-     VAR  => ADD(VAR,ATT)
-
-     ATT  => NC_MAKE_ATT(name='type',values='data') 
-     VAR  => ADD(VAR,ATT)    
-
-#if defined DOUBLE_PRECISION && SINGLE_OUTPUT
-     ATT  => NC_MAKE_ATT(name='_FillValue',values=REAL(variable%missing_value,SPA))
-#else
-     ATT  => NC_MAKE_ATT(name='_FillValue',values=variable%missing_value)
-#endif
-!     ATT  => NC_MAKE_ATT(name='_FillValue',values=variable%missing_value)
-     VAR  => ADD(VAR,ATT)
-  END FUNCTION
 # endif
 !=============================================================
 # if defined (WATER_QUALITY)

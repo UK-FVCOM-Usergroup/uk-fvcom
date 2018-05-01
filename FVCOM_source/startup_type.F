@@ -34,10 +34,7 @@ SUBROUTINE SET_STARTUP_TYPE
 # endif    
 # if defined (BioGen)
   USE MOD_BIO_3D
-# endif 
-# if defined(FABM)
-  USE MOD_FABM_DATA
-# endif   
+# endif    
   IMPLICIT NONE
   INTEGER :: II
 
@@ -101,9 +98,7 @@ SUBROUTINE SET_STARTUP_TYPE
      STARTUP_TS_TYPE = STARTUP_TYPE_SETVALUES
      STARTUP_UV_TYPE = STARTUP_TYPE_SETVALUES
      STARTUP_TURB_TYPE = STARTUP_TYPE_SETVALUES
-# if defined (FABM)
-     STARTUP_FABM_TYPE = STARTUP_TYPE_SETVALUES
-# endif
+
      !=================================================
      ! COLDSTART 
   CASE(STARTUP_TYPE_COLDSTART)
@@ -256,25 +251,5 @@ SUBROUTINE SET_STARTUP_TYPE
 # endif   
 
 
-# if defined (FABM)
-  IF (FABM_MODEL) THEN
-  SELECT CASE(STARTUP_FABM_TYPE)
-  CASE(STARTUP_TYPE_OBSERVED)
-     CALL FATAL_ERROR("STARTUP_FABM_TYPE='observed' is not supported (valid options: 'constant', 'set values')")
-  CASE(STARTUP_TYPE_LINEAR)
-     CALL FATAL_ERROR("STARTUP_FABM_TYPE='linear' is not supported (valid options: 'constant', 'set values')")
-  CASE(STARTUP_TYPE_CONSTANT)
-     ! OKAY
-  CASE(STARTUP_TYPE_DEFAULT)
-     CALL FATAL_ERROR("STARTUP_FABM_TYPE='default' is not supported (valid options: 'constant', 'set values')")
-  CASE(STARTUP_TYPE_SETVALUES)
-     IF(BAROTROPIC) CALL WARNING("YOU ARE RESTARTING A BAROTROPIC CASE&
-          &: FABM VARIABLES BETTER BE CONSTANT IN THE RESTART FILE!")
-     ! OKAY
-  CASE DEFAULT
-     CALL FATAL_ERROR("UNKNOWN OPTION '"//TRIM(STARTUP_FABM_TYPE)//"' USED FOR STARTUP_FABM_TYPE (valid options: 'constant', 'set values')")
-  END SELECT
-  END IF
-# endif
 
 END SUBROUTINE SET_STARTUP_TYPE

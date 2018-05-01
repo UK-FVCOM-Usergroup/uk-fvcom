@@ -8,7 +8,7 @@ This repository is for the UK FVCOM Users' code development.
 Register
 --------
 
-Users of FVCOM must [register first](http://fvcom.smast.umassd.edu/wp-login.php?action=register) with Dr Changsheng Chen at the University of Massachusetts School of Marine Science. Users must agree to the [licence terms](LICENSE).
+Users of FVCOM must [register first](http://fvcom.smast.umassd.edu/wp-login.php?action=register) with Dr Changsheng Chen at the University of Massachusetts School of Marine Science. Users must agree to the [licence terms](FVCOM_source/LICENCE).
 
 Download
 --------
@@ -18,7 +18,7 @@ Once registered, the official releases of FVCOM are available for download as ta
 Support
 -------
 
-The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/.
+The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is a wiki available at https://wiki.fvcom.pml.ac.uk.
 
 FABM-ERSEM
 ----------

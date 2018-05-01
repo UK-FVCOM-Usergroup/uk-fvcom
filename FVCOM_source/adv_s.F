@@ -175,7 +175,7 @@ SUBROUTINE ADV_S
 
 #    if defined (WET_DRY)
 !J. Ge for tracer advection
-           IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+           IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
 
             IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
              FFD=0.5_SP*(S1(I,K)+S1(I2,K)-SMEAN1(I,K)-SMEAN1(I2,K))
@@ -227,7 +227,7 @@ SUBROUTINE ADV_S
 !J. Ge for tracer advection
 #    else
 !J. Ge for tracer advection	 
-           IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+           IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
              FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
              FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
            ELSE
@@ -302,7 +302,7 @@ SUBROUTINE ADV_S
              I1=NBSN(N_DAM_MATCH(I,NX+1),J)
              I2=NBSN(N_DAM_MATCH(I,NX+1),J+1)
 !J. Ge for tracer advection
-             IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+             IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
                FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
                FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
              ELSE
@@ -404,7 +404,7 @@ SUBROUTINE ADV_S
 !!$#      endif
 
 !J. Ge for tracer advection
-        IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+        IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
           FIJ1=S1(IA,K)+DLTXNCVE(I,1)*PSPX(IA)+DLTYNCVE(I,1)*PSPY(IA)
           FIJ2=S1(IB,K)+DLTXNCVE(I,2)*PSPX(IB)+DLTYNCVE(I,2)*PSPY(IB)
         ELSE
@@ -821,7 +821,7 @@ SUBROUTINE ADV_S
 #          if !defined (NH) && !defined (LIMITER_VER_ADV)
 
 !J. Ge for tracer advection
-           IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+           IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
              IF(K == 1) THEN
               TEMP=-WTS(I,K+1)*(S1(I,K)*DZ(I,K+1)+S1(I,K+1)*DZ(I,K))/   &
                    (DZ(I,K)+DZ(I,K+1))
@@ -934,7 +934,7 @@ SUBROUTINE ADV_S
      DO I=1,M
 !        XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*S1(I,KBM1)/DZ(I,KBM1)
 !J. Ge for tracer advection
-        IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+        IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
           XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*S1(I,KBM1)
         ELSE
           IF(BACKWARD_STEP==1)THEN

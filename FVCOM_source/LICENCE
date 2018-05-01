@@ -1,4 +1,4 @@
-FVCOM Software Users’ License Agreement
+FVCOM Software Users' License Agreement
 
 All users should read this agreement carefully. A user, who receives any
 version of the source code of FVCOM, must accept all the terms and conditions
@@ -7,7 +7,7 @@ negotiated agreement signed by you. You may be required to have another
 written agreement directly with Dr. Changsheng Chen at SMAST/UMASS-D and Dr.
 Robert C. Beardsley at WHOI.
 
-The Finite-Volume Coastal Ocean Model (“FVCOM”) source code has been
+The Finite-Volume Coastal Ocean Model ("FVCOM") source code has been
 developed in the Marine Ecosystem Dynamics Modeling Laboratory led by Dr. C.
 Chen at the University of Massachusetts – Dartmouth (UMASS-D) in
 collaboration with Dr. R. Beardsley at the Woods Hole Oceanographic
@@ -52,5 +52,5 @@ any prior restraint on publication.
 D. Publication of FVCOM Results
 
 The user agrees to acknowledge FVCOM in any publications resulting from the
-use of the FVCOM source code. The user agrees to use the name “FVCOM” to
+use of the FVCOM source code. The user agrees to use the name "FVCOM" to
 refer to the model.

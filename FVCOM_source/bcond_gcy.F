@@ -502,9 +502,6 @@
 # if defined(BioGen)
          IF(BIOLOGICAL_MODEL)CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
 # endif
-# if defined(FABM)
-         IF (FABM_MODEL) CALL UPDATE_RIVERS(IntTime,QDIS,FABMR=FABMDIS)
-# endif
 # if !defined(SEDIMENT) && !defined(WATER_QUALITY)
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS)
 # endif  
@@ -636,11 +633,6 @@
       CALL UPDATE_OFFLINE_FORCING(IntTime,offline_u,  offline_v, offline_w&
                                         &,offline_s1, offline_el,offline_kh&
                                         &,offline_wn, offline_wc)
-# endif
-# if defined (FABM) && defined (OFFLINE_FABM)
-      IF (FABM_MODEL) CALL UPDATE_OFFLINE_FABM_FORCING(IntTime,offlineb_u,  offlineb_v, offlineb_w&
-                                        &,offlineb_s1,offlineb_t1, offlineb_el,offlineb_kh&
-                                        &,offlineb_wn, offlineb_wc,offlineb_uard_obcn)
 # endif
 
 !
