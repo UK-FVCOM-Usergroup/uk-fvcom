@@ -167,7 +167,8 @@ SUBROUTINE VDIF_TS(NCON1,F)
 #    endif
 
 ! Jadon: avoid overcooling or overheating in the region (depth<2m)
-                 IF(D(I)<2.0_SP)THEN
+! For ROSA domain clipped to 10m
+                 IF(D(I)<10.0_SP)THEN
                     WFSURF(I) = 0.0_SP
                     SWRADF(I) = 0.0_SP
                  END IF
@@ -177,18 +178,18 @@ SUBROUTINE VDIF_TS(NCON1,F)
 
 !       SPECIFIED PARAMETERS FOR ROSA/UK WATERS CASE (DECEMBER 2016)
                     IF(D(I) < 50.0_SP) THEN
-                       RHEAT=0.65
-                       ZETA1=1._SP
-                       ZETA2=15.0_SP
+                       RHEAT=0.77_SP
+                       ZETA1=1.1_SP
+                       ZETA2=10.0_SP
                     ELSE IF(D(I) > 100.0_SP) THEN
                        RHEAT=0.58_SP
                        ZETA1=0.35_SP
                        ZETA2=23.0_SP
                     ELSE
                        TMP1=(D(I)-50.0_SP)/(100.0_SP-50.0_SP)
-                       RHEAT=0.65_SP+(0.58_SP-0.65_SP)*TMP1
-                       ZETA1=1._SP+ (0.35_SP-1._SP )*TMP1
-                       ZETA2=15.0_SP+ (23.0_SP-15.0_SP )*TMP1
+                       RHEAT=0.77_SP+(0.58_SP-0.77_SP)*TMP1
+                       ZETA1=1.1_SP+ (0.35_SP-1.1_SP )*TMP1
+                       ZETA2=10.0_SP+ (23.0_SP-10.0_SP )*TMP1
                     END IF
 
 ! zlai: include the gom method to consider different surface heat penetration
