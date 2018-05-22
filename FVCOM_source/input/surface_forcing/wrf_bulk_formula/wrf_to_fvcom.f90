@@ -1153,6 +1153,10 @@
 	real ZET, ZO, RR, L, ZOQ, ZOT, BF, HSB, HLB, QOUT, DELS, QCOL, ALQ, XLAMX, DQER
 	real ch,ce
 	integer i, nits
+	! ---- new : Karsten Lettmann , Jan. 2018 --------
+	real :: epsi = 1.0e-16   ! small value to stabilize the code
+	! -------- end new -------------------------------
+
 
 !------------------------------------------------------------------------------
 
@@ -1274,13 +1278,15 @@
 
 
    do i=1,nits
-     zet=von*grav*zu/ta*(tsr +0.61*ta*qsr)/(usr**2)
-     zo=charn*usr**2/grav+0.11*visa/usr ! surface roughness
+     zet=von*grav*zu*(tsr*(1.+0.61*q)+0.61*ta*qsr)/(ta*(usr*usr)*(1.+0.61*q) + epsi)
+     zo=charn*usr*usr/grav+0.11*visa/(usr+epsi) ! surface roughness
+
      rr=zo*usr/visa
-     L=zu/zet
+     L=zu/(zet+epsi)
      zoq=min(1.15e-4,5.5e-5/rr**0.6) ! mositure roughness
      zot=zoq                        ! temperature roughness
      usr=ut*von/(log(zu/zo)-psiu_26(zu/L))
+     usr=max(epsi,usr)
      tsr=-(dt-dter*jcool)*von*fdg/(log(zt/zot)-psit_26(zt/L))
      qsr=-(dq-wetc*dter*jcool)*von*fdg/(log(zq/zoq)-psit_26(zq/L))
      Bf=-grav/ta*usr*(tsr+0.61*ta*qsr)
@@ -1296,15 +1302,15 @@
      hsb=-rhoa*cpa*usr*tsr ! flux out
      hlb=-rhoa*Le*usr*qsr  ! flux out
      qout=Rnl+hsb+hlb
-     dels=Rns*(0.065+11*tkt-6.6e-5/tkt*(1-exp(-tkt/8.0e-4)))
+     dels=Rns*(0.065+11.0*tkt-6.6e-5/tkt*(1.0-exp(-tkt/8.0e-4)))
      qcol=qout-dels
      alq=Al*qcol+be*hlb*cpw/Le
      if (alq>0) then
-        xlamx=6./(1.+(bigc*alq/usr**4)**0.75)**0.333
-        tkt=xlamx*visw/(sqrt(rhoa/rhow)*usr)
+        xlamx=6./(1.+(bigc*alq/(usr+epsi)**4)**0.75)**0.333
+        tkt=xlamx*visw/(sqrt(rhoa/rhow)*(usr+epsi))
      else
         xlamx=6.0
-        tkt=min(0.01, xlamx*visw/(sqrt(rhoa/rhow)*usr))
+        tkt=min(0.01, xlamx*visw/(sqrt(rhoa/rhow)*(usr+epsi)))
      endif
      dter=qcol*tkt/tcw
      dqer=wetc*dter

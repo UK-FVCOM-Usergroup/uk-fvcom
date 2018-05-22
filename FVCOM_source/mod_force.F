@@ -77,6 +77,11 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER ::  TIDE_ELV_N, TIDE_ELV_P
   CHARACTER(LEN=Char_max_attlen), PUBLIC,ALLOCATABLE :: TIDE_FORCING_COMMENTS(:)
 
+# if defined (FABM)
+  TYPE TYPE_NCVAR_POINTER
+     TYPE(NCVAR), POINTER :: p => NULL()
+  END TYPE
+# endif
 
   ! RIVER FORCING VARIABLES FOR UPDATE AND SETUP
   ! NOTE RIVERS ARE A PAIN - EACH PROCESSOR HAS TO FETCH ITS OWN DATA!
@@ -137,9 +142,12 @@ MODULE MOD_FORCE
      TYPE(NCVAR), POINTER :: BIO19_N,BIO19_P
      TYPE(NCVAR), POINTER :: BIO20_N,BIO20_P
 # endif
+# if defined (FABM)
+     TYPE (TYPE_NCVAR_POINTER),DIMENSION(:),ALLOCATABLE :: FABM_N,FABM_P
+# endif
      ! ADD MORE HERE!
   END TYPE A_RIVER_FILE
-  TYPE(A_RIVER_FILE), ALLOCATABLE :: RIVER_FORCING(:)
+  TYPE(A_RIVER_FILE), ALLOCATABLE,PUBLIC :: RIVER_FORCING(:)
 
 
 
@@ -226,6 +234,14 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: OBC_B_N19, OBC_B_P19  
   TYPE(NCVAR), POINTER :: OBC_B_N20, OBC_B_P20  
 # endif  
+# if defined (FABM)
+  TYPE(NCFILE), POINTER :: OBC_F_FILE
+  CHARACTER(LEN=Char_max_attlen), PUBLIC :: OBC_F_COMMENTS
+  INTEGER :: OBC_F_TYPE
+  INTEGER,PARAMETER :: OBC_F_SIGMA = 1
+  TYPE (TYPE_NCVAR_POINTER),DIMENSION(:),ALLOCATABLE :: OBC_FABM_N,OBC_FABM_P
+  LOGICAL, PUBLIC, ALLOCATABLE ::  FABM_OBC_PRESCRIBED(:)    ! 3D FABM STATE VARIABLES OBC MASK 
+# endif
 
   ! =================================================================
   ! SURFACE HEAT FORCING FILE DATA 
@@ -356,6 +372,39 @@ MODULE MOD_FORCE
 # endif
 
 
+
+# if defined (OFFLINE_FABM)
+  ! =================================================================
+  ! OFFLINE FABM FILE DATA 
+  INTEGER :: FABM_FORCING_TYPE
+
+  INTEGER, PARAMETER :: FABM_IS_WRFGRID   = 0
+  INTEGER, PARAMETER :: FABM_IS_FVCOMGRID = 1
+
+  TYPE(TIME) :: FABM_PERIOD
+
+  TYPE(NCFILE), POINTER :: FABM_FILE
+  CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE    :: FABM_FORCING_COMMENTS(:)
+  TYPE(INTERP_WEIGHTS),POINTER :: FABM_INTP_N
+  TYPE(INTERP_WEIGHTS),POINTER :: FABM_INTP_C
+  TYPE(NCVAR), POINTER :: FABM_U_N , FABM_U_P  ! U VELOCITY 
+  TYPE(NCVAR), POINTER :: FABM_V_N , FABM_V_P  ! V VELOCITY
+  TYPE(NCVAR), POINTER :: FABM_W_N , FABM_W_P  ! W VELOCITY
+  TYPE(NCVAR), POINTER :: FABM_S1_N, FABM_S1_P ! SALINITY
+  TYPE(NCVAR), POINTER :: FABM_T1_N, FABM_T1_P ! TEMPERATURE
+  TYPE(NCVAR), POINTER :: FABM_EL_N, FABM_EL_P ! ELEVATION
+  TYPE(NCVAR), POINTER :: FABM_KH_N, FABM_KH_P ! KM
+# if defined (WET_DRY)
+  TYPE(NCVAR), POINTER :: FABM_WN_N, FABM_WN_P ! WET NODES
+  TYPE(NCVAR), POINTER :: FABM_WC_N, FABM_WC_P ! WET CELLS
+  TYPE(NCVAR), POINTER :: SEDIMENTS_WN_N, SEDIMENTS_WN_P ! WET NODES
+  TYPE(NCVAR), POINTER :: SEDIMENTS_WC_N, SEDIMENTS_WC_P ! WET CELLS
+# endif
+  TYPE(NCVAR), POINTER :: FABM_UA_N, FABM_UA_P ! UARD_OBCN
+
+# endif
+
+
 !Jadon
   ! =================================================================
   ! SURFACE WAVE STRESS FILE DATA 
@@ -467,6 +516,10 @@ MODULE MOD_FORCE
   PUBLIC :: UPDATE_OFFLINE_BIOLOGY_FORCING
 # endif
 
+# if defined (OFFLINE_FABM)
+  PUBLIC :: UPDATE_OFFLINE_FABM_FORCING
+# endif
+
   PUBLIC :: UPDATE_PRECIPITATION
   PUBLIC :: UPDATE_AIRPRESSURE
   PUBLIC :: UPDATE_TIDE
@@ -479,6 +532,9 @@ MODULE MOD_FORCE
 # if defined (BioGen)
   PUBLIC :: UPDATE_OBC_BIO
 # endif  
+# if defined (FABM)
+  PUBLIC :: UPDATE_OBC_FABM
+# endif
   PUBLIC :: UPDATE_ICE
   PUBLIC :: UPDATE_ICING
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -578,6 +634,23 @@ CONTAINS
 # endif
 
 
+# if defined (OFFLINE_FABM)
+    NULLIFY(FABM_FILE,FABM_INTP_N,FABM_INTP_C, &
+         & FABM_U_N,     FABM_U_P,      &
+         & FABM_V_N,     FABM_V_P,      &
+         & FABM_W_N,     FABM_W_P,      &
+         & FABM_S1_N,    FABM_S1_P,     &
+         & FABM_T1_N,    FABM_T1_P,     &
+         & FABM_EL_N,    FABM_EL_P,     &
+         & FABM_KH_N,    FABM_KH_P,     &
+# if defined (WET_DRY)
+         & FABM_WN_N,    FABM_WN_P,     &
+         & FABM_WC_N,    FABM_WC_P,     &
+# endif
+         & FABM_UA_N,    FABM_UA_P      )
+# endif
+
+
     CALL TIDAL_ELEVATION
     CALL OBC_TEMPERATURE
     CALL OBC_SALINITY
@@ -586,6 +659,9 @@ CONTAINS
 # endif    
 # if defined (BioGen)
     IF(BIOLOGICAL_MODEL)CALL OBC_BIO
+# endif
+# if defined (FABM)
+    IF (FABM_MODEL) CALL OBC_FABM
 # endif    
     CALL RIVER_DISCHARGE
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)    
@@ -607,6 +683,10 @@ CONTAINS
 
 # if defined (OFFLINE_BIOLOGY)
     CALL OFFLINE_BIOLOGY_FORCING
+# endif
+
+# if defined (OFFLINE_FABM)
+    IF (FABM_MODEL) CALL OFFLINE_FABM_FORCING
 # endif
 
 # if defined (WAVE_CURRENT_INTERACTION) && (WAVE_OFFLINE)
@@ -1407,7 +1487,8 @@ CONTAINS
        !=========================
        ! TIME SERIES FORCING DATA
     CASE("FVCOM JULIAN TIME SERIES ELEVATION FORCING FILE", &
-         & "FVCOM TIME SERIES ELEVATION FORCING FILE")
+         & "FVCOM TIME SERIES ELEVATION FORCING FILE", &
+         & "FVCOM nesting TIME SERIES FILE")
        !=========================
 
        ALLOCATE(TIDE_FORCING_COMMENTS(1))
@@ -1718,8 +1799,14 @@ CONTAINS
 # if defined (BioGen)
   USE MOD_1D, ONLY : NTT,BIO_NAME
 # endif  
+# if defined (FABM)
+  USE MOD_FABM_DATA
+# endif
     IMPLICIT NONE
     INTEGER :: I, J,K, fcnt,rcnt,status, nfiles,nrs,IOS,NS
+# if defined (FABM)
+    INTEGER :: IFABM
+# endif
     TYPE(A_RIVER_FILE) DUMMY
 
     TYPE(NCFILE),POINTER :: NCF
@@ -1950,6 +2037,10 @@ CONTAINS
        NULLIFY(RIVER_FORCING(I)%BIO20_N)
        NULLIFY(RIVER_FORCING(I)%BIO20_P)
 # endif         
+# if defined (FABM)
+       ALLOCATE(RIVER_FORCING(I)%FABM_N(size(model%state_variables)))
+       ALLOCATE(RIVER_FORCING(I)%FABM_P(size(model%state_variables)))
+# endif
     END DO
 
 
@@ -1970,6 +2061,9 @@ CONTAINS
     IF(BIOLOGICAL_MODEL)THEN
       ALLOCATE(BIODIS(NUMQBC,NTT));   BIODIS  = 0.0_SP
     END IF
+# endif
+# if defined (FABM)
+    ALLOCATE(FABMDIS(NUMQBC,size(model%state_variables))); FABMDIS  = 0.0_SP
 # endif
     ALLOCATE(TDIS(NUMQBC));         TDIS   = 0.0_SP
     ALLOCATE(SDIS(NUMQBC));         SDIS   = 0.0_SP
@@ -3054,6 +3148,33 @@ CONTAINS
 
 # endif
 
+#if defined (FABM)
+
+       IF(FABM_MODEL)THEN
+
+         DO IFABM=1,size(model%state_variables)
+         ! GET THE BIOLOGICAL CONCENTRATION FOR CURRENT PELAGIC STATE VARIABLE
+           VAR => FIND_VAR(NCF,TRIM(model%state_variables(IFABM)%name),FOUND)
+           IF(FOUND) THEN
+             ALLOCATE(STORAGE_VEC(nrs), stat = status)
+             IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN RIVER_DISCHARGE")
+             RIVER_FORCING(I)%FABM_N(IFABM)%P => reference_var(var)
+             CALL NC_CONNECT_PVAR(RIVER_FORCING(I)%FABM_N(IFABM)%P,STORAGE_VEC)
+             NULLIFY(STORAGE_VEC)
+
+             ALLOCATE(STORAGE_VEC(nrs), stat = status)
+             IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN RIVER_DISCHARGE")
+             RIVER_FORCING(I)%FABM_P(IFABM)%P => reference_var(var)
+             CALL NC_CONNECT_PVAR(RIVER_FORCING(I)%FABM_P(IFABM)%P,STORAGE_VEC)
+             NULLIFY(STORAGE_VEC)
+
+          ! TODO: report for which variables river data is being used
+           ENDIF
+
+         END DO
+       END IF
+#endif
+
     END DO
 
     ! SET THE RIVER BNDRY METRICS - USED TO BE SET_BNDRY
@@ -3814,7 +3935,8 @@ CONTAINS
     SELECT CASE(TRIM(ATT%CHR(1)))
        !=================================
        ! TIME SERIES OBC TEMPERATURE NUDGING DATA
-    CASE("FVCOM TIME SERIES OBC TS FILE")
+    CASE("FVCOM TIME SERIES OBC TS FILE", & 
+        & "FVCOM nesting TIME SERIES FILE")
        !==================================         
 
        OBC_T_TYPE = OBC_T_SIGMA
@@ -5484,6 +5606,213 @@ CONTAINS
 # endif
   !================================================================
   !================================================================
+
+  !================================================================
+# if defined (FABM)
+  SUBROUTINE OBC_FABM
+    USE MOD_FABM_DATA
+    IMPLICIT NONE
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT, ATT_DATE
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    LOGICAL :: FOUND
+
+    INTEGER MYNOBC
+    INTEGER, ALLOCATABLE :: MYOBCLIST(:)
+    INTEGER :: MYSIGLAY
+
+    REAL(SP), POINTER :: STORAGE_ARR(:,:), storage_vec(:)
+    INTEGER :: NTIMES, I, IFABM
+    TYPE(TIME) :: TIMETEST
+
+    INTEGER :: STATUS
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START OBC_FABM"
+
+    ! Initialize field with variable-specific nudging flags (NB must be done even if .not. FABM_OBC_PRESCRIBED!)
+    ALLOCATE(FABM_OBC_PRESCRIBED(size(model%state_variables)))
+    FABM_OBC_PRESCRIBED=.FALSE.
+
+    IF (.NOT. OBC_FABM_NUDGING) THEN
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! OPEN BOUNDARY FABM NUDGING IS OFF!"
+       OBC_F_COMMENTS="OPEN BOUNDARY FABM NUDGING IS OFF!"
+       RETURN
+    END IF
+
+    IF(DBG_SET(DBG_LOG)) write(IPT,*) "! OPEN BOUNDARY FABM NUDGING IS ON!"
+    OBC_F_COMMENTS="OPEN BOUNDARY FABM NUDGING IS ON!"
+
+    ! FIND THE FORCING FILE OBJECT
+    OBC_F_FILE => FIND_FILE(FILEHEAD,trim(OBC_FABM_FILE),FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND OPEN BOUNDARY CONDITION FABM FILE OBJECT",&
+         & "FILE NAME: "//TRIM(OBC_FABM_FILE))
+
+    ATT => FIND_ATT(OBC_F_FILE,"type",FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("IN OPEN BOUNDARY CONDITION FABM FILE OBJECT",&
+         & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
+
+
+    SELECT CASE(TRIM(ATT%CHR(1)))
+       !=================================
+       ! TIME SERIES OBC FABM NUDGING DATA
+    CASE("FVCOM TIME SERIES OBC FABM FILE")
+       !==================================         
+
+       OBC_F_TYPE = OBC_F_SIGMA
+
+       ATT => FIND_ATT(OBC_F_FILE,"title",FOUND)
+       IF(FOUND) THEN
+          OBC_F_COMMENTS = "Open Boundary FABM Data: "&
+               &//TRIM(ATT%CHR(1))
+       ELSE
+          CALL WARNING("ATTRIBUTE 'title' IS MISSING IN THE FABM NUDGING FILE!")
+          OBC_F_COMMENTS = "Open Boundary FABM Data: UNKNOWN SOURCE"
+       END IF
+
+       ! LOOK FOR THE DIMENSIONS 'nobc' and 'time'
+       DIM => FIND_DIM(OBC_F_FILE,'time',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"COULD NOT FIND DIMENSION 'time'")
+
+       NTIMES = DIM%DIM
+
+       DIM => FIND_DIM(OBC_F_FILE,'siglay',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"COULD NOT FIND DIMENSION 'siglay'")
+
+       MYSIGLAY = DIM%DIM
+
+       if(KBM1 /= MYSIGLAY) CALL FATAL_ERROR&
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"THE 'siglay' DIMENSION DOES NOT MATCH THE MODEL RUN!")
+
+       DIM => FIND_DIM(OBC_F_FILE,'nobc',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"COULD NOT FIND DIMENSION 'nobc'")
+
+       if(IOBCN_GL>0) then
+       IF(IOBCN_GL /= DIM%DIM) CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"THE DIMENSION 'nobc' MUST MATCH THE NUMBER OF OBC NODES")
+       endif
+
+       ! LOAD GLOBAL OPEN BOUNDARY NOD NUMBER DATA AND COMPARE WITH
+       ! OBC.DAT/RESTART FILE INPUT
+       ALLOCATE(MYOBCLIST(IOBCN))
+       VAR => FIND_VAR(OBC_F_FILE,'obc_nodes',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"COULD NOT FIND VARIABLE 'obc_nodes'")
+       CALL NC_CONNECT_AVAR(VAR,MYOBCLIST)
+       CALL NC_READ_VAR(VAR)
+
+       DO I = 1, IOBCN
+
+          IF(SERIAL) THEN
+             IF(I_OBC_N(I) /= MYOBCLIST(I)) THEN
+                write(IPT,*) "NLID(MYOBCLIST)= ", MYOBCLIST(I), "; I=",I
+                write(IPT,*) "I_OBC_N= ", I_OBC_N(I), "; I=",I
+                CALL FATAL_ERROR &
+                     & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+                     & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+                     &"THE LIST OF BOUNDARY NODES DOES NOT MATCH")
+             END IF
+          ELSE
+# if defined(MULTIPROCESSOR)
+             IF(I_OBC_N(I) /= NLID(MYOBCLIST(I))) THEN
+                write(IPT,*) "NLID(MYOBCLIST)= ", NLID(MYOBCLIST(I)), "; I=",I
+                write(IPT,*) "I_OBC_N= ", I_OBC_N(I), "; I=",I
+                CALL FATAL_ERROR &
+                     & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+                     & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+                     &"THE LIST OF BOUNDARY NODES DOES NOT MATCH")
+             END IF
+# endif
+          END IF
+       END DO !IOBCN
+
+       ! LOAD TIME AND CHECK TO MAKE SURE THE TIME RANGE IS VALID
+
+       TIMETEST = GET_FILE_TIME(OBC_F_FILE,1)
+
+       IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"THE MODEL RUN STARTS BEFORE THE FABM TIME SERIES")
+
+       TIMETEST = GET_FILE_TIME(OBC_F_FILE,NTIMES)
+
+
+       IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"THE MODEL RUN ENDS AFTER THE FABM TIME SERIES")
+
+       ALLOCATE(OBC_FABM_N(size(model%state_variables)))
+       ALLOCATE(OBC_FABM_P(size(model%state_variables)))
+       DO IFABM=1,size(model%state_variables)
+       VAR => FIND_VAR(OBC_F_FILE,model%state_variables(IFABM)%name,FOUND)
+       IF(FOUND) THEN
+          ! TODO: report which variables have OBC
+          FABM_OBC_PRESCRIBED(IFABM)=.TRUE.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"COULD NOT FIND "//trim(model%state_variables(IFABM)%name)//" VARIABLE'S ATTRIBUTE 'units'")
+
+!       if(TRIM(ATT%CHR(1)) .NE. TRIM(model%state_variables(IFABM)%units))  &
+!            & CALL FATAL_ERROR &
+!            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
+!            &//trim(model%state_variables(IFABM)%name)//" VARIABLE ATTRIBUTE 'units' SHOULD BE " ,&
+!            &//TRIM(model%state_variables(IFABM)%units))
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OBC_FABM")
+       OBC_FABM_N(IFABM)%P => reference_var(var)
+       CALL NC_CONNECT_PVAR(OBC_FABM_N(IFABM)%P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OBC_FABM")
+       OBC_FABM_P(IFABM)%P => reference_var(var)
+       CALL NC_CONNECT_PVAR(OBC_FABM_P(IFABM)%P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+       END IF
+       END DO
+
+       !=====================================
+       ! DEFAULT CASE IF GLOBAL ATTRIBUTES OF FILE ARE INCORRECT
+    CASE DEFAULT
+       !=====================================
+       CALL FATAL_ERROR &
+            & ("IN OPEN BOUNDARY CONDITION FABM FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
+            & TRIM(ATT%CHR(1)))
+    END SELECT
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_FABM"
+
+  END SUBROUTINE OBC_FABM
+# endif
+  !================================================================
+
 
   ! CURRENTELY NOT IN USE! REPLACEED BY INTERP_BILINEAR WHICH IS A
   ! GENERAL INTERPOLATION SCHEME FOR CURVILINEAR COORDINATES
@@ -8968,6 +9297,380 @@ CONTAINS
   END SUBROUTINE SURFACE_WINDSTRESS
 
 !================================================================
+# if defined (OFFLINE_FABM)
+!================================================================
+!================================================================
+  SUBROUTINE OFFLINE_FABM_FORCING
+    IMPLICIT NONE
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT, ATT_DATE
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    LOGICAL :: FOUND
+    REAL(SP), POINTER :: STORAGE_ARR(:,:), storage_vec(:)
+    INTEGER , POINTER :: STORAGE_INT(:)
+    TYPE(TIME) :: TIMETEST
+    INTEGER :: LATS, LONS, I, Ntimes
+    INTEGER :: STATUS
+    CHARACTER(len=60) :: xstr, ystr
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START OFFLINE_FABM_FORCING"
+
+    NULLIFY(ATT,DIM,VAR,STORAGE_ARR,STORAGE_VEC,STORAGE_INT)
+
+! DETERMINE THE VARIABLE FORCING TO LOAD THE DATA
+
+       FABM_FILE => FIND_FILE(FILEHEAD,trim(OFFLINE_FABM_FILE),FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND OFFLINE FABM HYDRODYNAMICS FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE))
+
+       ! DETERMINE GRID TYPE BASED ON SOURCE ATTRIBUTE   
+       ATT => FIND_ATT(FABM_FILE,"source",FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(FABM_FILE,"Source",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+
+       IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
+            & TRIM(wrf2fvcom_source)) THEN
+          FABM_FORCING_TYPE = FABM_IS_WRFGRID 
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
+            & TRIM(fvcom_grid_source)) THEN
+          FABM_FORCING_TYPE = FABM_IS_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
+            & TRIM(fvcom_cap_grid_source)) THEN
+          FABM_FORCING_TYPE = FABM_IS_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(wrf_grid_source)) ==&
+            & TRIM(wrf_grid_source)) THEN
+          FABM_FORCING_TYPE = FABM_IS_WRFGRID
+       ELSE IF (ATT%CHR(1)(1:5)=='fvcom'.or.ATT%CHR(1)(1:5)=='FVCOM')THEN
+          FABM_FORCING_TYPE = FABM_IS_FVCOMGRID
+       ELSE
+          CALL PRINT_FILE(FABM_FILE)
+          CALL FATAL_ERROR("CAN NOT RECOGNIZE OFFLINE FABM FILE!",&
+               & "UNKNOWN SOURCE STRING:",TRIM(ATT%CHR(1)))
+       END IF
+       ! GOT GRID TYPE
+
+       ALLOCATE(FABM_FORCING_COMMENTS(4))
+       FABM_FORCING_COMMENTS(1) = "FVCOM variable offline FABM&
+            & hydraulic forcing:"
+       FABM_FORCING_COMMENTS(2) = "FILE NAME:"//TRIM(OFFLINE_FABM_FILE)
+
+       FABM_FORCING_COMMENTS(3) = "SOURCE:"//TRIM(ATT%CHR(1))
+
+       ATT_DATE => FIND_ATT(FABM_FILE,"START_DATE",FOUND)
+       IF (FOUND) THEN
+          FABM_FORCING_COMMENTS(4) ="MET DATA START DATE:"//TRIM(ATT_DATE%CHR(1))
+       ELSE
+          FABM_FORCING_COMMENTS(4) = "Unknown start date meta data format"
+       END IF
+
+       ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_UNLIMITED(FABM_FILE,FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            &"COULD NOT FIND THE UNLIMITED DIMENSION")
+
+       NTIMES = DIM%DIM
+
+       ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
+       TIMETEST = get_file_time(FABM_FILE,1)
+       IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            &"THE MODEL RUN STARTS BEFORE THE FORCING TIME SERIES")
+
+       TIMETEST = get_file_time(FABM_FILE,ntimes)
+       IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            &"THE MODEL RUN ENDS AFTER THE FORCING TIME SERIES")
+
+!----------------------------------------------------------------!
+!--SET THE DATA TYPE OF FVCOM FORMAT                             !
+!----------------------------------------------------------------!
+
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP OFFLINE FABM HYDRAULIC FORCING FROM A 'FVCOM GRID' FILE"
+
+       DIM => FIND_DIM(FABM_FILE,'node',FOUND)  
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND DIMENSION 'node'")
+
+       if (mgl /= dim%dim) CALL FATAL_ERROR&
+            &("Offline FABM forcing: the number of nodes in the file does not match the fvcom grid?")
+
+       DIM => FIND_DIM(FABM_FILE,'nele',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND DIMENSION 'nele'")
+
+       if (ngl /= dim%dim) CALL FATAL_ERROR&
+            &("Offline FABM forcing: the number of elements in the file does not match the fvcom grid?")
+
+
+       ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
+
+       ! X-DIRECTION U VELOCITY
+       VAR => FIND_VAR(FABM_FILE,"u",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"U",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'u' or 'U'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_U_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:NT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_U_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_U_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:NT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_U_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! Y-DIRECTION V VELOCITY
+       VAR => FIND_VAR(FABM_FILE,"v",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"V",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'v' or 'V'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_V_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:NT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_V_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_V_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:NT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_V_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! Z-DIRECTION W VELOCITY
+       VAR => FIND_VAR(FABM_FILE,"omega",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"ww",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'omega' or 'ww'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_W_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_W_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_W_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_W_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! SALINITY
+       VAR => FIND_VAR(FABM_FILE,"salinity",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"s1",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'salinity' or 's1'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_S1_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_S1_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_S1_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_S1_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! Temperature
+       VAR => FIND_VAR(FABM_FILE,"temp",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"t1",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'temperature' or 't1'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_T1_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_T1_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_T1_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_T1_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! EL OF OFFLINE FORCING
+       VAR => FIND_VAR(FABM_FILE,"zeta",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"el",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'zeta' or 'el'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_EL_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_EL_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_EL_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_EL_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       ! KH OF OFFLINE FORCING
+       VAR => FIND_VAR(FABM_FILE,"kh",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"KH",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'KH' or 'kh'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_KH_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_KH_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_KH_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_KH_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+# if defined WET_DRY
+       ! wet/dry OF OFFLINE FORCING
+       VAR => FIND_VAR(FABM_FILE,"wet_nodes",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"wet_nodes",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'wet_nodes' or 'wet_nodes'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_WN_N => reference_var(var)
+       ALLOCATE(STORAGE_INT(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_WN_N,STORAGE_INT)
+       NULLIFY(STORAGE_INT)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_WN_P => reference_var(var)
+       ALLOCATE(STORAGE_INT(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_WN_P,STORAGE_INT)
+       NULLIFY(STORAGE_INT)
+
+       ! wet/dry OF OFFLINE FORCING
+       VAR => FIND_VAR(FABM_FILE,"wet_cells",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"wet_cells",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'wet_cells' or 'wet_cells'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_WC_N => reference_var(var)
+       ALLOCATE(STORAGE_INT(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_WC_N,STORAGE_INT)
+       NULLIFY(STORAGE_INT)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_WC_P => reference_var(var)
+       ALLOCATE(STORAGE_INT(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_WC_P,STORAGE_INT)
+       NULLIFY(STORAGE_INT)
+
+#endif
+       ! UARD_OBCN OF OFFLINE UARD_OBCN
+       VAR => FIND_VAR(FABM_FILE,"UARD_OBCN",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"UARD_OBCN",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'UARD_OBCN' or 'uard_obcn'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_UA_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(IOBCN), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_UA_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_UA_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(IOBCN), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_UA_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OFFLINE_FABM_FORCING"
+  END SUBROUTINE OFFLINE_FABM_FORCING
+
+!================================================================
+# endif
 
 
 # if defined (OFFLINE_SEDIMENT)
@@ -11048,10 +11751,14 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_PRECIPITATION"
   END SUBROUTINE SURFACE_PRECIPITATION
   !==============================================================================|
-  SUBROUTINE UPDATE_RIVERS(NOW,FLUX,TEMP,SALT,WQM,SED,BIO)
+  SUBROUTINE UPDATE_RIVERS(NOW,FLUX,TEMP,SALT,WQM,SED,BIO,FABMR)
 # if defined (BioGen)
     USE MOD_1D, ONLY : NTT
 # endif  
+# if defined (FABM)
+    USE MOD_FABM_DATA
+# endif  
+
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     REAL(SP), ALLOCATABLE :: FLUX(:)
@@ -11060,6 +11767,7 @@ CONTAINS
     REAL(SP), ALLOCATABLE, OPTIONAL :: WQM(:,:)
     REAL(SP), ALLOCATABLE, OPTIONAL :: SED(:,:)
     REAL(SP), ALLOCATABLE, OPTIONAL :: BIO(:,:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: FABMR(:,:)
 
     REAL(SP), POINTER :: VNP(:), VPP(:)
 
@@ -11071,6 +11779,9 @@ CONTAINS
     TYPE(NCVAR), POINTER :: VAR_P
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS, I, J, NRSF,IND,NS
+#if defined (FABM)
+    INTEGER :: IFABM,JJ,J1,J2
+#endif
 
     IF(.NOT. ALLOCATED(FLUX)) CALL FATAL_ERROR &
          &("THE RIVER FLUX VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
@@ -11105,6 +11816,12 @@ CONTAINS
     END IF
     END IF
 # endif    
+# if defined (FABM)
+    IF(PRESENT(FABMR)) THEN
+       IF(.NOT. ALLOCATED(FABMR)) CALL FATAL_ERROR &
+            &("THE RIVER FABMR VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    END IF
+# endif
 
     DO I = 1, SIZE(RIVER_FORCING) ! (NUMBER OF FILES)
        
@@ -12111,6 +12828,68 @@ CONTAINS
        END IF ! END OF BIOLOGICAL MODEL
 # endif
 
+# if defined (FABM)
+       IF(PRESENT(FABMR)) THEN
+
+       DO IFABM=1,size(model%state_variables)
+
+          IF(ASSOCIATED(RIVER_FORCING(I)%FABM_N(IFABM)%P))THEN
+             ! River data for this variable is available in the current river file
+             VAR_N => RIVER_FORCING(I)%FABM_N(IFABM)%P
+             VAR_P => RIVER_FORCING(I)%FABM_P(IFABM)%P
+             CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,RIVTIME,STATUS)
+             IF (STATUS /= 0) THEN
+                CALL FATAL_ERROR("COULD NOT UPDATE RIVER_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+             END IF
+
+             ALLOCATE(CURRENT(NRSF))
+
+             CALL NC_POINT_VAR(VAR_N,VNP)
+             CALL NC_POINT_VAR(VAR_P,VPP)
+
+             !====================================================
+             ! Linear interpolation between time points
+             !CURRENT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+             !
+             ! OR
+             !
+             ! Nearest time sets the value
+             CURRENT = VNP
+             if (FTM%PREV_WGHT .gt. 0.5_sp) current = VPP
+             !====================================================
+
+             DO J =1,NRSF
+                IND = RIVER_FORCING(I)%RIV_FILE2LOC(J)
+                IF(IND /= 0) FABMR(IND,IFABM) = CURRENT(J)
+             END DO
+
+             DEALLOCATE(CURRENT)
+! If variable is not present, decide whether it gets diluted or not
+          ELSE IF ( model%state_variables(IFABM)%no_river_dilution) THEN 
+!           ELSE
+             IF(RIVER_TS_SETTING == 'calculated') THEN
+               IF(NUMQBC > 0) THEN
+                 IF(RIVER_INFLOW_LOCATION == 'node') THEN
+                   DO J=1,NUMQBC
+                     JJ=INODEQ(J)
+                     FABMR(J,IFABM)=SUM(FABM_ALL(JJ,1:KBM1,IFABM))/KBM1
+                   ENDDO
+                 ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+                   DO J=1,NUMQBC
+                     J1=N_ICELLQ(J,1)
+                     J2=N_ICELLQ(J,2)
+                     FABMR(J,IFABM)=0.5*SUM(FABM_ALL(J1,1:KBM1,IFABM))/KBM1 + 0.5*SUM(FABM_ALL(J2,1:KBM1,IFABM))/KBM1
+                   END DO
+                 END IF ! IF node or edge
+               END IF ! if NUMQBC > 0
+             END IF
+!             
+          ENDIF  ! If data is available for the current state variable in the current river file
+       END DO ! For each pelagic FABM state variable
+
+       END IF ! If argument FABM is present
+#endif
+
     END DO ! FOR EACH FILE
 
   END SUBROUTINE UPDATE_RIVERS
@@ -13045,6 +13824,166 @@ CONTAINS
 !===================================================
 
   END SUBROUTINE UPDATE_WIND
+# if defined (OFFLINE_FABM)
+  !==============================================================================|
+  SUBROUTINE UPDATE_OFFLINE_FABM_FORCING(NOW,offlineb_u,  offlineb_v, offlineb_w&
+                                        &,offlineb_s1,offlineb_t1, offlineb_el,offlineb_kh&
+                                        &,offlineb_wn, offlineb_wc, offlineb_uard_obcn)
+
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    TYPE(TIME)             :: WTIME
+    REAL(SP), ALLOCATABLE  :: offlineb_u(:,:),offlineb_v(:,:),offlineb_w(:,:),offlineb_s1(:,:)
+    REAL(SP), ALLOCATABLE  :: offlineb_el(:), offlineb_kh(:,:),offlineb_t1(:,:)
+    REAL(SP), ALLOCATABLE  :: offlineb_uard_obcn(:)
+    INTEGER , ALLOCATABLE  :: offlineb_wn(:), offlineb_wc(:)
+
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+    REAL(SP), POINTER :: VNP_ARR(:,:), VPP_ARR(:,:)  
+    INTEGER , POINTER :: VNP_INT(:), VPP_INT(:)    
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS,I
+
+
+    IF(.NOT. ALLOCATED(offlineb_u)) CALL FATAL_ERROR &
+         &("THE offlineb_u VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_v)) CALL FATAL_ERROR &
+         &("THE offlineb_v VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_w)) CALL FATAL_ERROR &
+         &("THE offlineb_w VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_s1)) CALL FATAL_ERROR &
+         &("THE offlineb_s1 VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_t1)) CALL FATAL_ERROR &
+         &("THE offlineb_t1 VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_el)) CALL FATAL_ERROR &
+         &("THE offlineb_el VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_kh)) CALL FATAL_ERROR &
+         &("THE offlineb_kh VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_wn)) CALL FATAL_ERROR &
+         &("THE offlineb_wn VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_wc)) CALL FATAL_ERROR &
+         &("THE offlineb_wc VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_uard_obcn)) CALL FATAL_ERROR &
+         &("THE offlineb_uard_obcn VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+!===================================================
+
+    WTIME = NOW
+
+!===================================================
+!===================================================
+
+!===================================================
+!    CASE(FABM_IS_FVCOMGRID) ALWAYS!
+!===================================================
+    FTM => FABM_FILE%FTIME
+
+    ! THE X DIRECTION U VELOCITY
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_U_P,FABM_U_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_U BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_U_N,VNP_ARR)
+    CALL NC_POINT_VAR(FABM_U_P,VPP_ARR)   
+    offlineb_U = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE Y DIRECTION V VELOCITY
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_V_P,FABM_V_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_V BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_V_N,VNP_ARR)
+    CALL NC_POINT_VAR(FABM_V_P,VPP_ARR)   
+    offlineb_V = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE Z DIRECTION W VELOCITY
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_W_P,FABM_W_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_W BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_W_N,VNP_ARR)
+    CALL NC_POINT_VAR(FABM_W_P,VPP_ARR)   
+    offlineb_W = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE SALINITY
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_S1_P,FABM_S1_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_S1 BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_S1_N,VNP_ARR)
+    CALL NC_POINT_VAR(FABM_S1_P,VPP_ARR)   
+    offlineb_S1 = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE TEMPERATURE
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_T1_P,FABM_T1_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_T1 BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_T1_N,VNP_ARR)
+    CALL NC_POINT_VAR(FABM_T1_P,VPP_ARR)   
+    offlineb_T1 = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE EL
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_EL_P,FABM_EL_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_EL BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_EL_N,VNP)
+    CALL NC_POINT_VAR(FABM_EL_P,VPP)   
+    offlineb_EL = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+    ! THE KH
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_KH_P,FABM_KH_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_KH BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_KH_N,VNP_ARR)
+    CALL NC_POINT_VAR(FABM_KH_P,VPP_ARR)   
+    offlineb_KH = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+# if defined (WET_DRY)
+    ! THE WET NODES
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_WN_P,FABM_WN_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_WN BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_WN_N,VNP_INT)
+    CALL NC_POINT_VAR(FABM_WN_P,VPP_INT)
+    DO I=1,MT
+      offlineb_WN(I)=VNP_INT(I)*VPP_INT(I)
+    END DO
+
+    ! THE WET CELLS
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_WC_P,FABM_WC_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_WC BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_WC_N,VNP_INT)
+    CALL NC_POINT_VAR(FABM_WC_P,VPP_INT) 
+    DO I=1,NT ! loop through elements rather than nodes, hence NT and not MT
+      offlineb_WC(I)=VNP_INT(I)*VPP_INT(I)
+    END DO  
+# endif
+    ! THE UARD_OBCN
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_UA_P,FABM_UA_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_UA BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_UA_N,VNP)
+    CALL NC_POINT_VAR(FABM_UA_P,VPP)   
+    offlineb_uard_obcn = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+  END SUBROUTINE UPDATE_OFFLINE_FABM_FORCING
+# endif
 
 # if defined (OFFLINE_SEDIMENT)
   !==============================================================================|
@@ -14284,6 +15223,47 @@ CONTAINS
 
 
   END SUBROUTINE UPDATE_OBC_BIO
+# endif  
+  !==============================================================================|
+
+# if defined (FABM)
+  SUBROUTINE UPDATE_OBC_FABM(NOW,FABMO)
+    USE MOD_FABM_DATA
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    REAL(SP), ALLOCATABLE :: FABMO(:,:,:)
+    REAL(SP), POINTER :: VNP(:,:), VPP(:,:)
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS
+    INTEGER :: IFABM
+
+    IF(.NOT. ALLOCATED(FABMO)) CALL FATAL_ERROR &
+         &("THE BOUNDARY FABMO VARIABLE PASSED TO UPDATE_OBC_FABM IS NOT ALLOCATED")
+
+    SELECT CASE(OBC_F_TYPE)
+    CASE(OBC_F_SIGMA)
+
+       FTM => OBC_F_FILE%FTIME
+
+       DO IFABM=1,size(model%state_variables)
+          IF (ASSOCIATED(OBC_FABM_P(IFABM)%P)) THEN
+             ! Boundary data for this state variable are available
+             CALL UPDATE_VAR_BRACKET(OBC_F_FILE,OBC_FABM_P(IFABM)%P,OBC_FABM_N(IFABM)%P,NOW,STATUS)
+             IF (STATUS /= 0) THEN
+                CALL FATAL_ERROR("COULD NOT UPDATE OBC FABM BRACKET: BOUNDS EXCEEDED?")
+             END IF
+
+             CALL NC_POINT_VAR(OBC_FABM_N(IFABM)%P,VNP)
+             CALL NC_POINT_VAR(OBC_FABM_P(IFABM)%P,VPP)
+             FABMO(:,:,IFABM) = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+          END IF   ! If boundary data for this variable are available.
+       END DO   ! For each pelagic state variable
+
+    CASE DEFAULT
+       CALL FATAL_ERROR("UNKNOWN OBC FABM FILE TYPE IN UPDATE_OBC_FABM")
+    END SELECT
+
+  END SUBROUTINE UPDATE_OBC_FABM
 # endif  
   !==============================================================================|
   !==============================================================================|

@@ -491,83 +491,126 @@ integer, allocatable :: isand(:)    ! Non-cohesive sediment
       integer,  pointer  :: n_bot_vars 
       integer,  pointer  :: n_bed_chars
       character(len=80), dimension(34) :: bot_snames = &
-       (/       "bot_sd50"                                     &
-            &  ,"bot_dens"                                     &
-            &  ,"bot_wsed"                                     &
-            &  ,"bot_nthck"                                    &
-            &  ,"bot_lthck"                                    &
-            &  ,"bot_dthck"                                    &
-            &  ,"bot_tmass"                                    &
-            &  ,"bot_morph"                                    &
-            &  ,"bot_tauc"                                     &
-            &  ,"bot_rlen"                                     &
-            &  ,"bot_rhgt"                                     &
-            &  ,"bot_bwav"                                     &
-            &  ,"bot_zdef"                                     &
-            &  ,"bot_zapp"                                     &
-            &  ,"bot_zNik"                                     &
-            &  ,"bot_zbio"                                     &
-            &  ,"bot_zbfm"                                     &
-            &  ,"bot_zbld"                                     &
-            &  ,"bot_zwbl"                                     &
-            &  ,"bot_actv"                                     &
-            &  ,"bot_shgt"                                     &
-            &  ,"bot_maxD"                                     &
-            &  ,"bot_dnet"                                     &
-            &  ,"bot_doff"                                     &
-            &  ,"bot_dslp"                                     &
-            &  ,"bot_dtim"                                     &
-            &  ,"bot_dbmx"                                     &
-            &  ,"bot_dbmm"                                     &
-            &  ,"bot_dbzs"                                     &
-            &  ,"bot_dbzm"                                     &
-            &  ,"bot_dbzp"                                     &
-            &  ,"bot_dprp"                                     &
-            &  ,"bot_sgrD"                                     &
-            &  ,"bot_sgrH"/)
+       (/"bot_sd50 ",&
+         "bot_dens ",&
+         "bot_wsed ",&
+         "bot_nthck",&
+         "bot_lthck",&
+         "bot_dthck",&
+         "bot_tmass",&
+         "bot_morph",&
+         "bot_tauc ",&
+         "bot_rlen ",&
+         "bot_rhgt ",&
+         "bot_bwav ",&
+         "bot_zdef ",&
+         "bot_zapp ",&
+         "bot_zNik ",&
+         "bot_zbio ",&
+         "bot_zbfm ",&
+         "bot_zbld ",&
+         "bot_zwbl ",&
+         "bot_actv ",&
+         "bot_shgt ",&
+         "bot_maxD ",&
+         "bot_dnet ",&
+         "bot_doff ",&
+         "bot_dslp ",&
+         "bot_dtim ",&
+         "bot_dbmx ",&
+         "bot_dbmm ",&
+         "bot_dbzs ",&
+         "bot_dbzm ",&
+         "bot_dbzp ",&
+         "bot_dprp ",&
+         "bot_sgrD ",&
+         "bot_sgrH "/)
       character(len=80), dimension(34) :: bot_lnames = &
-      (/          "mean grain diameter"                  &
-            &  ,  "mean grain density"                   &
-            &  ,  "mean settle velocity"                 &
-            &  ,  "new total thickness of bed layer"     &
-            &  ,  "last thickness of bed layer"          &
-            &  ,  "accumulated delta of lay thickness"   &
-            &  ,  "total mass in sediment layer"         &
-            &  ,  "differential in bed layer thickness"  &
-            &  ,  "critical erosion stress"              &
-            &  ,  "ripple length"                        &
-            &  ,  "ripple height"                        &
-            &  ,  "wave excursion amplitude"             &
-            &  ,  "default bottom roughness"             &
-            &  ,  "apparent bottom roughness"            &
-            &  ,  "Nikuradse bottom roughness"           &
-            &  ,  "biological bottom roughness"          &
-            &  ,  "bed form bottom roughness"            &
-            &  ,  "bed load bottom roughness"            &
-            &  ,   "wave bottom roughness"               &
-            &  ,  "active layer thickness"               &
-            &  ,  "saltation height"                     &
-            &  ,  "maximum inundation depth"             &
-            &  ,  "erosion or deposition"                &
-            &  ,   "tau critical offset"                 &
-            &  ,   "tau critical slope"                  &
-            &  ,   "erodibility time scale"              &
-            &  ,   "diffusivity db_max"                  &
-            &  ,   "diffusivity db_m"                    &
-            &  ,   "diffusivity db_zs"                   &
-            &  ,   "diffusivity db_zm"                   &
-            &  ,   "diffusivity db_zphi"                 &
-            &  ,   "cohesive behavior"                   &
-            &  ,  "seagrass shoot density"               &
-            &  ,  "seagrass height" /)
-      character(len=80), dimension(34) :: bot_units = (/"m","kg&
-     &/m^3","m/s","m","m","m","kg","m","N/m^2","m","m","m","m","m","m","m","m"&
-     &,"m","m","m","m","m","m","N/m^2","-","s","m","m","m","m","m","&
-     &-","-","m"/)
+      (/"mean grain diameter                ",&
+        "mean grain density                 ",&
+        "mean settle velocity               ",&
+        "new total thickness of bed layer   ",&
+        "last thickness of bed layer        ",&
+        "accumulated delta of lay thickness ",&
+        "total mass in sediment layer       ",&
+        "differential in bed layer thickness",&
+        "critical erosion stress            ",&
+        "ripple length                      ",&
+        "ripple height                      ",&
+        "wave excursion amplitude           ",&
+        "default bottom roughness           ",&
+        "apparent bottom roughness          ",&
+        "Nikuradse bottom roughness         ",&
+        "biological bottom roughness        ",&
+        "bed form bottom roughness          ",&
+        "bed load bottom roughness          ",&
+        "wave bottom roughness              ",&
+        "active layer thickness             ",&
+        "saltation height                   ",&
+        "maximum inundation depth           ",&
+        "erosion or deposition              ",&
+        "tau critical offset                ",&
+        "tau critical slope                 ",&
+        "erodibility time scale             ",&
+        "diffusivity db_max                 ",&
+        "diffusivity db_m                   ",&
+        "diffusivity db_zs                  ",&
+        "diffusivity db_zm                  ",&
+        "diffusivity db_zphi                ",&
+        "cohesive behavior                  ",&
+        "seagrass shoot density             ",&
+        "seagrass height                    " /)
+      character(len=80), dimension(34) :: bot_units = &
+            (/"m     ",&
+              "kg/m^3",&
+              "m/s   ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "kg    ",&
+              "m     ",&
+              "N/m^2 ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "N/m^2 ",&
+              "-     ",&
+              "s     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "m     ",&
+              "-     ",&
+              "-     ",&
+              "m     "/)
 
-      character(len=80), dimension(5) :: bed_snames = (/"bed_thick","bed_age","bed_por","bed_diff","bed_btcr"/)
-      character(len=80), dimension(5) :: bed_lnames = (/"bed layer thickness","bed layer age","bed layer porosity","bed layer bio-diffusivity","bed critical stress"/)
-      character(len=80), dimension(5) :: bed_units = (/"m","days","-","-","N/m2"/)
+      character(len=80), dimension(5) :: bed_snames = (/"bed_thick",&
+                                                        "bed_age  ",&
+                                                        "bed_por  ",&
+                                                        "bed_diff ",&
+                                                        "bed_btcr "/)
+      character(len=80), dimension(5) :: bed_lnames = (/"bed layer thickness      ",&
+                                                        "bed layer age            ",&
+                                                        "bed layer porosity       ",&
+                                                        "bed layer bio-diffusivity",&
+                                                        "bed critical stress      "/)
+      character(len=80), dimension(5) :: bed_units = (/"m   ",&
+                                                       "days",&
+                                                       "-   ",&
+                                                       "-   ",&
+                                                       "N/m2"/)
 !----------------------------------------------------------------
 
       integer,  target  :: MBEDP          ! Bed properties

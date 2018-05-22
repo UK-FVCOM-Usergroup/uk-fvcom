@@ -289,7 +289,8 @@ CONTAINS
             END IF
             
             call ADEAL(MYID,MSRID,NPROCS,EXMAP,xc_buf,xmc)
-            call ADEAL(MYID,MSRID,NPROCS,EXMAP,xc_buf,ymc)
+!JQI            call ADEAL(MYID,MSRID,NPROCS,EXMAP,xc_buf,ymc)
+            call ADEAL(MYID,MSRID,NPROCS,EXMAP,yc_buf,ymc)
             
             IF (MSR) THEN
                 deallocate(xc_buf, lonc_buf)
@@ -352,13 +353,20 @@ CONTAINS
           write(IPT,*) "! Setting Staticly Variable Bottom Roughness"
        end if
 
-       CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B)
+!       CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B)
+!Jadon Ge
+       CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B,NUNI_CBCMIN)
+!Jadon Ge
               
     else if(BOTTOM_ROUGHNESS_KIND .eq. CNSTNT) THEN
        
        CC_Z0B    = BOTTOM_ROUGHNESS_LENGTHSCALE
        CC_Z0B(0) = 0.0_SP
        
+!Jadon Ge
+!       CBCMIN    = BOTTOM_ROUGHNESS_MINIMUM
+!       CBCMIN(0) = 0.0_SP
+!Jadon Ge
     else
        CALL FATAL_ERROR&
             &("HORIZONTAL_MIXING_KIND ERROR",&
@@ -438,10 +446,10 @@ CONTAINS
 
 # if defined (SPHERICAL)
     DO I=1,MT
-       GRAV_N(I) = 9.78032+0.005172*SIN(VY(I))**2-0.00006*SIN(2.0*VY(I))**2
+       GRAV_N(I) = 9.780327*(1.0+0.0053024*SIN(VY(I)*DEG2RAD)**2-0.0000058*SIN(2.0*VY(I)*DEG2RAD)**2)
     END DO
     DO I=1,NT
-       GRAV_E(I) = 9.78032+0.005172*SIN(YC(I))**2-0.00006*SIN(2.0*YC(I))**2
+       GRAV_E(I) = 9.780327*(1.0+0.0053024*SIN(YC(I)*DEG2RAD)**2-0.0000058*SIN(2.0*YC(I)*DEG2RAD)**2)
     END DO
 # else
     GRAV_N = GRAV

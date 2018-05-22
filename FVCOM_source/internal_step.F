@@ -54,6 +54,9 @@ SUBROUTINE INTERNAL_STEP
 # if defined (BioGen)
   USE MOD_BIO_3D
 # endif      
+# if defined (FABM)
+  USE MOD_FABM_3D
+# endif
 # if defined (NH)
   USE NON_HYDRO
 # endif
@@ -118,6 +121,115 @@ SUBROUTINE INTERNAL_STEP
   ELSE
      RAMP = 1.0_SP
   END IF
+
+
+!----OFFLINE FABM UPDATE
+# if defined (OFFLINE_FABM)
+  IF (FABM_MODEL)  THEN
+  !----SPECIFY THE SURFACE FORCING OF INTERNAL MODES-----------------------------!
+# if defined (GCN)
+    CALL BCOND_GCN(8)
+#   else
+    CALL BCOND_GCY(8)
+# endif
+
+    U   = OFFLINEB_U
+    V   = OFFLINEB_V 
+    WTS = OFFLINEB_W
+    S1  = OFFLINEB_S1
+! J. Ge added to avoid negative value of salinity----!
+    WHERE(S1<0.0_SP)
+       S1=0.0_SP
+    END WHERE
+!----------------------------------------------------!
+    T1  = OFFLINEB_T1
+    KH  = OFFLINEB_KH
+    EL  = OFFLINEB_EL
+    UARD_OBCN = OFFLINEB_UARD_OBCN ! this doesn't need broadcasting
+# if defined (WET_DRY)
+    iswetn = INT(OFFLINEB_WN)
+    iswetnt = iswetn
+    iswetc = INT(OFFLINEB_WC)
+    iswetct = iswetc
+# endif
+    D = H + EL
+    DT = D
+    DTFA = D
+    CALL N2E2D(D,D1)
+    CALL N2E2D(DT,DT1)
+
+  IF(.NOT.BAROTROPIC)THEN
+   SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
+   CASE(SW_DENS1)
+      CALL DENS1
+   CASE(SW_DENS2)
+      CALL DENS2
+   CASE(SW_DENS3)
+      CALL DENS3
+   CASE DEFAULT
+      CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
+           & "   "//TRIM(SEA_WATER_DENSITY_FUNCTION) )
+   END SELECT
+  END IF
+ 
+# if defined(MULTIPROCESSOR)
+    IF(PAR)THEN
+      CALL AEXCHANGE(EC,MYID,NPROCS,U,V)
+      CALL AEXCHANGE(NC,MYID,NPROCS,S1,KH,WTS)
+      CALL AEXCHANGE(NC,MYID,NPROCS,T1)
+      CALL AEXCHANGE(NC,MYID,NPROCS,RHO1)
+      CALL AEXCHANGE(EC,MYID,NPROCS,RHO)
+      CALL AEXCHANGE(NC,MYID,NPROCS,EL,D,DT)
+      CALL AEXCHANGE(NC,MYID,NPROCS,DTFA)
+      CALL AEXCHANGE(EC,MYID,NPROCS,D1,DT1)
+# if defined (WET_DRY)
+      CALL AEXCHANGE(NC,MYID,NPROCS,iswetn,iswetnt)
+      CALL AEXCHANGE(EC,MYID,NPROCS,iswetc,iswetct)
+# endif
+    END IF
+# endif
+
+!# if defined (WET_DRY)
+!  US=U
+!  VS=V
+!# endif
+
+# if defined (THIN_DAM)
+    CALL GET_KDAM
+    CALL GET_KDAM_INTERNAL
+# endif
+
+
+
+    CALL BOTTOM_ROUGHNESS
+
+!==============================================================================!
+!    FABM MODEL SECTION  
+!      Advance FABM Model (FABM time evolution and integration)      
+!==============================================================================!
+! FOR THIS TO WORK IT REQUIRES POPULATING UARD_OBCN WHICH IS DONE IN EXTERNAL_STEP BUT IS NOT
+! SAVED. THE PROBLEM IS THAT IT REQUIRES ET - PREVIOUS TIME STEP ELEVATION... AND XFLUX_OBCN
+! ONLY SOLUTION IS TO SAVE UARD_OBCN AS PART OF THE OFFLINE FORCING OPTION - 
+! UARD_OBCN is now part of the offline_file_object
+#  if defined (FABM)
+! J. Ge added to avoid negative value of salinity----!
+    WHERE(S1<0.0_SP)
+       S1=0.0_SP
+    END WHERE
+!----------------------------------------------------!
+    CALL FABM_UPDATE
+    CALL FABM_UPDATE_DEPTH
+#  endif
+  ELSE 
+     CALL FATAL_ERROR("YOU CAN'T RUN FABM OFFLINE WITHOUT A FABM_MODEL")
+  ENDIF
+
+  RETURN
+
+# endif
+!----END IF OFFLINE FABM
+!----loop end for offline FABM
+
 
 !----OFFLINE SEDIMENT UPDATE
 # if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
@@ -975,6 +1087,8 @@ SUBROUTINE INTERNAL_STEP
      
      ! There is a bug in the advection of turbulent kinetic energy
      ! when using the GOTM MODULE
+! RJT It does indeed crash after a few iterations. Not having advection of
+! turbulence quantities limits the usability of GOTM with fvcom...
      
      !     CALL ADV_Q(TKE,TKEF)     !!Advection of Tubulent Kinetic Energy
      !     CALL ADV_Q(TEPS,TEPSF)   !!Advection of Turbulent Dissipation Rate 
@@ -1104,6 +1218,30 @@ SUBROUTINE INTERNAL_STEP
                            
 #   endif
 
+#   if defined (FABM)
+# if defined (DATA_ASSIM)
+  IF(ASSIM_FLAG.AND.(SST_ASSIM.OR.SSTGRD_ASSIM.OR.SSHGRD_ASSIM.OR.TSGRD_ASSIM))THEN
+# endif
+  IF (FABM_MODEL) THEN
+! J. Ge added to avoid negative value of salinity----!
+    WHERE(S1<0.0_SP)
+       S1=0.0_SP
+    END WHERE
+!----------------------------------------------------!
+     CALL FABM_UPDATE
+     CALL FABM_UPDATE_DEPTH
+  END IF
+# if defined (DATA_ASSIM)
+  ELSEIF (.NOT. DATA_ASSIMILATION) THEN
+!----------------------------------------------------!
+  IF (FABM_MODEL) THEN
+     CALL FABM_UPDATE
+     CALL FABM_UPDATE_DEPTH
+  ENDIF
+  ENDIF
+# endif
+#   endif
+
   !==============================================================================!
   !    UPDATE TEMPERATURE IN NON-BAROTROPIC CASE                                 !
   !==============================================================================!
@@ -1191,7 +1329,7 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (ONE_D_MODEL)
 !J. Ge for tracer advection
-     IF(BACKWARD_ADVECTION==.TRUE.)THEN
+     IF(BACKWARD_ADVECTION .eqv. .TRUE.)THEN
        IF(BACKWARD_STEP==1)THEN
         T0 = T1
        ELSEIF(BACKWARD_STEP==2)THEN
@@ -1288,7 +1426,7 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (ONE_D_MODEL)
 !J. Ge for tracer advection
-     IF(BACKWARD_ADVECTION==.TRUE.)THEN
+     IF(BACKWARD_ADVECTION .eqv. .TRUE.)THEN
        IF(BACKWARD_STEP==1)THEN
         S0 = S1
        ELSEIF(BACKWARD_STEP==2)THEN
@@ -1299,6 +1437,26 @@ SUBROUTINE INTERNAL_STEP
 !J. Ge for tracer advection
      S1 = SF1                                     !Update to new time level  !
 #   endif
+
+    ! Pierre Cazenave: Added to avoid negative salinities even in non-FABM runs. Gives a useful warning.
+    IF(MINVAL(S1)<0.0_SP)THEN
+        ! Write to the log file where we're replacing negative salinities.
+        IF(dbg_set(dbg_log))THEN
+            DO K=1,KBM1
+                DO I=1,N
+                    IF(S1(I,K)<0.0_SP)THEN
+                        WRITE(IPT,*)IINT, 'Clipping ',S1(I,K),'salinity to zero at lon,lat,depth,node:',LON(I),LAT(I),-ZZ(I,K)*D(I),NGID(I)
+                    ENDIF
+                ENDDO
+            ENDDO
+        ENDIF
+        ! Do the actual replacement of negative values with zeros.
+        WHERE(S1<0.0_SP)
+            S1=0.0_SP
+        END WHERE
+    ENDIF
+
+    !----------------------------------------------------!
 
      CALL N2E3D(S1,S)                               !Shift to Elements         !
 
@@ -1355,6 +1513,9 @@ SUBROUTINE INTERNAL_STEP
   END IF
 #   endif   
   
+#   if defined (FABM)
+  IF (FABM_MODEL) CALL FABM_UPDATE_SALINITY
+#   endif
 
 #   if defined (WATER_QUALITY)
   !==============================================================================!

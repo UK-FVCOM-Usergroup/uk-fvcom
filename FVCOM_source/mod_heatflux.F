@@ -190,19 +190,56 @@ MODULE MOD_HEATFLUX
    REAL(SP) :: U,US,T,P,RL,RS,QSAT26S,QS,Q,ZI,BETA,VON,FDG,TDK,GRVS,GRAV,RGAS
    REAL(SP) :: CPA,CPV,RHOA,VISA,AL,BE,CPW,RHOW,VISW,TCW,BIGC,WETC,RNS,RNL,DU
    REAL(SP) :: DT,DQ,UG,DTER,DQER,UT,U10,USR,ZO10,CD10,CH10,CT10,ZOT10,CD,CT,CC
-   REAL(SP) :: RIBCU,RIBU,NITS,ZETU,PSIU_26S,PSIT_26S,TSR,QSR,TKT,CHARN,ZET
+   REAL(SP) :: RIBCU,RIBU,ZETU,PSIU_26S,PSIT_26S,TSR,QSR,TKT,CHARN,ZET
    REAL(SP) :: ZO,ZOQ,ZOT,BF,QOUT,DELS,QCOL,ALQ,XLAMX,CH,CE,CDN_10,CHN_10,CEN_10,RR
    
    INTEGER  :: I
+   INTEGER  :: NITS  ! new, Karsten Lettmann
+
+   ! ---- new : Karsten Lettmann , Jan. 2018 --------
+   REAL(SP) :: EPSI = 1.0e-16_SP   ! small value to stabilize the code
+   ! -------- end new -------------------------------
+
 ! Set jcool=0 if Ts is surface, =1 if Ts is bulk.
 ! rcb checked 6/9/04
 ! set jcool=1 if Ts is bulk, 0 if Ts is true skin jcool=1;
-   JCOOL=1.
+
+! Changes to code:
+! - changed line for zetu to original coare3 code
+!   ZETU=CC*RIBU*(1._SP + 27._SP/9._SP*RIBU/CC)
+! - Changed number of iteration in Bulk loop to NITS = 3
+! - Set wind to have at least 0.1 m/s
+! - introduce a small epsi to stabilize similar to ROMS implementation in file bulk_fluxes.F
+
+
+
+
+! --------- New. karsten Lettmann -----
+#  if !defined (NO_COOL_SKIN_HEAT_FLUX)
+   JCOOL=1. ! original line
+#  else
+   !  Switch off the cool skin effect, as it might cause problems
+   ! Cool skin is not used
+   JCOOL=0.0_SP
+#  endif
+! ---------end new ----------------------------
+
 ! rename variables from fairall et al coare3 code
  
 
 ! wind speed (m/s) at height zr (m)
    U=UR
+
+!  --------- New. Karsten Lettmann ---------
+!  Always have some small wind to make the algorithm more stable
+!  At the moment U > 0.1 m/s is set
+#  if !defined(DOUBLE_PRECISION)
+   U=AMAX1(.1_SP,U)
+#  else
+   U=DMAX1(.1_SP,U)
+#  endif
+!  -----------------------------------------
+
 !  surface current speed in the wind direction(m/s)
    US=0*UR
 !  water temperature (deg C)
@@ -211,6 +248,7 @@ MODULE MOD_HEATFLUX
    T=TA
 !  RELATIVE HUMIDITY (%) AT HEIGHT zq(M)
    RH=RH
+! ----- new: Karsten Lettmann, Feb. 2016 --------------------------
 !  SURFACE PRESSURE (mb)
 !   P=PA
    P=PA/100.  !ejw 8/15/2011 from pa to mb in this subroutine only
@@ -218,21 +256,50 @@ MODULE MOD_HEATFLUX
    RL=DLW
 !  DOWNWARD SHORTWAVE RADIATION (W/m2)
    RS=DSW
-!  CONVERT RH TO SPECIFIC HUMIDITY (G/KG)
+!  CONVERT RH TO SPECIFIC HUMIDITY at sea surface(G/KG)
    CALL QSAT26(TS,P,QSAT26S)
-   QS=0.98_SP*QSAT26S/1000._SP
-!  SPECIFIC HUMIDITY OF AIR (G/KG)  
-   CALL QSAT26(T,P,QSAT26S)
-   Q=(0.01_SP*RH)*QSAT26S/1000._SP
+   QS=0.98_SP*QSAT26S/1000._SP   ! and convert to KG/KG
+
+   ! ------ new J Kirchner , Oct 2017 --------------------
+   ! Switch off the calculation of specific humidity and use values
+   ! for specific humidity that are stored in heatflux input file
+   !
+#  if !defined (USE_SPEC_HUM_FOR_HEAT_FLUX)
+   !  SPECIFIC HUMIDITY OF AIR (G/KG)
+   CALL QSAT26(T,P,QSAT26S)                      ! original line
+   Q=(0.01_SP*RH)*QSAT26S/1000._SP               ! and convert to KG/KG / original line
+#  else
+   ! here it is assumed RH already contains specific humidity
+   ! in units KG/KG
+   Q = RH
+#  endif
+! ----------end new -------------------------------------
+
+
+! -------- new : some debugging output ---------------
+!   print*,'===================== some output ================'
+!   print*,'------- U10     : ', U
+!   print*,'------- P       : ', P
+!   print*,'------- QS      : ', QS
+!   print*,'------- Q       : ', Q
+!   print*,'------- Tair    : ', T
+!   print*,'------- Twater  : ', TS
+!   print*,'------- SW      : ', RS
+!   print*,'------- LW      : ', DLW
+   ! ------------------------------------------
+
 !            print *,'qq',Q
 !   SET RAIN TO ZERO RAIN=0*U
 !   SET RAIN RATE (MM/HR) - KEEP AS OPTION
 
 !  ***********SET LOCAL CONSTANTS *********
-!    PBL HEIGHT (M)
-   ZI=600._SP
+   !ZI:  PBL HEIGHT (M)
+   !Zi:  Height (m) of atmospheric boundary layer (in ROMS: blk_Zabl = 600.m)
+   ZI = 600.0_SP
+
 !     LATITUDE (DEG,N=+)- GEORGES BANK
 !        LAT=42.
+
 ! ************SET CONSTANTS **************
    BETA=1.2_SP
    VON=0.4_SP
@@ -287,11 +354,22 @@ MODULE MOD_HEATFLUX
    RIBCU=-ZU/(ZI*0.004_SP*(BETA**3))
    RIBU=-GRAV*ZU*((DT-DTER*JCOOL)+.61_SP*TA*DQ)/(TA*(UT**2))
 !       same as edson
-   NITS=3._SP   
+   ! Number of iterations of Coare Algorithm default
+   ! Orignal 6 iterations
+   ! ROMS uses 3 iterations
+   NITS=3
    IF(RIBU < 0)THEN
      ZETU=CC*RIBU/(1._SP+RIBU/RIBCU)
    ELSE
-     ZETU=CC*RIBU/(1._SP+27._SP/(9*RIBU*CC))
+     ! ------ new : Karsten Lettmann, 2017 Dec --------
+     ! The following line was different from COARE 3.0 code
+     ! This inconsistency was already found in mod_heatflux_gl.F
+     ! MDR, corrected from F90 version
+     !
+     ! ZETU=CC*RIBU/(1._SP+27._SP/(9*RIBU*CC))      ! original FVCOM line
+     ! ZETU=CC*RIBU*(1._SP + 27._SP/9._SP*RIBU/CC)  ! original coare3
+     ZETU  =CC*RIBU*(1._SP + 3._SP       *RIBU/CC)  ! slightly changed
+     ! ---- end new -----------------------------------
    END IF
 
    L10=ZU/ZETU
@@ -319,11 +397,11 @@ MODULE MOD_HEATFLUX
 !*************** bulk loop ************
     do I=1,nits
 !   DO I=1,1
-     ZET=VON*GRAV*ZU/TA*(TSR*(1._SP+0.61_SP*Q)+0.61_SP*TA*QSR)/   &
-         (USR*USR)/(1._SP+0.61_SP*Q)
-     ZO=CHARN*USR*USR/GRAV+0.11_SP*VISA/USR
+     ZET=VON*GRAV*ZU*(TSR*(1._SP+0.61_SP*Q)+0.61_SP*TA*QSR)/   &
+         (TA*(USR*USR)*(1._SP+0.61_SP*Q) + EPSI)
+     ZO=CHARN*USR*USR/GRAV+0.11_SP*VISA/(USR+EPSI)
      RR=ZO*USR/VISA
-     L=ZU/ZET
+     L=ZU/(ZET+EPSI)
 #    if !defined(DOUBLE_PRECISION)
      ZOQ=AMIN1(1.15e-4_SP,5.5e-5_SP/(RR**0.6_SP)) 
 #    else
@@ -332,6 +410,13 @@ MODULE MOD_HEATFLUX
      ZOT=ZOQ
      CALL PSIU_26(ZU/L,PSIU_26S)
      USR=UT*VON/(LOG(ZU/ZO)-PSIU_26S)
+     ! ----- new, KL -------
+#    if !defined(DOUBLE_PRECISION)
+     USR=AMAX1(EPSI,USR)
+#    else
+     USR=DMAX1(EPSI,USR)
+#    endif
+     ! ---- end new --------
      CALL PSIT_26(ZT/L,PSIT_26S)
      TSR=-(DT-DTER*JCOOL)*VON*FDG/(LOG(ZT/ZOT)-PSIT_26S)
      CALL PSIT_26(ZQ/L,PSIT_26S)
@@ -350,20 +435,20 @@ MODULE MOD_HEATFLUX
      HLB=-RHOA*LE*USR*QSR
      QOUT=RNL+HSB+HLB
  
-!JQI     DELS=RNS*(.065_SP+11*TKT-6.6_SP*0.00001_SP/(TKT*(1-EXP(-TKT/8.0_SP*0.0001_SP))))
-     DELS=RNS*(.065_SP+11*TKT-6.6_SP*0.00001_SP/TKT*(1-EXP(-TKT/8.0e-4_SP)))
+!JQI DELS=RNS*(.065_SP+11*TKT-6.6_SP*0.00001_SP/(TKT*(1-EXP(-TKT/8.0_SP*0.0001_SP))))
+     DELS=RNS*(.065_SP+11.0_SP*TKT-6.6_SP*0.00001_SP/TKT*(1.0_SP-EXP(-TKT/8.0e-4_SP)))
 
      QCOL=QOUT-DELS
      ALQ=AL*QCOL+BE*HLB*CPW/LE
      IF(ALQ > 0)THEN
-       XLAMX=6._SP/(1._SP+(BIGC*ALQ/USR**4)**0.75_SP)**0.333_SP
-       TKT=XLAMX*VISW/(SQRT(RHOA/RHOW)*USR)
+       XLAMX=6._SP/(1._SP+(BIGC*ALQ/(USR+EPSI)**4)**0.75_SP)**0.333_SP
+       TKT=XLAMX*VISW/(SQRT(RHOA/RHOW)*(USR+EPSI))
      ELSE
        XLAMX=6.0_SP
 #    if !defined(DOUBLE_PRECISION)
-       TKT=AMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*USR))
+       TKT=AMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*(USR+EPSI)))
 #    else
-       TKT=DMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*USR))
+       TKT=DMIN1(.01_SP,XLAMX*VISW/(SQRT(RHOA/RHOW)*(USR+EPSI)))
 #    endif
      END IF
 !           cool skin
@@ -374,21 +459,30 @@ MODULE MOD_HEATFLUX
 
 !****** compute fluxes ******************************************
 !             wind stress
-   TAU=RHOA*USR*USR*DU/UT
+   TAU=RHOA*USR*USR*DU/(UT+EPSI)
 !              sensible heat flux
    HSB=RHOA*CPA*USR*TSR
 !              latent heat flux
    HLB=RHOA*LE*USR*QSR
 
+! -------- new : some debugging output ---------------
+!   print*,' '
+!   print*,'the fluxes:'
+!   print*,'------- Tau     : ', TAU
+!   print*,'------- HSB     : ', HSB
+!   print*,'------- HLB     : ', HLB
+! ------------------------------------------
+
+
 
 !****** compute transfer coeffs relative to ut @ meas. ht ********
 #  if !defined(DOUBLE_PRECISION)
-   CD=TAU/RHOA/UT/AMAX1(.1_SP,DU)
+   CD=TAU/RHOA/(UT+EPSI)/AMAX1(.1_SP,DU)
 #  else
-   CD=TAU/RHOA/UT/DMAX1(.1_SP,DU)
+   CD=TAU/RHOA/(UT+EPSI)/DMAX1(.1_SP,DU)
 #  endif
-   CH=-USR*TSR/UT/(DT-DTER*JCOOL)
-   CE=-USR*QSR/(DQ-DQER*JCOOL)/UT
+   CH=-USR*TSR/(UT+EPSI)/(DT-DTER*JCOOL)
+   CE=-USR*QSR/(DQ-DQER*JCOOL)/(UT+EPSI)
 
 !****** compute 10-m neutral coeff relative to ut ****************
    CDN_10=VON*VON/LOG(10._SP/ZO)/LOG(10._SP/ZO)
@@ -464,12 +558,30 @@ MODULE MOD_HEATFLUX
 
 !-----------------------------------------------------------
    SUBROUTINE QSAT26(T,P,QS)
-! computes saturation specific humidity
+   ! computes saturation specific humidity in g/kg
+   !
+   ! For Literature see e.g.:
+   !     - https://en.wikipedia.org/wiki/Clausius%E2%80%93Clapeyron_relation
+   !     - Jacobsen, Fundamentals of atmospheric modelling, page 28-33, 45
+   !       QS follows from eq (2.32) and p_d = P - ES
+
+   ! Input variables are:
+   ! T  : Temperature in °C
+   ! P  : total air pressure in hPa = mbar
+
    IMPLICIT NONE
    REAL(SP) :: T,P,QS,ES
-   
+
+   ! first, calulate the saturation water pressure ES in hPa
+   ! Using a modified form of the August-Roche-Magnus formula
    ES=6.112_SP*EXP(17.502_SP*T/(T+241.0_SP))     &
       *(1.0007_SP+3.46_SP*0.000001_SP*P)
+
+   !second, specific humidity in (g water vapour) / (kg moist air)
+   !
+   ! 622 = 1000 * eps with eps = 0.622 = R_d / R_v (ratio of gas constants)
+   ! 0.378 = 1 - eps
+   !
    QS=ES*622/(P-.378_SP*ES)
    
    RETURN

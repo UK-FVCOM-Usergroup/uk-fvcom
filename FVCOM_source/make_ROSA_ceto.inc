@@ -47,7 +47,8 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-           TOPDIR        = $(HOME)/Code/uk-fvcom/FVCOM_source
+
+           TOPDIR        =  $(HOME)/src/uk-fvcom/FVCOM_source/
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
@@ -57,7 +58,7 @@
             INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -C
+            DEF_FLAGS     = -P -traditional
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -92,8 +93,8 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -L$(INSTALLDIR)/lib -lnetcdff -lnetcdf
-             IOINCS       =  -I$(INSTALLDIR)/include
+             IOLIBS       = -L/gpfs1/apps/netcdf/intelmpi/lib -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz -lm
+             IOINCS       = -I/gpfs1/apps/netcdf/intelmpi/include -I/gpfs1/apps/hdf5/intelmpi/include
 #--------------------------------------------------------------------------
 
 
@@ -115,8 +116,8 @@ dashL= $(empty) -L
 
 #            FLAG_1 =  -DDOUBLE_PRECISION
 
-## SINGLE PRECISION OUTPUT FOR VISIT. ALSO ADD DEFLATE COMPRESSION.
-            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT -DNETCDF4_COMPRESSION
+## SINGLE PRECISION OUTPUT FOR VISIT
+            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT
 
 #--------------------------------------------------------------------------
 #        SPHERICAL          SELECT SPHERICAL COORDINATES FOR INTEGRATION
@@ -145,7 +146,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
              FLAG_4 = -DMULTIPROCESSOR
-             PARLIB = -L$(INSTALLDIR)/lib -lmetis
+             PARLIB = -lmetis -L$(LIBDIR)
 
 #--------------------------------------------------------------------------
 #        WATER_QUALITY      INCLUDE EPA WATER QUALITY MOD
@@ -175,10 +176,10 @@ dashL= $(empty) -L
 
              FLAG_6 = -DPROJ
 
-#             PROJLIBS       = -L$(INSTALLDIR)/lib -lfproj4 -lproj -lm
-#             PROJINCS       = -I$(INSTALLDIR)/include
-             PROJLIBS       = -lfproj4 -lproj -lm
-             PROJINCS       =
+             PROJLIBS       = -L$(LIBDIR) -lfproj4 -lproj -lm
+             PROJINCS       = -I$(INCDIR)
+#             PROJLIBS       = -lfproj4 -lproj -lm
+#             PROJINCS       =
 
 #--------------------------------------------------------------------------
 #        DATA_ASSIMILATION  INCLUDE NUDGING BASED DATA ASSIMILATION FOR
@@ -244,7 +245,7 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
 #            FLAG_11 = -DGOTM
-#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil #-lmeanflow
+#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil -lmeanflow
 #            GOTMINCS      = -I../GOTM_source/
 
 #--------------------------------------------------------------------------
@@ -314,24 +315,11 @@ dashL= $(empty) -L
 
 #--------------------------------------------------------------------------
 #        SUSPENDED SEDIMENT MODEL:   UNCOMMENT TO INCLUDE MODEL
-# ORIG : the sediment transport model developed by Geoffey Cowles in v3.1-v3.2
-# CSTMS: Community Sediment Transport Modeling System with cohesive model
-# DELFT: Sediment modeling system as Delft Flow (not included)
-#
-# note: only one model should be chosen for modeling.
-#
-#  Utilities:
-#    OFFLINE_SEDIMENT : run sediment with offline hydrodynamic forcing
-#    FLUID_MUD : activate the 2-D fluid mud at bed-water interface
 #--------------------------------------------------------------------------
 
 #            FLAG_21 =  -DSEDIMENT
-#            FLAG_211 = -DORIG_SED
-#            FLAG_211 = -DCSTMS_SED
-#
 #            FLAG_22 =  -DOFFLINE_SEDIMENT
-#            FLAG_43 =  -DFLUID_MUD
-#
+
 #--------------------------------------------------------------------------
 #         KALMAN FILTERS
 #--------------------------------------------------------------------------
@@ -356,38 +344,32 @@ dashL= $(empty) -L
 
 #--------------------------------------------------------------------------
 #       GENERAL BIOLOGICAL MODEL:    UNCOMMENT TO INCLUDE MODEL
-#-------------------------------------------------------------------------- 
-#            FLAG_25  = -DBioGen
-#            FLAG_251 = -DOFFLINE_BIOLOGY
-#            BIOLIB   = -L$(TOPDIR)/BIO_source -lbiomodule
-#            BIOINCS  = -I$(TOPDIR)/BIO_source
-
+#--------------------------------------------------------------------------
+#            FLAG_25 = -DBioGen
+#            BIOLIB       = -L$(TOPDIR)/BIO_source -lbiomodule
+#            BIOINCS      = -I$(TOPDIR)/BIO_source/
+            FLAG_25 = -DFABM
+            BIOLIB       = -L$(HOME)/local/fabm/fvcom/lib -lfabm
+            BIOINCS      = -I$(HOME)/local/fabm/fvcom/include
 
 #--------------------------------------------------------------------------
 #         Dynamic/Thermodynamic Ice
 #--------------------------------------------------------------------------
 
 # NOTE: Must use -DSPHERICAL  and -DHEAT_FLUX ----- this note only for old version v2.7
-#       ICE_EMBEDDING must with SEMI_IMPLICIT
-#            FLAG_26 = -DICE  
-#            FLAG_261 = -DICE_EMBEDDING  
+#            FLAG_26 = -DICE
 
 #--------------------------------------------------------------------------
-#         CALCULATE THE NET HEAT FLUX IN MODEL (THREE CHOICES):
-#         1. CALCULATE THE NET HEAT FLUX USING COARE26Z
-#         2. CALCULATE THE NET HEAT FLUX USING COARE26Z for Great Lake
-#         3. CALCULATE THE NET HEAT FLUX USING SOLAR HEATING MODULE                          
+#         CALCULATE THE NET HEAT FLUX IN MODEL
 #--------------------------------------------------------------------------
 
-#            FLAG_27 = -DHEATING_CALCULATED  
-#            FLAG_27 = -DHEATING_CALCULATED_GL  
-#            FLAG_27 = -DHEATING_SOLAR  
+#             FLAG_27 = -DHEATING_CALCULATED
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
 #--------------------------------------------------------------------------
 
-#            FLAG_28 = -DAIR_PRESSURE
+             FLAG_28 = -DAIR_PRESSURE
 
 #--------------------------------------------------------------------------
 # Visit online simulation mode
@@ -490,7 +472,7 @@ dashL= $(empty) -L
          DEBFLGS  =
          OPT      = -O3 -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost
          CLIB     =
-         CC       = mpiicc
+         CC       = mpicc
          CFLAGS   =
 #--------------------------------------------------------------------------
 #        COMPAQ/ALPHA Definitions
@@ -543,7 +525,7 @@ dashL= $(empty) -L
 #         CXX      = mpicxx
 #         CFLAGS   = -O3
 #         FC       = mpif90
-#         DEBFLGS  = -check all -traceback
+#         DEBFLGS  = -check all
 # Use 'OPT = -O0 -g'  for fast compile to test the make
 # Use 'OPT = -xP' for fast run on em64t (Hydra and Guppy)
 # Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
@@ -622,9 +604,8 @@ dashL= $(empty) -L
    $(FLAG_31) $(FLAG_32) $(FLAG_33) $(FLAG_34) \
    $(FLAG_35) $(FLAG_36) $(FLAG_37) $(FLAG_38) \
    $(FLAG_39) $(FLAG_40) $(FLAG_41) $(FLAG_42) \
-   $(FLAG_43) $(FLAG_LAM)\
-   $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)\
-   $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261)
+   $(FLAG_LAM)\
+   $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)
 #--------------------------------------------------------------------------
 #  Libraries
 #--------------------------------------------------------------------------

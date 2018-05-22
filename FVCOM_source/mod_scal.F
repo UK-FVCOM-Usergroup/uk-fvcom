@@ -85,6 +85,9 @@ Module Scalar
   real(sp), dimension(3*nt,kb)      :: dtij 
   real(sp), dimension(3*nt,kbm1) :: uvn
   real(sp), dimension(kb)        :: vflux
+  real(sp), dimension(kbm1)      :: dz_tmp
+  real(sp), dimension(kbm1)      :: f_tmp
+  real(sp), dimension(kb)        :: w_tmp
   real(sp) :: utmp,vtmp,sitai,ffd,ff1,x11,y11,x22,y22,x33,y33
   real(sp) :: tmp1,tmp2,xi,yi
   real(sp) :: dxa,dya,dxb,dyb,fij1,fij2,un
@@ -190,7 +193,7 @@ Module Scalar
 !	 END IF
  
 !J. Ge for tracer advection
-         IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+         IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
            IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
             FFD=0.5_SP*(f(I,K)+f(I2,K))
             FF1=0.5_SP*(f(I,K)+f(I2,K))
@@ -241,7 +244,7 @@ Module Scalar
 !         ffd=0.5_sp*(f(i1,k)+f(i2,k)) !-fmean1(i1,k)-fmean1(i2,k))
 !         ff1=0.5_sp*(f(i1,k)+f(i2,k))
 !J. Ge for tracer advection	 
-         IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+         IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
            FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
            FF1=0.5_SP*(f(I1,K)+f(I2,K))
          ELSE
@@ -282,7 +285,7 @@ Module Scalar
 !             FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
 !             FF1=0.5_SP*(f(I1,K)+f(I2,K))
 !J. Ge for tracer advection
-             IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+             IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
                FFD=0.5_SP*(f(I1,K)+f(I2,K)) !-SMEAN1(I1,K)-SMEAN1(I2,K))
                FF1=0.5_SP*(f(I1,K)+f(I2,K))
              ELSE
@@ -496,7 +499,7 @@ Module Scalar
 !       fij1=f(ia,k)+dxa*pfpx(ia)+dya*pfpy(ia)
 !       fij2=f(ib,k)+dxb*pfpx(ib)+dyb*pfpy(ib)
 !J. Ge for tracer advection
-       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+       IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
          fij1=f(ia,k)+dxa*pfpx(ia)+dya*pfpy(ia)
          fij2=f(ib,k)+dxb*pfpx(ib)+dyb*pfpy(ib)
        ELSE
@@ -513,6 +516,10 @@ Module Scalar
 
 !       viscof=horcon*(fact*(viscoff(ia)+viscoff(ib))*0.5_sp + fm1)
         VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
+
+!# if defined (SEDIMENT)
+!        VISCOF = VISCOF*SEDIMENT_MIXING_RATIO
+!# endif
 
        txx=0.5_sp*(pfpxd(ia)+pfpxd(ib))*viscof
        tyy=0.5_sp*(pfpyd(ia)+pfpyd(ib))*viscof
@@ -628,58 +635,58 @@ Module Scalar
        wvel(1:kb)=0.0_sp
 !YC    call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),vflux)
 !J. Ge for tracer advection
-       !w_tmp = wvel(1:kb)
-       !dz_tmp= dz(i,1:kbm1)
-       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+       w_tmp = wvel(1:kb)
+       dz_tmp= dz(i,1:kbm1)
+       IF(BACKWARD_ADVECTION.neqv..TRUE.)THEN
          ftmp = f(i,1:kbm1)
-         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),dz(i,1:kbm1),vflux)
+         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         !call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),dz(i,1:kbm1),vflux)
        ELSE
          IF(BACKWARD_STEP==1)THEN
            ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
          ELSEIF(BACKWARD_STEP==2)THEN
            ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
          ENDIF
-         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         call calc_vflux(kbm1,ftmp,wvel(1:kb),dz(i,1:kbm1),vflux)
+         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         !call calc_vflux(kbm1,ftmp,wvel(1:kb),dz(i,1:kbm1),vflux)
        ENDIF
 !J. Ge for tracer advection
      else
 !YC    call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),vflux)
 !J. Ge for tracer advection
-       !w_tmp = wts(i,1:kb)
-       !dz_tmp= dz(i,1:kbm1)
-       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+       w_tmp = wts(i,1:kb)
+       dz_tmp= dz(i,1:kbm1)
+       IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
          ftmp = f(i,1:kbm1)
-         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
+         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         !call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
        ELSE
          IF(BACKWARD_STEP==1)THEN
            ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
          ELSEIF(BACKWARD_STEP==2)THEN
            ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
          ENDIF
-         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
+         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         !call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
        ENDIF
 !J. Ge for tracer advection
      end if
 #    else
 !J. Ge for tracer advection
-       !w_tmp = wts(i,1:kb)
-       !dz_tmp= dz(i,1:kbm1)
-       IF(BACKWARD_ADVECTION/=.TRUE.)THEN
-         !ftmp = f(i,1:kbm1)
-         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
+       w_tmp = wts(i,1:kb)
+       dz_tmp= dz(i,1:kbm1)
+       IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
+         ftmp = f(i,1:kbm1)
+         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         !call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
        ELSE
          IF(BACKWARD_STEP==1)THEN
            ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
          ELSEIF(BACKWARD_STEP==2)THEN
            ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
          ENDIF
-         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
+         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         !call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
        ENDIF
 !J. Ge for tracer advection
 !!!      vflux = 0.0_SP
@@ -745,7 +752,7 @@ Module Scalar
           do k=1,kbm1
             fpoint = f(jj,k)
 !J. Ge for tracer advection
-            IF(BACKWARD_ADVECTION/=.TRUE.)THEN
+            IF(BACKWARD_ADVECTION .neqv. .TRUE.)THEN
               fpoint = f(jj,k)
             ELSE
               IF(BACKWARD_STEP==1)THEN
@@ -837,18 +844,31 @@ Module Scalar
 
     !Surface
     au(1) = 0.0
+# if defined (SEDIMENT)
+    cu(1)=      - deltat*(kh(i,2)+umol)*SEDIMENT_MIXING_RATIO/(dzz(i,1)*dz(i,1)*dsqrd)
+# else
     cu(1)=      - deltat*(kh(i,2)+umol)/(dzz(i,1)*dz(i,1)*dsqrd)
+# endif
     bu(1)=  1.0 - cu(1) 
 
     !Interior
     do k=2,kbm1-1
+# if defined (SEDIMENT)
+      au(k) =     - deltat*(kh(i,k  )+umol)*SEDIMENT_MIXING_RATIO/(dzz(i,k-1)*dz(i,k)*dsqrd)
+      cu(k) =     - deltat*(kh(i,k+1)+umol)*SEDIMENT_MIXING_RATIO/(dzz(i,k  )*dz(i,k)*dsqrd)
+# else
       au(k) =     - deltat*(kh(i,k  )+umol)/(dzz(i,k-1)*dz(i,k)*dsqrd)
       cu(k) =     - deltat*(kh(i,k+1)+umol)/(dzz(i,k  )*dz(i,k)*dsqrd)
+# endif
       bu(k) = 1.0 - cu(k) - au(k) 
     end do
 
     !Bottom
+# if defined (SEDIMENT)
+     au(kbm1) =     - deltat*(kh(i,kbm1)+umol)*SEDIMENT_MIXING_RATIO/(dzz(i,kbm1-1)*dz(i,kbm1)*dsqrd)
+# else
      au(kbm1) =     - deltat*(kh(i,kbm1)+umol)/(dzz(i,kbm1-1)*dz(i,kbm1)*dsqrd)
+# endif
      cu(kbm1) = 0.0
      bu(kbm1) = 1.0 - au(kbm1) 
 

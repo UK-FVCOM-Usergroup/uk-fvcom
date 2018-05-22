@@ -1,10 +1,9 @@
 # Compiling the FVCOM WRF bulk formula code
 
 0. Compile the main FVCOM source code.
-1. Run `get_libs.sh`.
-2. Edit the `makefile`, changing `FVCOM` to the root of the FVCOM source code.
-3. Edit the `makefile` to reflect your compiler definitions.
-4. Type `make libs` to compile the HDF5 and netCDF4 libraries. If you prefer to use your own versions, edit the paths in the relevant makefile to reflect the location of those libraries. See the `makefile.ARCHER` for an example of how to do this.
+1. Edit the `makefile`, changing `FVCOM` to the root of the FVCOM source code.
+2. Edit the `makefile` to reflect your compiler definitions.
+3. Type `make` to compile the binary.
 
 # Running the resulting code.
 

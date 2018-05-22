@@ -54,6 +54,10 @@
    USE MOD_WD
    USE MOD_BULK
 
+# if defined(FABM)
+   USE MOD_FABM_DATA
+!   USE fabm
+# endif
 #  if defined (WATER_QUALITY)
    USE MOD_WQM
 #  endif
@@ -94,6 +98,9 @@
 
    INTEGER  I,J,K,I1,I2,J1,J2,II,L1,L2,IERR
    INTEGER  cdx,ndx,KDAM_TMP,K_RK
+# if defined(FABM)
+   INTEGER JJ,IFABM
+# endif
 
 !!$!=================|DEBUG|============================
 !!$   LOGICAL, save :: INIT=.false.
@@ -610,6 +617,9 @@
 # if defined(BioGen)
          IF(BIOLOGICAL_MODEL)CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
 # endif
+# if defined(FABM)
+         IF (FABM_MODEL) CALL UPDATE_RIVERS(IntTime,QDIS,FABMR=FABMDIS)
+# endif
 # if !defined(SEDIMENT) && !defined(WATER_QUALITY) 
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS)
 # endif	 
@@ -753,6 +763,11 @@
                                         &,offline_wn, offline_wc)
 # endif
 
+# if defined (FABM) && defined (OFFLINE_FABM)
+      IF (FABM_MODEL) CALL UPDATE_OFFLINE_FABM_FORCING(IntTime,offlineb_u,  offlineb_v, offlineb_w&
+                                        &,offlineb_s1,offlineb_t1, offlineb_el,offlineb_kh&
+                                        &,offlineb_wn, offlineb_wc,offlineb_uard_obcn)
+# endif
 
 # if defined (OFFLINE_BIOLOGY)
       CALL UPDATE_OFFLINE_BIOLOGY_FORCING(IntTime,offline_u,  offline_v, offline_w&

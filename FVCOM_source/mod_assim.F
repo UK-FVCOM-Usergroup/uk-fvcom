@@ -231,15 +231,15 @@ MODULE MOD_ASSIM
 !--Current Assimilation Object Type
 !
   TYPE ASSIM_OBJ_CUR
-   INTEGER  :: N_TIMES                     !!NUMBER OF DATA TIMES
-   INTEGER  :: N_INTPTS                    !!NUMBER OF INTERPOLATION POINTS 
-   INTEGER  :: N_T_WEIGHT                  !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
-   INTEGER  :: N_LAYERS                    !!NUMBER OF OBSERVATIONS IN THE VERTICAL
-   INTEGER  :: N_CELL                      !!CELL NUMBER OF OBSERVATION
-   REAL(SP) :: X,Y                         !!X AND Y COORDINATES OF OBSERVATION
-   REAL(SP) :: T_WEIGHT                    !!TIME WEIGHT
-   REAL(SP) :: DEPTH                       !!DEPTH AT OBSERVATION STATION (MOORING)
-   REAL(SP) :: SITA                        !!LOCAL ISOBATH ANGLE AT OBSERVATION
+   INTEGER  :: N_TIMES =0                    !!NUMBER OF DATA TIMES
+   INTEGER  :: N_INTPTS=0                    !!NUMBER OF INTERPOLATION POINTS 
+   INTEGER  :: N_T_WEIGHT=0                  !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
+   INTEGER  :: N_LAYERS=0                    !!NUMBER OF OBSERVATIONS IN THE VERTICAL
+   INTEGER  :: N_CELL=0                      !!CELL NUMBER OF OBSERVATION
+   REAL(SP) :: X=0.,Y=0.                         !!X AND Y COORDINATES OF OBSERVATION
+   REAL(SP) :: T_WEIGHT=0.                    !!TIME WEIGHT
+   REAL(SP) :: DEPTH =0.                      !!DEPTH AT OBSERVATION STATION (MOORING)
+   REAL(SP) :: SITA =0.                       !!LOCAL ISOBATH ANGLE AT OBSERVATION
    REAL(SP),ALLOCATABLE,DIMENSION(:)  :: ODEPTH      !!OBSERVATION DEPTHS
 !   REAL(SP),ALLOCATABLE,DIMENSION(:)  :: TIMES       !!DATA TIMES
    TYPE(TIME),ALLOCATABLE,DIMENSION(:)  :: TIMES       !!DATA TIMES
@@ -254,15 +254,15 @@ MODULE MOD_ASSIM
 !--Temperature/Salinity Assimilation Object Type
 !
    TYPE ASSIM_OBJ_TS  
-     INTEGER  :: N_TIMES                                  !!NUMBER OF DATA TIMES
-     INTEGER  :: N_INTPTS                                 !!NUMBER OF INTERPOLATION POINTS
-     INTEGER  :: N_T_WEIGHT                               !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
-     INTEGER  :: N_LAYERS                                 !!NUMBER OF OBSERVATIONS IN THE VERTICAL
-     INTEGER  :: N_CELL                                   !!CELL NUMBER OF OBSERVATION
-     REAL(SP) :: X,Y                                      !!X AND Y COORDINATES OF OBSERVATION
-     REAL(SP) :: T_WEIGHT                                 !!TIME WEIGHT
-     REAL(SP) :: DEPTH                                    !!DEPTH AT OBSERVATION STATION (MOORING)
-     REAL(SP) :: SITA                                     !!LOCAL ISOBATH ANGLE AT OBSERVATION
+     INTEGER  :: N_TIMES =0                                  !!NUMBER OF DATA TIMES
+     INTEGER  :: N_INTPTS =0                                !!NUMBER OF INTERPOLATION POINTS
+     INTEGER  :: N_T_WEIGHT=0                               !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
+     INTEGER  :: N_LAYERS =0                                !!NUMBER OF OBSERVATIONS IN THE VERTICAL
+     INTEGER  :: N_CELL =0                                  !!CELL NUMBER OF OBSERVATION
+     REAL(SP) :: X=0.,Y=0.                                      !!X AND Y COORDINATES OF OBSERVATION
+     REAL(SP) :: T_WEIGHT=0.                                 !!TIME WEIGHT
+     REAL(SP) :: DEPTH =0.                                   !!DEPTH AT OBSERVATION STATION (MOORING)
+     REAL(SP) :: SITA =0.                                    !!LOCAL ISOBATH ANGLE AT OBSERVATION
      REAL(SP), ALLOCATABLE, DIMENSION(:)   :: ODEPTH      !!OBSERVATION DEPTHS
 !     REAL(SP), ALLOCATABLE, DIMENSION(:)   :: TIMES       !!DATA TIMES
      TYPE(TIME),ALLOCATABLE,DIMENSION(:)  :: TIMES        !!DATA TIMES
@@ -294,9 +294,9 @@ MODULE MOD_ASSIM
 
 
   TYPE ASSIM_OBS_LOC
-     INTEGER  :: N_TIMES
+     INTEGER  :: N_TIMES =0
      TYPE(TIME), ALLOCATABLE, DIMENSION(:) :: OBSTIME(:)
-     INTEGER  :: N_LOCS
+     INTEGER  :: N_LOCS =0
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: X ! (N_LOCS,N_TIMES)
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: Y ! (N_LOCS,N_TIMES)
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: Z ! (N_LOCS,N_TIMES)
@@ -313,15 +313,15 @@ MODULE MOD_ASSIM
 
   TYPE ASSIM_OBJ
      CHARACTER(LEN=80) :: VARNAME
-     REAL(SP), POINTER, DIMENSION(:,:) :: DATA
-     REAL(SP), POINTER, DIMENSION(:) :: X,Y,EL,H
-     REAL(SP), POINTER, DIMENSION(:,:) :: SIGMA
-     REAL(SP):: RADIUS
-     REAL(SP):: WEIGHT_MAX
-     REAL(SP):: TIMESCALE  
-     REAL(SP):: TIME_WINDOW
-     TYPE(NCFILE), POINTER :: FILE
-     INTEGER :: N_OBS
+     REAL(SP), POINTER, DIMENSION(:,:) :: DATA  => NULL()
+     REAL(SP), POINTER, DIMENSION(:) :: X => NULL(),Y => NULL(),EL => NULL(),H => NULL()
+     REAL(SP), POINTER, DIMENSION(:,:) :: SIGMA => NULL()
+     REAL(SP):: RADIUS = 0.
+     REAL(SP):: WEIGHT_MAX=0.
+     REAL(SP):: TIMESCALE=0.  
+     REAL(SP):: TIME_WINDOW=0.
+     TYPE(NCFILE), POINTER :: FILE => NULL()
+     INTEGER :: N_OBS =0
      TYPE(ASSIM_OBS_LOC), POINTER :: OBS_LOC
      TYPE(ASSIM_OBS_DATA), POINTER :: OBS_DAT
   END TYPE ASSIM_OBJ

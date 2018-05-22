@@ -1,0 +1,11 @@
+*.f90
+*.mod
+*.o
+install
+libs/netcdf
+libs/proj
+libs/fproj
+libs/metis
+libs/julian
+fvcom
+libfvcom.a
