@@ -11,6 +11,7 @@ PACKAGES =	proj	fproj	julian	metis	hdf5-1.10.2	netcdf-4.6.1	netcdf-fortran-4.4.4
 
 all:
 	for item in $(PACKAGES); do (./untar.sh $$item ) || exit 1; done
+	mkdir -p $(MYINSTALLDIR)/bin
 	cd proj && ./configure CC=$(CC) CFLAGS=-O3 CXX=$(CC) CXXFLAGS=-O3 F77=$(FC) FFLAGS=-O3 --prefix=$(MYINSTALLDIR) --disable-shared
 	cd proj && make -j install
 	cd fproj && ./configure CPPFLAGS='$(COMPILER)' CC=$(CC) CFLAGS=-O3 CXX=$(CXX) CXXFLAGS=-O3 FC=$(FC) FFLAGS=-O3 --with-proj4=$(MYINSTALLDIR) --prefix=$(MYINSTALLDIR)
