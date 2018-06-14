@@ -7168,16 +7168,16 @@ CONTAINS
     VAR  => NC_MAKE_AVAR(name='DYE',&
          & values=DYE, DIM1= DIM_node, DIM2= DIM_siglay, DIM3=DIM_time)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Water Surface Elevation') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Dye') 
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='meters') 
+    ATT  => NC_MAKE_ATT(name='units',values='-') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='positive',values='up') 
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_surface_height_above_geoid') 
+    ATT  => NC_MAKE_ATT(name='standard_name',values='tracer') 
     VAR  => ADD(VAR,ATT)
 
 # if defined(UCF)
