@@ -84,6 +84,7 @@ MODULE MOD_FABM_3D
   REAL(SP), POINTER :: FABM_BOTTOM_THICKNESS(:)
 
   INTEGER, ALLOCATABLE, TARGET :: MASK_NONE(:), MASK_SAFE(:)
+  LOGICAL, ALLOCATABLE :: DISABLE_TRANSPORT(:)
 
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
@@ -278,6 +279,10 @@ MODULE MOD_FABM_3D
     ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)));           FABM_F       =  0.001_SP
 !    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)));        FABM_MEAN    =  0.001_SP
     ALLOCATE(FABM_TOTALS(size(model%conserved_quantities)));         FABM_TOTALS = 0
+    ALLOCATE(DISABLE_TRANSPORT(size(model%state_variables)))
+    DO IFABM=1,SIZE(model%state_variables)
+       DISABLE_TRANSPORT(IFABM) = model%state_variables(IFABM)%properties%get_logical('disable_transport',default=.false.)
+    END DO
 
 ! link model variable to dummy ERSEM1 variable. 
 !   NAME_ ='O2_o'
