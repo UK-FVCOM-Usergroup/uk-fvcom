@@ -1482,10 +1482,9 @@ SUBROUTINE INTERNAL_STEP
 #     endif
      
      
-#     if !defined (DOUBLE_PRECISION)
-     !     IF(TS_FCT) CALL AVER_DYE                      !Conservation Correction   !
-#     endif
-     
+     ! if !defined (DOUBLE_PRECISION)
+     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_DYE                      !Conservation Correction   !
+     ! endif
      CALL VDIF_DYE(DYEF)                            !Vertical Diffusion        !
      
      !check
