@@ -1648,7 +1648,7 @@ CONTAINS
     REAL(SP),SAVE, POINTER :: TMP(:),TMP2(:,:)
     LOGICAL :: FOUND
     INTEGER :: STKCNT
-    INTEGER :: II
+    INTEGER :: II,NN
 
     STKCNT = NC_START%FTIME%PREV_STKCNT
 
@@ -1659,6 +1659,32 @@ CONTAINS
          & TRIM(sed(ii)%sname)//" IN THE HOTSTART FILE OBJECT")
       CALL NC_CONNECT_AVAR(VAR, sed(ii)%conc)
       CALL NC_READ_VAR(VAR,STKCNT)
+!  READ ALSO THE BED_FRAC RJT 
+! It is possible that what we need here is sedbed%bed_frac and not sed%frac but who the F* knows... 
+! what I do know is that reading sed%frac makes  no difference whatsoever
+      TMP => sed(ii)%frac(1:m,1)
+     VAR  => FIND_VAR(NC_START,TRIM(sed(ii)%sname)//'_bedfrac',FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(sed(ii)%sname)//'_bedfrac'//" IN THE HOTSTART FILE OBJECT")
+      CALL NC_CONNECT_PVAR(VAR, TMP)
+      CALL NC_READ_VAR(VAR,STKCNT)
+      NULLIFY(TMP)
+! populate all of the bed fractions with the active laye fraction. Probably not ideal. 
+! We should save all of the layers in the restart file not only the active layer.
+! And bed_frac should be read from a parameter file rather than from the restart file
+    DO NN=1,NBED
+      sedbed%bed_frac(1:m,nn,ii) = sed(ii)%frac(1:m,1)
+      sed(ii)%frac(1:m,nn) = sed(ii)%frac(1:m,1)
+# if defined (CSTMS_SED)
+! update bed_mass here too to be consistant with init_sed
+       sedbed%bed_mass(1:m,nn,1,ii)=init_bed_thickness(nn)*sed(ii)%Srho&
+            &*(1.0-init_bed_porosity(nn))*sedbed%bed_frac(1:m,nn,ii)
+       sedbed%bed_mass(1:m,nn,2,ii)=init_bed_thickness(nn)*sed(ii)%Srho&
+            &*(1.0-init_bed_porosity(nn))*sedbed%bed_frac(1:m,nn,ii)
+
+# endif 
+    END DO
+! END OF RJT ADDITION
     END DO
 
    ! BOTTOM VARIABLES
