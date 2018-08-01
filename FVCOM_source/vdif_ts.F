@@ -167,7 +167,8 @@ SUBROUTINE VDIF_TS(NCON1,F)
 #    endif
 
 ! Jadon: avoid overcooling or overheating in the region (depth<2m)
-                 IF(D(I)<2.0_SP)THEN
+! For ROSA domain clipped to 10m
+                 IF(D(I)<10.0_SP)THEN
                     WFSURF(I) = 0.0_SP
                     SWRADF(I) = 0.0_SP
                  END IF
