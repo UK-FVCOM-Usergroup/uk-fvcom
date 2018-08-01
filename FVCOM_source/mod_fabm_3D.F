@@ -53,8 +53,9 @@ MODULE MOD_FABM_3D
 # if defined (SEDIMENT)
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM(:,:)   ! mg/m^3
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM_g(:,:) ! g/m^3
-  REAL(SP), ALLOCATABLE,TARGET :: SPM_ABS_FABM(:,:)
-  REAL(SP), ALLOCATABLE,TARGET :: SPM_BB_FABM(:,:)
+! No longer needed... they are directly calculated in light_iop_ady_spm... 
+!  REAL(SP), ALLOCATABLE,TARGET :: SPM_ABS_FABM(:,:)
+!  REAL(SP), ALLOCATABLE,TARGET :: SPM_BB_FABM(:,:)
 # endif
   REAL(SP), ALLOCATABLE        :: FABM_OLD_BOTTOM_THICKNESS(:)
   REAL(SP) :: DAYS_SINCE_YEAR_START
@@ -206,6 +207,8 @@ MODULE MOD_FABM_3D
 
     ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
 # if defined (SEDIMENT)
+! what if we compiled with sediment but are not running with sediment model active?
+    IF(SEDIMENT_MODEL)THEN
 !RJT June_2016
     ! Suspended sediment concentration from FVCOM - currently only one variable
     ! and for testing purposes it is constant everywhere. 
@@ -222,17 +225,18 @@ MODULE MOD_FABM_3D
        call model%link_interior_data(type_bulk_standard_variable(name='mass_concentration_of_silt'),SPM_FABM(1:M,:))
     END IF
 
-    IF (model%variable_needs_values(type_bulk_standard_variable(name='absorption_of_silt'))) THEN
-       ALLOCATE(SPM_ABS_FABM(0:MT,KB))
-       call model%link_interior_data(type_bulk_standard_variable(name='absorption_of_silt'),SPM_ABS_FABM(1:M,:))
-    END IF
+!    IF (model%variable_needs_values(type_bulk_standard_variable(name='absorption_of_silt'))) THEN
+!       ALLOCATE(SPM_ABS_FABM(0:MT,KB))
+!       call model%link_interior_data(type_bulk_standard_variable(name='absorption_of_silt'),SPM_ABS_FABM(1:M,:))
+!    END IF
 
-    IF (model%variable_needs_values(type_bulk_standard_variable(name='backscatter_of_silt'))) THEN
-       ALLOCATE(SPM_BB_FABM(0:MT,KB))
-       call model%link_interior_data(type_bulk_standard_variable(name='backscatter_of_silt'),SPM_BB_FABM(1:M,:))
-    END IF
+!    IF (model%variable_needs_values(type_bulk_standard_variable(name='backscatter_of_silt'))) THEN
+!       ALLOCATE(SPM_BB_FABM(0:MT,KB))
+!       call model%link_interior_data(type_bulk_standard_variable(name='backscatter_of_silt'),SPM_BB_FABM(1:M,:))
+!    END IF
 
 ! RJT June_2016
+    ENDIF ! Check sediment model is active
 # endif
     ! Cell thickness in m (from D and DZ)
     IF (model%variable_needs_values(standard_variables%cell_thickness)) THEN
@@ -383,12 +387,13 @@ MODULE MOD_FABM_3D
          BOTTOM_STRESS = TAUBM_N*(1+RHO1(:,KBM1))*1000
       END IF
 # if defined (SEDIMENT)
+      IF(SEDIMENT_MODEL)THEN
 !RJT June_2016
 ! One of these two will be true (either using light or light_iop)
 ! Light.F90 in ERSEM uses silt concentration
       ! Aggregate FVCOM SPM variables into a single one for passing on to ERSEM
       IF (ALLOCATED(SPM_FABM)) THEN
-         ! Pass on SPM concentrations in mg/m3. FVCOM units are in Kg/m3!! needs
+         ! Pass on SPM concentrations in mg/m3. FVCOM units are in Kg/m3 or g/L!! needs
          ! to be scaled!
          ! FVCOM variable would be sed(nsed)%conc...
             SPM_FABM = CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
@@ -399,47 +404,52 @@ MODULE MOD_FABM_3D
          ! FVCOM variable would be sed(nsed)%conc...
             SPM_FABM_g = CSED*10.0_SP**3.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
       END IF
-      ! Light_iop.F90 only needs absorption and backscattering so do the
-      ! aggregation here. Specific absorption and backscattering are hard coded
+      ! Light_iop_ady_spm.F90 only needs specific absorption and backscattering so we can skip
+      ! aggregation here. 
+      !NO LONGER APPLIES...Specific absorption and backscattering are hard coded
       ! here. Should be in namelist... ideally in FABM.yaml but this requires
       ! addiging the variables to ERSEM code (share.F90, CMakelist, ERSEM model
       ! library) as they should be new variables and a new light_iop_spm.F90
       ! file. 
-      IF (ALLOCATED(SPM_ABS_FABM)) THEN
+!      IF (ALLOCATED(SPM_ABS_FABM)) THEN
          ! Pass on SPM absorptions in 1/m FVCOM. Make it depth dependent here
          ! for testing purposes.
-        DO K=1,KBM1
-         SPM_ABS_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
-                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
-         WHERE (D*ZZ(:,K) .le. MIN_DEPTH)    SPM_ABS_FABM(:,K) = 0.0_SP
-         WHERE (D*ZZ(:,K) .ge. 15.0_SP)      SPM_ABS_FABM(:,K) = 1.0_SP
+!        DO K=1,KBM1
+!         SPM_ABS_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
+!                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
+!         WHERE (D*ZZ(:,K) .le. MIN_DEPTH)    SPM_ABS_FABM(:,K) = 0.0_SP
+!         WHERE (D*ZZ(:,K) .ge. 15.0_SP)      SPM_ABS_FABM(:,K) = 1.0_SP
 
-        ENDDO
+!        ENDDO
       ! using hard coded absorption coefficient. If using SPM concentrations,
       ! this will need to be the specific absorption coefficient x SPM
       ! concentraions. 
         !SPM_ABS_FABM = SPM_ABS_FABM*0.7_SP
-        SPM_ABS_FABM = SPM_ABS_FABM*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
-      END IF
+      ! absorption relationship from Babin et al 2003 with abs* = 0.031m2/g , abs* = 0.031/(10.0_SP**3.0_SP) m2/mg
 
-      IF (ALLOCATED(SPM_BB_FABM)) THEN
+!        SPM_ABS_FABM = (0.031_SP/(10.0_SP**3.0_SP))*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions). I think they have an specific order in CSED... so shouldn't be a problem. 
+!      END IF
+
+!      IF (ALLOCATED(SPM_BB_FABM)) THEN
          ! Pass on SPM backscatter coefficient in 1/m FVCOM. 
-        DO K=1,KBM1
-         SPM_BB_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
-                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
-         WHERE (D*ZZ(:,K) .le. MIN_DEPTH)    SPM_BB_FABM(:,K) = 0.0_SP
-         WHERE (D*ZZ(:,K) .ge. 15.0_SP)      SPM_BB_FABM(:,K) = 1.0_SP
-        ENDDO
+!        DO K=1,KBM1
+!         SPM_BB_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
+!                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
+!         WHERE (D*ZZ(:,K) .le. MIN_DEPTH)    SPM_BB_FABM(:,K) = 0.0_SP
+!         WHERE (D*ZZ(:,K) .ge. 15.0_SP)      SPM_BB_FABM(:,K) = 1.0_SP
+!        ENDDO
       ! using hard coded backscattering coefficient. If using SPM
       ! concentrations, this will need to be the specific backscattering
       ! coefficient x SPM concentraions
         !SPM_BB_FABM = SPM_BB_FABM*0.1_SP
-        SPM_BB_FABM = SPM_BB_FABM*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
-      END IF
+      ! backscattering relationship from Martinez-Vicente et al 2010 with bbp* = 0.0055m2/g , abs* = 0.0055/(10.0_SP**3.0_SP) m2/mg
+
+!        SPM_BB_FABM = (0.0055_SP/(10.0_SP**3.0_SP))*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+!      END IF
 
 
 ! RJT June_2016
-
+      ENDIF ! Sediment model active
 # endif
 
       IF (COMPUTE_DAYS_SINCE_YEAR_START) THEN
