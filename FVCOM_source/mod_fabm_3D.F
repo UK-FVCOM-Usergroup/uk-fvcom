@@ -85,7 +85,7 @@ MODULE MOD_FABM_3D
 
   INTEGER, ALLOCATABLE, TARGET :: MASK_NONE(:), MASK_SAFE(:)
   LOGICAL, ALLOCATABLE :: DISABLE_TRANSPORT(:)
-
+  INTEGER :: IFABMadv ! value of number of variables to advect
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
      procedure :: fatal_error       => fvcom_driver_fatal_error
@@ -283,6 +283,7 @@ MODULE MOD_FABM_3D
     DO IFABM=1,SIZE(model%state_variables)
        DISABLE_TRANSPORT(IFABM) = model%state_variables(IFABM)%properties%get_logical('disable_transport',default=.false.)
     END DO
+    IFABMadv = size(model%state_variables) - COUNT(DISABLE_TRANSPORT) ! get the number of advecting variables 
 
 ! link model variable to dummy ERSEM1 variable. 
 !   NAME_ ='O2_o'
@@ -557,14 +558,17 @@ SUBROUTINE FABM_UPDATE
      IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
      ! Remove the impact of FABM_ADV on the open boundary nodes that experience inflow.
      ! For those, we want to run water column simulations that only include sources, residual vertical movement and vertical mixing.
+     ! We are not ignoring non-advective variables here but we do in BCOND RJT
      CALL FABM_BCOND_PREPARE
 # endif
 ! end if defined 1D
 
      ! Vertical mixing
 # if !defined (ONE_D_MODEL)
+! We need to remove non advecting/miixing variables from FABM_ALL for this case RJT
      CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
 # else
+! We need to remove non advecting/miixing variables from FABM_ALL for this case RJT
      CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
 # endif
      IF (FABM_DEBUG) THEN
@@ -595,7 +599,11 @@ SUBROUTINE FABM_UPDATE
      END IF
 
 # if !defined (ONE_D_MODEL)
-     FABM_ALL = FABM_F      ! Update to new time level
+  DO IFABM=1,size(model%state_variables)
+      IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
+        FABM_ALL(:,:,IFABM) = FABM_F(:,:,IFABM)      ! Update to new time level skipping non-advective variables
+      END IF
+  END DO
 # endif
 ! RESTORE OXYGEN VALUES TO OUR CONSTANT VALUE RJT
 !     FABM_ALL(:,:,ERSEMid) = ERSEM1
@@ -1122,6 +1130,7 @@ SUBROUTINE FABM_EXCHANGE(F)
   END DO
 
   DO IFABM=1,size(model%state_variables)
+      IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
 
   !------------------------------------------------------------------------------!
   !   surface bcs;                                                        !
@@ -1281,6 +1290,7 @@ SUBROUTINE FABM_EXCHANGE(F)
      END DO
    END DO
 #  endif
+     ENDIF! IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
 
   END DO ! IFABM
 
