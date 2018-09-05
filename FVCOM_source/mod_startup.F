@@ -1673,9 +1673,9 @@ CONTAINS
 ! We should save all of the layers in the restart file not only the active layer.
 ! And bed_frac should be read from a parameter file rather than from the restart file
     DO NN=1,NBED
-      sedbed%bed_frac(1:m,nn,ii) = sed(ii)%frac(1:m,1)
       sed(ii)%frac(1:m,nn) = sed(ii)%frac(1:m,1)
 # if defined (CSTMS_SED)
+       sedbed%bed_frac(1:m,nn,ii) = sed(ii)%frac(1:m,1)
 ! update bed_mass here too to be consistant with init_sed
        sedbed%bed_mass(1:m,nn,1,ii)=init_bed_thickness(nn)*sed(ii)%Srho&
             &*(1.0-init_bed_porosity(nn))*sedbed%bed_frac(1:m,nn,ii)
