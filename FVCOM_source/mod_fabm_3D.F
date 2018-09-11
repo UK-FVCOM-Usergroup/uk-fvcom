@@ -352,14 +352,6 @@ MODULE MOD_FABM_3D
          END DO
       END IF
 
-      IF (ALLOCATED(PRESSURE)) THEN
-         ! Pressure (dbar) from gravity, depth, and reference density
-         ! NB could be made more accurate by using actual density.
-         DO K=1,KBM1
-            PRESSURE(:,K) = -GRAV_N(:)*1.025_SP*ZZ(:,K)*D*0.1_SP
-         END DO
-      END IF
-
       IF (ALLOCATED(WIND_SPEED)) THEN
          ! Wind speed (m s-1)  by interpolating individual x,y wind components from elements to nodes
          CALL E2N2D(UUWIND,UUWIND_N)
@@ -370,6 +362,13 @@ MODULE MOD_FABM_3D
       IF (ALLOCATED(DENSITY)) THEN
          ! From sigma in CGS units (g cm-3) to actual density in MKS units (kg m-3)
          DENSITY = (1+RHO1)*1000
+      END IF
+
+      IF (ALLOCATED(PRESSURE)) THEN
+         ! Pressure (dbar) from gravity, depth, and actual density.
+         DO K=1,KBM1
+            PRESSURE(:,K) = -GRAV_N(:)*(1+RHO1(:,K))*ZZ(:,K)*D*0.1_SP
+         END DO
       END IF
 
       IF (ALLOCATED(BOTTOM_STRESS)) THEN
