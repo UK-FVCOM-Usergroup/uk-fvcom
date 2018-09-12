@@ -1448,8 +1448,12 @@ CONTAINS
     ! This problem reported with Intel15.0.3.
     ! PRECIPITATION
     SWATER_FLUX_P%curr_stkcnt = 0 ; SWATER_FLUX_N%curr_stkcnt = 0
-    SWATER_TEMP_P%curr_stkcnt = 0 ; SWATER_TEMP_N%curr_stkcnt = 0
-    SWATER_SALT_P%curr_stkcnt = 0 ; SWATER_SALT_N%curr_stkcnt = 0
+    IF (SURFACEWATER_TEMP_ON ) THEN
+       SWATER_TEMP_P%curr_stkcnt = 0 ; SWATER_TEMP_N%curr_stkcnt = 0
+    ENDIF
+    IF (SURFACEWATER_SALT_ON ) THEN
+       SWATER_SALT_P%curr_stkcnt = 0 ; SWATER_SALT_N%curr_stkcnt = 0
+    ENDIF
     ! --------- end new ----------------------------------------------------------------
 
 
