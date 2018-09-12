@@ -991,6 +991,27 @@ SUBROUTINE ADV_T
   END IF
 
 
+  ! APPLY SURFACE WATER TEMPERATURE FORCING
+  IF(SURFACEWATER_ON .and. SURFACEWATER_TEMP_ON)THEN
+     DO I=1,M
+        XFLUX(I,KBM1)=XFLUX(I,KBM1)-SW_BFWDIS(I)*SW_BFWTMP(I)
+     END DO
+  ELSEIF(SURFACEWATER_ON) THEN
+     DO I=1,M
+ !J. Ge for tracer advection
+        IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+          XFLUX(I,KBM1)=XFLUX(I,KBM1)-SW_BFWDIS(I)*T1(I,KBM1)
+        ELSE
+          IF(BACKWARD_STEP==1)THEN
+            XFLUX(I,KBM1)=XFLUX(I,KBM1)-SW_BFWDIS(I)*(T0(I,KBM1)+T1(I,KBM1))*0.5
+          ELSEIF(BACKWARD_STEP==2)THEN
+            XFLUX(I,KBM1)=XFLUX(I,KBM1)-SW_BFWDIS(I)*(T2(I,KBM1)+T0(I,KBM1)+T1(I,KBM1))/3.0_SP
+          ENDIF
+        ENDIF
+!J. Ge for tracer advection
+     END DO
+  END IF
+
   !
   !--Update Temperature----------------------------------------------------------!
   !

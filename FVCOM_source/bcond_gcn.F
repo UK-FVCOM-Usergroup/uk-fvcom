@@ -790,6 +790,16 @@
          ! DO NOT RAMP TEMP AND SALINITY
       END IF
       
+!
+!-- Set Surfacewater flux ------------------------------------------------------|
+!
+
+      IF (SURFACEWATER_ON) THEN
+         CALL UPDATE_SURFACEWATER(IntTime,SW_BFWDIS,SW_TEMP=SW_BFWTMP,SW_SALT=SW_BFWSLT)
+         SW_BFWDIS = RAMP * SW_BFWDIS
+         ! DO NOT RAMP TEMP AND SALINITY
+      END IF
+
 !==============================================================================|
    CASE(9) !External Mode Surface BCs (River Flux/Wind Stress/Heat/Moist)      !
 !==============================================================================|
@@ -844,7 +854,16 @@
          CALL UPDATE_GROUNDWATER(ExtTime,BFWDIS2)
          BFWDIS2 = RAMP * BFWDIS2
       END IF
-# endif      
+
+!
+!-- Set Surfacewater flux ------------------------------------------------------|
+!
+
+      IF (SURFACEWATER_ON) THEN
+         CALL UPDATE_SURFACEWATER(ExtTime,SW_BFWDIS2)
+         SW_BFWDIS2 = RAMP * SW_BFWDIS2
+      END IF
+# endif
    END SELECT
    
    if(dbg_set(dbg_sbr)) write(ipt,*)&

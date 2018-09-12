@@ -173,6 +173,27 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: GWATER_SALT_N, GWATER_SALT_P    ! Salinity
 
   ! =================================================================
+  ! SURFACE WATER FORCING VARIABLES FOR UPDATE AND SETUP
+  TYPE(NCFILE), POINTER :: SWATER_FILE
+
+  INTEGER :: SWATER_FORCING_TYPE
+  INTEGER,PARAMETER :: SWATER_IS_XXX     = 0
+  INTEGER,PARAMETER :: SWATER_IS_FVCOMGRID   = 1
+
+  INTEGER :: SWATER_UNITS
+  INTEGER, PARAMETER :: SWATER_M3S_1=1
+  INTEGER, PARAMETER :: SWATER_MS_1=2
+
+  TYPE(TIME) :: SWATER_PERIOD
+
+  CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE :: SWATER_FORCING_COMMENTS(:)
+  TYPE(INTERP_WEIGHTS),POINTER :: SWATER_INTP_N
+  TYPE(INTERP_WEIGHTS),POINTER :: SWATER_INTP_C
+  TYPE(NCVAR), POINTER :: SWATER_FLUX_N, SWATER_FLUX_P    ! Discharge
+  TYPE(NCVAR), POINTER :: SWATER_TEMP_N, SWATER_TEMP_P    ! Temperature
+  TYPE(NCVAR), POINTER :: SWATER_SALT_N, SWATER_SALT_P    ! Salinity
+
+  ! =================================================================
   ! OPEN BOUNDARY CONDITION SALINITY VARIABLES FOR UPDATE AND SETUP
   TYPE(NCFILE), POINTER :: OBC_S_FILE
   CHARACTER(LEN=Char_max_attlen), PUBLIC :: OBC_S_COMMENTS
@@ -495,6 +516,7 @@ MODULE MOD_FORCE
 
   PUBLIC :: SETUP_FORCING
   PUBLIC :: UPDATE_GROUNDWATER
+  PUBLIC :: UPDATE_SURFACEWATER
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
   PUBLIC :: UPDATE_HEAT
 # endif
@@ -559,6 +581,7 @@ CONTAINS
     NULLIFY(TIDE_FILE, TIDE_ELV_N, TIDE_ELV_P)
 
     NULLIFY(GWATER_FILE)
+    NULLIFY(SWATER_FILE)
 
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
     NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, HEAT_SWV_P,&
@@ -694,6 +717,7 @@ CONTAINS
 # endif
 
     CALL GROUND_WATER
+    CALL SURFACE_WATER
 
     ! ORDER IS IMPORTANT! ICE AND ICING MAY USE THE SAME POINTERS TO
     ! REFERENCE FILE! THEY MUST BE SET UP LAST.
@@ -1068,6 +1092,373 @@ CONTAINS
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END GROUND_WATER"
   END SUBROUTINE GROUND_WATER
+
+
+  SUBROUTINE SURFACE_WATER
+    IMPLICIT NONE
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT, ATT_DATE
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    LOGICAL :: FOUND
+
+    REAL(SP), POINTER :: STORAGE_ARR(:,:), storage_vec(:)
+    CHARACTER(len=60) :: tempstrng, flowstrng, saltstrng
+    TYPE(TIME) :: TIMETEST
+
+    INTEGER :: LATS, LONS, I, Ntimes
+
+    INTEGER :: STATUS
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START SURFACE_WATER"
+
+    IF (.NOT. SURFACEWATER_ON ) THEN
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "!  SURFACE WATER FORCING IS OFF!"
+       ALLOCATE(SWATER_FORCING_COMMENTS(1))
+       SWATER_FORCING_COMMENTS="SURFACE WATER FORCING IS OFF!"
+       RETURN
+    END IF
+
+
+
+    ! DETERMINE HOW TO LOAD THE DATA
+    SELECT CASE(SURFACEWATER_KIND)
+    CASE (CNSTNT)
+
+       write(flowstrng,'(f8.4)') surfacewater_flow
+       write(tempstrng,'(f8.4)') surfacewater_temp
+       write(saltstrng,'(f8.4)') surfacewater_salt
+
+       IF(DBG_SET(DBG_LOG)) THEN
+          WRITE(IPT,*)"! SETTING UP CONSTANT SURFACEWATER FORCING: "
+          WRITE(IPT,*)"      Flow Rate: "//trim(flowstrng)
+          WRITE(IPT,*)"           Temp: "//trim(tempstrng)
+          WRITE(IPT,*)"           Salt: "//trim(saltstrng)
+       END IF
+
+       ALLOCATE(SWATER_FORCING_COMMENTS(4))
+       SWATER_FORCING_COMMENTS(1) = "Using constant surfacewater forcing from run file:"
+       SWATER_FORCING_COMMENTS(2) = "Flow Rate:"//trim(flowstrng)
+       IF(SURFACEWATER_TEMP_ON) THEN
+          SWATER_FORCING_COMMENTS(3) = "Temperature (specified):"//trim(tempstrng)
+       ELSE
+          SWATER_FORCING_COMMENTS(3) = "Temperature is calculated"
+       END IF
+
+       IF(SURFACEWATER_SALT_ON) THEN
+          SWATER_FORCING_COMMENTS(4) = "Salinity (specified):"//trim(saltstrng)
+       ELSE
+          SWATER_FORCING_COMMENTS(4) = "Salinity is calculated"
+       END IF
+       RETURN
+
+    CASE(STTC)
+
+       CALL FATAL_ERROR("STATIC SURFACEWATER Not Set Up Yet")
+
+    CASE(TMDPNDNT)
+
+       CALL FATAL_ERROR("TIME DEPENDENT SURFACEWATER Not Set Up Yet")
+
+    CASE(PRDC)
+
+       SWATER_FILE => FIND_FILE(FILEHEAD,trim(SURFACEWATER_FILE),FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE))
+
+       ! DETERMINE GRID TYPE BASED ON SOURCE ATTRIBUTE
+       ATT => FIND_ATT(SWATER_FILE,"source",FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(SWATER_FILE,"Source",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+
+       IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
+            & TRIM(fvcom_grid_source)) THEN
+          SWATER_FORCING_TYPE = SWATER_IS_FVCOMGRID
+
+       ELSEIF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
+            & TRIM(fvcom_cap_grid_source)) THEN
+          SWATER_FORCING_TYPE = SWATER_IS_FVCOMGRID
+
+       ELSE
+          CALL PRINT_FILE(SWATER_FILE)
+          CALL FATAL_ERROR("CAN NOT RECOGNIZE SURFACEWATER FILE!",&
+               & "UNKNOWN SOURCE STRING:",TRIM(ATT%CHR(1)))
+       END IF
+       ! GOT GRID TYPE
+
+       ALLOCATE(SWATER_FORCING_COMMENTS(5))
+       SWATER_FORCING_COMMENTS(1) = "FVCOM periodic SurfaceWater forcing:"
+       SWATER_FORCING_COMMENTS(2) = "FILE NAME:"//TRIM(SurfaceWater_FILE)
+       SWATER_FORCING_COMMENTS(3) = "SOURCE:"//TRIM(ATT%CHR(1))
+       IF(SURFACEWATER_TEMP_ON) THEN
+          SWATER_FORCING_COMMENTS(4) = "Temperature is specified"
+       ELSE
+          SWATER_FORCING_COMMENTS(4) = "Temperature is calculated"
+       END IF
+
+       IF(SURFACEWATER_SALT_ON) THEN
+          SWATER_FORCING_COMMENTS(5) = "Salinity is specified"
+       ELSE
+          SWATER_FORCING_COMMENTS(5) = "Salinity is calculated"
+       END IF
+
+       ! GET THE FILES LENGTH OF TIME AND SAVE FOR PERIODIC FORCING
+
+       ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_UNLIMITED(SWATER_FILE,FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            &"COULD NOT FIND THE UNLIMITED DIMENSION")
+
+       NTIMES = DIM%DIM
+
+       SWATER_PERIOD = get_file_time(SWATER_FILE,ntimes)
+
+
+       IF (ZEROTIME /= get_file_time(SWATER_FILE,1)) THEN
+
+          CALL PRINT_REAL_TIME(get_file_time(SWATER_FILE,1),IPT,"FIRST FILE TIME",TIMEZONE)
+          CALL PRINT_REAL_TIME(get_file_time(SWATER_FILE,ntimes),IPT,"LAST FILE TIME",TIMEZONE)
+
+          CALL FATAL_ERROR&
+               &("TO USE PERIODIC FORCING THE FILE TIME MUST COUNT FROM ZERO",&
+               & "THE DIFFERENCE BETWEEN THE CURRENT MODEL TIME AND THE START TIME,",&
+               & "MODULO THE FORCING PERIOD, DETERMINES THE CURRENT FORCING")
+       END IF
+
+       IF(DBG_SET(DBG_LOG)) THEN
+          WRITE(IPT,*) "! USING PERIODIC SurfaceWater FORCING:"
+          CALL PRINT_TIME(SWATER_PERIOD,IPT,"PERIOD")
+       END IF
+
+    CASE(VRBL)
+
+       SWATER_FILE => FIND_FILE(FILEHEAD,trim(SURFACEWATER_FILE),FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE))
+
+       ! DETERMINE GRID TYPE BASED ON SOURCE ATTRIBUTE
+       ATT => FIND_ATT(SWATER_FILE,"source",FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(SWATER_FILE,"Source",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+
+       IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
+            & TRIM(fvcom_cap_grid_source)) THEN
+          SWATER_FORCING_TYPE = SWATER_IS_FVCOMGRID
+
+       ELSEIF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
+            & TRIM(fvcom_grid_source)) THEN
+          SWATER_FORCING_TYPE = SWATER_IS_FVCOMGRID
+
+       ELSE
+          CALL PRINT_FILE(SWATER_FILE)
+          CALL FATAL_ERROR("CAN NOT RECOGNIZE SURFACEWATER FILE!",&
+               & "UNKNOWN SOURCE STRING:",TRIM(ATT%CHR(1)))
+       END IF
+       ! GOT GRID TYPE
+
+       ALLOCATE(SWATER_FORCING_COMMENTS(5))
+       SWATER_FORCING_COMMENTS(1) = "FVCOM variable SurfaceWater forcing:"
+       SWATER_FORCING_COMMENTS(2) = "FILE NAME:"//TRIM(SurfaceWater_FILE)
+       SWATER_FORCING_COMMENTS(3) = "SOURCE:"//TRIM(ATT%CHR(1))
+
+       IF(SURFACEWATER_TEMP_ON) THEN
+          SWATER_FORCING_COMMENTS(4) = "Temperature is specified"
+       ELSE
+          SWATER_FORCING_COMMENTS(4) = "Temperature is calculated"
+       END IF
+
+       IF(SURFACEWATER_SALT_ON) THEN
+          SWATER_FORCING_COMMENTS(5) = "Salinity is specified"
+       ELSE
+          SWATER_FORCING_COMMENTS(5) = "Salinity is calculated"
+       END IF
+
+       ! GET THE FILES LENGTH OF TIME AND SAVE FOR PERIODIC FORCING
+
+       ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_UNLIMITED(SWATER_FILE,FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            &"COULD NOT FIND THE UNLIMITED DIMENSION")
+
+       NTIMES = DIM%DIM
+
+       ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
+       TIMETEST = get_file_time(SWATER_FILE,1)
+       IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+            & ("IN THE SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            &"THE MODEL RUN STARTS BEFORE THE FORCING TIME SERIES")
+
+       TIMETEST = get_file_time(SWATER_FILE,ntimes)
+       IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+            & ("IN THE SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            &"THE MODEL RUN ENDS AFTER THE FORCING TIME SERIES")
+
+    CASE DEFAULT
+       CALL FATAL_ERROR("SURFACE_WATER: UNKNOWN SURFACE WATER KIND?")
+
+    END SELECT
+
+
+    !==================================================================
+    SELECT CASE(SWATER_FORCING_TYPE)
+    !==================================================================
+    CASE(SWATER_IS_FVCOMGRID)
+    !==================================================================
+
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP SURFACE WATER FORCING FROM A 'fvcom grid' FILE"
+
+       ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_DIM(SWATER_FILE,'node',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN THE SURFACE WATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            & "COULD NOT FIND DIMENSION 'node'")
+
+       if (mgl /= dim%dim) CALL FATAL_ERROR&
+            &("SURFACEWATER: the number of nodes in the file does not match the fvcom grid?")
+
+
+       DIM => FIND_DIM(SWATER_FILE,'nele',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN THE SURFACE WATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            & "COULD NOT FIND DIMENSION 'nele'")
+
+       if (ngl /= dim%dim) CALL FATAL_ERROR&
+            &("SURFACEWATER: the number of elements in the file does not match the fvcom grid?")
+
+       ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
+
+       ! SURFACE WATER FLUX DATA
+       VAR => FIND_VAR(SWATER_FILE,"surfacewater_flux",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN THE SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            & "COULD NOT FIND VARIABLE 'surfacewater_flux'")
+
+       ATT => FIND_ATT(VAR,"units",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN THE SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            & "COULD NOT FIND THE UNITS FOR THE VARIABLE 'surfacewater_flux'")
+
+       IF (ATT%CHR(1)(1:len_trim("m3 s-1")) == "m3 s-1") THEN
+          SWATER_UNITS = SWATER_M3S_1
+       ELSEIF (ATT%CHR(1)(1:len_trim("m s-1")) == "m s-1") THEN
+          SWATER_UNITS = SWATER_MS_1
+       ELSE
+          CALL FATAL_ERROR &
+            & ("IN THE SURFACEWATER FILE OBJECT",&
+            & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+            & "UNKNOWN UNITS FOR THE VARIABLE 'surfacewater_flux'")
+       END IF
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SWATER_FLUX_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACEWATER")
+       CALL NC_CONNECT_PVAR(SWATER_FLUX_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SWATER_FLUX_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACEWATER")
+       CALL NC_CONNECT_PVAR(SWATER_FLUX_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       ! SURFACEWATER INFLOW TEMPERATURE
+       IF(SURFACEWATER_TEMP_ON)THEN
+          VAR => FIND_VAR(SWATER_FILE,"surfacewater_temp",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN THE SURFACEWATER FILE OBJECT",&
+               & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+               & "COULD NOT FIND VARIABLE 'surfacewater_temp'")
+
+          ! MAKE SPACE FOR THE DATA FROM THE FILE
+          SWATER_TEMP_N => reference_var(var)
+          ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+          IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACEWATER")
+          CALL NC_CONNECT_PVAR(SWATER_TEMP_N,STORAGE_VEC)
+          NULLIFY(STORAGE_VEC)
+
+
+          ! MAKE SPACE FOR THE DATA FROM THE FILE
+          SWATER_TEMP_P => reference_var(var)
+          ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+          IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACEWATER")
+          CALL NC_CONNECT_PVAR(SWATER_TEMP_P,STORAGE_VEC)
+          NULLIFY(STORAGE_VEC)
+       END IF
+
+       ! SURFACEWATER INFLOW SALINITY
+       IF(SURFACEWATER_SALT_ON)THEN
+          VAR => FIND_VAR(SWATER_FILE,"surfacewater_salt",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN THE SURFACEWATER FILE OBJECT",&
+               & "FILE NAME: "//TRIM(SURFACEWATER_FILE),&
+               & "COULD NOT FIND VARIABLE 'surfacewater_salt'")
+
+          ! MAKE SPACE FOR THE DATA FROM THE FILE
+          SWATER_SALT_N => reference_var(var)
+          ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+          IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACEWATER")
+          CALL NC_CONNECT_PVAR(SWATER_SALT_N,STORAGE_VEC)
+          NULLIFY(STORAGE_VEC)
+
+
+          ! MAKE SPACE FOR THE DATA FROM THE FILE
+          SWATER_SALT_P => reference_var(var)
+          ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+          IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACEWATER")
+          CALL NC_CONNECT_PVAR(SWATER_SALT_P,STORAGE_VEC)
+          NULLIFY(STORAGE_VEC)
+       END IF
+
+
+    !==================================================================
+    CASE DEFAULT
+    !==================================================================
+       CALL FATAL_ERROR("CAN NOT RECOGNIZE SURFACE WATER FILE TYPE!")
+    !==================================================================
+    END SELECT
+    !==================================================================
+
+    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! Initialize some variables
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET
+    ! This problem reported with Intel15.0.3.
+    ! PRECIPITATION
+    SWATER_FLUX_P%curr_stkcnt = 0 ; SWATER_FLUX_N%curr_stkcnt = 0
+    SWATER_TEMP_P%curr_stkcnt = 0 ; SWATER_TEMP_N%curr_stkcnt = 0
+    SWATER_SALT_P%curr_stkcnt = 0 ; SWATER_SALT_N%curr_stkcnt = 0
+    ! --------- end new ----------------------------------------------------------------
+
+
+
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_WATER"
+  END SUBROUTINE SURFACE_WATER
+
+
   !================================================================
   !================================================================
   SUBROUTINE TIDAL_ELEVATION
@@ -13023,6 +13414,137 @@ CONTAINS
 
 
   END SUBROUTINE UPDATE_GROUNDWATER
+
+  SUBROUTINE UPDATE_SURFACEWATER(NOW,SW_FLUX,SW_TEMP,SW_SALT)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    TYPE(TIME)             :: SWTIME
+    REAL(SP), ALLOCATABLE :: SW_FLUX(:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: SW_SALT(:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: SW_TEMP(:)
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+
+    IF(.NOT. ALLOCATED(SW_FLUX)) CALL FATAL_ERROR &
+         &("THE SURFACEWATER FLUX VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+
+!===================================================
+    SELECT CASE(SURFACEWATER_KIND)
+!===================================================
+    CASE (CNSTNT)
+
+       ! CONSTANT GROUND WATER FORCING IS ALWAYS A FLOW RATE (M/S)...
+       ! CONVERT TO A FLUX
+       SW_FLUX(1:MT) = SURFACEWATER_FLOW*ART1(1:MT)
+
+       IF(SURFACEWATER_TEMP_ON .and. PRESENT(SW_TEMP)) THEN
+          IF(.NOT. ALLOCATED(SW_TEMP)) CALL FATAL_ERROR &
+               &("THE SURFACEWATER TEMPERATURE VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+          SW_TEMP(1:MT) = groundwater_temp
+       END IF
+
+       IF(SURFACEWATER_SALT_ON .and. PRESENT(SW_SALT)) THEN
+          IF(.NOT. ALLOCATED(SW_SALT)) CALL FATAL_ERROR &
+               &("THE SURFACEWATER SALINITY VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+          SW_SALT(1:MT) = groundwater_salt
+       END IF
+
+       RETURN
+
+    CASE(STTC)
+
+       CALL FATAL_ERROR("STATIC SURFACEWATER Not Set Up Yet")
+
+    CASE(TMDPNDNT)
+
+       CALL FATAL_ERROR("TIME DEPENDENT SURFACEWATER Not Set Up Yet")
+
+    CASE(PRDC)
+
+       ! TO SET ZERO TIME PHASE USING RUNFILE START TIME
+!      SWTIME= NOW - RUNFILE_StartTime
+
+       ! TO USE ZERO AS THE PHASE OF THE FORCING
+       SWTIME= NOW
+
+
+       SWTIME = MOD(SWTIME,SWATER_PERIOD)
+
+    CASE(VRBL)
+
+
+       SWTIME = NOW
+    END SELECT
+!===================================================
+!===================================================
+
+!===================================================
+    SELECT CASE(SWATER_FORCING_TYPE)
+!===================================================
+    CASE(SWATER_IS_FVCOMGRID)
+
+       FTM => SWATER_FILE%FTIME
+
+       ! SURFACE WATER FLUX
+       CALL UPDATE_VAR_BRACKET(SWATER_FILE,SWATER_FLUX_P,SWATER_FLUX_N,SWTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE SURFACEWATER_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(SWATER_FLUX_N,VNP)
+       CALL NC_POINT_VAR(SWATER_FLUX_P,VPP)
+
+       SW_FLUX = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+       ! IF THE SURFACE WATER IS A FLOW RATE CONVERT TO A FLUX
+       IF(SWATER_UNITS == SWATER_MS_1 ) SW_FLUX = SW_FLUX *ART1
+
+
+       ! SURFACE WATER TEMP
+       IF(SURFACEWATER_TEMP_ON .and. PRESENT(SW_TEMP)) THEN
+
+          IF(.NOT. ALLOCATED(SW_TEMP)) CALL FATAL_ERROR &
+               &("THE SURFACEWATER TEMPERATURE VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+          CALL UPDATE_VAR_BRACKET(SWATER_FILE,SWATER_TEMP_P,SWATER_TEMP_N,SWTIME,STATUS)
+          IF (STATUS /= 0) THEN
+             CALL FATAL_ERROR("COULD NOT UPATE SURFACEWATER_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+          end if
+
+          CALL NC_POINT_VAR(SWATER_TEMP_N,VNP)
+          CALL NC_POINT_VAR(SWATER_TEMP_P,VPP)
+
+          SW_TEMP = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       END IF
+
+       ! SURFACE WATER SALT
+       IF(SURFACEWATER_SALT_ON .and. PRESENT(SW_SALT)) THEN
+
+          IF(.NOT. ALLOCATED(SW_SALT)) CALL FATAL_ERROR &
+               &("THE SURFACEWATER SALINITY VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+          CALL UPDATE_VAR_BRACKET(SWATER_FILE,SWATER_SALT_P,SWATER_SALT_N,SWTIME,STATUS)
+          IF (STATUS /= 0) THEN
+             CALL FATAL_ERROR("COULD NOT UPATE SURFACEWATER_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+          end if
+
+          CALL NC_POINT_VAR(SWATER_SALT_N,VNP)
+          CALL NC_POINT_VAR(SWATER_SALT_P,VPP)
+
+          SW_SALT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       END IF
+
+
+
+    CASE DEFAULT
+       CALL FATAL_ERROR("UNKNOWN SURFACEWATER_FORCING_TYPE IN UPDATE SURFACEWATER")
+    END SELECT
+
+
+  END SUBROUTINE UPDATE_SURFACEWATER
+
   !==============================================================================|
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
   SUBROUTINE UPDATE_HEAT(NOW,HEAT_SWV,HEAT_NET)

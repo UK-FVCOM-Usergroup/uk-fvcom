@@ -276,6 +276,7 @@ CONTAINS
     NC_EVAP_PRECIP  = .False.
     NC_SURFACE_HEAT = .False.
     NC_GROUNDWATER  = .False.
+    NC_SURFACEWATER  = .False.
     NC_VORTICITY    = .False.
     NC_WQM          = .False.
     NC_BIO          = .False.
@@ -311,6 +312,7 @@ CONTAINS
     NCAV_EVAP_PRECIP  = .False.
     NCAV_SURFACE_HEAT = .False.
     NCAV_GROUNDWATER  = .False.
+    NCAV_SURFACEWATER  = .False.
     NCAV_VORTICITY    = .False.
     NCAV_WQM          = .False.
     NCAV_BIO          = .False.
@@ -477,6 +479,17 @@ CONTAINS
     GROUNDWATER_TEMP = 0.0
     GROUNDWATER_SALT = 0.0
 
+    !--Parameters in NameList NML_SURFACEWATER
+    SURFACEWATER_ON = .False.
+    SURFACEWATER_SALT_ON = .False.
+    SURFACEWATER_TEMP_ON = .False.
+    SURFACEWATER_KIND ="Options:"//TRIM(CNSTNT)//","//TRIM(STTC)&
+         &//","//TRIM(TMDPNDNT)//","//TRIM(PRDC)//","//TRIM(VRBL)
+    SURFACEWATER_FILE = trim(casename)//"_surfacewater.nc"
+    SURFACEWATER_FLOW = 0.0
+    SURFACEWATER_TEMP = 0.0
+    SURFACEWATER_SALT = 0.0
+
     !--Parameters in NameList NML_LAG_PART
     LAG_PARTICLES_ON = .False.
     LAG_START_FILE   = "init_lag.nc"
@@ -564,6 +577,7 @@ CONTAINS
     write(UNIT=IPT,NML=NML_OPEN_BOUNDARY_CONTROL)
     write(UNIT=IPT,NML=NML_GRID_COORDINATES)
     write(UNIT=IPT,NML=NML_GROUNDWATER)
+    write(UNIT=IPT,NML=NML_SURFACEWATER)
     write(UNIT=IPT,NML=NML_LAG)
     write(UNIT=IPT,NML=NML_ADDITIONAL_MODELS)
     write(UNIT=IPT,NML=NML_PROBES)
@@ -848,6 +862,22 @@ CONTAINS
 
     if(DBG_SET(dbg_scl)) &
          & write(UNIT=IPT,NML=NML_GROUNDWATER)
+
+    ! Read Surfacewater Settings
+    READ(UNIT=NMLUNIT, NML=NML_SURFACEWATER,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_SURFACEWATER)
+       Call Fatal_Error("Can Not Read NameList NML_SURFACEWATER from file: "//trim(FNAME))
+    end if
+
+    REWIND(NMLUNIT)
+
+    if(DBG_SET(dbg_scl)) &
+         & write(IPT,*) "Read_Name_List:"
+
+    if(DBG_SET(dbg_scl)) &
+         & write(UNIT=IPT,NML=NML_SURFACEWATER)
+
 
     ! Read LAG
     READ(UNIT=NMLUNIT, NML=NML_LAG,IOSTAT=ios)
@@ -1788,6 +1818,26 @@ CONTAINS
        end if
     end if
 
+    !Check Surface Water File and open:
+    if (SURFACEWATER_ON .and. SURFACEWATER_KIND /= CNSTNT) then
+
+       ! TEST FILE NAME
+       charnum = index (SURFACEWATER_FILE,".nc",back)
+       if (charnum /= len_trim(SURFACEWATER_FILE)-2)&
+            & CALL WARNING("SURFACEWATER FILE does not end in .nc", &
+            & trim(SURFACEWATER_FILE))
+
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(SURFACEWATER_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+    end if
 
     IF (ICING_MODEL .and. ICING_FORCING_KIND /= CNSTNT) THEN
 
