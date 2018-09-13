@@ -16,6 +16,9 @@ MODULE MOD_FABM_DATA
   REAL(DP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_TOTALS(:)     ! Domain integrals of conserved quantities
   CHARACTER(LEN=80), PUBLIC :: STARTUP_FABM_TYPE  ! Initialization method ("constant" for spatially homogenous, "set values" for read from restart)
   LOGICAL, PUBLIC :: FABM_DIAG_OUT
+  LOGICAL, PUBLIC, ALLOCATABLE :: DISABLE_TRANSPORT(:)
+  INTEGER, PUBLIC :: IFABMadv ! value of number of variables to advect
+  INTEGER, PUBLIC, ALLOCATABLE :: IFABMadv_idx(:)
 #   if defined (OFFLINE_FABM)
   CHARACTER(LEN=80), PUBLIC :: OFFLINE_FABM_FILE  ! File with physics forcing for offline biogeochemistry simulation
 #   endif

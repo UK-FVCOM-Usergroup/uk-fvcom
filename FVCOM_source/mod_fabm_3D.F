@@ -85,8 +85,8 @@ MODULE MOD_FABM_3D
   REAL(SP), POINTER :: FABM_BOTTOM_THICKNESS(:)
 
   INTEGER, ALLOCATABLE, TARGET :: MASK_NONE(:), MASK_SAFE(:)
-  LOGICAL, ALLOCATABLE :: DISABLE_TRANSPORT(:)
-  INTEGER :: IFABMadv ! value of number of variables to advect
+!  LOGICAL, ALLOCATABLE :: DISABLE_TRANSPORT(:)
+!  INTEGER :: IFABMadv ! value of number of variables to advect
   type,extends(type_base_driver) :: type_fvcom_driver
   contains
      procedure :: fatal_error       => fvcom_driver_fatal_error
@@ -166,7 +166,7 @@ MODULE MOD_FABM_3D
    END SUBROUTINE FABM_FVCOM_INITIALIZE
 
    SUBROUTINE FABM_ALLOCATE()
-    INTEGER :: IFABM
+    INTEGER :: IFABM,II
 !RJT for fix ERSEM variable
    CHARACTER(LEN=256) :: NAME_
 !    TYPE(type_bulk_variable_id) :: ID
@@ -288,7 +288,15 @@ MODULE MOD_FABM_3D
        DISABLE_TRANSPORT(IFABM) = model%state_variables(IFABM)%properties%get_logical('disable_transport',default=.false.)
     END DO
     IFABMadv = size(model%state_variables) - COUNT(DISABLE_TRANSPORT) ! get the number of advecting variables 
-
+! Build map of advectable variables in model%state_variables    
+    ALLOCATE(IFABMadv_idx(IFABMadv))
+    II = 1
+    DO IFABM=1,SIZE(model%state_variables)
+       IF (.not. DISABLE_TRANSPORT(IFABM)) THEN
+          IFABMadv_idx(II)=IFABM
+          II=II+1
+       END IF
+    END DO
 ! link model variable to dummy ERSEM1 variable. 
 !   NAME_ ='O2_o'
 !      DO IFABM=1,SIZE(model%state_variables)
