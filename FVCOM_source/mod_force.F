@@ -12859,7 +12859,7 @@ CONTAINS
              !====================================================
 
              DO J =1,NRSF
-                IND = RIVER_FORCING(I)%RIV_FILE2LOC(J)
+                IND = RIVER_FORCING(I)%RIV_FILE2LOC(J) ! Location in river file
                 IF(IND /= 0) FABMR(IND,IFABM) = CURRENT(J)
              END DO
 

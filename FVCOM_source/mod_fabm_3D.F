@@ -404,13 +404,13 @@ MODULE MOD_FABM_3D
          ! Pass on SPM concentrations in mg/m3. FVCOM units are in Kg/m3 or g/L!! needs
          ! to be scaled!
          ! FVCOM variable would be sed(nsed)%conc...
-            SPM_FABM = CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+            SPM_FABM = CSED*1000000.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
       END IF
       IF (ALLOCATED(SPM_FABM_g)) THEN
          ! Pass on SPM concentrations in g/m3. FVCOM units are in Kg/m3!! needs
          ! to be scaled!
          ! FVCOM variable would be sed(nsed)%conc...
-            SPM_FABM_g = CSED*10.0_SP**3.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
+            SPM_FABM_g = CSED*1000.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
       END IF
       ! Light_iop_ady_spm.F90 only needs specific absorption and backscattering so we can skip
       ! aggregation here. 
@@ -2703,7 +2703,7 @@ END SUBROUTINE FABM_ADV
 !==============================================================================|
 
 # else  
-!= not defined (FABM_ADV_VEC or FABM_ADV_VEC_GE)
+!= not defined (FABM_ADV_VEC or FABM_ADV_VEC_GE) RJT
 
 !=============================================================================!
    SUBROUTINE FABM_ADV  
@@ -3018,7 +3018,7 @@ END SUBROUTINE FABM_ADV
   !
 
 
-  ! The horizontal term of advection is neglected here
+  ! The horizontal term of advection is neglected here for Open boundary locations
   DO K=1,KBM1
      DO I=1,M
         IF(ISONB(I) == 2) THEN
@@ -3207,7 +3207,7 @@ END SUBROUTINE FABM_ADV
   !--------------------------------------------------------------------------
   ! End of smolarkiewicz upwind loop
   !--------------------------------------------------------------------------
-#  endif
+#  endif ! MPDATA IF
 
 
 # if ! defined(MPDATA)
