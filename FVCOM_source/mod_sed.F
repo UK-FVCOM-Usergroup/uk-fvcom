@@ -656,7 +656,7 @@ End Subroutine Setup_Sed
   Subroutine Read_Sed_Params
   Use Input_Util
   Implicit None
-  integer linenum,i,k1,iscan
+  integer linenum,i,k1,iscan,itemp ! RJT itemp
   real(sp)           :: ftemp
   character(len=120) :: stemp
 
@@ -667,6 +667,7 @@ End Subroutine Setup_Sed
 
   !read in number of sediment classes 
   Call Get_Val(nsed,sedfile,'NSED',line=linenum,echo=.false.)  
+!    write(*,*)'Right after reading... currently nsed = ',nsed
 
   !read in start interval for sed model 
   Call Get_Val(sed_start,sedfile,'SED_START',line=linenum,echo=.false.)  
@@ -715,11 +716,17 @@ End Subroutine Setup_Sed
     init_bed_thickness(1) = ftemp
   else
     open(unit=999,file=trim(sedfile),form='formatted')
-    iscan = scan_file(999,"INIT_BED_THICKNESS",fvec = init_bed_thickness,nsze = nbed)
+    iscan = scan_file(999,"INIT_BED_THICKNESS",fvec = init_bed_thickness,nsze = itemp) ! RJT nbed to itemp
     if(iscan /= 0)then
       write(*,*)'problem reading INIT_BED_THICKNESS from sediment param file'
       stop
     endif
+! RJT
+    if(itemp /= nbed)then
+      write(*,*)'problem reading INIT_BED_THICKNESS from sediment param file, number of entries does not much NBED'
+      stop
+    endif
+! RJT
     close(999)
   endif
   if(minval(init_bed_thickness) <= 0.)then
@@ -735,12 +742,18 @@ End Subroutine Setup_Sed
     init_bed_fraction(1) = ftemp
   else
     open(unit=999,file=trim(sedfile),form='formatted')
-    iscan = scan_file(999,"INIT_BED_FRACTION",fvec = init_bed_fraction,nsze = nsed)
+    iscan = scan_file(999,"INIT_BED_FRACTION",fvec = init_bed_fraction,nsze = itemp) ! RJT nsed to itemp
     if(iscan /= 0)then
       write(*,*)'problem reading INIT_BED_FRACTION from sediment param file'
       stop
     endif
-    close(999)
+ ! RJT
+    if(itemp /= nsed)then
+      write(*,*)'problem reading INIT_BED_FRACTION from sediment param file, number of entries does not much NSED'
+      stop
+    endif
+! RJT
+   close(999)
   endif
   if(minval(init_bed_fraction) < 0. .or. maxval(init_bed_fraction) > 1.)then
     write(*,*)'error in init_bed_fraction in sed param file'
@@ -846,6 +859,7 @@ End Subroutine Setup_Sed
     sed(i)%sname = stemp
     sed(i)%sname2 = trim(sed(i)%sname)//'_bload'
     k1        = linenum+1
+!    k1        = linenum
 
     !read type
     Call Get_Val(stemp,sedfile,'SED_TYPE',line=linenum,echo=.false.,start=k1)
