@@ -1674,6 +1674,15 @@ CONTAINS
 ! And bed_frac should be read from a parameter file rather than from the restart file
     DO NN=1,NBED
       sed(ii)%frac(1:m,nn) = sed(ii)%frac(1:m,1)
+! we also need to update mass in generic sediment code as in CSTMS code
+! update bed_mass here too to be consistant with init_sed
+# if defined (ORIG_SED)
+       sed(ii)%mass(1:m,nn)=init_bed_thickness(nn)*sed(ii)%Srho&
+            &*(1.0-init_bed_porosity)*sed(ii)%frac(1:m,nn)
+       sed(ii)%mass(1:m,nn)=init_bed_thickness(nn)*sed(ii)%Srho&
+            &*(1.0-init_bed_porosity)*sed(ii)%frac(1:m,nn)
+# endif 
+
 # if defined (CSTMS_SED)
        sedbed%bed_frac(1:m,nn,ii) = sed(ii)%frac(1:m,1)
 ! update bed_mass here too to be consistant with init_sed
