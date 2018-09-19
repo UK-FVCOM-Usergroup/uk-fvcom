@@ -362,7 +362,7 @@ dashL= $(empty) -L
 #            FLAG_25 = -DBioGen
 #            BIOLIB       = -L$(TOPDIR)/BIO_source -lbiomodule
 #            BIOINCS      = -I$(TOPDIR)/BIO_source/
-            FLAG_25 = -DFABM -DFABM_ADV_VEC #-DOFFLINE_FABM  # -DFABM_DIAG_OUT
+            FLAG_25 = -DFABM  #-DOFFLINE_FABM  # -DFABM_DIAG_OUT
             BIOLIB       = -L$(HOME)/local/fabm/fvcom/lib -lfabm
             BIOINCS      = -I$(HOME)/local/fabm/fvcom/include
 
@@ -490,7 +490,7 @@ dashL= $(empty) -L
          CPP      = mpiicc -E
          COMPILER = -DINTEL
          FC       = mpiifort
-         DEBFLGS  =
+         DEBFLGS  =  #-check all
          OPT      = -O3 -L/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/lib -I/gpfs1/apps/intel/compilers_and_libraries/linux/mpi/intel64/include/ -xHost #-init=zero -init=arrays -ftrapuv
          CLIB     =
          CC       = mpiicc
