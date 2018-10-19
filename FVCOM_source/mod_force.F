@@ -270,6 +270,10 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: DLW_AIR_N, DLW_AIR_P   
   TYPE(NCVAR), POINTER :: DSW_AIR_N, DSW_AIR_P   
 # endif
+# if defined (OBSICE)
+  TYPE(NCVAR), POINTER :: ICE_COV_N, ICE_COV_P
+  TYPE(NCVAR), POINTER :: ICE_TIK_N, ICE_TIK_P
+# endif
 # if defined (HEATING_SOLAR)  
   TYPE(NCVAR), POINTER :: T_AIR_N, T_AIR_P   
   TYPE(NCVAR), POINTER :: TDEW_N, TDEW_P   
@@ -565,9 +569,16 @@ CONTAINS
          & HEAT_SWV_N)
 # endif
 # if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (OBSICE)
+    NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, T_AIR_P, T_AIR_N,  &
+         &  RH_AIR_P, RH_AIR_N, PA_AIR_P, PA_AIR_N, DLW_AIR_P,     &
+	 &  DLW_AIR_N, DSW_AIR_P, DSW_AIR_N, ICE_COV_P, ICE_COV_N, & 
+	 &  ICE_TIK_P, ICE_TIK_N)
+# else
     NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, T_AIR_P, T_AIR_N,  &
          &  RH_AIR_P, RH_AIR_N, PA_AIR_P, PA_AIR_N, DLW_AIR_P,     &
 	 &  DLW_AIR_N, DSW_AIR_P, DSW_AIR_N)
+# endif
 # endif	 
 # if defined (HEATING_SOLAR)
     NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, T_AIR_P, T_AIR_N,  &
@@ -7223,6 +7234,52 @@ CONTAINS
        CALL NC_CONNECT_PVAR(DSW_AIR_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 !
+# if defined (OBSICE)
+       ! ICE COVER FROM OBSERVATIONS
+       VAR => FIND_VAR(HEAT_FILE,"ice_cover",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
+            & "COULD NOT FIND VARIABLE 'ice_cover'")
+
+       VAR => FIND_VAR(HEAT_FILE,"ice_thick",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
+            & "COULD NOT FIND VARIABLE 'ice_thick'")
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICE_COV_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE HEATING")
+       CALL NC_CONNECT_PVAR(ICE_COV_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICE_COV_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE HEATING")
+       CALL NC_CONNECT_PVAR(ICE_COV_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICE_TIK_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE HEATING")
+       CALL NC_CONNECT_PVAR(ICE_TIK_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICE_TIK_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE HEATING")
+       CALL NC_CONNECT_PVAR(ICE_TIK_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+# endif
        !==================================================================
     CASE DEFAULT
        !==================================================================
@@ -7242,6 +7299,10 @@ CONTAINS
     pa_air_n%curr_stkcnt  = 0;pa_air_p%curr_stkcnt  = 0
     dlw_air_n%curr_stkcnt = 0;dlw_air_p%curr_stkcnt = 0
     dsw_air_n%curr_stkcnt = 0;dsw_air_p%curr_stkcnt = 0
+# if defined (OBSICE)
+    ice_cov_n%curr_stkcnt   = 0;ice_cov_p%curr_stkcnt   = 0
+    ice_tik_n%curr_stkcnt   = 0;ice_tik_p%curr_stkcnt   = 0
+# endif
     ! =========== end New ================================================
 
 
@@ -13158,6 +13219,10 @@ CONTAINS
     REAL(SP) :: HSB,HLB,TAU,USR,DTER
     REAL(SP), DIMENSION(0:NT) :: WDSN
     REAL(SP) :: t1k,ulw_airf          ! ejw 8/16/2006
+# if defined (OBSICE)
+    REAL(SP), DIMENSION(0:NT) :: UISN
+    REAL(SP) :: ustarice, fbot, fice, UIS, Tfreez
+# endif
 
     IF(.NOT. ALLOCATED(HEAT_SWV)) CALL FATAL_ERROR &
          &("THE HEAT SHORTWAVE VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
@@ -13394,8 +13459,36 @@ CONTAINS
 
        DSW_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 !
+# if defined (OBSICE)
+       ! ICE COVER FROM OBSERVATIONS
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,ICE_COV_P,ICE_COV_N,HTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(ICE_COV_N,VNP)
+       CALL NC_POINT_VAR(ICE_COV_P,VPP)        
+
+       ICE_COV = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+
+       ! ICE THIKNESS FROM OBSERVATIONS
+       CALL UPDATE_VAR_BRACKET(HEAT_FILE,ICE_TIK_P,ICE_TIK_N,HTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(ICE_TIK_N,VNP)
+       CALL NC_POINT_VAR(ICE_TIK_P,VPP)        
+
+       ICE_TIK = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+# endif
 
        WDSN(1:NT) = SQRT(UUWIND(1:NT)*UUWIND(1:NT)+VVWIND(1:NT)*VVWIND(1:NT))
+# if defined (OBSICE)
+       UISN(1:NT) = SQRT(U(1:NT,1)*U(1:NT,1)+V(1:NT,1)*V(1:NT,1))
+# endif
 
        DO I=1,M  
          WDS = 0.0_SP
@@ -13403,8 +13496,71 @@ CONTAINS
            WDS = WDS + WDSN(NBVE(I,J))
          END DO
          WDS = WDS/FLOAT(NTVE(I))
+# if defined (OBSICE)
+         UIS = 0.0_SP
+         DO J=1,NTVE(I)
+           UIS = UIS + UISN(NBVE(I,J))
+
+         END DO
+         UIS = UIS/FLOAT(NTVE(I))
+# endif
   
 # if defined (HEATING_CALCULATED)
+# if defined (OBSICE)
+       IF(ICE_COV(I) > 0.5_SP) THEN
+       	    	! freezing point
+       	    	!!REFERENCE: UNESCO TECH. PAPERS IN THE MARINE SCIENCE NO. 28. 1978
+		!! ANNEX 6 FREEZING POINT OF SEAWATER F.J. MILLERO PP.29-35.
+		!! ----------------------------------------------------------
+		!! UNITS:
+		!!   PRESSURE     P   DECIBARS
+		!!   SALINITY     S   PSS-78
+		!!   TEMPERATURE  TF  DEGREES CELSIUS FREEZING PT.
+		!! ----------------------------------------------------------
+		!! CHECKVALUE:
+		!!   TF=-2.588567 DEG C for S=40.0, P=500.0 DECIBARS
+		!! ----------------------------------------------------------
+		!! Original fortran code is found in:
+		!!   UNESCO technical papers in marine science 44 (1983) -
+		!!   'Algorithms for computation of fundamental properties of seawater'
+		!! ----------------------------------------------------------
+		!! Translated to object pascal by:
+		!!   Dr. Jan Schulz, 20. May 2008, www.code10.info
+		!!TF = (-0.0575_SP + 0.001710523_SP * Sqrt (Abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1) - 0.000753_SP * P(I,1);
+	    Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1)	! sea water freezing point
+            ustarice = sqrt(0.002_SP * UIS**2)   !dragcoef = 0.002, 
+            ! rhow=1028.1 sea water density at Temp= Press=0, rhow = 1026.0 fresh water
+            ! cw = 3993.0 [J kg^-1 K^-1] heat capacity of seawater , ch = 0.006
+            ! cw = 4187.0 fress water
+            ! L = 330000.0 [J K^-1], latent heat of fusion for seawater 
+            ! L = 334000.0 freshwater
+            fbot = 1026.0_SP * 4187.0_SP * 0.006_SP * ustarice * (T(I,1) + Tfreez)  
+            HEAT_NET(I) = -fbot
+            HEAT_SWV(I) = 0.0_SP
+            fice = 2.0_SP * (Tfreez - T_AIR(I))/ICE_TIK(I)   	!kice = 2.0 (thermal conductivity)
+            FMELT(I) = (fbot -fice)				!HEAT FLUX FOR MELTING
+            DHDT_MELT(I) = FMELT(I)/(1000.0_SP*334000.0_SP)  	!thickness variation by melting, To go into precipitation
+            DHDT_FREEZ(I) = 0.0_SP
+            ! if temperature is below freezing, reset T to Tf
+            !if (T(I,1) <= Tfreez) T(I,1) = Tfreez
+       ELSE
+         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+	      
+            t1k= t1(i,1) + 273.16_sp
+            
+            DHDT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*(T(I,1) - Tfreez)/(334000.0_SP*600.0_SP)	! Ice thickness by forming, To go into evaporation
+            HEAT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*1026.0_SP*(T(I,1) - Tfreez)/(3600.0_SP)	! Heat flux for ice forming, delta_time is 1.0 hour
+            DHDT_MELT(I) = 0.0_SP
+            ulw_airf = -emmiss * StefBo * t1k * t1k * t1k * t1k
+            HEAT_NET(I) = DLW_AIR(I) + DSW_AIR(I) + HSB+HLB + ulw_airf + HEAT_FREEZ(I)        ! ejw 8/16/2006 based on ROMS
+            HEAT_SWV(I) = DSW_AIR(I)
+            ! if temperature is below freezing, reset T to Tf
+            !if (T(I,1) <= Tfreez) T(I,1) = Tfreez         
+       END IF
+
+
+# else
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
               DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
 	      
@@ -13412,6 +13568,7 @@ CONTAINS
          ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
          HEAT_SWV(I) = DSW_AIR(I)
+# endif
 # endif
 # if defined (HEATING_CALCULATED_GL)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
@@ -13700,7 +13857,13 @@ CONTAINS
     REAL(SP), POINTER :: VNP(:), VPP(:)
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS
-
+# if defined (OBSICE)
+    INTEGER :: I, J
+    REAL(SP), DIMENSION(0:NT) :: UISN
+    REAL(SP), DIMENSION(0:NT) :: UISROTN
+    REAL(SP), DIMENSION(0:NT) :: VISROTN
+    REAL(SP) :: UIS, UISROT, VISROT
+# endif
 
     IF(.NOT. ALLOCATED(wstrx)) CALL FATAL_ERROR &
          &("THE WIND VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
@@ -13795,6 +13958,38 @@ CONTAINS
        CALL NC_POINT_VAR(WINDS_STRY_N,VNP)
        CALL NC_POINT_VAR(WINDS_STRY_P,VPP)   
        WSTRY = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       
+# if defined (OBSICE)
+       UISN(1:NT) = SQRT(U(1:NT,1)*U(1:NT,1)+V(1:NT,1)*V(1:NT,1))
+       UISROTN(1:NT) = U(1:NT,1)*COSW - V(1:NT,1)*SINW	!! rotate u taking into account the Ekman layer
+       VISROTN(1:NT) = U(1:NT,1)*SINW + V(1:NT,1)*COSW	!! rotate v taking into account the Ekman layer
+# endif
+
+# if defined (OBSICE)
+       DO I = 1,M
+           IF(ICE_COV(I) > 0.5_SP) THEN
+           	UIS = 0.0_SP
+           	UISROT = 0.0_SP
+           	VISROT = 0.0_SP
+         	DO J=1,NTVE(I)
+           		UIS = UIS + UISN(NBVE(I,J))
+           		UISROT = UISROT + UISROTN(NBVE(I,J))
+           		VISROT = VISROT + VISROTN(NBVE(I,J))
+         	END DO
+         	UIS = UIS/FLOAT(NTVE(I))
+         	UISROT = UISROT/FLOAT(NTVE(I))
+         	VISROT = VISROT/FLOAT(NTVE(I))
+           	!! (magnitude of relative ocean current)*rhow*drag*aice
+        	! DUVI = DRAGW*SQRT((U(I,1)-UICE2(I))**2+(V(I,1)-VICE2(I))**2)  ! m/s
+        	! for FAST ICE in fjords UICE = VICE = 0.0 
+         	! DUVI = DRAGW*min(UIS,1.0_SP)  ! m/s
+         	WSTRX = DRAGW*(min(UIS,1.0_SP))*(max(min(UISROT,1.0_SP),-1.0_SP))
+         	WSTRY = DRAGW*(min(UIS,1.0_SP))*(max(min(VISROT,1.0_SP),-1.0_SP))
+                !WSTRY = 0.0_SP
+                !WSTRX = 0.0_SP
+           END IF
+       END DO
+# endif
 
 !===================================================
     CASE(WINDS_ARE_PT_SOURCE)
@@ -14402,6 +14597,9 @@ CONTAINS
     REAL(SP), POINTER :: VNP(:), VPP(:)
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS
+# if defined (OBSICE)
+    INTEGER :: I
+# endif
 
     IF(.NOT. ALLOCATED(Qprec)) CALL FATAL_ERROR &
          &("THE PRECIPITATION VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
@@ -14498,6 +14696,15 @@ CONTAINS
        CALL NC_POINT_VAR(PRECIP_EVP_N,VNP)
        CALL NC_POINT_VAR(PRECIP_EVP_P,VPP)   
        Qevap = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+# if defined (OBSICE)
+       DO I=1,M
+          IF(ICE_COV(I) > 0.5_SP) THEN
+             Qprec(I) = DHDT_MELT(I)
+             Qevap(I) = DHDT_FREEZ(I)
+          END IF
+       END DO   
+# endif
 
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN WINDS_FORCING_TYPE IN UPDATE PRECIPITATION")
