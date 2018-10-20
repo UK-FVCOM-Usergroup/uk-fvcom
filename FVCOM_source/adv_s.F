@@ -51,6 +51,10 @@ SUBROUTINE ADV_S
   USE MOD_DAM, only : kdam,N_DAM_MATCH,IS_DAM
 # endif
 
+# if defined (TVD)
+  USE MOD_TVD
+# endif
+
   IMPLICIT NONE
   REAL(SP), DIMENSION(0:MT,KB)     :: XFLUX,XFLUX_ADV
   REAL(SP), DIMENSION(0:MT)        :: PUPX,PUPY,PVPX,PVPY  
@@ -62,7 +66,14 @@ SUBROUTINE ADV_S
   REAL(SP) :: TXX,TYY,FXX,FYY,VISCOF,EXFLUX,TEMP,STPOINT
   REAL(SP) :: FACT,FM1
   INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,K,JTMP,JJ,II
+# if defined (TVD)
+  REAL(SP), DIMENSION(1:M)             :: dstA,dstB
+  REAL(SP), DIMENSION(1:NCV)           :: XUA,XUB,YUA,YUB
+  REAL(SP) :: LX,LY,minA,minB,S_upstreamA,S_upstreamB,A_limiter
+  REAL(SP) :: B_limiter,S12_A,S12_B,smoothrA,smoothrB
+# else
   REAL(SP) :: S1MIN, S1MAX, S2MIN, S2MAX
+# endif
 
 !!$#  if defined (SPHERICAL)
 !!$  REAL(DP) :: TY,TXPI,TYPI
@@ -403,6 +414,7 @@ SUBROUTINE ADV_S
 !!$        DYB=YI-VY(IB)
 !!$#      endif
 
+# if !defined (TVD)
 !J. Ge for tracer advection
         IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
           FIJ1=S1(IA,K)+DLTXNCVE(I,1)*PSPX(IA)+DLTYNCVE(I,1)*PSPY(IA)
@@ -429,6 +441,45 @@ SUBROUTINE ADV_S
         IF(FIJ1 > S1MAX) FIJ1=S1MAX
         IF(FIJ2 < S2MIN) FIJ2=S2MIN
         IF(FIJ2 > S2MAX) FIJ2=S2MAX
+# else
+! ------------------------------------------------------------------------------------------ !
+!                                     Drawing the TVD scheme
+! ------------------------------------------------------------------------------------------ !
+!     If A is upstream of B
+       S_upstreamA=S1(Anear_node(I),K)+PSPX(Anear_node(I))*XUAdist(I)+PSPY(Anear_node(I))*YUAdist(I)
+!     If B is upstream of A
+       S_upstreamB=S1(Bnear_node(I),K)+PSPX(Bnear_node(I))*XUBdist(I)+PSPY(Bnear_node(I))*YUBdist(I)                
+
+!    The smoothness-parameter
+!     Fortran gets grumpy if the values turn infinite, which can be solved with a if-loop
+       IF (S1(IA,K).EQ.S1(IB,K)) THEN
+!     We can't have a gradient in between A and B if the smoothness parameter is infinite,
+!     so we can set the smoothness parameter to zero.
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+         ELSE
+!     S_upstreamA is the "far upstream node", S1(IA,K) is upstream of S1(IB,K)
+          smoothrA    = (S1(IA,K)-S_upstreamA)/(S1(IB,K)-S1(IA,K))
+!     S_upstreamB id the "far upstream noed", S1(IB,K) is upstream of S1(IA,K)
+          smoothrB    = (S1(IB,K)-S_upstreamB)/(S1(IA,K)-S1(IB,K))
+       END IF
+
+!     The Flux-limiter 
+!      (superbee)
+       A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
+       B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
+
+!      (minmod)
+!       A_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrA))
+!       B_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrB))
+
+!       A_limiter = 0.0_SP;
+!       B_limiter = 0.0_SP;
+
+!     Calculating the salinity at the cell-wall in-between IA and IB
+       S12_A     = S1(IA,K)+0.5_SP*A_LIMITER*(S1(IB,K)-S1(IA,K))
+       S12_B     = S1(IB,K)+0.5_SP*B_LIMITER*(S1(IA,K)-S1(IB,K))
+# endif
 
         UN=UVN(I,K)
 #      if defined (SEMI_IMPLICIT)
@@ -447,8 +498,13 @@ SUBROUTINE ADV_S
         FYY= DTIJ(I,K)*TYY*DLTXE(I)
 
 #       if !defined (SEMI_IMPLICIT)
+#       if !defined (TVD)
         EXFLUX=-UN*DTIJ(I,K)* &
              ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP+FXX+FYY
+#       else
+        EXFLUX=-UN*DTIJ(I,K)* &
+             ((1.0_SP+SIGN(1.0_SP,UN))*S12_B+(1.0_SP-SIGN(1.0_SP,UN))*S12_A)*0.5_SP+FXX+FYY
+#       endif
 #       else
         EXFLUX=-UN*DTIJ(I,K)* &
            ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP
