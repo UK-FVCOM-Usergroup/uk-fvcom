@@ -1306,6 +1306,10 @@ END SUBROUTINE FABM_MIXING
   USE MOD_SEMI_IMPLICIT
 # endif
 
+# if defined (TVD)
+  USE MOD_TVD
+# endif
+
   IMPLICIT NONE
   REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables))  :: XFLUX,XFLUX_ADV 
   REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY  
@@ -1318,6 +1322,13 @@ END SUBROUTINE FABM_MIXING
   REAL(SP) :: FACT,FM1
   INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,K,JTMP,JJ,IFABM
   REAL(SP) :: WQM1MIN, WQM1MAX, WQM2MIN, WQM2MAX
+
+# if defined (TVD)
+  REAL(SP), DIMENSION(1:M)             :: dstA,dstB
+  REAL(SP), DIMENSION(1:NCV)           :: XUA,XUB,YUA,YUB
+  REAL(SP) :: LX,LY,minA,minB,FAB_upstreamA,FAB_upstreamB,A_limiter
+  REAL(SP) :: B_limiter,FAB12_A,FAB12_B,smoothrA,smoothrB
+# endif
 
 #  if defined (SEMI_IMPLICIT)
    REAL(SP) :: UN1
@@ -1476,7 +1487,7 @@ END SUBROUTINE FABM_MIXING
         IB=NIEC(I,2)
 
 
-
+# if !defined(TVD)
         FIJ1=FABM_ALL(IA,K,IFABM)+DLTXNCVE(I,1)*PFPX(IA)+DLTYNCVE(I,1)*PFPY(IA)
         FIJ2=FABM_ALL(IB,K,IFABM)+DLTXNCVE(I,2)*PFPX(IB)+DLTYNCVE(I,2)*PFPY(IB)
 
@@ -1492,6 +1503,50 @@ END SUBROUTINE FABM_MIXING
         IF(FIJ1 > WQM1MAX) FIJ1=WQM1MAX
         IF(FIJ2 < WQM2MIN) FIJ2=WQM2MIN
         IF(FIJ2 > WQM2MAX) FIJ2=WQM2MAX
+# else
+
+! ------------------------------------------------------------------------------------------ !
+!                                 Drawing the TVD scheme
+! ------------------------------------------------------------------------------------------ !
+!     If A is upstream of B
+       FAB_upstreamA=FABM_ALL(Anear_node(I),K,IFABM)+PFPX(Anear_node(I))*XUAdist(I)+PFPY(Anear_node(I))*YUAdist(I)
+!     If B is upstream of A
+       FAB_upstreamB=FABM_ALL(Bnear_node(I),K,IFABM)+PFPX(Bnear_node(I))*XUBdist(I)+PFPY(Bnear_node(I))*YUBdist(I)                
+
+!    The smoothness-parameter
+! -----------------------------------
+!     Fortran gets grumpy if the values turn infinite, which can be solved with a if-loop
+       IF (FABM_ALL(IA,K,IFABM).EQ.FABM_ALL(IB,K,IFABM)) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+         ELSE IF (FABM_ALL(IA,K,IFABM).LT.1.E-10.AND.FABM_ALL(IB,K,IFABM).LT.1.E-10) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+         ELSE
+!         FAB_upstreamA is the "far upstream node", FABM_ALL(IA,K) is upstream of FABM_ALL(IB,K)
+          smoothrA    = (FABM_ALL(IA,K,IFABM)-FAB_upstreamA)/(FABM_ALL(IB,K,IFABM)-FABM_ALL(IA,K,IFABM))
+          smoothrB    = (FABM_ALL(IB,K,IFABM)-FAB_upstreamB)/(FABM_ALL(IA,K,IFABM)-FABM_ALL(IB,K,IFABM))
+       END IF
+
+!     The Flux-limiter 
+!      (superbee)
+       A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
+       B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
+
+!      (minmod)
+!       A_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrA))
+!       B_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrB))
+
+!      (To check if the upwind scheme is working)
+!       A_limiter = 0.0_SP;
+!       B_limiter = 0.0_SP;
+
+!     Calculating the tracer-concentration at the cell-wall in-between IA and IB
+       FAB12_A     = FABM_ALL(IA,K,IFABM)+0.5_SP*A_LIMITER*(FABM_ALL(IB,K,IFABM)-FABM_ALL(IA,K,IFABM))
+       FAB12_B     = FABM_ALL(IB,K,IFABM)+0.5_SP*B_LIMITER*(FABM_ALL(IA,K,IFABM)-FABM_ALL(IB,K,IFABM))
+
+! TVD done.
+# endif
 
         UN=UVN(I,K)
 #      if defined (SEMI_IMPLICIT)
@@ -1510,8 +1565,13 @@ END SUBROUTINE FABM_MIXING
         FYY= DTIJ(I,K)*TYY*DLTXE(I)
 
 #       if !defined (SEMI_IMPLICIT)
+#       if !defined (TVD)
         EXFLUX=-UN*DTIJ(I,K)* &
              ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP+FXX+FYY
+#       else
+        EXFLUX=-UN*DTIJ(I,K)* &
+             ((1.0_SP+SIGN(1.0_SP,UN))*FAB12_B+(1.0_SP-SIGN(1.0_SP,UN))*FAB12_A)*0.5_SP+FXX+FYY
+#       endif
 #       else
         EXFLUX=-UN*DTIJ(I,K)* &
            ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP
