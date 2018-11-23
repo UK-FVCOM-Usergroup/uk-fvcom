@@ -596,7 +596,8 @@ SUBROUTINE ADV_S
   ! - Performance (cost)
 
   ! Possible improvements:
-  ! - Performance...  
+  ! - Performance...
+  ! - Find a better way to solve the precipitation-conundrum?
 
   !   S. H
   !   Using smolarkiewicz, P. K; A fully multidimensional positive definite advection
@@ -666,10 +667,9 @@ SUBROUTINE ADV_S
 ! --------------------------------------------------------------------
 !              Accounting for precipitation
 ! --------------------------------------------------------------------
-! Added by Akvaplan scientists October 2018. Yet to be validated and
-! documented.
+! Added by Akvaplan, October 2018.
 !
-! Precipitation influence the surface salinity upon impact with the 
+! Precipitation influences the surface salinity upon impact with the 
 ! ocean surface (total impact integrated as a flux over a timestep). 
 ! We therefore adjust the thresholds (SMIN/SMAX) at the nodes to 
 ! make sure that MPDATA allows changes in salinity due to precipitatio
@@ -729,9 +729,7 @@ SUBROUTINE ADV_S
          ! and the precipitation to cell I further diminish the salt concentration.
           
            IF(K == 1)THEN
-              ! Adjusted volume (i.e. to include precipitation)
               ! Vadj = (D(I)*DZ(I,1)-(QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1))
-
               SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMAX = MAX(SMAX,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K))
@@ -812,9 +810,9 @@ SUBROUTINE ADV_S
 ! When K = 1
 ! ----------
      DO I=1,M
-        Vadj = (D(I)*DZ(I,1)-(QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1)) 
-        SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),1)*Vadj)
-        SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),1)*Vadj) 
+        ! Vadj = (D(I)*DZ(I,1)-(QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1)) 
+        SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),1)) !*Vadj)
+        SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),1)) !*Vadj) 
         SMAX = MAX(SMAX,S1(I,2),S1m(I,1),S1_FRESHm(I,1))
         SMIN = MIN(SMIN,S1(I,2),S1m(I,1),S1_FRESHm(I,1))
 
