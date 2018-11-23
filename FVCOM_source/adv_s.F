@@ -75,6 +75,7 @@ SUBROUTINE ADV_S
   REAL(SP) :: S1MIN, S1MAX, S2MIN, S2MAX
 # endif
 
+
 !!$#  if defined (SPHERICAL)
 !!$  REAL(DP) :: TY,TXPI,TYPI
 !!$  REAL(DP) :: XTMP1,XTMP
@@ -90,8 +91,8 @@ SUBROUTINE ADV_S
    REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ1
 #  endif
 #  if defined (MPDATA)
-  REAL(SP) :: SMIN,SMAX,XXXX
-  REAL(SP), DIMENSION(0:MT,KB)     :: S1_S    !! temporary salinity in modified upwind
+  REAL(SP) :: SMIN,SMAX,XXXX,Vadj
+  REAL(SP), DIMENSION(0:MT,KB)     :: S1_S, S1m, S1_FRESHm    !! temporary salinity in modified upwind
   REAL(SP), DIMENSION(0:MT,KB)     :: S1_SF   !! temporary salinity in modified upwind
   REAL(SP), DIMENSION(0:MT,KB)     :: WWWS     
   REAL(SP), DIMENSION(0:MT,KB)     :: WWWSF   
@@ -101,6 +102,7 @@ SUBROUTINE ADV_S
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAOUT !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: S1_FRESH    !! for source term which also bring mass volume
+  REAL(SP), DIMENSION(0:MT,KB)     :: OFFS     !! Offset to run the simulation in single precision
   INTEGER ITERA, NTERA
 #  endif
 
@@ -130,6 +132,13 @@ SUBROUTINE ADV_S
      CALL FATAL_ERROR("UNKNOW HORIZONTAL MIXING TYPE:",&
           & TRIM(HORIZONTAL_MIXING_TYPE) )
   END SELECT
+
+# if defined (MPDATA)
+  ! Adding offset to force FVCOM not to crash when salinities approach zero
+      OFFS = 1.0_SP
+      S1  = S1+OFFS
+      SMEAN1 = SMEAN1 + OFFS
+# endif
 
   !
   !--Initialize Fluxes-----------------------------------------------------------!
@@ -186,7 +195,7 @@ SUBROUTINE ADV_S
 
 #    if defined (WET_DRY)
 !J. Ge for tracer advection
-           IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
+           IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
 
             IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
              FFD=0.5_SP*(S1(I,K)+S1(I2,K)-SMEAN1(I,K)-SMEAN1(I2,K))
@@ -238,7 +247,7 @@ SUBROUTINE ADV_S
 !J. Ge for tracer advection
 #    else
 !J. Ge for tracer advection	 
-           IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
+           IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
              FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
              FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
            ELSE
@@ -313,7 +322,7 @@ SUBROUTINE ADV_S
              I1=NBSN(N_DAM_MATCH(I,NX+1),J)
              I2=NBSN(N_DAM_MATCH(I,NX+1),J+1)
 !J. Ge for tracer advection
-             IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
+             IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
                FFD=0.5_SP*(S1(I1,K)+S1(I2,K)-SMEAN1(I1,K)-SMEAN1(I2,K))
                FF1=0.5_SP*(S1(I1,K)+S1(I2,K))
              ELSE
@@ -416,7 +425,7 @@ SUBROUTINE ADV_S
 
 # if !defined (TVD)
 !J. Ge for tracer advection
-        IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
+        IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
           FIJ1=S1(IA,K)+DLTXNCVE(I,1)*PSPX(IA)+DLTYNCVE(I,1)*PSPY(IA)
           FIJ2=S1(IB,K)+DLTXNCVE(I,2)*PSPX(IB)+DLTYNCVE(I,2)*PSPY(IB)
         ELSE
@@ -443,44 +452,33 @@ SUBROUTINE ADV_S
         IF(FIJ2 > S2MAX) FIJ2=S2MAX
 # else
 ! ------------------------------------------------------------------------------------------ !
-!                                     Drawing the TVD scheme
+!                                     Drawing the TVD skjeme
 ! ------------------------------------------------------------------------------------------ !
 !     If A is upstream of B
        S_upstreamA=S1(Anear_node(I),K)+PSPX(Anear_node(I))*XUAdist(I)+PSPY(Anear_node(I))*YUAdist(I)
 !     If B is upstream of A
        S_upstreamB=S1(Bnear_node(I),K)+PSPX(Bnear_node(I))*XUBdist(I)+PSPY(Bnear_node(I))*YUBdist(I)                
 
-!    The smoothness-parameter
-!     Fortran gets grumpy if the values turn infinite, which can be solved with a if-loop
+!     Smoothness-parameter
        IF (S1(IA,K).EQ.S1(IB,K)) THEN
-!     We can't have a gradient in between A and B if the smoothness parameter is infinite,
-!     so we can set the smoothness parameter to zero.
           smoothrA    = 0.0_SP
           smoothrB    = 0.0_SP
          ELSE
-!     S_upstreamA is the "far upstream node", S1(IA,K) is upstream of S1(IB,K)
+!     S_upstreamA if far upstream, and S1(IA,K) is upstream of S1(IB,K)
           smoothrA    = (S1(IA,K)-S_upstreamA)/(S1(IB,K)-S1(IA,K))
-!     S_upstreamB id the "far upstream noed", S1(IB,K) is upstream of S1(IA,K)
           smoothrB    = (S1(IB,K)-S_upstreamB)/(S1(IA,K)-S1(IB,K))
        END IF
 
-!     The Flux-limiter 
-!      (superbee)
+!     Flux-limiter
+!     (superbee) - Feel free to use other limiters!
        A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
        B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
 
-!      (minmod)
-!       A_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrA))
-!       B_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrB))
-
-!       A_limiter = 0.0_SP;
-!       B_limiter = 0.0_SP;
-
-!     Calculating the salinity at the cell-wall in-between IA and IB
+!     Estimating the salinity at the cellwall in-betweem IA and IB
        S12_A     = S1(IA,K)+0.5_SP*A_LIMITER*(S1(IB,K)-S1(IA,K))
        S12_B     = S1(IB,K)+0.5_SP*B_LIMITER*(S1(IA,K)-S1(IB,K))
-# endif
 
+# endif
         UN=UVN(I,K)
 #      if defined (SEMI_IMPLICIT)
        UN1=UVN1(I,K)
@@ -560,7 +558,8 @@ SUBROUTINE ADV_S
        END IF
 #      endif
 
-
+     ! WRITE(3178,*) TXX,TYY,EXFLUX
+     ! WRITE(3177,*) K,FXX,FYY
      END DO
 
 
@@ -593,8 +592,13 @@ SUBROUTINE ADV_S
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
   !
 # if defined (MPDATA)
+  ! Known problems:
+  ! - Performance (cost)
 
-  !   S. HU
+  ! Possible improvements:
+  ! - Performance...  
+
+  !   S. H
   !   Using smolarkiewicz, P. K; A fully multidimensional positive definite advection
   !   transport algorithm with small implicit diffusion, Journal of Computational
   !   Physics, 54, 325-362, 1984
@@ -606,16 +610,15 @@ SUBROUTINE ADV_S
 
   S1_FRESH=S1
 
-
   IF(RIVER_TS_SETTING == 'calculated') THEN
      IF(RIVER_INFLOW_LOCATION == 'node') THEN
         IF(NUMQBC > 0) THEN
            DO J=1,NUMQBC
               JJ=INODEQ(J)
-              STPOINT=SDIS(J)
+              STPOINT=SDIS(J)+OFFS(1,1)
               DO K=1,KBM1
-                 S1_FRESH(JJ,K)=SDIS(J)
-                 XFLUX(JJ,K)=XFLUX(JJ,K) - QDIS(J)*VQDIST(J,K)*STPOINT    !/DZ(JJ,K)
+                 S1_FRESH(JJ,K)=SDIS(J)+OFFS(1,1)
+                 XFLUX(JJ,K)=XFLUX(JJ,K) - QDIS(J)*VQDIST(J,K)*STPOINT !/DZ(JJ,K)
               END DO
            END DO
         END IF
@@ -624,10 +627,10 @@ SUBROUTINE ADV_S
            DO J=1,NUMQBC
               J1=N_ICELLQ(J,1)
               J2=N_ICELLQ(J,2)
-              STPOINT=SDIS(J) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+              STPOINT=SDIS(J)+OFFS(1,1) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2) - 2018 update: Can we safely assume that Liu was asked?
               DO K=1,KBM1
-                 S1_FRESH(J1,K)=SDIS(J)
-                 S1_FRESH(J2,K)=SDIS(J)
+                 S1_FRESH(J1,K)=SDIS(J)+OFFS(1,1)
+                 S1_FRESH(J2,K)=SDIS(J)+OFFS(1,1)
                  XFLUX(J1,K)=XFLUX(J1,K)-  &
                       QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT    !/DZ1(J1,K)
                  XFLUX(J2,K)=XFLUX(J2,K)-  &
@@ -637,14 +640,14 @@ SUBROUTINE ADV_S
         END IF
      END IF
   END IF
-  !
 
-
-  ! The horizontal term of advection is neglected here
+  ! -------------------------------------------------------------------
+  !        The horizontal term of advection is neglected here
+  ! -------------------------------------------------------------------
   DO K=1,KBM1
      DO I=1,M
         IF(ISONB(I) == 2) THEN
-           XFLUX(I,K)=0.
+           XFLUX(I,K)=0._SP
         ENDIF
      END DO
   END DO
@@ -660,8 +663,47 @@ SUBROUTINE ADV_S
   BETAIN=0._SP
   BETAOUT=0._SP
 
+! --------------------------------------------------------------------
+!              Accounting for precipitation
+! --------------------------------------------------------------------
+! Added by Akvaplan scientists October 2018. Yet to be validated and
+! documented.
+!
+! Precipitation influence the surface salinity upon impact with the 
+! ocean surface (total impact integrated as a flux over a timestep). 
+! We therefore adjust the thresholds (SMIN/SMAX) at the nodes to 
+! make sure that MPDATA allows changes in salinity due to precipitatio
+! and evaporation.
+! --------------------------------------------------------------------
+  S1m = S1
+  S1_FRESHm = S1_FRESH
+
+! Adjusting the tresholds to include precipitation at cell I
+   DO I=1,M
+      S1m(I,1)       = (S1(I,1)-OFFS(1,1))*(D(I)*DZ(I,1)- &
+                       (QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1))
+      S1_FRESHm(I,1) = (S1_FRESH(I,1)-OFFS(1,1))*(D(I)*DZ(I,1)- &
+                       (QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1))
+   END DO
+
+! Including the offset
+  S1_FRESHm(:,1) = S1_FRESHm(:,1)+OFFS(:,1)
+  S1m(:,1)       = S1m(:,1)+OFFS(:,1)
+
+! Including the offset-flux of rainwater (This is zero in absence of
+! the offset)
+  DO I=1,M
+     XFLUX(I,1)=XFLUX(I,1)-(QPREC(I)+QEVAP(I))*ART1(I)*OFFS(1,1)*ROFVROS
+  END DO
+
+
+! -----------------------------------------------------------------
+!                  Back to the original MPDATA
+! -----------------------------------------------------------------
+
   !!   first loop for vertical upwind
   !!   flux including horizontal and vertical upwind
+
   DO K=1,KBM1
      DO I=1,M
 #    if defined (WET_DRY)
@@ -669,24 +711,31 @@ SUBROUTINE ADV_S
 #    endif
            IF(K == 1) THEN
               TEMP = -(WTS(I,K+1)-ABS(WTS(I,K+1)))*S1(I,K)   &
-                   -(WTS(I,K+1)+ABS(WTS(I,K+1)))*S1(I,K+1) &
-                   +(WTS(I,K)+ABS(WTS(I,K)))*S1(I,K)    
+                     -(WTS(I,K+1)+ABS(WTS(I,K+1)))*S1(I,K+1)   &
+                     +(WTS(I,K)+ABS(WTS(I,K)))*S1(I,K)
+   
            ELSE IF(K == KBM1) THEN
               TEMP = +(WTS(I,K)-ABS(WTS(I,K)))*S1(I,K-1)     &
-                   +(WTS(I,K)+ABS(WTS(I,K)))*S1(I,K)
+                     +(WTS(I,K)+ABS(WTS(I,K)))*S1(I,K)
            ELSE
               TEMP = -(WTS(I,K+1)-ABS(WTS(I,K+1)))*S1(I,K)   &
-                   -(WTS(I,K+1)+ABS(WTS(I,K+1)))*S1(I,K+1) &
-                   +(WTS(I,K)-ABS(WTS(I,K)))*S1(I,K-1)     &
-                   +(WTS(I,K)+ABS(WTS(I,K)))*S1(I,K)
+                     -(WTS(I,K+1)+ABS(WTS(I,K+1)))*S1(I,K+1) &
+                     +(WTS(I,K)-ABS(WTS(I,K)))*S1(I,K-1)     &
+                     +(WTS(I,K)+ABS(WTS(I,K)))*S1(I,K)
            END IF
            TEMP = 0.5_SP*TEMP 
-
+           
+         ! The minimum value is the one where the entire neighbouring cell is transported into cell I
+         ! and the precipitation to cell I further diminish the salt concentration.
+          
            IF(K == 1)THEN
+              ! Adjusted volume (i.e. to include precipitation)
+              ! Vadj = (D(I)*DZ(I,1)-(QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1))
+
               SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
-              SMAX = MAX(SMAX,S1(I,K+1),S1(I,K),S1_FRESH(I,K))
-              SMIN = MIN(SMIN,S1(I,K+1),S1(I,K),S1_FRESH(I,K))
+              SMAX = MAX(SMAX,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K))
+              SMIN = MIN(SMIN,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K))
            ELSEIF(K == KBM1) THEN
               SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
@@ -699,15 +748,35 @@ SUBROUTINE ADV_S
               SMIN = MIN(SMIN,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K))
            END IF
 
+         ! Total (horizontal + vertical) flux to the cell
+           ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K)
 
-           ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
-           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+S1(I,K)-S1(I,K)*DT(I)/DTFA(I) 
+         ! Updated salinity without limiter minus current salinity
+           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+S1(I,K)-S1(I,K)*DT(I)/DTFA(I)
+           
+         ! For clarity: The line above can be rewritten;
+         ! XXXX = S1(I,K) - (S1(I,K) - ZZZFLUX(I,K))*DT(I)/DTFA(I)
 
-           BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (SMAX-S1(I,K))/(ABS(XXXX)+1.E-10) &
-                +0.5*(1.-SIGN(1._SP,-XXXX)) * (S1(I,K)-SMIN)/(ABS(XXXX)+1.E-10)
+         ! --------------------------------------------------------------------------------
+         ! An interpretation of the next lines:
+         ! --------------------------------------------------------------------------------
+         ! If the advected salinity is bigger or smaller than the largest/smallest salinities
+         ! in- and around the node the previous timestep, then MPDATA force the solution not 
+         ! to over/undershoot by multiplying it with BETA. This is a dubious procedure...
+         ! --------------------------------------------------------------------------------
+         IF((ABS(XXXX).LT.ABS(SMAX-S1(I,K))).AND.(XXXX.LT.0.0_SP)) THEN
+            S1_SF(I,K) = S1(I,K)-XXXX
+         ELSE IF((ABS(XXXX).LT.ABS(SMIN-S1(I,K))).AND.(XXXX.GT.0.0_SP)) THEN
+            S1_SF(I,K) = S1(I,K)-XXXX
+         ELSE IF(XXXX.EQ.0.0_SP) THEN
+            S1_SF(I,K) = S1(I,K)-XXXX
+         ELSE
+             BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (SMAX-S1(I,K))/(ABS(XXXX)+1.E-10) &
+                 +0.5*(1.-SIGN(1._SP,-XXXX)) * (S1(I,K)-SMIN)/(ABS(XXXX)+1.E-10)
 
-           S1_SF(I,K)=S1(I,K)-MIN(1.,BETA(I,K))*XXXX
-
+         ! Why do they store BETA - that is just using memory for no reason...
+             S1_SF(I,K)=S1(I,K)-MIN(1._SP,BETA(I,K))*XXXX
+         END IF
 #    if defined (WET_DRY)
         END IF
 #    endif
@@ -731,26 +800,30 @@ SUBROUTINE ADV_S
            TEMP=ABS(WWWSF(I,K))-DTI*(WWWSF(I,K))*(WWWSF(I,K))/DZ(I,K)/DTWWWS(I)
            WWWS(I,K)=TEMP*(S1_S(I,K-1)-S1_S(I,K))/(ABS(S1_S(I,K-1))+ABS(S1_S(I,K))+1.E-14)
 
-           IF(TEMP < 0.0_SP .OR. S1_S(I,K) == 0.0_SP)THEN 
+           IF(TEMP < 0.0_SP .OR. S1_S(I,K) == 0.0_SP)THEN
               WWWS(I,K)=0. 
            END IF
         END DO
      END DO
      DO I=1,M
-        WWWS(I,1)=0.
+        WWWS(I,1)=0.0_SP
      END DO
 
+! When K = 1
+! ----------
      DO I=1,M
-        SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),1))
-        SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),1))
-        SMAX = MAX(SMAX,S1(I,2),S1(I,1),S1_FRESH(I,1))
-        SMIN = MIN(SMIN,S1(I,2),S1(I,1),S1_FRESH(I,1))
+        Vadj = (D(I)*DZ(I,1)-(QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1)) 
+        SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),1)*Vadj)
+        SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),1)*Vadj) 
+        SMAX = MAX(SMAX,S1(I,2),S1m(I,1),S1_FRESHm(I,1))
+        SMIN = MIN(SMIN,S1(I,2),S1m(I,1),S1_FRESHm(I,1))
 
         TEMP=0.5*((WWWS(I,2)+ABS(WWWS(I,2)))*S1_S(I,2))*(DTI/DTFA(I))/DZ(I,1)
         BETAIN(I,1)=(SMAX-S1_S(I,1))/(TEMP+1.E-10)
 
         TEMP=0.5*((WWWS(I,1)+ABS(WWWS(I,1)))*S1_S(I,1)-        &
              (WWWS(I,2)-ABS(WWWS(I,2)))*S1_S(I,1))*(DTI/DTFA(I))/DZ(I,1)
+
         BETAOUT(I,1)=(S1_S(I,1)-SMIN)/(TEMP+1.E-10)
 
         WWWSF(I,1)=0.5*MIN(1.,BETAOUT(I,1))*(WWWS(I,1)+ABS(WWWS(I,1))) + &
@@ -770,6 +843,7 @@ SUBROUTINE ADV_S
 
            TEMP=0.5*((WWWS(I,K)+ABS(WWWS(I,K)))*S1_S(I,K)-        &
                 (WWWS(I,K+1)-ABS(WWWS(I,K+1)))*S1_S(I,K))*(DTI/DTFA(I))/DZ(I,K)
+
            BETAOUT(I,K)=(S1_S(I,K)-SMIN)/(TEMP+1.E-10)
 
            WWWSF(I,K)=0.5*MIN(1.,BETAIN(I,K-1),BETAOUT(I,K))*(WWWS(I,K)+ABS(WWWS(I,K))) + &
@@ -807,8 +881,9 @@ SUBROUTINE ADV_S
 #      endif
               IF(K == 1) THEN
                  TEMP = -(WWWS(I,K+1)-ABS(WWWS(I,K+1)))*S1_S(I,K)   &
-                      -(WWWS(I,K+1)+ABS(WWWS(I,K+1)))*S1_S(I,K+1) &
-                      +(WWWS(I,K)+ABS(WWWS(I,K)))*S1_S(I,K)
+                      -(WWWS(I,K+1)+ABS(WWWS(I,K+1)))*S1_S(I,K+1)   &
+                      +(WWWS(I,K)+ABS(WWWS(I,K)))*S1_S(I,K) ! ft
+
               ELSE IF(K == KBM1) THEN
                  TEMP = +(WWWS(I,K)-ABS(WWWS(I,K)))*S1_S(I,K-1)     &
                       +(WWWS(I,K)+ABS(WWWS(I,K)))*S1_S(I,K)
@@ -819,7 +894,7 @@ SUBROUTINE ADV_S
                       +(WWWS(I,K)+ABS(WWWS(I,K)))*S1_S(I,K)
               END IF
               TEMP = 0.5_SP*TEMP
-              S1_SF(I,K)=(S1_S(I,K)-TEMP*(DTI/DTFA(I))/DZ(I,K)) 
+              S1_SF(I,K) = (S1_S(I,K)-TEMP*(DTI/DTFA(I))/DZ(I,K))
 #      if defined (WET_DRY)
            END IF
 #      endif
@@ -829,10 +904,14 @@ SUBROUTINE ADV_S
   !--------------------------------------------------------------------------
   ! End of smolarkiewicz upwind loop
   !--------------------------------------------------------------------------
+
+      S1 = S1 - OFFS
+      S1_SF = S1_SF - OFFS
+      SMEAN1 = SMEAN1 - OFFS
 #  endif
 
 
-# if ! defined(MPDATA)
+# if !defined (MPDATA)
 # if defined (ONE_D_MODEL)
     XFLUX = 0.0_SP
 # endif
@@ -877,7 +956,7 @@ SUBROUTINE ADV_S
 #          if !defined (NH) && !defined (LIMITER_VER_ADV)
 
 !J. Ge for tracer advection
-           IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
+           IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
              IF(K == 1) THEN
               TEMP=-WTS(I,K+1)*(S1(I,K)*DZ(I,K+1)+S1(I,K+1)*DZ(I,K))/   &
                    (DZ(I,K)+DZ(I,K+1))
@@ -942,7 +1021,7 @@ SUBROUTINE ADV_S
 #    if defined (WET_DRY)
      END IF
 #    endif
-  END DO  !! SIGMA LOOP
+      END DO  !! SIGMA LOOP
 
   !
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
@@ -978,6 +1057,7 @@ SUBROUTINE ADV_S
      END IF
   END IF
 !---------------------------------------------------------------------
+! Her slutter if !defined (MPDATA). Litt rart at det ikke skjer et hakk lenger ned?
 # endif
 
 
@@ -990,7 +1070,7 @@ SUBROUTINE ADV_S
      DO I=1,M
 !        XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*S1(I,KBM1)/DZ(I,KBM1)
 !J. Ge for tracer advection
-        IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
+        IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
           XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*S1(I,KBM1)
         ELSE
           IF(BACKWARD_STEP==1)THEN
@@ -1003,6 +1083,7 @@ SUBROUTINE ADV_S
      END DO
   END IF
 
+ 
 
   !--Update Salinity-------------------------------------------------------------!
   !
@@ -1052,6 +1133,8 @@ SUBROUTINE ADV_S
 
   DO I=1,M
      DO K=1,KBM1
+    !  WRITE(3179,*) XFLUX(I,K)/ART1(I),DTI
+    !  WRITE(3180,*) DT(I),DTFA(I),DZ(I,K)
 #    if !defined (MPDATA)     
         !       SF1(I,K)=(S1(I,K)-XFLUX(I,K)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
