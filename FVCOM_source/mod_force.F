@@ -1059,8 +1059,12 @@ CONTAINS
     ! This problem reported with Intel15.0.3. 
     ! PRECIPITATION
     GWATER_FLUX_P%curr_stkcnt = 0 ; GWATER_FLUX_N%curr_stkcnt = 0
-    GWATER_TEMP_P%curr_stkcnt = 0 ; GWATER_TEMP_N%curr_stkcnt = 0
-    GWATER_SALT_P%curr_stkcnt = 0 ; GWATER_SALT_N%curr_stkcnt = 0
+    IF(GROUNDWATER_TEMP_ON)THEN
+       GWATER_TEMP_P%curr_stkcnt = 0 ; GWATER_TEMP_N%curr_stkcnt = 0
+    ENDIF
+    IF(GROUNDWATER_SALT_ON)THEN
+       GWATER_SALT_P%curr_stkcnt = 0 ; GWATER_SALT_N%curr_stkcnt = 0
+    ENDIF
     ! --------- end new ----------------------------------------------------------------
 
 
