@@ -149,7 +149,26 @@ MODULE MOD_FORCE
   END TYPE A_RIVER_FILE
   TYPE(A_RIVER_FILE), ALLOCATABLE,PUBLIC :: RIVER_FORCING(:)
 
+  ! =================================================================
+  ! PLUME FORCING VARIABLES FOR UPDATE ANE SETUP, added by Qin 04/03/2019
+  ! NOTE PLUMS MIGHT HAVE THE SAME PAIN AS RIVERS ARE - EACH PROCESSOR HAS TO FETCH ITS OWN DATA!
+  CHARACTER(LEN=Char_max_attlen), PUBLIC,ALLOCATABLE :: PLUME_FORCING_COMMENTS(:)
+  TYPE A_PLUME_FILE
+     TYPE(NCFILE), POINTER :: NCF
+     INTEGER PLUMES_IN_FILE     
+     TYPE(TIME) :: PLUME_PERIOD  
+     INTEGER, ALLOCATABLE :: PLM_FILE2LOC(:)
+     TYPE(NCVAR), POINTER :: FLUX_N, FLUX_P
+     TYPE(NCVAR), POINTER :: VDIST_N,VDIST_P
+     TYPE(NCVAR), POINTER :: TEMP_N, TEMP_P
+     TYPE(NCVAR), POINTER :: SALT_N, SALT_P
 
+# if defined (FABM)
+     TYPE (TYPE_NCVAR_POINTER),DIMENSION(:),ALLOCATABLE :: FABM_N,FABM_P
+# endif
+     ! ADD MORE HERE!
+  END TYPE A_PLUME_FILE
+  TYPE(A_PLUME_FILE), ALLOCATABLE,PUBLIC :: PLUME_FORCING(:)
 
   ! =================================================================
   ! GROUND WATER FORCING VARIABLES FOR UPDATE AND SETUP
@@ -530,6 +549,10 @@ MODULE MOD_FORCE
   PUBLIC :: UPDATE_RIVERS
   PUBLIC :: UPDATE_OBC_TEMP
   PUBLIC :: UPDATE_OBC_SALT
+  
+# if defined (PLUME)
+  PUBLIC :: UPDATE_PLUMES
+# endif  
 # if defined (WATER_QUALITY)
   PUBLIC :: UPDATE_OBC_WQM
 # endif  
@@ -675,6 +698,16 @@ CONTAINS
     IF (FABM_MODEL) CALL OBC_FABM
 # endif    
     CALL RIVER_DISCHARGE
+
+# if defined (PLUME) 
+# if !defined (PLUME_CALCULATED)
+    CALL  PLUME_DISCHARGE
+# else 
+!    CALL  PLUME_DISCHARGE_CALCULATED (wait for Håvards input, see SURFACE_HEATING_CALCULATED as an example)
+# endif	
+# endif 
+	
+	
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)    
     CALL SURFACE_HEATING
 # endif    
@@ -1801,6 +1834,471 @@ CONTAINS
 
 101 FORMAT(1X,A26,F10.4)  
   END SUBROUTINE TIDAL_ELEVATION
+  
+  !===================================================================
+  !==================================================================
+  ! READ PLUME PARAMETERA, added by Qin 04/03/2019
+    
+  SUBROUTINE PLUME_DISCHARGE 
+# if defined (FABM)
+  USE MOD_FABM_DATA
+# endif
+    IMPLICIT NONE
+    INTEGER :: I, J,K, fcnt,rcnt,status, nfiles,nrs,IOS,NS
+# if defined (FABM)
+    INTEGER :: IFABM
+# endif
+    TYPE(A_PLUME_FILE) DUMMY
+    TYPE(NCFILE),POINTER :: NCF
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    TYPE(NCVAR), POINTER :: DUM_P
+
+    REAL(SP), POINTER :: STORAGE_VEC(:),STORAGE_ARR(:,:)
+    LOGICAL :: FOUND, MINE
+    CHARACTER(LEN=7) :: chr
+    character(len=20), allocatable :: dist_strings(:)
+
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START PLUME_DISCHARGE"
+
+    NULLIFY(STORAGE_ARR)
+
+    ! TRANSLATE TO THE OLD NAME FOR TOTAL NUMBER OF PLUMES
+    NUMPLM_GL = plume_number
+
+    IF (plume_number == 0 ) THEN
+       NUMPLM = 0
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! THERE ARE NO PLUMES IN THIS MODEL"
+       ALLOCATE(PLUME_FORCING_COMMENTS(1))
+       PLUME_FORCING_COMMENTS(1) = "THERE ARE NO PLUMES IN T&
+            &HIS MODEL"
+       RETURN
+    END IF
+
+
+    IF (DBG_SET(DBG_SBRIO))THEN
+       WRITE(IPT,*) "Total Number Of Plumes = ",plume_number 
+       WRITE(IPT,*) "PLUME_KIND = "//trim(PLUME_KIND)
+
+       WRITE(IPT,*)"============================="
+       DO I =1,plume_number 
+          write(IPT,*) "Plume number:",I
+          WRITE(IPT,*) "Plume File ="//TRIM(PLUMES(i)%FILE)
+          WRITE(IPT,*) "Plume Name ="//trim(PLUMES(i)%NAME)
+          WRITE(IPT,*) "Plume Location =",PLUMES(i)%LOCATION
+          WRITE(IPT,*)"============================="
+       END DO
+    END IF
+
+    ALLOCATE(PLUME_FORCING_COMMENTS(plume_number + 2))
+    WRITE(CHR,'(I7)')plume_number
+    PLUME_FORCING_COMMENTS(1) = "THERE ARE "//TRIM(adjustl(CHR))//" PLUMES IN THIS MODEL."
+    PLUME_FORCING_COMMENTS(2) = "THE FOLLOWING PLUME NAMES ARE USED:"
+    DO I =1,plume_number
+       PLUME_FORCING_COMMENTS(2+I) = TRIM(PLUMES(i)%NAME)
+    END DO
+
+
+    ! CHECK TO MAKE SURE THE LOCATION IS VALID AND ADD NAMES TO
+    ! COMMENT STRING
+    nfiles = 0
+    NUMPLM = 0
+    DO  I =1,plume_number 
+
+       ! CHECK THE INFLOW LOCATION OF EACH PLUME
+       ! COUNT THE NUMBER THAT BELONG TO EACH PROCESSOR
+          IF(PLUMES(i)%LOCATION > MGL .or. PLUMES(i)%LOCATION < 1)THEN
+             write(chr,'(I7)') PLUMES(i)%LOCATION
+             CALL FATAL_ERROR ("PLUME_DISCHARGE: FOR THE PLUME NAMED: "&
+                  &//trim(PLUMES(i)%NAME),"THE PLUME GRID LOCATION IN&
+                  & THE NAME LIST IS NOT IN THE GLOBAL DOMAIN",&
+                  & "YOU SPECIFIED NODE NUMBER: "//chr)
+          END IF
+
+          ! COUNT THE NUMBER OF RIVERS OWNED BY THIS PROC
+          IF (NLID(PLUMES(I)%LOCATION) .GT. 0) NUMPLM = NUMPLM + 1
+
+       ! COUNT THE NUMBER OF FILES
+       NCF => FIND_FILE(FILEHEAD,TRIM(PLUMES(I)%FILE),FOUND)
+       IF (.NOT.FOUND) CALL FATAL_ERROR &
+            & ("PLUME_DISCHARGE: COULD NOT FIND PLUME FILE OBJECT NAMED: &
+            &"//TRIM(PLUMES(I)%FILE))
+       
+       IF(.NOT. associated(NCF%FTIME)) CALL FATAL_ERROR&
+            &("PLUME FILE DID NOT LOAD PROPERLY",& 
+            & "File name:"//trim(NCF%FNAME),&
+            &"Please check the time format!")
+
+       IF (NCF%FTIME%PREV_STKCNT /= 999) THEN
+          NFILES = NFILES +1
+          NCF%FTIME%PREV_STKCNT = 999
+       END IF
+
+    END DO
+
+
+    ! ALLOCATE THE SPACE FOR THE PLUME FILES AND NULLIFY POINTERS
+    ALLOCATE(PLUME_FORCING(NFILES))
+    DO I =1,NFILES
+       NULLIFY(PLUME_FORCING(I)%NCF)
+       NULLIFY(PLUME_FORCING(I)%FLUX_N)
+       NULLIFY(PLUME_FORCING(I)%FLUX_P)
+       NULLIFY(PLUME_FORCING(I)%VDIST_N)
+       NULLIFY(PLUME_FORCING(I)%VDIST_P)
+       NULLIFY(PLUME_FORCING(I)%TEMP_N)
+       NULLIFY(PLUME_FORCING(I)%TEMP_P)
+       NULLIFY(PLUME_FORCING(I)%SALT_N)
+       NULLIFY(PLUME_FORCING(I)%SALT_P)
+# if defined (FABM)
+       ALLOCATE(PLUME_FORCING(I)%FABM_N(size(model%state_variables)))
+       ALLOCATE(PLUME_FORCING(I)%FABM_P(size(model%state_variables)))
+# endif
+    END DO
+
+
+    ! ALLOCATE THE SPACE FOR THE PLUME DATA
+    ALLOCATE(INODEPLM(NUMPLM))
+    ALLOCATE(VDISTPLM(NUMPLM,KBM1));  VDISTPLM = 0.0_SP
+    ALLOCATE(FLXPLM(NUMPLM,KBM1));    FLXPLM   = 0.0_SP
+# if defined (FABM)
+    ALLOCATE(FABMDIS(NUMPLM,size(model%state_variables))); FABMDIS  = 0.0_SP
+# endif
+    ALLOCATE(TPLM(NUMPLM,KBM1));            TPLM   = 0.0_SP
+    ALLOCATE(SPLM(NUMPLM,KBM1));            SPLM   = 0.0_SP
+
+    FCNT = 0
+    RCNT = 0
+    DO  I =1,plume_number 
+       ! SET MINE TO FALSE
+       MINE = .false. 
+       ! Mine is set true if this plume name belongs
+       ! to this processor
+       ! MAKE THE LOCAL AND GLOBAL INDEX
+
+          IF (NLID(PLUMES(I)%LOCATION) .GT. 0) THEN
+             rcnt = rcnt + 1
+             INODEPLM(rcnt)       = NLID(PLUMES(I)%LOCATION)
+             MINE = .TRUE.
+          END IF
+
+
+       ! NOW PUT THE PLUMES IN THE PLUME_FORCING TYPE
+       NCF => FIND_FILE(FILEHEAD,TRIM(PLUMES(I)%FILE),FOUND)
+
+       IF (NCF%FTIME%PREV_STKCNT == 999) THEN
+          FCNT = FCNT + 1
+          PLUME_FORCING(FCNT)%NCF => NCF
+          NCF%FTIME%PREV_STKCNT = 0
+
+          DIM => FIND_DIM(NCF,'plumes',FOUND)
+          IF(.not.FOUND) CALL FATAL_ERROR &
+               & ("COULD NOT FIND DIMENSION 'plumes'",&
+               & "In the file: "//trim(NCF%FNAME) )
+
+          PLUME_FORCING(FCNT)%PLUMES_IN_FILE=DIM%DIM
+          ALLOCATE(PLUME_FORCING(FCNT)%PLM_FILE2LOC(DIM%DIM))
+          PLUME_FORCING(FCNT)%PLM_FILE2LOC = 0
+
+       END IF
+
+       ! FIGURE OUT WHICH PLUME IT IS WHICH FILE AND SET THE INDEX 
+       DO J = 1, NFILES
+          ! IN THIS FILE FIND THE NAME
+          if (ASSOCIATED(NCF,PLUME_FORCING(J)%NCF)) THEN
+             K=SEARCH_NAME(NCF,PLUMES(I)%NAME)
+
+             ! THIS IS MY PLUME SO SET THE INDEX
+             IF (MINE) PLUME_FORCING(J)%PLM_FILE2LOC(K)=RCNT
+
+          END IF
+       END DO
+
+
+    END DO
+
+    IF (FCNT /= NFILES) CALL FATAL_ERROR&
+         ("PLUME_DISCHARGE: WE LOST A PLUME FILE IN THE MIDDLE OF NOWHERE!")
+
+    IF (RCNT /= NUMPLM) CALL FATAL_ERROR&
+         ("PLUME_DISCHARGE: WE LOST A PLUME IN THE MIDDLE OF NOWHERE!")
+
+
+    DO I = 1, NFILES
+
+       NCF => PLUME_FORCING(I)%NCF
+
+       SELECT CASE (PLUME_KIND)
+       CASE(PRDC)
+	!     CALL CHECK_PLUME_FILE(NCF, PLUME_FORCING(I)%plume_period)
+         WRITE(*,*) "PLUME_KIND NOT SET UP FOR PERIODIC YET"
+		 STOP
+       CASE(VRBL)          
+          CALL CHECK_PLUME_FILE(NCF)
+       CASE DEFAULT
+          CALL FATAL_ERROR("Invalid PLUME_KIND in namelist runfile:",&
+               & " Options are: "//TRIM(PRDC)//" or "//TRIM(VRBL))
+       END SELECT
+
+       DIM => FIND_DIM(NCF,'plumes',FOUND)
+
+       nrs = DIM%dim
+
+       ! GET THE FLUX VARIABLE
+       VAR => FIND_VAR(NCF,'plume_flux',FOUND)
+
+       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
+       PLUME_FORCING(I)%FLUX_N => reference_var(var)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FLUX_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
+       PLUME_FORCING(I)%FLUX_P => reference_var(var)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FLUX_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! GET THE VERTICAL DISTRIBUTION VARIABLE
+
+       VAR => FIND_VAR(NCF,'plume_vdist',FOUND)
+       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
+       PLUME_FORCING(I)%VDIST_N => reference_var(var)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%VDIST_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
+       PLUME_FORCING(I)%VDIST_P => reference_var(var)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%VDIST_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! GET THE TEMPERATURE VARIABLE
+       VAR => FIND_VAR(NCF,'plume_temp',FOUND)
+
+       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
+       PLUME_FORCING(I)%TEMP_N => reference_var(var)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%TEMP_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
+       PLUME_FORCING(I)%TEMP_P => reference_var(var)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%TEMP_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! GET THE SALINITY VARIABLE
+       VAR => FIND_VAR(NCF,'plume_salt',FOUND)
+	   
+       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
+       PLUME_FORCING(I)%SALT_N => reference_var(var)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%SALT_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
+       PLUME_FORCING(I)%SALT_P => reference_var(var)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%SALT_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! ============= New : 2016, April ===================
+	   ! DON'T KNOW IF IT IS NEEDED FOR PLUME
+       ! Initialize some variables 
+       ! Similar to the hints by Qi and afm 20160216
+       ! PLUME_FORCING(I)%FLUX_N%curr_stkcnt = 0; PLUME_FORCING(I)%FLUX_P%curr_stkcnt = 0
+       ! PLUME_FORCING(I)%TEMP_N%curr_stkcnt = 0; PLUME_FORCING(I)%TEMP_P%curr_stkcnt = 0
+       ! PLUME_FORCING(I)%SALT_N%curr_stkcnt = 0; PLUME_FORCING(I)%SALT_P%curr_stkcnt = 0 
+       ! ==================== end new ======================================
+
+#if defined (FABM)
+
+       IF(FABM_MODEL)THEN
+
+         DO IFABM=1,size(model%state_variables)
+         ! GET THE BIOLOGICAL CONCENTRATION FOR CURRENT PELAGIC STATE VARIABLE
+           VAR => FIND_VAR(NCF,TRIM(model%state_variables(IFABM)%name),FOUND)
+           IF(FOUND) THEN
+             ALLOCATE(STORAGE_VEC(nrs), stat = status)
+             IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN RIVER_DISCHARGE")
+             PLUME_FORCING(I)%FABM_N(IFABM)%P => reference_var(var)
+             CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FABM_N(IFABM)%P,STORAGE_VEC)
+             NULLIFY(STORAGE_VEC)
+
+             ALLOCATE(STORAGE_VEC(nrs), stat = status)
+             IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN RIVER_DISCHARGE")
+             PLUME_FORCING(I)%FABM_P(IFABM)%P => reference_var(var)
+             CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FABM_P(IFABM)%P,STORAGE_VEC)
+             NULLIFY(STORAGE_VEC)
+           ENDIF
+
+         END DO
+       END IF
+#endif
+
+    END DO
+
+    IF(DBG_SET(DBG_LOG)) THEN
+       WRITE(IPT,*)"!"
+       WRITE(IPT,*)"!  PLUME FORCING ON"
+       WRITE(IPT,*)'!  GLOBAL NUMBER OF PLUMES :',plume_number
+       WRITE(IPT,*)'!  NUMBER OF PLUME FILES   :', nfiles
+    END IF
+
+    IF(DBG_SET(DBG_SCL)) THEN
+       WRITE(IPT,*)"/////////=============================///////////"
+       WRITE(IPT,*)"   PRINTING PLUME FORCING DETAILS"
+
+       WRITE(IPT,*)"  LOCAL NUMBER OF PLUMES  : ", numplm
+
+       WRITE(IPT,*)"============================="       
+       DO I = 1,nfiles
+          WRITE(IPT,*)" FILE NAME: "//TRIM(PLUME_FORCING(I)%NCF%FNAME)
+          WRITE(IPT,*)" NUMBER IN FILE=",PLUME_FORCING(I)%PLUMES_IN_FILE
+          WRITE(IPT,*)" PLM_FILE2LOC = ",PLUME_FORCING(I)%PLM_FILE2LOC
+          WRITE(IPT,*)"============================="
+       END DO
+
+       WRITE(IPT,*)"/////////=============================///////////"
+    END IF
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END PLUME_DISCHARGE"
+
+
+  END SUBROUTINE PLUME_DISCHARGE
+  
+    !================================================================
+  !================================================================  
+  SUBROUTINE CHECK_PLUME_FILE(NCF,PERIOD)
+    ! CALL FATAL_ERROR IF THERE IS ANYTHING WRONG WITH THE FILE
+    IMPLICIT NONE
+    TYPE(NCFILE), POINTER ::NCF
+    TYPE(TIME),OPTIONAL :: PERIOD
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+
+    TYPE(TIME) :: fSTART, fEND
+    INTEGER :: NTIMES,NS
+    LOGICAL FOUND
+
+    IF(.NOT. ASSOCIATED(NCF)) CALL FATAL_ERROR &
+         & ("THE PLUME FILE OBJECT PASSED TO 'check_plume_file' IS NOT ASSOCIATED")
+
+    ! CHECK DIMENSIONS
+    DIM => FIND_DIM(NCF,'time',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'time' DIMENSION")
+
+    nTIMES = DIM%dim
+
+    DIM => FIND_DIM(NCF,'namelen',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'namelen' DIMENSION")
+
+    DIM => FIND_DIM(NCF,'plumes',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE RIVER FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'plumes' DIMENSION")
+
+    ! CHECK VARIABLES AND THEIR ATTS
+    IF(.NOT. ASSOCIATED(NCF%FTIME)) CALL FATAL_ERROR &
+         & ('THE PLUME FILE '//TRIM(NCF%FNAME),&
+         'DOES NOT HAVE A RECONGIZED TIME VARIABLE')
+
+    IF(PRESENT(PERIOD)) THEN
+
+       ! CHECK START AND END TIME FOR THE FILE:
+       FSTART = GET_FILE_TIME(NCF,1)
+       IF(ZEROTIME /= FSTART) THEN
+          CALL PRINT_TIME(FSTART,IPT,"Plume Data Start")
+          CALL FATAL_ERROR &
+               & ("Date of the first plume data point must be 0.0 for periodic forcoing mode:",&
+               & "The Plume File: "//TRIM(NCF%FNAME)//'; has a bad start date.')
+       END IF
+       
+       PERIOD = GET_FILE_TIME(NCF,NTIMES)
+       IF(PERIOD .LE. zerotime) THEN
+          CALL PRINT_REAL_TIME(PERIOD,IPT,"Plume Data End")
+          
+          CALL FATAL_ERROR &
+               & ("Date of the last plume data point must be greater than or equal to zero for periodic forcing mode:",&
+               & "The River File: "//TRIM(NCF%FNAME)//'; has a bad end date.')
+       END IF
+
+
+    ELSE
+       ! CHECK START AND END TIME FOR THE FILE:
+       FSTART = GET_FILE_TIME(NCF,1)
+       IF(FSTART > StartTIME) THEN
+          CALL PRINT_REAL_TIME(StartTime,IPT,"Model Start")
+          CALL PRINT_REAL_TIME(FSTART,IPT,"Plume Data Start")
+          CALL FATAL_ERROR &
+               & ("Date of the first plume data point must be less than or equal to the model start date:",&
+               & "The plume File: "//TRIM(NCF%FNAME)//'; has a bad start date.')
+       END IF
+       
+       FEND = GET_FILE_TIME(NCF,NTIMES)
+       IF(FEND < EndTime) THEN
+          CALL PRINT_REAL_TIME(EndTime,IPT,"Model End")
+          CALL PRINT_REAL_TIME(FEND,IPT,"Plume Data End")
+          
+          CALL FATAL_ERROR &
+               & ("Date of the last plume data point must be greater than or equal to the model end date:",&
+               & "The Plume File: "//TRIM(NCF%FNAME)//'; has a bad end date.')
+       END IF
+    END IF
+
+    VAR => FIND_VAR(NCF,'plume_names',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'plume_names' VARIABLE")
+    ! HAS NO ATTRIBUTES
+
+    VAR => FIND_VAR(NCF,'plume_flux',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'plume_flux' VARIABLE")
+
+    ATT => FIND_ATT(VAR,'units',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "IS MISSING THE ATTRIBUTE 'units'")
+
+    IF(TRIM(ATT%CHR(1)) /= "m^3s^-1")CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "THE ATTRIBUTE 'units' IS INCORRECT: EXPE&
+         &CTING 'm^3s^-1'")
+
+    VAR => FIND_VAR(NCF,'plume_temp',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'plume_temp' VARIABLE")
+
+    ATT => FIND_ATT(VAR,'units',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "IS MISSING THE ATTRIBUTE 'units'")
+
+    IF(TRIM(ATT%CHR(1)) /= "Celsius")CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "THE ATTRIBUTE 'units' IS INCORRECT: EXPE&
+         &CTING 'Celsius'")
+
+    VAR => FIND_VAR(NCF,'plume_salt',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'plume_salt' VARIABLE")
+
+    ATT => FIND_ATT(VAR,'units',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "IS MISSING THE ATTRIBUTE 'units'")
+
+    IF(TRIM(ATT%CHR(1)) /= "PSU")CALL FATAL_ERROR &
+         & ("THE PLUME FILE:"//TRIM(NCF%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "THE ATTRIBUTE 'units' IS INCORRECT: EXPE&
+         &CTING 'PSU'")
+		 
+  END SUBROUTINE CHECK_PLUME_FILE
   !================================================================
   !================================================================
 
@@ -3242,7 +3740,7 @@ CONTAINS
     LOGICAL FOUND
 
     IF (DBG_SET(DBG_IO)) THEN
-       WRITE(IPT,*)"SEARCH_NAME (RIVERS)"
+       WRITE(IPT,*)"SEARCH_NAME (RIVERS OR PLUMES)"
        WRITE(IPT,*)"============================="
        write(IPT,*)"LOOKING FOR: '"//TRIM(NAME)//"'"
        WRITE(IPT,*)"=========="
@@ -3252,9 +3750,12 @@ CONTAINS
 
     ! FIND THE RIVER NAME IN THE FILE
     DIM => FIND_DIM(NCF,'rivers',FOUND)
+	DIM => FIND_DIM(NCF,'plumes',FOUND)   ! added by Qin, test 
+	
     rvrs_in_file = DIM%DIM
 
     VAR => FIND_VAR(NCF,'river_names',found)
+    VAR => FIND_VAR(NCF,'plume_names',found)  ! added by Qin, test 
 
     ! ATTEMPT TO ONLY READ NAMES LIST ONCE
     IF(.NOT. ASSOCIATED(VAR%VEC_CHR)) THEN
@@ -12958,6 +13459,270 @@ CONTAINS
     END DO ! FOR EACH FILE
 
   END SUBROUTINE UPDATE_RIVERS
+  !==============================================================================|
+  ! UPDATE PLUMES, added by Qin 05/03/2019
+  !==============================================================================|
+  SUBROUTINE UPDATE_PLUMES(NOW,FLUX,VDIST,TEMP,SALT,FABMR)
+# if defined (FABM)
+    USE MOD_FABM_DATA
+# endif  
+
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    REAL(SP), ALLOCATABLE :: FLUX(:,:)
+    REAL(SP), ALLOCATABLE :: VDIST(:,:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: TEMP(:,:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: SALT(:,:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: FABMR(:,:)
+
+    REAL(SP), POINTER :: VNP(:,:), VPP(:,:)
+
+    REAL(SP), ALLOCATABLE :: CURRENT(:,:)
+    TYPE(TIME) :: PLMTIME
+
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR), POINTER :: VAR_N
+    TYPE(NCVAR), POINTER :: VAR_P
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS, I, J, NRSF,IND,NS
+#if defined (FABM)
+    INTEGER :: IFABM,JJ,J1,J2
+#endif
+
+    IF(.NOT. ALLOCATED(FLUX)) CALL FATAL_ERROR &
+         &("THE PLUME FLUX VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(VDIST)) CALL FATAL_ERROR &
+         &("THE PLUME VERTICAL DISTRIBUTION  VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+
+    IF(PRESENT(TEMP)) THEN
+       IF(.NOT. ALLOCATED(TEMP)) CALL FATAL_ERROR &
+            &("THE PLUME TEMP VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    END IF
+
+    IF(PRESENT(SALT)) THEN
+       IF(.NOT. ALLOCATED(SALT)) CALL FATAL_ERROR &
+            &("THE PLUME SALT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    END IF
+  
+# if defined (FABM)
+    IF(PRESENT(FABMR)) THEN
+       IF(.NOT. ALLOCATED(FABMR)) CALL FATAL_ERROR &
+            &("THE PLUME FABMR VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    END IF
+# endif
+
+    DO I = 1, SIZE(PLUME_FORCING) ! (NUMBER OF FILES)
+       
+       SELECT CASE (PLUME_KIND)
+       CASE(PRDC)
+          
+        CALL FATAL_ERROR("PERIODIC PLUME Not Set Up Yet")     
+          
+       CASE(VRBL)
+           
+          PLMTIME = NOW
+       END SELECT
+       
+
+       NCF => PLUME_FORCING(I)%NCF
+       FTM => NCF%FTIME
+
+       NRSF = PLUME_FORCING(I)%PLUMES_IN_FILE
+
+       ! PLUME FLUX
+       VAR_N => PLUME_FORCING(I)%FLUX_N
+       VAR_P => PLUME_FORCING(I)%FLUX_P
+       CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,PLMTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE PLUME_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       ALLOCATE(CURRENT(NRSF,KBM1))
+
+       CALL NC_POINT_VAR(VAR_N,VNP)
+       CALL NC_POINT_VAR(VAR_P,VPP)
+
+       !====================================================
+       ! Linear interpolation between time points
+       !CURRENT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       !
+       ! OR
+       !
+       ! Nearest time sets the value
+       CURRENT = VNP
+       if (FTM%PREV_WGHT .gt. 0.5_sp) CURRENT = VPP
+       !====================================================
+
+       DO J =1,NRSF
+          IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
+          IF(IND /= 0) FLUX(IND,:) = CURRENT(J,:)
+       END DO
+
+       DEALLOCATE(CURRENT)
+      
+       ! PLUME VERTICAL DISTRIBUTION
+       VAR_N => PLUME_FORCING(I)%VDIST_N
+       VAR_P => PLUME_FORCING(I)%VDIST_P
+       CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,PLMTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE PLUME_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       ALLOCATE(CURRENT(NRSF,KBM1))
+
+       CALL NC_POINT_VAR(VAR_N,VNP)
+       CALL NC_POINT_VAR(VAR_P,VPP)
+
+       !====================================================
+       ! Linear interpolation between time points
+       !CURRENT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       !
+       ! OR
+       !
+       ! Nearest time sets the value
+       CURRENT = VNP
+       if (FTM%PREV_WGHT .gt. 0.5_sp) CURRENT = VPP
+       !====================================================
+
+       DO J =1,NRSF
+          IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
+          IF(IND /= 0) VDIST(IND,:) = CURRENT(J,:)
+       END DO
+
+       DEALLOCATE(CURRENT)
+
+
+       IF(PRESENT(SALT)) THEN
+
+          ! PLUME SALT
+          VAR_N => PLUME_FORCING(I)%SALT_N
+          VAR_P => PLUME_FORCING(I)%SALT_P
+          CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,PLMTIME,STATUS)
+          IF (STATUS /= 0) THEN
+             CALL FATAL_ERROR("COULD NOT UPATE PLUME_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+          end if
+
+          ALLOCATE(CURRENT(NRSF,KBM1))
+
+          CALL NC_POINT_VAR(VAR_N,VNP)
+          CALL NC_POINT_VAR(VAR_P,VPP)        
+
+          !====================================================
+          ! Linear interpolation between time points
+          !CURRENT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+          !
+          ! OR
+          !
+          ! Nearest time sets the value
+          CURRENT = VNP
+          if (FTM%PREV_WGHT .gt. 0.5_sp) current = VPP
+          !====================================================
+
+
+          DO J =1,NRSF
+             IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
+             IF(IND /= 0) SALT(IND,:) = CURRENT(J,:)
+          END DO
+
+          DEALLOCATE(CURRENT)
+       END IF
+
+       IF(PRESENT(TEMP)) THEN
+
+          ! PLUME TEMP
+          VAR_N => PLUME_FORCING(I)%TEMP_N
+          VAR_P => PLUME_FORCING(I)%TEMP_P
+          CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,PLMTIME,STATUS)
+          IF (STATUS /= 0) THEN
+             CALL FATAL_ERROR("COULD NOT UPATE PLM_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+          end if
+
+          ALLOCATE(CURRENT(NRSF,KBM1))
+
+          CALL NC_POINT_VAR(VAR_N,VNP)
+          CALL NC_POINT_VAR(VAR_P,VPP)        
+
+          !====================================================
+          ! Linear interpolation between time points
+          !CURRENT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+          !
+          ! OR
+          !
+          ! Nearest time sets the value
+          CURRENT = VNP
+          if (FTM%PREV_WGHT .gt. 0.5_sp) current = VPP
+          !====================================================
+
+          DO J =1,NRSF
+             IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
+             IF(IND /= 0) TEMP(IND,:) = CURRENT(J,:)
+          END DO
+
+          DEALLOCATE(CURRENT)
+       END IF
+
+
+# if defined (FABM)
+       IF(PRESENT(FABMR)) THEN
+
+       DO IFABM=1,size(model%state_variables)
+
+          IF(ASSOCIATED(PLUME_FORCING(I)%FABM_N(IFABM)%P))THEN
+             ! Plume data for this variable is available in the current plume file
+             VAR_N => PLUME_FORCING(I)%FABM_N(IFABM)%P
+             VAR_P => PLUME_FORCING(I)%FABM_P(IFABM)%P
+             CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,PLMTIME,STATUS)
+             IF (STATUS /= 0) THEN
+                CALL FATAL_ERROR("COULD NOT UPDATE PLUME_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+             END IF
+
+             ALLOCATE(CURRENT(NRSF))
+
+             CALL NC_POINT_VAR(VAR_N,VNP)
+             CALL NC_POINT_VAR(VAR_P,VPP)
+
+             !====================================================
+             ! Linear interpolation between time points
+             !CURRENT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+             !
+             ! OR
+             !
+             ! Nearest time sets the value
+             CURRENT = VNP
+             if (FTM%PREV_WGHT .gt. 0.5_sp) current = VPP
+             !====================================================
+
+             DO J =1,NRSF
+                IND = RIVER_FORCING(I)%RIV_FILE2LOC(J)
+                IF(IND /= 0) FABMR(IND,IFABM) = CURRENT(J)
+             END DO
+
+             DEALLOCATE(CURRENT)
+            ! If variable is not present, decide whether it gets diluted or not
+            ! NOT SURE IF IT IS NEEDED FOR PLUME MODEL, Qin 05/03/2019
+            ! ELSE IF ( model%state_variables(IFABM)%no_river_dilution) THEN 
+               ! IF(NUMQBC > 0) THEN
+                 ! IF(RIVER_INFLOW_LOCATION == 'node') THEN
+                   ! DO J=1,NUMQBC
+                     ! JJ=INODEQ(J)
+                     ! FABMR(J,IFABM)=SUM(FABM_ALL(JJ,1:KBM1,IFABM))/KBM1
+                   ! ENDDO
+                 ! ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+                   ! CALL FATAL_ERROR("PLUME_INFLOW_LOCATION NOT SET UP FOR 'EDGE' YET")
+                 ! END IF ! IF node or edge
+               ! END IF ! if NUMQBC > 0
+               !             
+          ENDIF  ! If data is available for the current state variable in the current river file
+       END DO ! For each pelagic FABM state variable
+
+       END IF ! If argument FABM is present
+#endif
+
+    END DO ! FOR EACH FILE
+
+  END SUBROUTINE UPDATE_PLUMES
   !==============================================================================|
   SUBROUTINE UPDATE_GROUNDWATER(NOW,GW_FLUX,GW_TEMP,GW_SALT)
     IMPLICIT NONE

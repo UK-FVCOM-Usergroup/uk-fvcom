@@ -218,6 +218,19 @@
        END DO
      END IF
    END IF
+!---------------PLUME DISCHARGE INFLOW----------------------
+!Added by Qin 05/03/2019
+# if defined(PLUME)
+   IF(NUMPLM >= 1) THEN   
+       DO J=1,NUMPLM
+         JJ=INODEPLM(J)
+         DO K=1,KBM1
+           XFLUX(JJ,K)=XFLUX(JJ,K)-FLXPLM(J,K)*VDISTPLM(J,K)    
+         END DO
+       END DO
+  
+   END IF
+# endif
 
 #  if defined (MEAN_FLOW)
    IF (nmfcell > 0) THEN

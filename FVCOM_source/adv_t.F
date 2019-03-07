@@ -690,11 +690,24 @@ SUBROUTINE ADV_T
         END IF
      END IF
   END IF
-
+  !---------------------Plume flux part-----------------------------------------
+  ! Added by Qin 06/03/2019
+# if defined(PLUME)
+   IF(NUMPLM > 0) THEN
+            TPLM = TPLM+OFFS(1,1)
+           DO J=1,NUMPLM
+              JJ=INODEPLM(J)
+              DO K=1,KBM1
+                 T1_FRESH(JJ,K)=TPLM(J)+OFFS(1,1)
+                 XFLUX(JJ,K)=XFLUX(JJ,K) - FLXPLM(J,K)*VDISTPLM(J,K)*TPLM(J,K)
+              END DO
+           END DO
+   END IF
+# endif
   ! We remove the offset at the end of the smolarkiewicz loop
 
   !------------------------------------------------------------------------------
-
+  
   ! The horizontal term of advection is neglected here
   DO K=1,KBM1
      DO I=1,M
@@ -1051,6 +1064,17 @@ SUBROUTINE ADV_T
      END IF
   END IF
   !---------------------------------------------------------------------
+  !--  For Plume influx ------------------------------------
+# if defined(PLUME)
+    IF(NUMPLM > 0) THEN
+           DO J=1,NUMPLM
+              JJ=INODEPLM(J)
+              DO K=1,KBM1
+                 XFLUX(JJ,K)=XFLUX(JJ,K) - FLXPLM(J,K)*VDISTPLM(J,K)*TPLM(J,K)
+              END DO
+           END DO
+    END IF
+# endif
 
 # endif
 

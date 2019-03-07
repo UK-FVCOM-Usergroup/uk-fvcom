@@ -520,6 +520,23 @@
         
      END IF
 
+!-----Plume Dischage----------------------------
+!  Added by Qin  05/03/2019
+
+# if defined(PLUME)
+# if !defined (PLUME_CALCULATED)
+      IF(NUMPLM_GL .GT. 0)  THEN
+        CALL UPDATE_PLUMES(IntTime,FLXPLM,VDISTPLM,TEMP=TPLM,SALT=SPLM)  
+# if defined(FABM)
+        CALL UPDATE_PLUMES(IntTime,FLXPLM,FABMMR=FABMDIS)  ! needs to double check
+# endif   
+        FLXPLM    = FLXPLM*RAMP         
+      END IF
+#  else
+  !  UPDATE_PLUMES_CALCULATED (waiting for Håward's input, see UPDATE_HEATING_CALCULATED as an example)
+# endif
+# endif   
+!----------------------------------      
 
 
      IF (WIND_ON) THEN
