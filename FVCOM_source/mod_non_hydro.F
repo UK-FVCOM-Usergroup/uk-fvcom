@@ -564,7 +564,7 @@ MODULE NON_HYDRO
   INTEGER  I, I1, I2, J, J1, J2, JJ, K, LN, IA, IB, PETSc_POS, CHK_POS, NODE, NREC
   INTEGER  TMP2, TMP3, PROW1, PROW2, PROW, PCOL1, PCOL2, PCOL3
   REAL(SP), ALLOCATABLE  ::  XFL_EL(:),YFL_EL(:),XFL_D(:,:),YFL_D(:,:)
-  REAL(SP), ALLOCATABLE  ::  XFLUX(:,:), XFLUX_EXT(:,:)
+  REAL(SP), ALLOCATABLE  ::  XFLUX(:,:), XFLUX_EXT(:,:), XFLUX_EXT_PLM(:,:)
   REAL(SP), ALLOCATABLE  ::  CA(:,:), CAD(:)
   REAL(SP)  :: AVG_U_TMP, AVG_V_TMP, U1, U2, V1, V2
   REAL(SP)  :: DIJ, UIJ, VIJ, EXFLUX, DX, DY, V_TMP1, DD
@@ -684,6 +684,20 @@ MODULE NON_HYDRO
   END IF
 ! end add source terms
 
+!--------external source terms from plume
+! added by Qin, 07/08/2019
+  ALLOCATE(XFLUX_EXT_PLM(0:MT,KBM1)) ;  XFLUX_EXT_PLM = 0.0_SP
+  IF(NUMPLM >= 1) THEN
+      DO J=1,NUMPLM
+        JJ=INODEPLM(J)
+        DO K=1,KBM1
+          XFLUX_EXT_PLM(JJ,K)=XFLUX_EXT_PLM(JJ,K)-FLXPLM(J,K)*VDISTPLM(J,K)
+        END DO
+      END DO
+  END IF
+
+!--------------------------------------------
+
   CALL VecSet(BLOCAL,ZERO,IERR);CHKERRQ(IERR)
   CALL VecSet(B,ZERO,IERR);CHKERRQ(IERR)
   RHS = 0.0_SP
@@ -733,6 +747,9 @@ MODULE NON_HYDRO
 
     DO K=1, KBM1
       RHS(I,K) = RHS(I,K) + 1.0E3_SP*XFLUX_EXT(I,K)/DTI
+# if defined (PLUME)
+     RHS(I,K) = RHS(I,K) + 1.0E3_SP*XFLUX_EXT_PLM(I,K)/DTI
+# endif
     ENDDO
 
   ENDDO
@@ -1575,7 +1592,7 @@ MODULE NON_HYDRO
   CALL PETSc_SOLVER
 
   DEALLOCATE(XFL_EL,YFL_EL,XFL_D,YFL_D)
-  DEALLOCATE(XFLUX,XFLUX_EXT,CA,CAD)
+  DEALLOCATE(XFLUX,XFLUX_EXT,XFLUX_EXT_PLM,CA,CAD)
   RETURN
   END SUBROUTINE GEN_POISSON
 
@@ -1907,6 +1924,20 @@ MODULE NON_HYDRO
   END IF
 ! add external source
 
+!---------------------- external source from plume------------------
+!Added by Qin 07/03/2019
+# if defined(PLUME)
+   IF(NUMPLM >= 1) THEN
+      DO J=1,NUMPLM
+        JJ=INODEPLM(J)
+        DO K=1,KBM1
+          XFLUX(JJ,K)=XFLUX(JJ,K)-FLXPLM(J,K)*VDISTPLM(J,K)    
+        END DO
+      END DO
+  END IF
+# endif 
+!------------------------------------------------------------------
+
   DO I=1, M
     W4ZT(I,KB) = -AVG_U(I,KBM1)*A1AVGD(I) - AVG_V(I,KBM1)*A2AVGD(I)
   ENDDO
@@ -2053,6 +2084,16 @@ MODULE NON_HYDRO
     END IF
   END IF
 ! add external source
+!---------------------- external source from plume------------------
+!Added by Qin 07/03/2019
+# if defined(PLUME)
+ IF(NUMPLM >= 1) THEN
+      DO J=1,NUMPLM
+        JJ=INODEPLM(J)
+       XFLUX(JJ)=XFLUX(JJ)-SUM(FLXPLM(J,1:KBM1))
+      END DO
+  END IF
+# endif
 
   DO I=1, M
     PETSc_POS = ALO_2_PLO_NODE(I)
