@@ -2388,7 +2388,7 @@ SUBROUTINE FOPEN(IUNIT,INSTR,IOPT)
    IF(IOPT(3:3) == "r")  REWIND(IUNIT)
 
    if(DBG_SET(dbg_io))  &
-        & write(IPT,*) "Opend File: ",INSTR
+        & write(IPT,*) "Opened File: ",INSTR
    
 
 

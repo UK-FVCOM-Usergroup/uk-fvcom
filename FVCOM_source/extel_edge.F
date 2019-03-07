@@ -44,6 +44,10 @@
    USE MOD_BALANCE_2D
 #  endif
 
+#  if defined (WET_DRY)
+   USE MOD_WD
+#  endif
+
 !  ggao 0903/2007
 #  if defined (ICE)
    use mod_ice,only : isicen  !,fresh,RHOW
@@ -87,7 +91,11 @@
      I1  = NTRG(I)
      IA  = NIEC(I,1)
      IB  = NIEC(I,2)
+#    if defined (WET_DRY)
+     DIJ = D1(I1)-DELF1(I1)
+#    else
      DIJ = D1(I1)
+#    endif
 
      UIJ = UA(I1)
      VIJ = VA(I1)
@@ -173,7 +181,16 @@
      END IF
    END IF
 
-
+!---------ADJUST FLUX FOR PLUME DISCHARGE--------------------------------!
+! added by Qin, 05/03/2019, should not be so complicated. 
+# if defined(PLUME)
+   IF(NUMPLM >= 1) THEN   
+       DO J=1,NUMPLM
+         JJ=INODEPLM(J)
+         XFLUX(JJ)=XFLUX(JJ)-SUM(FLXPLM(J,1:KBM1)) ! needs to be double checked
+       END DO
+   END IF
+# endif
 !----------PERFORM UPDATE ON ELF-----------------------------------------------!
 
    DTK = ALPHA_RK(K)*DTE

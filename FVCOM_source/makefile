@@ -60,7 +60,8 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	eqs_of_state.F	mod_bulk.F	mod_interp.F	mod_par.F	\
 	mod_par_special.F		mod_ncll.F	mod_nctools.F	\
 	mod_wd.F	mod_sng.F	mod_heatflux.F	mod_solar.F	\
-	mod_input.F	mod_force.F	mod_obcs.F	mod_petsc.F	\
+	mod_fabm_data.F mod_input.F	mod_fabm_3D.F	mod_force.F	\
+	mod_obcs.F	mod_petsc.F	mod_tvd.F \
 	mod_semi_implicit.F		mod_non_hydro.F	mod_set_time.F	\
 	ice_kinds_mod.F	ice_model_size.F		ice_domain.F	\
 	ice_constants.F	ice_fileunits.F	ice_state.F	ice_work.F	\

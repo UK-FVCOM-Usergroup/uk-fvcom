@@ -517,6 +517,10 @@ Module Scalar
 !       viscof=horcon*(fact*(viscoff(ia)+viscoff(ib))*0.5_sp + fm1)
         VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
 
+!# if defined (SEDIMENT)
+!        VISCOF = VISCOF*SEDIMENT_MIXING_RATIO
+!# endif
+
        txx=0.5_sp*(pfpxd(ia)+pfpxd(ib))*viscof
        tyy=0.5_sp*(pfpyd(ia)+pfpyd(ib))*viscof
 

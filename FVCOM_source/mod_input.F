@@ -29,6 +29,9 @@
 MODULE MOD_INPUT
   USE MOD_NCTOOLS
   USE MOD_UTILS
+# if defined (FABM)
+  USE MOD_FABM_DATA
+# endif
   IMPLICIT NONE
 
   PUBLIC
@@ -278,6 +281,9 @@ CONTAINS
     NC_VORTICITY    = .False.
     NC_WQM          = .False.
     NC_BIO          = .False.
+#if defined (FABM)
+    NC_FABM         = .False.
+#endif
     
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
@@ -310,6 +316,9 @@ CONTAINS
     NCAV_VORTICITY    = .False.
     NCAV_WQM          = .False.
     NCAV_BIO          = .False.
+# if defined(FABM)
+    NCAV_FABM         = .False.
+#endif
 
 
     ! OUTPUT VARIABLES DEFAULT TO OFF
@@ -413,6 +422,19 @@ CONTAINS
     RIVER_VERTICAL_DISTRIBUTION = "FUNCTIONAL VERTICAL RIVER DISTROBUTION: SEE FVCOM MANUAL FOR HELP"
 # endif
 
+
+    !--Paramers in NameList NML_PLUME_TYPE, added by Qin, 04/03/2019
+    PLUME_NUMBER          =  -1
+    PLUME_KIND            = "Options:"//TRIM(PRDC)//" or "//TRIM(VRBL)
+    PLUME_INFO_FILE       = "filename"
+
+
+    !--Parameters in NameList NML_PLUME, added by Qin, 04/03/2019
+    PLUME_NAME = "Plume Name in netcdf data file; use mulitple namelists for multiple plumes!"
+    PLUME_FILE = trim(casename)//"_plume.nc"
+    PLUME_GRID_LOCATION = -1
+	
+	
     !--Parameters in NameList NML_OPEN_BOUNDARY
     OBC_ON = .FALSE.
     OBC_NODE_LIST_FILE = trim(casename)//"_obc.dat"
@@ -435,6 +457,11 @@ CONTAINS
     OBC_BIO_FILE = trim(casename)//"_obc.nc "
     OBC_BIO_NUDGING_TIMESCALE = 0.0
 #   endif    
+#   if defined (FABM)
+    OBC_FABM_NUDGING = .False.
+    OBC_FABM_FILE = trim(casename)//"_obc.nc "
+    OBC_FABM_NUDGING_TIMESCALE = 0.0
+#   endif
     OBC_MEANFLOW = .FALSE.
     OBC_MEANFLOW_FILE = trim(casename)//"_obc.nc"
     OBC_LONGSHORE_FLOW_ON = .FALSE.
@@ -485,6 +512,9 @@ CONTAINS
     BIOLOGICAL_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 !------------------------------------------
     STARTUP_BIO_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
+# if defined (FABM)
+    FABM_MODEL= .FALSE.
+# endif
     SEDIMENT_MODEL= .FALSE.
     SEDIMENT_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # if defined (OFFLINE_SEDIMENT)
@@ -545,7 +575,9 @@ CONTAINS
     write(UNIT=IPT,NML=NML_SURFACE_FORCING)
     write(UNIT=IPT,NML=NML_PHYSICS)
     write(UNIT=IPT,NML=NML_RIVER_TYPE)
-    write(UNIT=IPT,NML=NML_RIVER)
+    write(UNIT=IPT,NML=NML_RIVER) 
+	write(UNIT=IPT,NML=NML_PLUME_TYPE)
+    write(UNIT=IPT,NML=NML_PLUME)
     write(UNIT=IPT,NML=NML_OPEN_BOUNDARY_CONTROL)
     write(UNIT=IPT,NML=NML_GRID_COORDINATES)
     write(UNIT=IPT,NML=NML_GROUNDWATER)
@@ -783,9 +815,70 @@ CONTAINS
        CALL FATAL_ERROR("YOU CAN'T HAVE A NEGATIVE NUMBER OF RIVERS!")
     END IF
 
-
     REWIND(NMLUNIT)
 
+! Read Plume settings, added by Qin, 04/03/2019
+    READ(UNIT=NMLUNIT, NML=NML_PLUME_TYPE,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_PLUME_TYPE)
+       Call Fatal_Error("Can Not Read NameList NML_PLUME_TYPE from file: "//trim(FNAME))
+    end if
+
+    if(DBG_SET(dbg_scl)) &
+         & write(IPT,*) "Read_Name_List:"
+
+    if(DBG_SET(dbg_scl)) &
+         & write(UNIT=IPT,NML=NML_PLUME_TYPE)
+
+    IF(PLUME_NUMBER > 0) THEN
+         !!  use the specified river file information
+          PLUMENMLUNIT=800
+          pathnfile = trim(INPUT_DIR)//trim(PLUME_INFO_FILE)
+          Call FOPEN(PLUMENMLUNIT,trim(pathnfile),'cfr')
+
+       ALLOCATE(PLUMES(PLUME_NUMBER))
+
+       ! Read River Namelists...
+       ios = 0
+       i = 0
+       DO 
+          READ(UNIT=PLUMENMLUNIT, NML=NML_PLUME,IOSTAT=ios)
+
+          if (IOS /= 0 ) exit
+          I = I +1
+          if  (I > PLUME_NUMBER) exit ! To prevent sigsev...
+    
+          PLUMES(i)%NAME=PLUME_NAME
+          PLUMES(i)%FILE=PLUME_FILE
+          PLUMES(i)%LOCATION=PLUME_GRID_LOCATION
+       END DO
+
+       IF(I .NE. PLUME_NUMBER) THEN
+          if(DBG_SET(dbg_log))  then
+             write(ipt,*)"Bad Plume data in the Name List!"
+             write(ipt,*)"Specified number of plumes:",PLUME_NUMBER
+             write(ipt,*)"But Found",I, "; Valid plume name list objects.(Printing Last)"
+             write(UNIT=IPT,NML=NML_PLUME)
+          end if
+          
+          CALL FATAL_ERROR('PLEASE REPAIR THE NAME LIST SO IT IS CONSISTANT... see above')
+       END IF
+       
+    ELSE IF (PLUME_NUMBER .eq. 0) THEN
+       
+       READ(UNIT=NMLUNIT, NML=NML_PLUME,IOSTAT=ios)
+       !THERE SHOULD BE NO PLUME NAME LISTS
+       if (IOS == 0 ) CALL FATAL_ERROR &
+            & ('THERE ARE ONE OR MORE PLUME NAME LISTS, BUT PLUME TYPE SPECIFIED ZERO PLUMES?')
+       
+    ELSE
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_PLUME_TYPE)
+       CALL FATAL_ERROR("YOU CAN'T HAVE A NEGATIVE NUMBER OF RIVERS!")
+    END IF
+
+    REWIND(NMLUNIT)
+	
+	
 
     ! Read Open Boundary Control Settings
     READ(UNIT=NMLUNIT, NML=NML_OPEN_BOUNDARY_CONTROL,IOSTAT=ios)
@@ -1563,6 +1656,28 @@ CONTAINS
 
 # endif
 
+# if defined (OFFLINE_FABM)
+    ! Check FABM file and open
+    IF (FABM_MODEL) THEN
+       ! TEST FILE NAME
+       charnum = index (OFFLINE_FABM_FILE,".nc",back)
+       if (charnum /= len_trim(OFFLINE_FABM_FILE)-2)&
+            & CALL WARNING("OFFLINE_FABM_FILE does not end in .nc", &
+            & trim(OFFLINE_FABM_FILE))
+
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(OFFLINE_FABM_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+           FILEHEAD => ADD(FILEHEAD,NCF)
+        end if
+     END IF
+# endif
+
     !Check RIVER files and open
     
     do i =1, river_number
@@ -1575,6 +1690,30 @@ CONTAINS
        
        ! INITIALIZE TYPE TO HOLD FILE METADATA
        pathnfile= trim(INPUT_DIR)//trim(RIVERS(i)%FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+       
+       ! OPEN THE FILE AND LOAD METADATA IF NOT ALREADY DONE
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+
+    end do
+	
+	
+    !Check PLUME files and open, added by Qin 04/03/2019
+    
+    do i =1, plume_number
+
+       ! TEST FILE NAME
+       charnum = index (PLUMES(i)%FILE,".nc",back)
+       if (charnum /= len_trim(PLUMES(i)%FILE)-2)&
+            & CALL WARNING("PLUME FILE does not end in .nc", &
+            & trim(PLUMES(i)%FILE))
+       
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(PLUMES(i)%FILE)
        CALL  NC_INIT(NCF,pathnfile)
        
        ! OPEN THE FILE AND LOAD METADATA IF NOT ALREADY DONE
@@ -1680,6 +1819,31 @@ CONTAINS
             FILEHEAD => ADD(FILEHEAD,NCF)
          end if
       end if
+
+!! --- ADDITION FOR FABM BOUNDARY CONDITIONS
+#   if defined (FABM)
+       if (OBC_FABM_NUDGING) then
+
+         ! TEST FILE NAME
+         charnum = index (OBC_FABM_FILE,".nc",back)
+         if (charnum /= len_trim(OBC_FABM_FILE)-2)&
+              & CALL WARNING("OBC_FABM_FILE does not end in .nc", &
+              & trim(OBC_FABM_FILE))
+
+         ! INITIALIZE TYPE TO HOLD FILE METADATA
+         pathnfile= trim(INPUT_DIR)//trim(OBC_FABM_FILE)
+         CALL  NC_INIT(NCF,pathnfile)
+
+         ! OPEN THE FILE AND LOAD METADATA
+         if(.not. NCF%OPEN) then
+            Call NC_OPEN(NCF)
+            CALL NC_LOAD(NCF)
+            FILEHEAD => ADD(FILEHEAD,NCF)
+         end if
+      end if
+!!
+#   endif
+
       
       if (OBC_MEANFLOW) then
          

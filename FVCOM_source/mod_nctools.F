@@ -234,12 +234,12 @@ SUBROUTINE NC_OPEN(NCF)
        & write(IPT,*) "STARTING NC_OPEN"
 
   if (NCF%WRITABLE) then
-     errmsg="File named: "//NCF%fname//"; Can not be opend by nf90_open"
+     errmsg="File named: "//NCF%fname//"; Can not be opened by nf90_open"
      status = nf90_open(trim(NCF%fname), NF90_WRITE, NCF%ncid)
      CALL HANDLE_NCERR(status,trim(errmsg))
      
   else  ! default is open with nf90_nowrite
-     errmsg="File: "//TRIM(NCF%fname)//"; Can not be opend by nf90_open"
+     errmsg="File: "//TRIM(NCF%fname)//"; Can not be opened by nf90_open"
      status = nf90_open(TRIM(NCF%fname), nf90_noWrite, NCF%ncid)
      CALL HANDLE_NCERR(status,TRIM(errmsg))
   end if

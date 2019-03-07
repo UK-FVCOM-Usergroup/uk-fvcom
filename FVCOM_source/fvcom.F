@@ -429,6 +429,9 @@ PROGRAM FVCOM
 # if defined (BioGen)
   USE MOD_BIO_3D
 # endif    
+# if defined (FABM)
+  USE MOD_FABM_3D
+# endif
 # if defined (DYE_RELEASE)
   USE MOD_DYE
 # endif
@@ -466,6 +469,11 @@ PROGRAM FVCOM
 
 # if defined (ICE)
   USE MOD_ICE
+# endif
+
+! Added by researchers at Akvaplan-niva 2018, idealized tests give promising results.
+# if defined (TVD)
+  USE MOD_TVD
 # endif
 
 # if defined (NH)
@@ -584,6 +592,13 @@ PROGRAM FVCOM
   CALL SETUP_DOMAIN
 
   !==============================================================================!
+  !  GET THE PARAMETERS OF FABM                                      !
+  !==============================================================================!
+#  if defined (FABM)
+  IF (FABM_MODEL) CALL FABM_FVCOM_INITIALIZE
+#  endif
+
+  !==============================================================================!
   !   ALLOCATE ALL DOMAIN SIZE VARIABLES HERE                                    !
   !==============================================================================!
   CALL ALLOCATE_ALL
@@ -611,6 +626,10 @@ PROGRAM FVCOM
   &  CALL SETUP_SED(SEDIMENT_MODEL_FILE,IOBCN,IOBCN_GL,N_SED,N_SED_MAX,SED_NAMES)
 #  endif
 
+   !SETUP TVD ADVECTION
+# if defined (TVD)
+   CALL SETUP_TVD
+# endif
 
 !JQI  !==============================================================================!
 !JQI  !  SETUP THE MODEL FORCING                                                     !
