@@ -187,7 +187,7 @@
    IF(NUMPLM >= 1) THEN   
        DO J=1,NUMPLM
          JJ=INODEPLM(J)
-         XFLUX(JJ)=XFLUX(JJ)-SUM(FLXPLM(J,:)) ! needs to be double checked
+         XFLUX(JJ)=XFLUX(JJ)-SUM(FLXPLM(J,1:KBM1)) ! needs to be double checked
        END DO
    END IF
 # endif
