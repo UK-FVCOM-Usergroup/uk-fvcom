@@ -888,6 +888,7 @@ MODULE CONTROL
     REAL(SP), ALLOCATABLE :: BIODIS(:,:)
 # if defined (FABM)
     REAL(SP), ALLOCATABLE :: FABMDIS(:,:)
+    REAL(SP), ALLOCATABLE :: FABMPLM(:,:,:)
 # endif
 
 
