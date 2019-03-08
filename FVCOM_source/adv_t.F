@@ -698,7 +698,7 @@ SUBROUTINE ADV_T
            DO J=1,NUMPLM
               JJ=INODEPLM(J)
               DO K=1,KBM1
-                 T1_FRESH(JJ,K)=TPLM(J)+OFFS(1,1)
+                 T1_FRESH(JJ,K)=TPLM(J,K)
                  XFLUX(JJ,K)=XFLUX(JJ,K) - FLXPLM(J,K)*VDISTPLM(J,K)*TPLM(J,K)
               END DO
            END DO
