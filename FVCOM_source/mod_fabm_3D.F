@@ -1351,7 +1351,11 @@ END SUBROUTINE FABM_MIXING
 #  endif
    REAL(SP) :: FABM_MEAN
 
-
+# if defined (NH) || defined(LIMITER_VER_ADV)
+   REAL(SP) CONV_FAB(1:KB), DISS_FAB(1:KB)
+   REAL(SP) FABL_H(0:KB), FAB_TEMP(0:KB)
+   REAL(SP) FABL_U, FABL_F
+# endif
 
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_ADV"
@@ -1381,7 +1385,7 @@ END SUBROUTINE FABM_MIXING
       CALL FATAL_ERROR("SEMI_IMPLICIT OPTION NOT IMPLEMENTED IN FABM_ADV")
 #   endif
 #   if defined (NH)
-      CALL FATAL_ERROR("NH OPTION NOT IMPLEMENTED IN FABM_ADV")
+!      CALL FATAL_ERROR("NH OPTION NOT IMPLEMENTED IN FABM_ADV")
 #   endif
 #   if defined (LIMITER_VER_ADV)
       CALL FATAL_ERROR("LIMITER_VER_ADV OPTION NOT IMPLEMENTED IN FABM_ADV")
@@ -1880,13 +1884,33 @@ END SUBROUTINE FABM_MIXING
      IF(ISWETN(I)*ISWETNT(I) == 1) THEN
 #    endif
 
-#       if defined (NH) || defined (LIMITER_VER_ADV)
+! Akvaplan-niva 2019: First shot at implementing FABM in NH-FVCOM
+#  if defined (NH) || defined (LIMITER_VER_ADV)
+        FAB_TEMP(0)  = -FABM_ALL(I,1,IFABM)
+        FAB_TEMP(KB) = -FABM_ALL(I,KBM1,IFABM)
+        FABL_H(0)    = DZ(I,1)
+        FABL_H(KB)   = DZ(I,KBM1)
+        DO K=1, KBM1
+          FAB_TEMP(K) = FABM_ALL(I,K,IFABM)
+          FABL_H(K)   = DZ(I,K)
+        ENDDO
 
-#       endif
+        DO K=2, KBM1
+          CONV_FAB(K) = WTS(I,K)*(FAB_TEMP(K)+FAB_TEMP(K-1))*0.5_SP
+          FABL_U = 2.0_SP*(FAB_TEMP(K)-FAB_TEMP(K+1))/(FABL_H(K)+FABL_H(K+1))
+          FABL_F = 2.0_SP*(FAB_TEMP(K-2)-FAB_TEMP(K-1))/(FABL_H(K-2)+FABL_H(K-1))
+          DISS_FAB(K) = 0.5_SP*ABS(WTS(I,K))*(FAB_TEMP(K-1)-FAB_TEMP(K)-0.5_SP*LIMLED2(FABL_U,FABL_F,2.0_SP)*(FABL_H(K-1)+FABL_H(K)))                                                                                                         
+        ENDDO
+        CONV_FAB(1)  = 0.0_SP
+        DISS_FAB(1)  = 0.0_SP
+        CONV_FAB(KB) = 0.0_SP
+        DISS_FAB(KB) = 0.0_SP
+#   endif
 
         DO K=1, KBM1
 
 #          if defined (NH) || defined (LIMITER_VER_ADV)
+            TEMP = CONV_FAB(K)-CONV_FAB(K+1)+DISS_FAB(K+1)-DISS_FAB(K)
 #          endif
 
 #          if !defined (NH) && !defined (LIMITER_VER_ADV)
