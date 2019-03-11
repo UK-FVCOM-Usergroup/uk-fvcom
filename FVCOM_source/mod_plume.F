@@ -28,12 +28,107 @@
 !     "PLUME_CALCULATED" when you compile the code.
 
 MODULE MOD_PLUME
-      USE MOD_PREC
-      IMPLICIT NONE
+    USE ALL_VARS
+    USE MOD_UTILS
+    USE MOD_PREC
+	
+    IMPLICIT NONE
+    SAVE
+	
+    LOGICAL PLUME_CALCULATE_ON
+    INTEGER(SP) :: PLUME_RELEASE_NODEID                       !!GLOBAL NODE ID WHERE PLUME IS RELEASED
+    INTEGER(SP) :: PLUME_RELEASE_SIGMALAYER                 !!THE SIGMA LAYER WHERE PLUME IS RELEASED
+    REAL(SP)    :: PLUME_INITIAL_TEMPERATURE                      !!INITIAL PLUME TEMPERATURE
+    REAL(SP)    :: PLUME_INITIAL_SALINITY                       !!INITIAL PLUME SALINITY
+    REAL(SP)    :: PLUME_INITIAL_CONCENTRATION                    !!INITIAL PLUME CONCENTRATION
+    REAL(SP)    :: PLUME_INITIAL_MOMENTUM_FLUX                         !!INITIAL PLUME MOMENTUM FLUX
+    REAL(SP)    :: PLUME_INITIAL_VOLUME_FLUX                      !!INITIAL PLUME VOLUMN FLUX
+    REAL(SP)    :: PLUME_INITIAL_BOUYANCY_FLUX                          !!INITIAL PLUME BOUYANCY FLUX
+	
+    NAMELIST /NML_PLUME_CALCULATED/            &
+    & PLUME_CALCULATE_ON,                      &
+    & PLUME_RELEASE_NODEID,                    &
+    & PLUME_RELEASE_SIGMALAYER,                &
+    & PLUME_INITIAL_TEMPERATURE,               &
+    & PLUME_INITIAL_SALINITY,                  &
+    & PLUME_INITIAL_CONCENTRATION,             &
+    & PLUME_INITIAL_MOMENTUM_FLUX,             &
+    & PLUME_INITIAL_VOLUME_FLUX,               &
+    & PLUME_INITIAL_BOUYANCY_FLUX             
+	
+	
+    CONTAINS
 
-CONTAINS
+!==============================================================================|
+!   Input Parameters for the Plume Model                |
+!==============================================================================|
 
-      SUBROUTINE UPDATE_PLUMES_CALCULATED(V0,W0,F0,PTEMP,PSALT,PTRACER,INS,Inode,IFABM, &
+   SUBROUTINE PLUME_CALCULATE_NAMELIST_INITIALIZE
+   USE control, only : casename
+   IMPLICIT NONE
+   
+   PLUME_CALCULATE_ON            =  .FALSE.                
+   PLUME_RELEASE_NODEID          =  0                 
+   PLUME_RELEASE_SIGMALAYER      =  0         
+   PLUME_INITIAL_TEMPERATURE     =  0.0_SP          
+   PLUME_INITIAL_SALINITY        =  0.0_SP        
+   PLUME_INITIAL_CONCENTRATION   =  0.0_SP            
+   PLUME_INITIAL_MOMENTUM_FLUX   =  0.0_SP  
+   PLUME_INITIAL_VOLUME_FLUX     =  0.0_SP            
+   PLUME_INITIAL_BOUYANCY_FLUX   =  0.0_SP            
+   
+   RETURN
+   END SUBROUTINE PLUME_CALCULATE_NAMELIST_INITIALIZE
+   
+!------------------------------------------------------------------------------|
+   SUBROUTINE PLUME_CALCULATE_NAMELIST_PRINT
+   USE CONTROL, ONLY : IPT
+   
+   IMPLICIT NONE
+   
+   WRITE(UNIT=IPT,NML=NML_PLUME_CALCULATED)
+   
+   RETURN
+   END SUBROUTINE PLUME_CALCULATE_NAMELIST_PRINT  
+   
+!------------------------------------------------------------------------------|
+   SUBROUTINE PLUME_CALCULATE_NAMELIST_READ    
+   USE CONTROL, ONLY : casename,NMLUNIT
+   
+   IMPLICIT NONE
+   
+   INTEGER :: IOS, I
+   CHARACTER(LEN=120) :: FNAME
+   CHARACTER(LEN=160) :: PATHNFILE
+   
+   IF(DBG_SET(DBG_SBR)) &
+         & WRITE(IPT,*) "Subroutine Begins: Read_Plume_Calculate_Namelist;"
+
+   IOS = 0
+
+   FNAME = "./"//trim(casename)//"_run.nml"
+
+   CALL FOPEN(NMLUNIT,trim(FNAME),'cfr')
+
+   !READ NAME LIST FILE
+    REWIND(NMLUNIT)
+
+   ! Read IO Information
+   READ(UNIT=NMLUNIT, NML=NML_PLUME_CALCULATED,IOSTAT=ios)
+   if(ios .NE. 0 ) Then
+     if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_PLUME_CALCULATED)
+     Call Fatal_error("Can Not Read NameList NML_PLUME_CALCULATED from file: "//trim(FNAME))
+   end if
+   CLOSE(NMLUNIT)
+ 
+   RETURN
+   END SUBROUTINE PLUME_CALCULATE_NAMELIST_READ
+
+!==============================================================================|	
+
+
+
+    SUBROUTINE UPDATE_PLUMES_CALCULATED(V0,W0,F0,PTEMP,PSALT,PTRACER,INS,Inode,IFABM, &
                                           &FLUX,TMPT,SLT,TRACER,gridinfo,MAXsigma,HYDsigma)
 ! --------------------------------------------------------------------------------------
 !     This routine reads the volume-, momentum- and buoyancyflux, as well as the
@@ -77,6 +172,18 @@ CONTAINS
 
 !     Constants and ICs
       entcoef        = 0.07_SP  ! The exact value of this parameter is disputed
+!===========Added by Qin, need to be modified=================================
+   INODE     =    PLUME_RELEASE_NODEID     
+   KSIGLAY   =    PLUME_RELEASE_SIGMALAYER      
+   PTEMP     =    PLUME_INITIAL_TEMPERATURE     
+   PSALT     =    PLUME_INITIAL_SALINITY        
+   PTRACER   =    PLUME_INITIAL_CONCENTRATION   
+   V0        =    PLUME_INITIAL_MOMENTUM_FLUX   
+   W0        =    PLUME_INITIAL_VOLUME_FLUX     
+   F0        =    PLUME_INITIAL_BOUYANCY_FLUX   
+
+
+!=======================================================================
       DEPTH          = -H(Inode)*DZ(Inode,:)
       MYDENS         = RHO1(Inode,:)
 
