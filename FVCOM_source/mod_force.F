@@ -43,7 +43,9 @@ MODULE MOD_FORCE
 # if defined (HEATING_SOLAR)
   USE MOD_SOLAR
 # endif
-
+# if defined (PLUME_CALCULATED)
+  USE MOD_PLUME
+# endif
   IMPLICIT NONE
 
   SAVE
