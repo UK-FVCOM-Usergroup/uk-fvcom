@@ -128,7 +128,7 @@ MODULE MOD_PLUME
 
 
 
-    SUBROUTINE UPDATE_PLUMES_CALCULATED(FLUX,TMPT,SLT,TRACER,VDIST)
+    SUBROUTINE UPDATE_PLUMES_CALCULATED(PFLUX,PT,PS,PFT,VDIST)
 ! --------------------------------------------------------------------------------------
 !     This routine reads the volume-, momentum- and buoyancyflux, as well as the
 !     initial concentration of salt, tracer and temperature to give an estimate of
@@ -139,9 +139,9 @@ MODULE MOD_PLUME
 !     Variables:
 !     ----------------
 !     NAMELIST INPUT
-!     V0:           Source momentum flux
-!     W0:           Source volume flux
-!     F0:           Source buoyancy flux
+!     SOURCE_MOM:   Source momentum flux
+!     SOURCE_VOL:   Source volume flux
+!     SOURCE_BUOY:  Source buoyancy flux
 !     PTEMP:        Initial plume temperature
 !     PSALT:        Initial plume salinity
 !     PTRACER:      Initial plume concentration
@@ -150,24 +150,26 @@ MODULE MOD_PLUME
 !     INS:          Input sigma layer
 
 !     OUTPUT:
-!     T:            Temperature flux caused by the plume
-!     S:            Salinity flux caused by the plume
-!     F:            Tracer flux caused by the plume
+!     ----------------
+!     PT:           Temperature of plume at the top, surroundings everywhere else
+!     PS:           Salinity of the plume at the top, surroundings everywhere else
+!     PFT:          FABM tracer concentration at the top, surroundings everwhere else
+!     PFLUX:        Volume flux caused by the plume
 !     VDIST:        The nodes influenced by the plume, as well as sigma layers
 ! ------------------------------------------------------------------------------------
 
       USE ALL_VARS
       USE MOD_UTILS
       IMPLICIT NONE
-      REAL(SP)                                       ::                        V0, W0, F0
-      REAL(SP)                                       ::   PTEMP, PSALT, PTRACER
-      REAL(SP), INTENT(  OUT), ALLOCATABLE           ::  TMPT(:,:),SLT(:,:),FLUX(:,:)
-      REAL(SP), INTENT(  OUT), ALLOCATABLE, OPTIONAL ::                       TRACER(:,:)
-      INTEGER,  INTENT(  OUT), ALLOCATABLE           ::                        VDIST(:,:)
-      INTEGER                                        ::                   INS,IFABM,Inode
-      REAL(SP), ALLOCATABLE                          ::    MYDENS(:), DEPTH(:), nyfreq(:)
-      REAL(SP)                                       ::         entcoef, zhyd, ztop, area
-      REAL(SP)                                       ::                            radius
+      REAL(SP)                                       :: SOURCE_MOM, SOURCE_VOL, SOURCE_BUOY
+      REAL(SP)                                       ::               PTEMP, PSALT, PTRACER
+      REAL(SP), INTENT(  OUT), ALLOCATABLE           ::          PT(:,:),PS(:,:),PFLUX(:,:)
+      REAL(SP), INTENT(  OUT), ALLOCATABLE, OPTIONAL ::                            PFT(:,:)
+      INTEGER,  INTENT(  OUT), ALLOCATABLE           ::                          VDIST(:,:)
+      INTEGER                                        ::                     INS,IFABM,Inode
+      REAL(SP), ALLOCATABLE                          ::      MYDENS(:), DEPTH(:), nyfreq(:)
+      REAL(SP)                                       ::           entcoef, zhyd, ztop, area
+      REAL(SP)                                       ::                              radius
 
 !     Constants and ICs
       entcoef        = 0.07_SP  ! The exact value of this parameter is disputed
@@ -178,29 +180,32 @@ MODULE MOD_PLUME
       PTEMP        =    PLUME_INITIAL_TEMPERATURE     
       PSALT        =    PLUME_INITIAL_SALINITY        
       PTRACER      =    PLUME_INITIAL_CONCENTRATION   
-      V0           =    PLUME_INITIAL_MOMENTUM_FLUX   
-      W0           =    PLUME_INITIAL_VOLUME_FLUX     
-      F0           =    PLUME_INITIAL_BOUYANCY_FLUX   
+      SOURCE_MOM   =    PLUME_INITIAL_MOMENTUM_FLUX   
+      SOURCE_VOL   =    PLUME_INITIAL_VOLUME_FLUX     
+      SOURCE_BUOY  =    PLUME_INITIAL_BOUYANCY_FLUX   
 
 !=======================================================================
-      DEPTH          = -H(Inode)*DZ(Inode,:) ! Thickness of sigma layer
-      MYDENS         = RHO1(Inode,:)
+      DEPTH        = -H(Inode)*DZ(Inode,:) ! Thickness of sigma layer
+      MYDENS       = RHO1(Inode,:)
 
       !CALL BUOYFREQ(MYDENS, DEPTH, nyfreq)
-      !CALL INTVERT(W0,V0,F0,PTEMP,PTRACER,PSALT,entcoef,INS,nyfreq,DEPTH, &
-      !             MAXsigma,HYDsigma,IFABM,Inode,FLUX,TMPT,SLT,TRACER)  
+      !CALL INTVERT(SOURCE_VOL,SOURCE_MOM,SOURCE_BUOY,PTEMP,PTRACER,PSALT,entcoef,INS,nyfreq,DEPTH, &
+      !             MAXsigma,HYDsigma,IFABM,Inode,PFLUX,PT,PS,TRACER)  
 
-      ALLOCATE(FLUX(0:MT,KBM1))
-      ALLOCATE(TMPT(0:MT,KBM1))
-      ALLOCATE(SLT(0:MT,KBM1))
+      ALLOCATE(PFLUX(0:MT,KBM1))
+      ALLOCATE(PT(0:MT,KBM1))
+      ALLOCATE(PS(0:MT,KBM1))
+      ALLOCATE(PFT(0:MT,KBM1))
       ALLOCATE(VDIST(0:MT,KBM1))
-      FLUX(:,:)     = 0.0_SP
-      TMPT(:,:)     = 0.0_SP
-      SLT(:,:)      = 0.0_SP
-      VDIST(:,:)    = 0
 
-      radius         = W0/V0
-      area           = 2*3.14159*radius**2
+      PFT(:,:)    = 0.0_SP
+      PFLUX(:,:)  = 0.0_SP
+      PT(:,:)     = 0.0_SP
+      PS(:,:)     = 0.0_SP
+      VDIST(:,:)  = 0
+
+      radius       = SOURCE_VOL/SOURCE_MOM
+      area         = 2*3.14159*radius**2
       
 !     Må fordele fluksen over et gitt antall noder. Hvilke noder faller innenfor
 !     plumens radius?
@@ -246,35 +251,35 @@ MODULE MOD_PLUME
       END DO
       END SUBROUTINE BUOYFREQ
 
-      SUBROUTINE INTVERT(W0,V0,F0,PLUME_TEMP,PLUME_TRACER,PLUME_SALT,entcoef,INS, &
-                         &nyfreq,DEPTH,MAXsigma,HYDsigma,IFABM,Inode,FLUX,TMPT,SLT,TRACER)
+      SUBROUTINE INTVERT(VOLFLUX,MOMFLUX,BUOYFLUX,PLUME_TEMP,PLUME_TRACER,PLUME_SALT,entcoef,INS, &
+                         &nyfreq,DEPTH,MAXsigma,HYDsigma,IFABM,Inode,FLUX,PT,PS,TRACER)
       USE ALL_VARS
       USE MOD_FABM_DATA
       IMPLICIT NONE
-      REAL(SP), INTENT(INOUT)                    ::                          W0, V0, F0
+      REAL(SP), INTENT(INOUT)                    ::          VOLFLUX, MOMFLUX, BUOYFLUX
       REAL(SP), INTENT(IN   )                    ::   PLUME_TEMP, PLUME_TRACER, entcoef
       REAL(SP), INTENT(IN   )                    ::                          PLUME_SALT
       REAL(SP), INTENT(IN   ), ALLOCATABLE       ::                 nyfreq(:), DEPTH(:)
       INTEGER,  INTENT(IN   )                    ::                   INS, IFABM, Inode
       INTEGER,  INTENT(  OUT)                    ::                  MAXsigma, HYDsigma
-      REAL(SP), INTENT(  OUT), DIMENSION(0:KBM1) ::                TMPT,SLT,TRACER,FLUX
-      REAL(SP), DIMENSION(0:KBM1)                ::          TEMPFLUX,SALTFLUX,FABMFLUX
+      REAL(SP), INTENT(  OUT), DIMENSION(0:KBM1) ::                PT,PS,TRACER,PF
+      REAL(SP), DIMENSION(0:KBM1)                ::          TEMPPF,SALTPF,FABMPF
       REAL(SP)                                   ::       radius, vertspeed, Wn, Vn, Fn
       INTEGER                                    ::                                   K
 !     Integrate the equations vertically (from the bottom to the top), and solve the 
 !     equations to get the plume parameters.
 
       K           = INS    ! INPUT sigma layer
-      FLUX(K)     = 0.0_SP
+      PF(K)     = 0.0_SP
 
-      radius      = W0/V0
-      vertspeed   = V0**2/W0
+      radius      = SOURCE_VOL/MOMPF
+      vertspeed   = SOURCE_MOM**2/VOLPF
 
-!     Add a "IF (F0 > 0) THEN" greie, og integrere i motsatt retning om det viser seg
+!     Add a "IF (SOURCE_BUOY > 0) THEN" greie, og integrere i motsatt retning om det viser seg
 !     at plumen synker.
-      TEMPFLUX(K) = V0*PLUME_TEMP   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*T1(Inode,K)
-      SALTFLUX(K) = V0*PLUME_SALT   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*S1(Inode,K)
-      FABMFLUX(K) = V0*PLUME_TRACER + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*FABM_ALL(Inode,K,IFABM)
+      TEMPPF(K) = SOURCE_MOM*PLUME_TEMP   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*T1(Inode,K)
+      SALTPF(K) = SOURCE_MOM*PLUME_SALT   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*S1(Inode,K)
+      FABMPF(K) = SOURCE_MOM*PLUME_TRACER + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*FABM_ALL(Inode,K,IFABM)
      
       DO WHILE (.TRUE.)
          K  = K-1
@@ -285,32 +290,32 @@ MODULE MOD_PLUME
             EXIT
          END IF
             
-         Wn = W0    + 2*entcoef*V0*DEPTH(K)
+         Wn = SOURCE_VOL    + 2*entcoef*SOURCE_MOM*DEPTH(K)
          IF (ISNAN(Wn)) THEN
             MAXsigma = K
             EXIT
          END IF
          
-         IF ((F0.GT.0).AND.(Fn.LE.0)) THEN
+         IF ((SOURCE_BUOY.GT.0).AND.(Fn.LE.0)) THEN
             HYDsigma = K
          END IF
-         Vn          = V0**4 + 2.0_SP*F0*W0*0.5_SP*DEPTH(K)
-         Fn          = F0    - nyfreq(K)**2
+         Vn          = SOURCE_MOM**4 + 2.0_SP*SOURCE_BUOY*SOURCE_VOL*0.5_SP*DEPTH(K)
+         Fn          = SOURCE_BUOY    - nyfreq(K)**2
 
 !     Update the plume S, T and FABMtracer due to entrained water
          radius      = Wn/Vn
          vertspeed   = Vn**2/Wn
 
 !     Finding the flux upwards from given sigma layer 
-         SALTFLUX(K) = SALTFLUX(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*S1(Inode,K)
-         TEMPFLUX(K) = TEMPFLUX(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*T1(Inode,K)
-         FABMFLUX(K) = FABMFLUX(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*FABM_ALL(Inode,K,IFABM)
-         FLUX(K)     = entcoef*2*pi*radius*vertspeed*(DEPTH(K)-DEPTH(K+1))
+         SALTPF(K) = SALTPF(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*S1(Inode,K)
+         TEMPPF(K) = TEMPPF(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*T1(Inode,K)
+         FABMPF(K) = FABMPF(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*FABM_ALL(Inode,K,IFABM)
+         PF(K)     = entcoef*2*pi*radius*vertspeed*(DEPTH(K)-DEPTH(K+1))
 
 !     We update the plume parameters if the plume is still rising
-         V0          = Vn**(0.25)        ! Momentum flux
-         W0          = Wn                ! Volume flux
-         F0          = Fn                ! Buoyancy flux
+         SOURCE_MOM          = Vn**(0.25)        ! Momentum flux
+         SOURCE_VOL          = Wn                ! Volume flux
+         SOURCE_BUOY         = Fn                ! Buoyancy flux
       END DO
       END SUBROUTINE INTVERT
 END MODULE MOD_PLUME
