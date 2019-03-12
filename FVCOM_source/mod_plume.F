@@ -36,14 +36,14 @@ MODULE MOD_PLUME
     SAVE
 	
     LOGICAL PLUME_CALCULATE_ON
-    INTEGER(SP) :: PLUME_RELEASE_NODEID                       !!GLOBAL NODE ID WHERE PLUME IS RELEASED
-    INTEGER(SP) :: PLUME_RELEASE_SIGMALAYER                 !!THE SIGMA LAYER WHERE PLUME IS RELEASED
-    REAL(SP)    :: PLUME_INITIAL_TEMPERATURE                      !!INITIAL PLUME TEMPERATURE
-    REAL(SP)    :: PLUME_INITIAL_SALINITY                       !!INITIAL PLUME SALINITY
-    REAL(SP)    :: PLUME_INITIAL_CONCENTRATION                    !!INITIAL PLUME CONCENTRATION
-    REAL(SP)    :: PLUME_INITIAL_MOMENTUM_FLUX                         !!INITIAL PLUME MOMENTUM FLUX
-    REAL(SP)    :: PLUME_INITIAL_VOLUME_FLUX                      !!INITIAL PLUME VOLUMN FLUX
-    REAL(SP)    :: PLUME_INITIAL_BOUYANCY_FLUX                          !!INITIAL PLUME BOUYANCY FLUX
+    INTEGER(SP) :: PLUME_RELEASE_NODEID          ! GLOBAL NODE ID WHERE PLUME IS RELEASED
+    INTEGER(SP) :: PLUME_RELEASE_SIGMALAYER      ! THE SIGMA LAYER WHERE PLUME IS RELEASED
+    REAL(SP)    :: PLUME_INITIAL_TEMPERATURE     ! INITIAL PLUME TEMPERATURE
+    REAL(SP)    :: PLUME_INITIAL_SALINITY        ! INITIAL PLUME SALINITY
+    REAL(SP)    :: PLUME_INITIAL_CONCENTRATION   ! INITIAL PLUME CONCENTRATION
+    REAL(SP)    :: PLUME_INITIAL_MOMENTUM_FLUX   ! INITIAL PLUME MOMENTUM FLUX
+    REAL(SP)    :: PLUME_INITIAL_VOLUME_FLUX     ! INITIAL PLUME VOLUMN FLUX
+    REAL(SP)    :: PLUME_INITIAL_BOUYANCY_FLUX   ! INITIAL PLUME BOUYANCY FLUX
 	
     NAMELIST /NML_PLUME_CALCULATED/            &
     & PLUME_CALCULATE_ON,                      &
@@ -60,7 +60,7 @@ MODULE MOD_PLUME
     CONTAINS
 
 !==============================================================================|
-!   Input Parameters for the Plume Model                |
+!   Input Parameters for the Plume Model                
 !==============================================================================|
 
    SUBROUTINE PLUME_CALCULATE_NAMELIST_INITIALIZE
@@ -128,8 +128,7 @@ MODULE MOD_PLUME
 
 
 
-    SUBROUTINE UPDATE_PLUMES_CALCULATED(V0,W0,F0,PTEMP,PSALT,PTRACER,INS,Inode,IFABM, &
-                                          &FLUX,TMPT,SLT,TRACER,gridinfo,MAXsigma,HYDsigma)
+    SUBROUTINE UPDATE_PLUMES_CALCULATED(FLUX,TMPT,SLT,TRACER,gridinfo)
 ! --------------------------------------------------------------------------------------
 !     This routine reads the volume-, momentum- and buoyancyflux, as well as the
 !     initial concentration of salt, tracer and temperature to give an estimate of
@@ -160,39 +159,52 @@ MODULE MOD_PLUME
       USE ALL_VARS
       USE MOD_UTILS
       IMPLICIT NONE
-      REAL(SP), INTENT(INOUT)              ::                        V0, W0, F0
-      REAL(SP), INTENT(IN   )              ::             PTEMP, PSALT, PTRACER
+      REAL(SP)                             ::                        V0, W0, F0
+      REAL(SP)                             ::             PTEMP, PSALT, PTRACER
       REAL(SP), INTENT(  OUT), ALLOCATABLE ::  TMPT(:),SLT(:),TRACER(:),FLUX(:)
       INTEGER,  INTENT(  OUT), ALLOCATABLE ::                       gridinfo(:)
-      INTEGER,  INTENT(IN   )              ::                   INS,IFABM,Inode
-      INTEGER,  INTENT(  OUT)              ::                MAXsigma, HYDsigma
+      INTEGER                              ::                   INS,IFABM,Inode
       REAL(SP), ALLOCATABLE                ::    MYDENS(:), DEPTH(:), nyfreq(:)
       REAL(SP)                             ::         entcoef, zhyd, ztop, area
       REAL(SP)                             ::                            radius
 
 !     Constants and ICs
       entcoef        = 0.07_SP  ! The exact value of this parameter is disputed
-!===========Added by Qin, need to be modified=================================
-   INODE     =    PLUME_RELEASE_NODEID     
-   KSIGLAY   =    PLUME_RELEASE_SIGMALAYER      
-   PTEMP     =    PLUME_INITIAL_TEMPERATURE     
-   PSALT     =    PLUME_INITIAL_SALINITY        
-   PTRACER   =    PLUME_INITIAL_CONCENTRATION   
-   V0        =    PLUME_INITIAL_MOMENTUM_FLUX   
-   W0        =    PLUME_INITIAL_VOLUME_FLUX     
-   F0        =    PLUME_INITIAL_BOUYANCY_FLUX   
 
+!===========Added by Qin, need to be modified=================================
+      INODE        =    PLUME_RELEASE_NODEID     
+      REL_SIGLAY   =    PLUME_RELEASE_SIGMALAYER      
+      PTEMP        =    PLUME_INITIAL_TEMPERATURE     
+      PSALT        =    PLUME_INITIAL_SALINITY        
+      PTRACER      =    PLUME_INITIAL_CONCENTRATION   
+      V0           =    PLUME_INITIAL_MOMENTUM_FLUX   
+      W0           =    PLUME_INITIAL_VOLUME_FLUX     
+      F0           =    PLUME_INITIAL_BOUYANCY_FLUX   
 
 !=======================================================================
-      DEPTH          = -H(Inode)*DZ(Inode,:)
+      DEPTH          = -H(Inode)*DZ(Inode,:) ! Thickness of sigma layer
       MYDENS         = RHO1(Inode,:)
 
-      CALL BUOYFREQ(MYDENS, DEPTH, nyfreq)
-      CALL INTVERT(W0,V0,F0,PTEMP,PTRACER,PSALT,entcoef,INS,nyfreq,DEPTH, &
-                   MAXsigma,HYDsigma,IFABM,Inode,FLUX,TMPT,SLT,TRACER)  
+      !CALL BUOYFREQ(MYDENS, DEPTH, nyfreq)
+      !CALL INTVERT(W0,V0,F0,PTEMP,PTRACER,PSALT,entcoef,INS,nyfreq,DEPTH, &
+      !             MAXsigma,HYDsigma,IFABM,Inode,FLUX,TMPT,SLT,TRACER)  
 
-      radius = W0/V0
-      area   = 2*3.14159*radius**2
+      ALLOCATE(FLUX(0:MT,KBM1))
+      ALLOCATE(TMPT(0:MT,KBM1))
+      ALLOCATE(SALT(0:MT,KBM1))
+      ALLOCATE(gridinfo(0:MT,KBM1))
+      FLUX(:)     = 0.0_SP
+      TMPT(:)     = 0.0_SP
+      SALT(:)     = 0.0_SP
+      gridinfo(:) = 0
+
+      radius         = W0/V0
+      area           = 2*3.14159*radius**2
+      
+!     Må fordele fluksen over et gitt antall noder. Hvilke noder faller innenfor
+!     plumens radius?
+
+!     Se til TVD koden for rettledning
       END SUBROUTINE UPDATE_PLUMES_CALCULATED
        
       SUBROUTINE BUOYFREQ(DENS,DEPTH,nyfreq)
@@ -208,6 +220,8 @@ MODULE MOD_PLUME
       allocate(nyfreq(1:SIZE(DENS)))
       
       DO K = 1,KBM1
+         ! Her interpolerer jeg slik at jeg får nyquist frekvensen sentrert over 
+         ! midtpunktet til sigmanivået?
          IF (K == 1) THEN
             Rup   = DENS(K)
             Rdown = (DENS(K)*DEPTH(K+1)+DENS(K+1)*DEPTH(K))/(DEPTH(K)+DEPTH(K+1))
@@ -219,12 +233,14 @@ MODULE MOD_PLUME
             Rdown = (DENS(K)*DEPTH(K+1)+DENS(K+1)*DEPTH(K))/(DEPTH(K)+DEPTH(K+1))
          END IF
          
+         ! Nyquist ferkvensen i andre
          nyfreq(K)     = -g/rhoref * ((Rup-Rdown)/(DEPTH(K)))
       
+         ! Sets the nyquist frequency to 0 in non-hydrostatically stable environments
          IF (nyfreq(K).LT.0.0_SP) THEN
-!           If the water column is not hydrostatically stable
             nyfreq(K) = 0.0_SP
          END IF
+         
          nyfreq(K)     = SQRT(nyfreq(K))
       END DO
       END SUBROUTINE BUOYFREQ
@@ -239,7 +255,7 @@ MODULE MOD_PLUME
       REAL(SP), INTENT(IN   )                    ::                          PLUME_SALT
       REAL(SP), INTENT(IN   ), ALLOCATABLE       ::                 nyfreq(:), DEPTH(:)
       INTEGER,  INTENT(IN   )                    ::                   INS, IFABM, Inode
-      INTEGER,  INTENT(  OUT)                    ::                  MAXsigma, HYDsigma
+      INTEGER,                                   ::                  MAXsigma, HYDsigma
       REAL(SP), INTENT(  OUT), DIMENSION(0:KBM1) ::                TMPT,SLT,TRACER,FLUX
       REAL(SP), DIMENSION(0:KBM1)                ::          TEMPFLUX,SALTFLUX,FABMFLUX
       REAL(SP)                                   ::       radius, vertspeed, Wn, Vn, Fn
@@ -253,7 +269,7 @@ MODULE MOD_PLUME
       radius      = W0/V0
       vertspeed   = V0**2/W0
 
-!     Her må jeg legge inn en "IF (F0 > 0) THEN" greie, og integrere i motsatt retning om det viser seg
+!     Add a "IF (F0 > 0) THEN" greie, og integrere i motsatt retning om det viser seg
 !     at plumen synker.
       TEMPFLUX(K) = V0*PLUME_TEMP   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*T1(Inode,K)
       SALTFLUX(K) = V0*PLUME_SALT   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*S1(Inode,K)
