@@ -128,7 +128,7 @@ MODULE MOD_PLUME
 
 
 
-    SUBROUTINE UPDATE_PLUMES_CALCULATED(FLUX,TMPT,SLT,TRACER,gridinfo)
+    SUBROUTINE UPDATE_PLUMES_CALCULATED(FLUX,TMPT,SLT,TRACER,VDIST)
 ! --------------------------------------------------------------------------------------
 !     This routine reads the volume-, momentum- and buoyancyflux, as well as the
 !     initial concentration of salt, tracer and temperature to give an estimate of
@@ -174,7 +174,7 @@ MODULE MOD_PLUME
 
 !===========Added by Qin, need to be modified=================================
       INODE        =    PLUME_RELEASE_NODEID     
-      REL_SIGLAY   =    PLUME_RELEASE_SIGMALAYER      
+      INS          =    PLUME_RELEASE_SIGMALAYER      
       PTEMP        =    PLUME_INITIAL_TEMPERATURE     
       PSALT        =    PLUME_INITIAL_SALINITY        
       PTRACER      =    PLUME_INITIAL_CONCENTRATION   
@@ -192,12 +192,12 @@ MODULE MOD_PLUME
 
       ALLOCATE(FLUX(0:MT,KBM1))
       ALLOCATE(TMPT(0:MT,KBM1))
-      ALLOCATE(SALT(0:MT,KBM1))
+      ALLOCATE(SLT(0:MT,KBM1))
       ALLOCATE(VDIST(0:MT,KBM1))
-      FLUX(:)     = 0.0_SP
-      TMPT(:)     = 0.0_SP
-      SALT(:)     = 0.0_SP
-      VDIST(:)    = 0
+      FLUX(:,:)     = 0.0_SP
+      TMPT(:,:)     = 0.0_SP
+      SLT(:,:)      = 0.0_SP
+      VDIST(:,:)    = 0
 
       radius         = W0/V0
       area           = 2*3.14159*radius**2
