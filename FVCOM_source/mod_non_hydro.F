@@ -687,6 +687,8 @@ MODULE NON_HYDRO
 !--------external source terms from plume
 ! added by Qin, 07/08/2019
   ALLOCATE(XFLUX_EXT_PLM(0:MT,KBM1)) ;  XFLUX_EXT_PLM = 0.0_SP
+# if defined(PLUME)
+# if !defined(PLUME_CALCULATED)
   IF(NUMPLM >= 1) THEN
       DO J=1,NUMPLM
         JJ=INODEPLM(J)
@@ -695,6 +697,14 @@ MODULE NON_HYDRO
         END DO
       END DO
   END IF
+# else
+  DO I=1,M
+        DO K=1,KBM1
+          XFLUX_EXT_PLM(I,K)=XFLUX_EXT_PLM(I,K)-FLXPLM(I,K)*VDISTPLM(I,K)
+        END DO
+    END DO
+# endif
+# endif
 
 !--------------------------------------------
 
@@ -1927,6 +1937,7 @@ MODULE NON_HYDRO
 !---------------------- external source from plume------------------
 !Added by Qin 07/03/2019
 # if defined(PLUME)
+# if !defined(PLUME_CALCULATED)
    IF(NUMPLM >= 1) THEN
       DO J=1,NUMPLM
         JJ=INODEPLM(J)
@@ -1935,6 +1946,13 @@ MODULE NON_HYDRO
         END DO
       END DO
   END IF
+# else
+  DO I=1,M
+        DO K=1,KBM1
+          XFLUX(I,K)=XFLUX(I,K)-FLXPLM(I,K)*VDISTPLM(I,K)
+        END DO
+    END DO
+# endif
 # endif 
 !------------------------------------------------------------------
 
@@ -2087,12 +2105,18 @@ MODULE NON_HYDRO
 !---------------------- external source from plume------------------
 !Added by Qin 07/03/2019
 # if defined(PLUME)
+# if !defined(PLUME_CALCULATED)
  IF(NUMPLM >= 1) THEN
       DO J=1,NUMPLM
         JJ=INODEPLM(J)
        XFLUX(JJ)=XFLUX(JJ)-SUM(FLXPLM(J,1:KBM1))
       END DO
   END IF
+# else
+     DO I=1,M
+       XFLUX(I)=XFLUX(I)-SUM(FLXPLM(I,1:KBM1))
+      END DO
+# endif
 # endif
 
   DO I=1, M

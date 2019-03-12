@@ -221,6 +221,7 @@
 !---------------PLUME DISCHARGE INFLOW----------------------
 !Added by Qin 05/03/2019
 # if defined(PLUME)
+# if !defined(PLUME)
    IF(NUMPLM >= 1) THEN   
        DO J=1,NUMPLM
          JJ=INODEPLM(J)
@@ -228,8 +229,14 @@
            XFLUX(JJ,K)=XFLUX(JJ,K)-FLXPLM(J,K)*VDISTPLM(J,K)    
          END DO
        END DO
-  
    END IF
+# else
+     DO I=1,M
+       DO K=1,KBM1
+           XFLUX(I,K)=XFLUX(I,K)-FLXPLM(I,K)*VDISTPLM(I,K)
+       END DO
+      END DO
+# endif
 # endif
 
 #  if defined (MEAN_FLOW)

@@ -184,12 +184,18 @@
 !---------ADJUST FLUX FOR PLUME DISCHARGE--------------------------------!
 ! added by Qin, 05/03/2019, should not be so complicated. 
 # if defined(PLUME)
+# if !defined(PLUME_CALCULATED)
    IF(NUMPLM >= 1) THEN   
        DO J=1,NUMPLM
          JJ=INODEPLM(J)
          XFLUX(JJ)=XFLUX(JJ)-SUM(FLXPLM(J,1:KBM1)) ! needs to be double checked
        END DO
    END IF
+# else
+   DO I=1,M
+       XFLUX(I)=XFLUX(I) - SUM(FLXPLM(I,1:KBM1))
+   END DO
+# endif
 # endif
 !----------PERFORM UPDATE ON ELF-----------------------------------------------!
 
