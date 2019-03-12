@@ -124,11 +124,23 @@ MODULE MOD_PLUME
    RETURN
    END SUBROUTINE PLUME_CALCULATE_NAMELIST_READ
 
-!==============================================================================|	
+!==============================================================================|
+! Allocate variables output from the plume model	
+!==============================================================================|
+ SUBROUTINE PLUME_CALCULATE_INIT
+   ALLOCATE(FLXPLM(0:MT,1:KBM1)) ;              FLXPLM     =   ZERO  ! 
+   ALLOCATE(VDISTPLM(0:MT,1:KBM1)) ;            VDISTPLM   =   ZERO  ! 
+   ALLOCATE(TPLM(0:MT,1:KBM1)) ;                TPLM       =   ZERO  ! 
+   ALLOCATE(SPLM(0:MT,1:KBM1)) ;                SPLM       =   ZERO  !
+   ALLOCATE(FABMPLM(0:MT,1:KBM1,1)) ;             FABMPLM    =    ZERO  !
+   
+!==============================================================================|
+ END SUBROUTINE PLUME_CALCULATE_INIT
+!==============================================================================|
 
+!==============================================================================|
 
-
-    SUBROUTINE UPDATE_PLUMES_CALCULATED(FLUX,TMPT,SLT,TRACER,VDIST)
+    SUBROUTINE UPDATE_PLUMES_CALCULATED(FLUX,TMPT,SLT,VDIST,TRACER)
 ! --------------------------------------------------------------------------------------
 !     This routine reads the volume-, momentum- and buoyancyflux, as well as the
 !     initial concentration of salt, tracer and temperature to give an estimate of
@@ -162,7 +174,7 @@ MODULE MOD_PLUME
       REAL(SP)                                       ::                        V0, W0, F0
       REAL(SP)                                       ::   PTEMP, PSALT, PTRACER
       REAL(SP), INTENT(  OUT), ALLOCATABLE           ::  TMPT(:,:),SLT(:,:),FLUX(:,:)
-      REAL(SP), INTENT(  OUT), ALLOCATABLE, OPTIONAL ::                       TRACER(:,:)
+      REAL(SP), INTENT(  OUT), ALLOCATABLE           ::  TRACER(:,:,:)
       INTEGER,  INTENT(  OUT), ALLOCATABLE           ::                        VDIST(:,:)
       INTEGER                                        ::                   INS,IFABM,Inode
       REAL(SP), ALLOCATABLE                          ::    MYDENS(:), DEPTH(:), nyfreq(:)
@@ -194,10 +206,14 @@ MODULE MOD_PLUME
       ALLOCATE(TMPT(0:MT,KBM1))
       ALLOCATE(SLT(0:MT,KBM1))
       ALLOCATE(VDIST(0:MT,KBM1))
+      ALLOCATE(TRACER(0:MT,KBM1,1))
+       
       FLUX(:,:)     = 0.0_SP
       TMPT(:,:)     = 0.0_SP
       SLT(:,:)      = 0.0_SP
       VDIST(:,:)    = 0
+      TRACER(:,:,1)    = 0.0_SP
+      
 
       radius         = W0/V0
       area           = 2*3.14159*radius**2
