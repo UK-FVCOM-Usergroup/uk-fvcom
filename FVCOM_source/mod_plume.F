@@ -138,7 +138,7 @@ MODULE MOD_PLUME
 
 !     Variables:
 !     ----------------
-!     INPUT
+!     NAMELIST INPUT
 !     V0:           Source momentum flux
 !     W0:           Source volume flux
 !     F0:           Source buoyancy flux
@@ -153,20 +153,21 @@ MODULE MOD_PLUME
 !     T:            Temperature flux caused by the plume
 !     S:            Salinity flux caused by the plume
 !     F:            Tracer flux caused by the plume
-!     gridinfo:     The nodes influenced by the plume, as well as sigma layers
+!     VDIST:        The nodes influenced by the plume, as well as sigma layers
 ! ------------------------------------------------------------------------------------
 
       USE ALL_VARS
       USE MOD_UTILS
       IMPLICIT NONE
-      REAL(SP)                             ::                        V0, W0, F0
-      REAL(SP)                             ::             PTEMP, PSALT, PTRACER
-      REAL(SP), INTENT(  OUT), ALLOCATABLE ::  TMPT(:),SLT(:),TRACER(:),FLUX(:)
-      INTEGER,  INTENT(  OUT), ALLOCATABLE ::                       gridinfo(:)
-      INTEGER                              ::                   INS,IFABM,Inode
-      REAL(SP), ALLOCATABLE                ::    MYDENS(:), DEPTH(:), nyfreq(:)
-      REAL(SP)                             ::         entcoef, zhyd, ztop, area
-      REAL(SP)                             ::                            radius
+      REAL(SP)                                       ::                        V0, W0, F0
+      REAL(SP)                                       ::   PTEMP, PSALT, PTRACER
+      REAL(SP), INTENT(  OUT), ALLOCATABLE           ::  TMPT(:,:),SLT(:,:),FLUX(:,:)
+      REAL(SP), INTENT(  OUT), ALLOCATABLE, OPTIONAL ::                       TRACER(:,:)
+      INTEGER,  INTENT(  OUT), ALLOCATABLE           ::                        VDIST(:,:)
+      INTEGER                                        ::                   INS,IFABM,Inode
+      REAL(SP), ALLOCATABLE                          ::    MYDENS(:), DEPTH(:), nyfreq(:)
+      REAL(SP)                                       ::         entcoef, zhyd, ztop, area
+      REAL(SP)                                       ::                            radius
 
 !     Constants and ICs
       entcoef        = 0.07_SP  ! The exact value of this parameter is disputed
@@ -192,11 +193,11 @@ MODULE MOD_PLUME
       ALLOCATE(FLUX(0:MT,KBM1))
       ALLOCATE(TMPT(0:MT,KBM1))
       ALLOCATE(SALT(0:MT,KBM1))
-      ALLOCATE(gridinfo(0:MT,KBM1))
+      ALLOCATE(VDIST(0:MT,KBM1))
       FLUX(:)     = 0.0_SP
       TMPT(:)     = 0.0_SP
       SALT(:)     = 0.0_SP
-      gridinfo(:) = 0
+      VDIST(:)    = 0
 
       radius         = W0/V0
       area           = 2*3.14159*radius**2
@@ -255,7 +256,7 @@ MODULE MOD_PLUME
       REAL(SP), INTENT(IN   )                    ::                          PLUME_SALT
       REAL(SP), INTENT(IN   ), ALLOCATABLE       ::                 nyfreq(:), DEPTH(:)
       INTEGER,  INTENT(IN   )                    ::                   INS, IFABM, Inode
-      INTEGER,                                   ::                  MAXsigma, HYDsigma
+      INTEGER,  INTENT(  OUT)                    ::                  MAXsigma, HYDsigma
       REAL(SP), INTENT(  OUT), DIMENSION(0:KBM1) ::                TMPT,SLT,TRACER,FLUX
       REAL(SP), DIMENSION(0:KBM1)                ::          TEMPFLUX,SALTFLUX,FABMFLUX
       REAL(SP)                                   ::       radius, vertspeed, Wn, Vn, Fn
