@@ -644,6 +644,7 @@ SUBROUTINE ADV_S
   !---------------------Plume flux part-----------------------------------------
   ! Added by Qin 05/03/2019
 # if defined(PLUME)
+# if !defined(PLUME_CALCULATED)
    IF(NUMPLM > 0) THEN
             SPLM = SPLM+OFFS(1,1)
            DO J=1,NUMPLM
@@ -654,6 +655,14 @@ SUBROUTINE ADV_S
               END DO
            END DO
    END IF
+# else
+   DO I=1,M
+         DO K=1,KBM1
+             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*VDISTPLM(I,K)*SPLM(I,K)  
+         END DO
+   END DO
+# endif
+
 # endif
 
   ! -------------------------------------------------------------------
@@ -1070,6 +1079,7 @@ SUBROUTINE ADV_S
   END IF
 !--  For Plume influx ------------------------------------
 # if defined(PLUME)
+# if !defined(PLUME_CALCULATED)
     IF(NUMPLM > 0) THEN
            DO J=1,NUMPLM
               JJ=INODEPLM(J)
@@ -1078,6 +1088,13 @@ SUBROUTINE ADV_S
               END DO
            END DO
     END IF
+# else
+   DO I=1,M
+         DO K=1,KBM1
+             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*VDISTPLM(I,K)*SPLM(I,K)  
+         END DO
+   END DO
+# endif
 # endif
 
 !---------------------------------------------------------------------

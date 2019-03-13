@@ -707,12 +707,9 @@ CONTAINS
 
 # if defined (PLUME) 
 # if !defined (PLUME_CALCULATED)
-    CALL  PLUME_DISCHARGE
-# else 
-!    CALL  PLUME_DISCHARGE_CALCULATED (wait for Håvards input, see SURFACE_HEATING_CALCULATED as an example)
-# endif	
+    CALL  PLUME_DISCHARGE	
+# endif
 # endif 
-	
 	
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)    
     CALL SURFACE_HEATING
@@ -1844,7 +1841,7 @@ CONTAINS
   !===================================================================
   !==================================================================
   ! READ PLUME PARAMETERA, added by Qin 04/03/2019
-    
+# if !defined(PLUME_CALCULATED)    
   SUBROUTINE PLUME_DISCHARGE 
 # if defined (FABM)
   USE MOD_FABM_DATA
@@ -1965,7 +1962,7 @@ CONTAINS
 
     ! ALLOCATE THE SPACE FOR THE PLUME DATA
     ALLOCATE(INODEPLM(NUMPLM))
-    ALLOCATE(VDISTPLM(NUMPLM,KBM1));  VDISTPLM = 0.0_SP
+    ALLOCATE(VDISTPLM(NUMPLM,KBM1));  VDISTPLM = 0
     ALLOCATE(FLXPLM(NUMPLM,KBM1));    FLXPLM   = 0.0_SP
 # if defined (FABM)
     ALLOCATE(FABMPLM(NUMPLM,KBM1,size(model%state_variables))); FABMPLM  = 0.0_SP
@@ -2174,7 +2171,7 @@ CONTAINS
 
 
   END SUBROUTINE PLUME_DISCHARGE
-  
+# endif 
     !================================================================
   !================================================================  
   SUBROUTINE CHECK_PLUME_FILE(NCF,PERIOD)

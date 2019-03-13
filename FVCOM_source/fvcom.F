@@ -471,6 +471,9 @@ PROGRAM FVCOM
   USE MOD_ICE
 # endif
 
+# if defined (PLUME_CALCULATED)
+  USE MOD_PLUME
+# endif
 ! Added by researchers at Akvaplan-niva 2018, idealized tests give promising results.
 # if defined (TVD)
   USE MOD_TVD
@@ -657,6 +660,9 @@ PROGRAM FVCOM
   !==============================================================================!
   !  SETUP OTHER TOOLS, MODELS AND DATA ASSIMILATION                             !
   !==============================================================================!
+# if defined (PLUME_CALCULATED)
+  CALL   PLUME_CALCULATE_INIT
+# endif
 
 # if defined (ICE)
   IF(ICE_MODEL) CALL ICE_INIT_0
