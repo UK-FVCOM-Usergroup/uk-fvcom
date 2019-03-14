@@ -648,7 +648,7 @@
         FLXPLM    = FLXPLM*RAMP
       END IF
 #  else
-       CALL  UPDATE_PLUMES_CALCULATED(FLXPLM,TPLM,SPLM,VDISTPLM,FABMPLM)
+       CALL UPDATE_PLUMES_CALCULATED(FLXPLM,TPLM,SPLM,VDISTPLM,PTR=FABMPLM)
 # endif
 # endif   
 !----------------------------------      
