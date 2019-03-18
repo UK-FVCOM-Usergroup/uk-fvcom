@@ -216,9 +216,10 @@ MODULE MOD_PLUME
       SOURCE_MOM   =    PLUME_INITIAL_MOMENTUM_FLUX   
       SOURCE_VOL   =    PLUME_INITIAL_VOLUME_FLUX     
       SOURCE_BUOY  =    PLUME_INITIAL_BOUYANCY_FLUX   
+!============================================================================
 
-!=======================================================================
-! Buoyancy frequency squared, from the gotm routine
+!============================================================================
+! Buoyancy frequency squared, stolen from the gotm routine
 ! ----
       DO K=2,KBM1
          NN(K) = -GRAV_N(Inode)*(RHO1(Inode,K-1)-RHO1(Inode,K))/(DZZ(Inode,K-1)*D(Inode))
@@ -229,9 +230,9 @@ MODULE MOD_PLUME
       END DO
       NN(1)  = 0.0_SP
       NN(KB) = 0.0_SP
-      DEPTH  = DZZ(Inode,:)*D(Inode)
+      DEPTH  = -DZ(Inode,:)*D(Inode)
 
-! ======================================================================
+!===========================================================================
 ! The plume model
 ! ----
 !     Filling vectors with data
@@ -243,18 +244,19 @@ MODULE MOD_PLUME
 !     Integrate the equations vertically (from the bottom to the top), and solve the 
 !     equations to get the plume parameters.
       K                   = INS    ! INPUT sigma layer
-      VDIST(Inode,K) = 1
+      VDIST(Inode,K)      = 1
       radius              = SOURCE_VOL/SOURCE_MOM
       vertspeed           = SOURCE_MOM**2/SOURCE_VOL
-
-!     Add a "IF (SOURCE_BUOY > 0) THEN" greie, og integrere i motsatt retning om det viser seg
-!     at plumen synker.
+!====
+!     Add a "IF (SOURCE_BUOY > 0) THEN" loop for sinking plumes...
+!====
       TEMPPF(K)      = SOURCE_MOM*PTEMP   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*T1(Inode,K)
       SALTPF(K)      = SOURCE_MOM*PSALT   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*S1(Inode,K)
 # if defined (FABM)
       FABMPF(K)      = SOURCE_MOM*PTRACER + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*FABM_ALL(Inode,K,IFABM)
 # else
-      ! Plume modellen beregner alltid tracerflux...
+      ! The plume modellen always calculates some tracerflux, can be solved
+      ! better in the future. For this project, we will always use FABM.
       FABMPF(K)      = 0
 # endif
       PFLUX(Inode,K) = -2*entcoef*SOURCE_MOM*DEPTH(K)
@@ -275,7 +277,6 @@ MODULE MOD_PLUME
                IF (DST.LT.radius) THEN
                   VDIST(I,K) = 1
                   AREA = AREA+ART1(I)
-                  ! Allokerer lagringsplass for plumemodellen
                   IF (ALLOCATED(RELEASENODES)) THEN
                      ALLOCATE(TMP(SIZE(RELEASENODES)+1))
                      TMP(1:SIZE(RELEASENODES))   = RELEASENODES
