@@ -230,10 +230,12 @@ MODULE MOD_PLUME
       END DO
       NN(1)  = 0.0_SP
       NN(KB) = 0.0_SP
-      DEPTH  = -DZ(Inode,:)*D(Inode)
+      DEPTH  = -DZZ(Inode,:)*D(Inode)
 
 !===========================================================================
-! The plume model
+! The plume model - operates exclusively for rising plumes at the moment.
+!                   Can be fixed quite easilly with an if statement
+!                   which reverses the integration direction.
 ! ----
 !     Filling vectors with data
       PT      = T1
@@ -241,42 +243,40 @@ MODULE MOD_PLUME
       PTR     = FABM_ALL(:,:,IFABM)
       PFLUX   = 0.0_SP
       
-!     Integrate the equations vertically (from the bottom to the top), and solve the 
-!     equations to get the plume parameters.
-      K                   = INS    ! INPUT sigma layer
-      VDIST(Inode,K)      = 1
-      radius              = SOURCE_VOL/SOURCE_MOM
-      vertspeed           = SOURCE_MOM**2/SOURCE_VOL
-!====
-!     Add a "IF (SOURCE_BUOY > 0) THEN" loop for sinking plumes...
-!====
-      TEMPPF(K)      = SOURCE_MOM*PTEMP   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*T1(Inode,K)
-      SALTPF(K)      = SOURCE_MOM*PSALT   + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*S1(Inode,K)
+!     Basic stuff
+      K              = INS    ! INPUT sigma layer
+      VDIST(Inode,K) = 1
+
+!     Interaction between plume and surroundings
+      TEMPPF(K)      = SOURCE_VOL*PTEMP
+      SALTPF(K)      = SOURCE_VOL*PSALT
+      PFLUX(Inode,K) = 0.0_SP
 # if defined (FABM)
-      FABMPF(K)      = SOURCE_MOM*PTRACER + entcoef*2*pi*radius*vertspeed*(DEPTH(K))*FABM_ALL(Inode,K,IFABM)
+      FABMPF(K)      = SOURCE_VOL*PTRACER
 # else
       ! The plume modellen always calculates some tracerflux, can be solved
       ! better in the future. For this project, we will always use FABM.
       FABMPF(K)      = 0
 # endif
-      PFLUX(Inode,K) = -2*entcoef*SOURCE_MOM*DEPTH(K)
       DO WHILE (.TRUE.)
          K  = K-1
-         IF (K == 0) THEN
-            EXIT
-         ENDIF
          IF (K.GT.SIZE(NN)) THEN
             EXIT
          END IF
             
          Wn = SOURCE_VOL    + 2*entcoef*SOURCE_MOM*DEPTH(K)
-         IF (ISNAN(Wn)) THEN
+         
+         IF ((ISNAN(Wn)).OR.(K.EQ.1)) THEN
             AREA = 0.0_SP
+            ! Identify the nodes we release the stuff in
             DO I = 1,MT
                DST = SQRT((VX(I)-VX(Inode))**2+(VY(I)-VY(Inode))**2)
                IF (DST.LT.radius) THEN
                   VDIST(I,K) = 1
                   AREA = AREA+ART1(I)
+                  IF (AREA.GT.(PI*radius**2)) THEN
+                     CONTINUE
+                  END IF
                   IF (ALLOCATED(RELEASENODES)) THEN
                      ALLOCATE(TMP(SIZE(RELEASENODES)+1))
                      TMP(1:SIZE(RELEASENODES))   = RELEASENODES
@@ -288,36 +288,42 @@ MODULE MOD_PLUME
                   END IF
                END IF
             END DO            
+
+            ! Rease the stuff in those nodes
             DO I = 1,SIZE(RELEASENODES)
-               PFLUX(RELEASENODES(I),K)      = SOURCE_VOL*AREA/(2.0_SP*pi*radius**2)
-               PT(RELEASENODES(I),K)         = (TEMPPF(K+1)/SOURCE_VOL)*AREA/(2*pi*radius**2)
-               PS(RELEASENODES(I),K)         = (SALTPF(K+1)/SOURCE_VOL)*AREA/(2*pi*radius**2)
-               PTR(RELEASENODES(I),K)        = (FABMPF(K+1)/SOURCE_VOL)*AREA/(2*pi*radius**2)
+               ! The PLUME_AREA/FVCOM_AREA operation ensures conservation of mass.
+               PFLUX(RELEASENODES(I),K)      = SOURCE_VOL*(PI*radius**2)/AREA
+               PFLUX                         = PFLUX*PI ! Since pi was not included in estimating
+                                                        ! SOURCE_VOL or PFLUX due to cancelling terms
+                                                        ! in the plume model.
+               PT(RELEASENODES(I),K)         = (TEMPPF(K+1)/SOURCE_VOL)*(PI*radius**2)/AREA
+               PS(RELEASENODES(I),K)         = (SALTPF(K+1)/SOURCE_VOL)*(PI*radius**2)/AREA
+               PTR(RELEASENODES(I),K)        = (FABMPF(K+1)/SOURCE_VOL)*(PI*radius**2)/AREA
+               VDIST(RELEASENODES(I),K)      = 1
                EXIT
             END DO
          END IF
-         VDIST(Inode,K)    = 1
-         Vn                     = SOURCE_MOM**4 + 2.0_SP*SOURCE_BUOY*SOURCE_VOL*DEPTH(K)
-         Fn                     = SOURCE_BUOY   - NN(K)**2
-
-!     Update the plume S, T and FABMtracer due to entrained water
-         radius         = Wn/Vn
-         vertspeed      = Vn**2/Wn
+         VDIST(Inode,K) = 1
+         Vn             = SOURCE_MOM**4 + 2.0_SP*SOURCE_BUOY*SOURCE_VOL*DEPTH(K)
+         Fn             = SOURCE_BUOY   - NN(K)**2
 
 !     Finding the flux upwards from given sigma layer 
-         SALTPF(K)      = SALTPF(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*S1(Inode,K)
-         TEMPPF(K)      = TEMPPF(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*T1(Inode,K)
+         SALTPF(K)      = SALTPF(K+1) + 2*entcoef*SOURCE_MOM*DEPTH(K)*S1(Inode,K)
+         TEMPPF(K)      = TEMPPF(K+1) + 2*entcoef*SOURCE_MOM*DEPTH(K)*T1(Inode,K)
 # if defined (FABM)
-         FABMPF(K)      = FABMPF(K+1) + entcoef*2*pi*radius*vertspeed*DEPTH(K)*FABM_ALL(Inode,K,IFABM)
+         FABMPF(K)      = FABMPF(K+1) + 2*entcoef*SOURCE_MOM*DEPTH(K)*FABM_ALL(Inode,K,IFABM)
 # else
          FABMPF(K)      = 0.0_SP
 # endif
          PFLUX(Inode,K) = -2*entcoef*SOURCE_MOM*DEPTH(K)
          
 !     We update the plume parameters if the plume is still rising
-         SOURCE_MOM        = Vn**(0.25)        ! Momentum flux
-         SOURCE_VOL        = Wn                ! Volume flux
-         SOURCE_BUOY       = Fn                ! Buoyancy flux
+         SOURCE_MOM     = Vn**(0.25)        ! Momentum flux
+         SOURCE_VOL     = Wn                ! Volume flux
+         SOURCE_BUOY    = Fn                ! Buoyancy flux
+         radius         = SOURCE_VOL/SOURCE_MOM
+         vertspeed      = SOURCE_MOM**2/SOURCE_VOL
       END DO
+  RETURN
   END SUBROUTINE UPDATE_PLUMES_CALCULATED
 END MODULE MOD_PLUME
