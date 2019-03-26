@@ -2,6 +2,7 @@ MODULE MOD_STATION_TIMESERIES
 
   USE MOD_TIME
   USE NETCDF
+  USE VARS_WAVE
   IMPLICIT NONE
   SAVE
   
@@ -12,15 +13,16 @@ MODULE MOD_STATION_TIMESERIES
   LOGICAL OUT_VELOCITY_3D
   LOGICAL OUT_VELOCITY_2D
   LOGICAL OUT_WIND_VELOCITY
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
   LOGICAL OUT_ATM_PRESSURE
 # endif  
   LOGICAL OUT_SALT_TEMP
-# if defined (WAVE_CURRENT_INTERACTION)
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
   LOGICAL OUT_SIG_WAVE_HEIGHT
   LOGICAL OUT_REL_PEAK_PERIOD
   LOGICAL OUT_WAVE_DIRECTION
   LOGICAL OUT_ENERGY_SPECTRUM
+  LOGICAL OUT_WAVE_PARTITION
 # endif  
   CHARACTER(LEN=80) OUT_INTERVAL
   
@@ -32,15 +34,16 @@ MODULE MOD_STATION_TIMESERIES
        & OUT_VELOCITY_3D,                  &
        & OUT_VELOCITY_2D,                  &
        & OUT_WIND_VELOCITY,                &
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
        & OUT_ATM_PRESSURE,                 &
 # endif  
        & OUT_SALT_TEMP,                    &
-# if defined (WAVE_CURRENT_INTERACTION)
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
        & OUT_SIG_WAVE_HEIGHT,              &
        & OUT_REL_PEAK_PERIOD,              &
        & OUT_WAVE_DIRECTION,               &
        & OUT_ENERGY_SPECTRUM,              &
+       & OUT_WAVE_PARTITION,               &
 # endif  
        & OUT_INTERVAL
        
@@ -89,12 +92,21 @@ MODULE MOD_STATION_TIMESERIES
    integer,private :: atmpres_s_vid
    integer,private :: name_s_vid
    
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
    integer,private :: hs_s_vid
    integer,private :: pperiod_s_vid
    integer,private :: wdir_s_vid
    integer,private :: sdensity_s_vid
    integer,private :: msc_did
+   integer,private :: hwind_s_vid
+   integer,private :: dwind_s_vid
+   integer,private :: twind_s_vid
+   integer,private :: twindp_s_vid
+   integer,private :: hswell_s_vid
+   integer,private :: dswell_s_vid
+   integer,private :: tswell_s_vid
+   integer,private :: tswellp_s_vid
+   integer,private :: imo_did   
 #  endif   
 
    !--Info Variables
@@ -121,15 +133,16 @@ MODULE MOD_STATION_TIMESERIES
    OUT_VELOCITY_3D           = .False.
    OUT_VELOCITY_2D           = .False.
    OUT_WIND_VELOCITY         = .False.
-#  if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#  if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
    OUT_ATM_PRESSURE          = .False.
 #  endif   
    OUT_SALT_TEMP             = .False.
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
    OUT_SIG_WAVE_HEIGHT       = .False.
    OUT_REL_PEAK_PERIOD       = .False.
    OUT_WAVE_DIRECTION        = .False.
    OUT_ENERGY_SPECTRUM       = .False.
+   OUT_WAVE_PARTITION        = .False. 
 #  endif  
    OUT_INTERVAL              = "A length of time: 'seconds= ','days= ', or 'cycles= '"
    
@@ -178,7 +191,7 @@ MODULE MOD_STATION_TIMESERIES
    end if
    CLOSE(NMLUNIT)
 
-   CALL GET_OUTPUT_FILE_INTERVAL(TRIM(OUT_INTERVAL),INTERVAL_TIME_SERIES)
+!   CALL GET_OUTPUT_FILE_INTERVAL(TRIM(OUT_INTERVAL),INTERVAL_TIME_SERIES)
 
    RETURN
    END SUBROUTINE STATION_NAME_LIST_READ
@@ -306,7 +319,7 @@ MODULE MOD_STATION_TIMESERIES
 #  if defined (MULTIPROCESSOR)
    USE MOD_PAR
 #  endif
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
    USE SWCOMM3, ONLY : MSC
    USE VARS_WAVE, ONLY : HSC1,TPEAK,DIRDEG1,SPEC_DENSITY
 #  endif
@@ -433,7 +446,7 @@ MODULE MOD_STATION_TIMESERIES
        deallocate(ftemp)
      END IF 
 
-#    if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#    if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
      IF(OUT_ATM_PRESSURE)THEN 
        allocate(ftemp(m))
        ftemp =pa_air(1:m)
@@ -444,7 +457,7 @@ MODULE MOD_STATION_TIMESERIES
      END IF 
 #    endif
 
-#    if defined (WAVE_CURRENT_INTERACTION)
+#    if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
      IF(OUT_SIG_WAVE_HEIGHT)THEN
        i1 = lbound(hsc1,1) ; i2 = ubound(hsc1,1)
        call putvar(i1,i2,m,mgl,1,1,"n",hsc1,nc_ofid,hs_s_vid,myid,nprocs&
@@ -469,6 +482,45 @@ MODULE MOD_STATION_TIMESERIES
             &,ipt, stck_cnt) 
      END IF
 
+     IF(OUT_WAVE_PARTITION)THEN
+     
+       IF(TRIM(LOCATION_TYPE) == 'cell')THEN
+         CALL Fatal_error("LOCATION_TYPE should be node for wave partition output") 
+       END IF 
+
+       i1 = lbound(hs_wind,1) ; i2 = ubound(hs_wind,1)
+       call putvar(i1,i2,m,mgl,1,1,"n",hs_wind,nc_ofid,hwind_s_vid,myid,nprocs&
+            &,ipt, stck_cnt)
+
+       i1 = lbound(dirdeg_wind,1) ; i2 = ubound(dirdeg_wind,1)
+       call putvar(i1,i2,m,mgl,1,1,"n",dirdeg_wind,nc_ofid,dwind_s_vid,myid,nprocs&
+            &,ipt, stck_cnt)
+
+       i1 = lbound(tpeak_wind,1) ; i2 = ubound(tpeak_wind,1)
+       call putvar(i1,i2,m,mgl,1,1,"n",tpeak_wind,nc_ofid,twind_s_vid,myid,nprocs&
+            &,ipt, stck_cnt)
+
+       i1 = lbound(tpeak_wind_pos,1) ; i2 = ubound(tpeak_wind_pos,1)
+       call putvar(i1,i2,m,mgl,1,1,"n",tpeak_wind_pos,nc_ofid,twindp_s_vid,myid,nprocs&
+            &,ipt, stck_cnt)
+
+       i1 = lbound(hs_swell_all,1) ; i2 = ubound(hs_swell_all,1)
+       call putvar(i1,i2,m,mgl,50,50,"n",hs_swell_all,nc_ofid,hswell_s_vid,myid,nprocs&
+            &,ipt, stck_cnt)
+
+       i1 = lbound(dirdeg_swell_all,1) ; i2 = ubound(dirdeg_swell_all,1)
+      call putvar(i1,i2,m,mgl,50,50,"n",dirdeg_swell_all,nc_ofid,dswell_s_vid,myid,nprocs&
+            &,ipt, stck_cnt)
+
+       i1 = lbound(tpeak_swell_all,1) ; i2 = ubound(tpeak_swell_all,1)
+       call putvar(i1,i2,m,mgl,50,50,"n",tpeak_swell_all,nc_ofid,tswell_s_vid,myid,nprocs&
+            &,ipt, stck_cnt)
+
+       i1 = lbound(tpeak_swell_pos_all,1) ; i2 = ubound(tpeak_swell_pos_all,1)
+       call putvar(i1,i2,m,mgl,50,50,"n",tpeak_swell_pos_all,nc_ofid,tswellp_s_vid,myid,nprocs&
+            &,ipt, stck_cnt)
+     END IF
+
 #    endif
 
   IERR = NF90_CLOSE(NC_OFID)
@@ -485,7 +537,7 @@ MODULE MOD_STATION_TIMESERIES
    use all_vars
    use mod_clock
    use mod_nctools
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
    use swcomm3, only : msc
 #  endif
 
@@ -505,8 +557,9 @@ MODULE MOD_STATION_TIMESERIES
    character(len=100)    :: netcdf_convention
    character(len=100)    :: timestamp ,temp
    integer               :: i,j,ierr,i1,i2
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
    integer, dimension(3) :: dynm2dn_msc
+   integer, dimension(3) :: dynm2dn_imo
 #  endif
 
 !==============================================================================|
@@ -555,8 +608,9 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
     ierr = nf90_def_dim(nc_ofid,"siglev" ,kb     ,siglev_did )
     ierr = nf90_def_dim(nc_ofid,"station"   ,nsta      ,station_did   )
     ierr = nf90_def_dim(nc_ofid,"clen", 20, clen_did )
-#   if defined (WAVE_CURRENT_INTERACTION)
+#   if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
     ierr = nf90_def_dim(nc_ofid,"msc",msc,msc_did)
+    ierr = nf90_def_dim(nc_ofid,"IMO",50,imo_did)
 #   endif    
 
 !--Define Unlimited Model Dimension
@@ -573,8 +627,9 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
     dynm2de_lay  = (/station_did,siglay_did,time_did/) 
     dynm2dn_lay  = (/station_did,siglay_did,time_did/) 
     dynmtime     = (/time_did/)   
-#   if defined (WAVE_CURRENT_INTERACTION)
+#   if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
     dynm2dn_msc  = (/station_did,msc_did,time_did/)
+    dynm2dn_imo  = (/station_did,imo_did,time_did/)
 #   endif    
 
 !--Define Station Name Variables and Attributes
@@ -640,16 +695,20 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
       ierr = nf90_put_att(nc_ofid,time_s_vid,"long_name","time")
       if(DATE_REFERENCE == 'default')then
         ierr = nf90_put_att(nc_ofid,time_s_vid,"units",trim("days since 1858-11-17 00:00:00"))
+        ierr = nf90_put_att(nc_ofid,time_s_vid,"format",trim("modified julian day (MJD)"))
       else
         ierr = nf90_put_att(nc_ofid,time_s_vid,"units","days since "//trim(DATE_REFERENCE))
+        ierr = nf90_put_att(nc_ofid,time_s_vid,"format",trim("defined reference date"))
       end if
-      ierr = nf90_put_att(nc_ofid,time_s_vid,"calendar","none")
+!JQI      ierr = nf90_put_att(nc_ofid,time_s_vid,"calendar","none")
+      ierr = nf90_put_att(nc_ofid,time_s_vid,"time_zone","UTC")
 
     ELSE
       ierr = nf90_def_var(nc_ofid,"time",nf90_float,dynmtime,time_s_vid)
       ierr = nf90_put_att(nc_ofid,time_s_vid,"long_name","time")
       ierr = nf90_put_att(nc_ofid,time_s_vid,"units",trim(netcdf_timestring))
-      ierr = nf90_put_att(nc_ofid,time_s_vid,"calendar","none")
+!JQI      ierr = nf90_put_att(nc_ofid,time_s_vid,"calendar","none")
+      ierr = nf90_put_att(nc_ofid,time_s_vid,"time_zone","none")
     END IF  
 
     ierr = nf90_def_var(nc_ofid,"iint",nf90_int,dynmtime,iint_vid)
@@ -731,7 +790,7 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,vvwind_s_vid,"coordinates","time station")
     end if
 
-#   if defined (AIR_PRESSURE) || (HEATING_CALCULATED) ||(HEATING_CALCULATED_GL) 
+#   if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     if(OUT_ATM_PRESSURE)then
      ierr = nf90_def_var(nc_ofid,"atm_pressure",nf90_float,dynm2ds,atmpres_s_vid)
      ierr = nf90_put_att(nc_ofid,atmpres_s_vid,"long_name","Sea level pressure")
@@ -741,7 +800,7 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
     end if
 #   endif    
 
-#   if defined (WAVE_CURRENT_INTERACTION)
+#   if defined (WAVE_CURRENT_INTERACTION) && !defined (WAVE_OFFLINE)
     if(OUT_SIG_WAVE_HEIGHT)then
      ierr = nf90_def_var(nc_ofid,"wave_height",nf90_float,dynm2ds,hs_s_vid)
      ierr = nf90_put_att(nc_ofid,hs_s_vid,"long_name","Signaficant Wave Height")
@@ -775,6 +834,56 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,sdensity_s_vid,"type","data")
     end if
 
+    if(OUT_WAVE_PARTITION)then
+     ierr = nf90_def_var(nc_ofid,"hs_wind",nf90_float,dynm2ds,hwind_s_vid)
+     ierr = nf90_put_att(nc_ofid,hwind_s_vid,"long_name","Wind Wave HS")
+     ierr = nf90_put_att(nc_ofid,hwind_s_vid,"units","m")
+     ierr = nf90_put_att(nc_ofid,hwind_s_vid,"standard_name","hs_windwave")
+     ierr = nf90_put_att(nc_ofid,hwind_s_vid,"type","data") 
+
+     ierr = nf90_def_var(nc_ofid,"dirdeg_wind",nf90_float,dynm2ds,dwind_s_vid)
+     ierr = nf90_put_att(nc_ofid,dwind_s_vid,"long_name","Wind Wave DIR")
+     ierr = nf90_put_att(nc_ofid,dwind_s_vid,"units","degree")
+     ierr = nf90_put_att(nc_ofid,dwind_s_vid,"standard_name","dirdeg_windwave")
+     ierr = nf90_put_att(nc_ofid,dwind_s_vid,"type","data")
+
+     ierr = nf90_def_var(nc_ofid,"tpeak_wind",nf90_float,dynm2ds,twind_s_vid)
+     ierr = nf90_put_att(nc_ofid,twind_s_vid,"long_name","Wind Wave HS")
+     ierr = nf90_put_att(nc_ofid,twind_s_vid,"units","s")
+     ierr = nf90_put_att(nc_ofid,twind_s_vid,"standard_name","tpeak_windwave")
+     ierr = nf90_put_att(nc_ofid,twind_s_vid,"type","data")
+
+     ierr = nf90_def_var(nc_ofid,"dirdeg_pos_wind",nf90_float,dynm2ds,twindp_s_vid)
+     ierr = nf90_put_att(nc_ofid,twindp_s_vid,"long_name","Wind Wave DIR POS")
+     ierr = nf90_put_att(nc_ofid,twindp_s_vid,"units","non")
+     ierr = nf90_put_att(nc_ofid,twindp_s_vid,"standard_name","dirdeg_pos_windwave")
+     ierr = nf90_put_att(nc_ofid,twindp_s_vid,"type","data")
+
+     ierr = nf90_def_var(nc_ofid,"hs_swell",nf90_float,dynm2dn_imo,hswell_s_vid)
+     ierr = nf90_put_att(nc_ofid,hswell_s_vid,"long_name","Swell HS")
+     ierr = nf90_put_att(nc_ofid,hswell_s_vid,"units","m")
+     ierr = nf90_put_att(nc_ofid,hswell_s_vid,"standard_name","hs_swell")
+     ierr = nf90_put_att(nc_ofid,hswell_s_vid,"type","data")
+
+     ierr = nf90_def_var(nc_ofid,"dirdeg_swell",nf90_float,dynm2dn_imo,dswell_s_vid)
+     ierr = nf90_put_att(nc_ofid,dswell_s_vid,"long_name","Swell DIR")
+     ierr = nf90_put_att(nc_ofid,dswell_s_vid,"units","degree")
+     ierr = nf90_put_att(nc_ofid,dswell_s_vid,"standard_name","dirdeg_swell")
+     ierr = nf90_put_att(nc_ofid,dswell_s_vid,"type","data")
+
+     ierr = nf90_def_var(nc_ofid,"tpeak_swell",nf90_float,dynm2dn_imo,tswell_s_vid)
+     ierr = nf90_put_att(nc_ofid,tswell_s_vid,"long_name","Swell HS")
+     ierr = nf90_put_att(nc_ofid,tswell_s_vid,"units","s")
+     ierr = nf90_put_att(nc_ofid,tswell_s_vid,"standard_name","tpeak_swell")
+     ierr = nf90_put_att(nc_ofid,tswell_s_vid,"type","data")
+
+     ierr = nf90_def_var(nc_ofid,"dirdeg_pos_swell",nf90_float,dynm2dn_imo,tswellp_s_vid)
+     ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"long_name","Swell DIR POS")
+     ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"units","non")
+     ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"standard_name","dirdeg_pos_swell")
+     ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"type","data")
+    end if
+
 #   endif
 !--Exit Define Mode
     ierr = nf90_enddef(nc_ofid)
@@ -793,13 +902,13 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
    end if
    
    !!====Longitude at Nodes (LON) ==========================!
-   i1 = lbound(vx,1) ; i2 = ubound(vx,1)
-   call putvar(i1,i2,m,mgl,1,1,"n",vx+vxmin,nc_ofid,lon_s_vid,myid&
+   i1 = lbound(lon,1) ; i2 = ubound(lon,1)
+   call putvar(i1,i2,m,mgl,1,1,"n",lon,nc_ofid,lon_s_vid,myid&
         &,nprocs,ipt, stck_cnt)
 
    !!====Latitude  at Nodes (LAT) ==========================!
-   i1 = lbound(vy,1) ; i2 = ubound(vy,1)
-   call putvar(i1,i2,m,mgl,1,1,"n",vy+vymin,nc_ofid,lat_s_vid,myid&
+   i1 = lbound(lat,1) ; i2 = ubound(lat,1)
+   call putvar(i1,i2,m,mgl,1,1,"n",lat,nc_ofid,lat_s_vid,myid&
         &,nprocs,ipt, stck_cnt) 
 
    !!====X Grid Coordinate at Nodes (VX)====================!

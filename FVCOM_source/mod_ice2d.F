@@ -82,7 +82,21 @@ MODULE MOD_ICE2D
   INTEGER,  ALLOCATABLE :: ISICEN(:),ISICEC(:),ISICEN_OLD(:),ISICEC_OLD(:)
 
   INTEGER,  ALLOCATABLE :: NN_STRESS(:),NN_STRESS_OLD(:)
-  
+
+
+
+
+#  if defined (ICE_EMBEDDING)  
+!----J. Ge for ice baroclinic pressure gradient-----!
+  REAL(SP) :: NET_DRHOX ! net baroclinic gradient force for whole ice
+  REAL(SP) :: NET_DRHOY ! net baroclinic gradient force for whole ice
+  integer,  allocatable :: iwbnd(:) ! cell boundary between ice and water 
+  integer,  allocatable :: Kzice(:)  ! bottom sigma index of icepack
+  REAL(SP), ALLOCATABLE :: DRHOX_ICE (:,:) !baroclinic gradient force
+  REAL(SP), ALLOCATABLE :: DRHOY_ICE (:,:) !baroclinic gradient force
+!----J. Ge for ice baroclinic pressure gradient-----!
+#  endif
+
   real (kind=dbl_kind), dimension (:,:) ,allocatable,save ::&     
 !     &   shear       ! strain rate II component (1/s)
        divu       &   ! strain rate I component, velocity divergence (1/s)
@@ -105,19 +119,32 @@ MODULE MOD_ICE2D
 
   REAL(SP), PARAMETER :: DRAGW = 0.0055_SP*RHOW
   ! drag coefficient for water on ice *rhow (kg/m^3)
-  !  REAL(SP), PARAMETER :: COSW = C1I  !cos(ocean turning angle) !turning angle = 0
-  !  REAL(SP), PARAMETER :: SINW = C0I  !sin(ocean turning angle) !turning angle = 0
+# if defined (ICE_FRESHWATER)
+  ! afm 20151112 & EJA 20160921 - turning angle 0
+  REAL(SP), PARAMETER :: COSW = C1I  !cos(ocean turning angle) !turning angle = 0
+  REAL(SP), PARAMETER :: SINW = C0I  !sin(ocean turning angle) !turning angle = 0
+# else
   REAL(SP), PARAMETER :: COSW = 0.9063_SP  !cos(ocean turning angle) !turning angle = 25.
   REAL(SP), PARAMETER :: SINW = 0.4226_SP  !sin(ocean turning angle) !turning angle = 25.
+# endif
 
+# if defined (ICE_FRESHWATER)
+  ! afm 20151112 & EJA 20160921 - turning angle 0
+  REAL(SP), PARAMETER :: COSA = c1i  !cos(wind turning angle) !turning angle = 0.
+  REAL(SP), PARAMETER :: SINA = c0i  !sin(wind turning angle) !turning angle = 0.
+# else
   REAL(SP), PARAMETER :: COSA = 0.9063_SP  !cos(wind turning angle) !turning angle = 25.
   REAL(SP), PARAMETER :: SINA = 0.4226_SP  !sin(wind turning angle) !turning angle = 25.
+# endif
 
+  ! afm 20151112 & EJA 20160921 - not used for freshwater
+# if !defined (ICE_FRESHWATER) 
   REAL(SP), PARAMETER :: COSA30 = 0.86602_SP  !cos(wind turning angle) !turning angle = 30.
   REAL(SP), PARAMETER :: SINA30 = 0.50000_SP  !sin(wind turning angle) !turning angle = 30.
  
   REAL(SP), PARAMETER :: COSA20 = 0.93969_SP  !cos(wind turning angle) !turning angle = 20.
   REAL(SP), PARAMETER :: SINA20 = 0.34202_SP  !sin(wind turning angle) !turning angle = 20.
+# endif
 
   !!---------------------------------------------------------------------------------   
   real (kind=dbl_kind), dimension (:) ,allocatable,save ::&
@@ -152,6 +179,15 @@ MODULE MOD_ICE2D
    ALLOCATE(NN_STRESS(0:MT));     NN_STRESS     = 0
    ALLOCATE(NN_STRESS_OLD(0:MT)); NN_STRESS_OLD = 0
 
+#  if defined (ICE_EMBEDDING)  
+!----J. Ge for ice baroclinic pressure gradient-----!
+   allocate(iwbnd(0:nt))     ;  iwbnd = 0
+   allocate(kzice(0:nt))     ;  kzice  = 0
+   allocate(DRHOX_ICE(0:nt,kb)) ; DRHOX_ICE = 0.0_sp
+   allocate(DRHOY_ICE(0:nt,kb)) ; DRHOY_ICE = 0.0_sp
+!----J. Ge for ice baroclinic pressure gradient-----!
+#  endif
+
    !  for ridge redistribution
    allocate(Divu(M,1))       ;  Divu  =0.0
    allocate(Delta(M,1))      ;  Delta =0.0
@@ -174,7 +210,14 @@ MODULE MOD_ICE2D
 
       dyn_dt=dtice/real(ndyn_dt,kind=dbl_kind)
 
-      ndte =120 !!  
+# if defined (ICE_FRESHWATER)
+! afm 20151113 & EJA 20160921
+! ndte=120-->30, based on time stepping analysis, it should be allowable
+! and saves some computational time
+     ndte = 30
+# else
+     ndte =120 !!  
+# endif
  
       Tdte = dyn_dt/real(ndte,kind=dbl_kind)        ! s
       dtei = c1i/Tdte              ! 1/s
@@ -337,6 +380,11 @@ MODULE MOD_ICE2D
       !------------------------------------------------------------
          vmag_tmp = max(1.0, windspeed_tmp)
 
+# if defined (ICE_FRESHWATER)
+! afm turning angle 0 ------------- EJA 20160921
+         STRAIRXE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*COSA - VVWIND(I)*SINA)*AIU(I)
+         STRAIRYE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*SINA + VVWIND(I)*COSA)*AIU(I)
+# else
          IF(vmag_tmp<15.0_SP) THEN
          STRAIRXE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*COSA30 - VVWIND(I)*SINA30)*AIU(I) 
          STRAIRYE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*SINA30 + VVWIND(I)*COSA30)*AIU(I) 
@@ -344,12 +392,28 @@ MODULE MOD_ICE2D
          STRAIRXE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*COSA20 - VVWIND(I)*SINA20)*AIU(I)
          STRAIRYE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*SINA20 + VVWIND(I)*COSA20)*AIU(I)
          ENDIF
+# endif
 
       END DO
 
         STRAIRXE=STRAIRXE*RAMP
         STRAIRYE=STRAIRYE*RAMP     
- 
+
+
+if (.true.) then !dwang
+!------------J. Ge for baroclinic pressure gradient force----------------------!
+#  if defined (ICE_EMBEDDING)
+  
+   call find_ice_water_boundary
+   call get_kzice
+   call baropg_ice
+
+#  endif 
+end if !dwang
+!------------------------------------------------------------------------------!
+
+
+
 !-----------------------------------------------------------
 !
 !------BEGIN MAIN LOOP OVER EXTERNAL MODEL 4 STAGE RUNGE-KUTTA INTEGRATION-----!
@@ -391,6 +455,7 @@ MODULE MOD_ICE2D
                CALL ICE_UV(K)
                UICE2  = UICE2F
                VICE2  = VICE2F
+
                !EXCHANGE ELEMENT-BASED VALUES ACROSS THE INTERFACE
 #     if defined (MULTIPROCESSOR)
                IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,UICE2,VICE2)
@@ -429,6 +494,7 @@ MODULE MOD_ICE2D
 
       Divu(1:M,1) =DivuN(1:M)
       Delta(1:M,1)=DeltaN(1:M)
+
 !==========================================================================
       DEALLOCATE(UICE2N,VICE2N)
       
@@ -514,11 +580,22 @@ MODULE MOD_ICE2D
             !  ADVSTRX(I),ADVSTRY(I)
             
             ! finally, the velocity components
+
+!----------------J. Ge for baroclinic pressure gradient force----------------!
+# if !defined (ICE_EMBEDDING)
             cc1 = (ADVSTRX(I) - IMASS1(I)*PSTXICE(I) + TAUXWI(I) +STRAIRXE(I))&
                  &       *ALPHA_RK(K) + imass1(I)/Tdte*UICE2RK(I)
             cc2 = (ADVSTRY(I) - IMASS1(I)*PSTYICE(I) + TAUYWI(I) +STRAIRYE(I))&
                  &        *ALPHA_RK(K)+ imass1(I)/Tdte*VICE2RK(I)
-            
+
+# else
+            cc1 = (ADVSTRX(I) - IMASS1(I)*PSTXICE(I) + net_drhox + TAUXWI(I) +STRAIRXE(I))&
+                 &       *ALPHA_RK(K) + imass1(I)/Tdte*UICE2RK(I)
+            cc2 = (ADVSTRY(I) - IMASS1(I)*PSTYICE(I) + net_drhoy + TAUYWI(I) +STRAIRYE(I))&
+                 &        *ALPHA_RK(K)+ imass1(I)/Tdte*VICE2RK(I)
+# endif
+!----------------J. Ge for baroclinic pressure gradient force----------------! 
+           
             UICE2F(I) = (cca*cc1 + ccb*cc2)/ab2              ! m/s
             VICE2F(I) = (cca*cc2 - ccb*cc1)/ab2
             
@@ -1128,6 +1205,28 @@ MODULE MOD_ICE2D
       !
      
     var_ICE1=0.0_SP
+# if defined (ICE_FRESHWATER)    
+    DO I=1,M
+! afm 20151207 & EJA 20160921 - Fix bug.
+! 1. ART_TMP: Underestimates a control volume (It only counts the ice-covered
+!             cell), resulting in overestimating flux.
+! 2. "IF(ART_TMP>0.0)&...": Ice only advects to a cell where ice already exists.
+! Put them into a classical advection form: var_ICE(I)=var_ice(I)-XFLUX(I)*dyn_dt/ART1(i)
+!
+!!       IF(ISICEN(I)==1)THEN
+!       ART_TMP=0.0
+!       DO J=1,NTVE(I)
+!!          ART_TMP=ART_TMP+ISICEC(NBVE(I,J))*ART(NBVE(I,J))
+!          ART_TMP=ART_TMP+real(ISICEC(NBVE(I,J)),SP)*ART(NBVE(I,J))
+!       END DO
+!        IF(ART_TMP>0.0)&
+!          var_ICE1(I)=var_ice(I)-XFLUX(I)*dyn_dt/(ART_TMP/3.0_SP)
+!!       ENDIF
+!       var_ICE(I)=var_ICE1(I)
+!       if (VAR_ICE(I) < 0.0)VAR_ICE(I) = c0i
+        var_ICE(I)=var_ice(I)-XFLUX(I)*dyn_dt/ART1(i)
+    END DO
+# else
     DO I=1,M
        IF(ISICEN(I)==1)THEN
        ART_TMP=0.0
@@ -1140,8 +1239,11 @@ MODULE MOD_ICE2D
        var_ICE(I)=var_ICE1(I)
        if (VAR_ICE(I) < 0.0)VAR_ICE(I) = c0i
     END DO
+# endif      
       
-      
+! - begin afm 20171113 for ice open boundary -------------
+      XFLUX_ICE = XFLUX
+! - end afm 20171113 for ice open boundary -------------
       RETURN
     END SUBROUTINE ICE_ADV_fvcom
     !==============================================================================|
@@ -1638,6 +1740,334 @@ MODULE MOD_ICE2D
       
     end subroutine principal_stress
         
+
+
+
+
+#  if defined (ICE_EMBEDDING)
+!==============================================================================|
+    ! subroutine to find ice-water boundary
+    ! yding
+    !
+    ! J. Ge modified for parallel running and 
+    !    ice baroclinic pressure gradient
+    !
+    subroutine FIND_ICE_WATER_BOUNDARY
+
+    implicit none
+    !
+    INTEGER :: I,K,IOUTTMP,ierr 
+    !
+    !
+
+    do i = 1, N
+      if(aice(nv(i,1),1)>1.0e-5 .and. aice(nv(i,2),1)<1.0e-5 .and. aice(nv(i,3),1)<1.0e-5) then
+        iwbnd(i) = 1
+      else if (aice(nv(i,2),1)>1.0e-5 .and. aice(nv(i,1),1)<1.0e-5 .and. aice(nv(i,3),1)<1.0e-5) then
+        iwbnd(i) = 1
+      else if (aice(nv(i,3),1)>1.0e-5 .and. aice(nv(i,1),1)<1.0e-5 .and. aice(nv(i,2),1)<1.0e-5) then
+        iwbnd(i) = 1
+      else if (aice(nv(i,1),1)>1.0e-5 .and. aice(nv(i,2),1)>1.0e-5 .and. aice(nv(i,3),1)<1.0e-5) then
+        iwbnd(i) = 1
+      else if (aice(nv(i,1),1)>1.0e-5 .and. aice(nv(i,3),1)>1.0e-5 .and. aice(nv(i,2),1)<1.0e-5) then
+        iwbnd(i) = 1
+      else if (aice(nv(i,2),1)>1.0e-5 .and. aice(nv(i,3),1)>1.0e-5 .and. aice(nv(i,1),1)<1.0e-5) then
+        iwbnd(i) = 1
+      else
+        iwbnd(i) = 0
+      end if
+    end do 
+   end subroutine FIND_ICE_WATER_BOUNDARY 
+
+
+
+
+
+!=============================================================================|
+!   calculate the bottom sigma index of embedding icepack
+!=============================================================================|
+   SUBROUTINE GET_Kzice
+   
+   IMPLICIT NONE
+   INTEGER  :: I,I1,I2,I3,I4,J,K
+   REAL(SP) :: DTMP,ice_depth
+
+   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: get_kzice "    
+
+   DO I=1,N
+
+     if(iwbnd(i)==0)cycle
+
+     D1(I) = H1(I)+ELF1(I)
+     ice_depth = max(QTHICE(NV(I,1)),QTHICE(NV(I,2)),QTHICE(NV(I,3)))
+     Kzice(I) = 0
+     DTMP = 0.0_SP
+
+     DO K=1,KB
+       DTMP = DTMP + DZ1(I,K)*D1(I)
+       IF(DTMP <= ice_depth)THEN
+         Kzice(I) = Kzice(I) + 1
+       END IF
+     END DO  	 
+     
+   END DO
+
+   if(dbg_set(dbg_sbr)) write(ipt,*) "End: get_kzice " 
+
+   Return
+
+ End SUBROUTINE GET_Kzice
+
+
+!==============================================================================|
+!     CALCULATE THE BAROCLINIC PRESSURE GRADIENT IN SIGMA COORDINATES          |
+!==============================================================================|
+
+   SUBROUTINE BAROPG_ICE
+
+!==============================================================================|
+   USE ALL_VARS
+   USE MOD_SPHERICAL
+   USE MOD_NORTHPOLE
+   USE MOD_WD
+
+#  if defined (MULTIPROCESSOR)
+   USE MOD_PAR
+#  endif
+
+   IMPLICIT NONE
+   REAL(SP) :: RIJK(0:N,3,KBM1), DRIJK1(0:N,3,KBM1), DRIJK2(0:N,KBM1)
+   REAL(SP) :: TEMP,DIJ,DRHO1,DRHO2
+   INTEGER  :: I,K,J,J1,J2,IJK
+#  if defined (SPHERICAL)
+   REAL(SP) :: XTMP,XTMP1
+#  endif
+
+   integer :: ierr
+   integer,allocatable, dimension(:)   :: iwbndtmp
+   real(sp),allocatable,dimension(:)   :: art1tmp
+   real(sp),allocatable,dimension(:,:) :: aicetmp,vicetmp,drhoxtmp,drhoytmp
+   real(dp)::total_mass,total_drhox,total_drhoy
+
+
+!==============================================================================|
+
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "Start: baropg.F"
+   
+   ! USE RAMP CALCULATED IN 'internal_step.F'
+
+!----------SUBTRACT MEAN DENSITY TO MINIMIZE ROUNDOFF ERROR--------------------!
+
+   RHO1(:,1:KBM1) = RHO1(:,1:KBM1) - RMEAN1(:,1:KBM1)
+   RHO = RHO - RMEAN 
+
+!----------INITIALIZE ARRAYS---------------------------------------------------!
+
+   DRHOX_ice  = 0.0_SP
+   DRHOY_ice  = 0.0_SP
+   RMEAN(0,:) = 0.0_SP
+   RHO(0,:)   = 0.0_SP
+   RIJK       = 0.0_SP
+   DRIJK1     = 0.0_SP
+   DRIJK2     = 0.0_SP
+
+!----------CALCULATE AVERAGE DENSITY ON EACH EDGE------------------------------!
+
+   DO K=1,KBM1
+     DO I=1,N
+!------J. Ge-------
+       if(iwbnd(i)==0)cycle
+       if(k>kzice(i))cycle
+!------J. Ge-------
+       DO J=1,3
+         J1=J+1-INT((J+1)/4)*3
+         J2=J+2-INT((J+2)/4)*3
+         RIJK(I,J,K)  = 0.5_SP*(RHO1(NV(I,J1),K)+RHO1(NV(I,J2),K))
+       END DO
+     END DO
+   END DO
+
+   DO I=1,N
+!------J. Ge-------
+     if(iwbnd(i)==0)cycle
+!------J. Ge-------
+     DO J=1,3
+       DRIJK1(I,J,1)=RIJK(I,J,1)*(-ZZ1(I,1))
+       DO K=2,KBM1
+!------J. Ge-------
+         if(k>kzice(i))cycle
+!------J. Ge-------
+         DRIJK1(I,J,K)=0.5_SP*(RIJK(I,J,K-1)+RIJK(I,J,K))*(ZZ1(I,K-1)-ZZ1(I,K))
+         DRIJK1(I,J,K)=DRIJK1(I,J,K)+DRIJK1(I,J,K-1)
+       END DO
+     END DO
+   END DO
+
+   DO I=1,N
+!------J. Ge-------
+     if(iwbnd(i)==0)cycle
+!------J. Ge-------
+     DRIJK2(I,1)=0.0_SP
+     DO K=2,KBM1
+!------J. Ge-------
+         if(k>kzice(i))cycle
+!------J. Ge-------
+       DRIJK2(I,K)=0.5_SP*(ZZ1(I,K-1)+ZZ1(I,K))*(RHO(I,K)-RHO(I,K-1)) 
+       DRIJK2(I,K)=DRIJK2(I,K-1)+DRIJK2(I,K)
+     END DO
+   END DO
+
+   DO I = 1, N
+!------J. Ge-------
+     if(iwbnd(i)==0)cycle
+!------J. Ge-------
+#  if defined (WET_DRY)
+    IF(ISWETCT(I)*ISWETC(I) == 1 .AND. &
+      (H(NV(I,1)) > STATIC_SSH_ADJ .OR. H(NV(I,2)) > STATIC_SSH_ADJ .OR. H(NV(I,3)) > STATIC_SSH_ADJ))THEN
+#  endif
+     DO K=1,KBM1
+!------J. Ge-------
+        if(k>kzice(i))cycle
+!------J. Ge-------
+        DO J = 1, 3
+          J1=J+1-INT((J+1)/4)*3
+          J2=J+2-INT((J+2)/4)*3
+          IJK=NBE(I,J)
+          DIJ=0.5_SP*(DT(NV(I,J1))+DT(NV(I,J2)))
+
+#         if defined (SPHERICAL)
+          DRHO1=-DELTUY(I,J)*DRIJK1(I,J,K)*DT1(I)
+          DRHO2=-DELTUY(I,J)*DIJ*DRIJK2(I,K)
+#         else
+          DRHO1=(VY(NV(I,J1))-VY(NV(I,J2)))*DRIJK1(I,J,K)*DT1(I)
+          DRHO2=(VY(NV(I,J1))-VY(NV(I,J2)))*DIJ*DRIJK2(I,K)
+#         endif
+          DRHOX_ice(I,K)=DRHOX_ice(I,K)+DRHO1+DRHO2
+
+#         if defined (SPHERICAL)
+          XTMP  = VX(NV(I,J2))*TPI-VX(NV(I,J1))*TPI
+          XTMP1 = VX(NV(I,J2))-VX(NV(I,J1))
+          IF(XTMP1 >  180.0_SP)THEN
+            XTMP = -360.0_SP*TPI+XTMP
+          ELSE IF(XTMP1 < -180.0_SP)THEN
+            XTMP =  360.0_SP*TPI+XTMP
+          END IF  
+
+          DRHO1=XTMP*COS(DEG2RAD*YC(I))*DRIJK1(I,J,K)*DT1(I)
+          DRHO2=XTMP*COS(DEG2RAD*YC(I))*DIJ*DRIJK2(I,K)
+!          DRHO1=DELTUX(I,J)*DRIJK1(I,J,K)*DT1(I)
+!          DRHO2=DELTUX(I,J)*DIJ*DRIJK2(I,K)
+#         else
+	  DRHO1=(VX(NV(I,J2))-VX(NV(I,J1)))*DRIJK1(I,J,K)*DT1(I)
+          DRHO2=(VX(NV(I,J2))-VX(NV(I,J1)))*DIJ*DRIJK2(I,K)
+#         endif
+          DRHOY_ice(I,K)=DRHOY_ice(I,K)+DRHO1+DRHO2
+
+       END DO
+     END DO
+#  if defined (WET_DRY)
+    END IF
+#  endif
+   END DO
+
+#  if defined (SPHERICAL)
+   CALL BAROPG_XY(DRIJK1,DRIJK2)
+#  endif  
+
+
+!----------MULTIPLY BY GRAVITY AND ELEMENT DEPTH-------------------------------!
+
+   DO K=1,KBM1
+     DRHOX_ice(:,K)=DRHOX_ice(:,K)*DT1(:)*DZ1(:,K)*GRAV_E(:)*RAMP
+     DRHOY_ice(:,K)=DRHOY_ice(:,K)*DT1(:)*DZ1(:,K)*GRAV_E(:)*RAMP
+   END DO
+
+!----------ADD MEAN DENSITY BACK ON--------------------------------------------!
+
+   RHO1 = RHO1 + RMEAN1
+   RHO  = RHO  + RMEAN
+
+
+
+
+
+   IF(SERIAL)THEN
+!----------calculate the whole ice mass----------------------------------------!
+    total_mass = 0.0
+    do i=1,m
+      total_mass = total_mass + art1(i)*vice(i,1)*aice(i,1)*rhoi
+    end do
+
+!----------accumulate all gradient force---------------------------------------!
+    total_drhox = 0.0
+    total_drhoy = 0.0
+    do i=1,n
+       if(iwbnd(i)==0)cycle
+       total_drhox = total_drhox + sum(DRHOX_ice (i,:))
+       total_drhoy = total_drhoy + sum(DRHOy_ice (i,:))
+    end do
+
+   ENDIF
+
+
+#  if defined (MULTIPROCESSOR) 
+   IF(PAR)THEN
+
+     CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+
+     ALLOCATE(aicetmp(0:mGL,1))  
+     allocate(art1tmp(0:mgl)) 
+     allocate(vicetmp(0:mgl,1)) 
+     allocate(drhoxtmp(0:ngl,kb))
+     allocate(drhoytmp(0:ngl,kb))
+     allocate(iwbndtmp(0:ngl)) 
+
+     CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,art1,art1tmp)
+     CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,vice,vicetmp)
+     CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,aice,aicetmp)
+     CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,DRHOX_ice,drhoxtmp)
+     CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,DRHOY_ice,drhoytmp)
+     CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,iwbnd,iwbndtmp)
+
+!----------calculate the whole ice mass----------------------------------------!
+     total_mass = 0.0
+     do i=1,mgl
+       total_mass = total_mass + art1tmp(i)*vicetmp(i,1)*aicetmp(i,1)*rhoi
+     end do
+
+!----------accumulate all gradient force---------------------------------------!
+     total_drhox = 0.0
+     total_drhoy = 0.0
+     do i=1,ngl
+       if(iwbndtmp(i)==0)cycle
+       total_drhox = total_drhox + sum(DRHOXtmp(i,:))
+       total_drhoy = total_drhoy + sum(DRHOytmp(i,:))
+     end do     
+
+   END IF
+
+#  endif
+
+!----------put the total gradient force on whole icepack-----------------------!
+   net_DRHOX = total_drhox / total_mass
+   net_DRHOY = total_drhoy / total_mass
+
+
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "End: baropg.F"
+
+   RETURN
+   END SUBROUTINE BAROPG_ICE
+!==============================================================================|
+
+
+
+
+
+!==============================================================================|
+
+#  endif
+
+
 #  endif
   END MODULE MOD_ICE2D
  

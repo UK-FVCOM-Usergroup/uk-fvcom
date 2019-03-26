@@ -43,7 +43,7 @@
 !                                                                              |
 !==============================================================================|
 
-   SUBROUTINE BCOND_GCN(IDX)
+   SUBROUTINE BCOND_GCN(IDX,K_RK)
 
 !==============================================================================|
    USE ALL_VARS
@@ -53,6 +53,11 @@
    USE MOD_PAR
    USE MOD_WD
    USE MOD_BULK
+#  if defined (ICE)
+!  hhu ice bc 2/8/2017
+   use ice_state  !hhu
+!  hhu
+#  endif
 
 #  if defined (WATER_QUALITY)
    USE MOD_WQM
@@ -65,8 +70,8 @@
    USE MOD_DAM, ONLY : NBE_DAM,KDAM1,CLP_CELL,CLP_ALPHA,CLP_KDAM   !Jadon
 #  endif
 
-#  if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
-   USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON
+#  if defined (HEATING_CALCULATED)
+   USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON,HEATING_FRESHWATER
 #  endif
 #  if defined (HEATING_SOLAR)
    USE MOD_SOLAR, ONLY : HEATING_SOLAR_ON
@@ -81,7 +86,7 @@
 !   REAL(SP) :: TIME1,FACT,UFACT,FORCE,QPREC,QEVAP,UI,VI,UNTMP,VNTMP,TX,TY,HFLUX
    REAL(SP) :: TIME1,FACT,UFACT,FORCE,UI,VI,UNTMP,VNTMP,TX,TY,HFLUX
 !   REAL(SP) :: DTXTMP,DTYTMP,QPREC2,QEVAP2,SPRO,WDS,CD,SPCP,ROSEA
-   REAL(SP) :: DTXTMP,DTYTMP,SPRO,WDS,CD,SPCP,ROSEA,ROSEA1(MT),SPRO1(MT)
+   REAL(SP) :: DTXTMP,DTYTMP,SPRO,WDS,CD,SPCP,ROSEA,ROSEA1(0:MT),SPRO1(0:MT) !,ROSEA1(MT),SPRO1(MT)
    REAL(SP) :: PHAI_IJ,ALPHA1,DHFLUXTMP,DHSHORTTMP,HSHORT,TIMERK1
 
    ! VARIABLES FOR LONG SHORE FLOW STUFF
@@ -93,7 +98,7 @@
    REAL(SP),POINTER :: eta_lcl(:), eta_gbl(:) ,elfgeo_gbl(:),elfgeo_lcl(:)
 
    INTEGER  I,J,K,I1,I2,J1,J2,II,L1,L2,IERR
-   INTEGER  cdx,ndx,KDAM_TMP
+   INTEGER  cdx,ndx,KDAM_TMP,K_RK
 
 !!$!=================|DEBUG|============================
 !!$   LOGICAL, save :: INIT=.false.
@@ -112,8 +117,8 @@
 !==============================================================================|
    IF(OBC_ELEVATION_FORCING_ON) CALL BCOND_ASL
    CALL BCOND_ASL_CLP
-   CALL BCOND_GWI
-   CALL BCOND_BKI
+   CALL BCOND_GWI(K_RK)
+   CALL BCOND_BKI(K_RK)
    CALL BCOND_ORE
 
 !
@@ -499,8 +504,34 @@
 
 
 !==============================================================================|
-   CASE(4) !Blank                                                              !
+   CASE(4)                                                                     !
 !==============================================================================|
+# if defined (ICE)
+! hhu ice bc 2/8/2017
+!=Sea ice open boundary by Haoguo Hu=== hhu                                                    !
+! additional bc fix - afm 4/17/17
+! additional bc fix using Ice flux (UIARC_OBCN) - afm 11/13/17
+         DO I=1,IOBCN
+             I1 = I_OBC_N(I)
+             I2 = NEXT_OBC(I)
+!             IF(UARD_OBCN(I) > 0.0_SP) THEN       ! IF THE FLOW IS OUT OF THE DOMAIN
+             UIARD_OBCN(I) = -XFLUX_ICE_OBC(I)  ! ICE FLUX at open boudary cells
+             IF(UIARD_OBCN(I) > 0.0_SP) THEN       ! IF THE FLOW IS OUT OF THE DOMAIN
+                vicen(i1,:,:)= vicen(i2,:,:)
+                aicen(i1,:,:)= aicen(i2,:,:)
+                eicen(i1,:,:)= eicen(i2,:,:)
+                esnon(i1,:,:)= esnon(i2,:,:)
+                Tsfc(i1,:)= Tsfc(i2,:)
+                aice0(i1,:)= aice0(i2,:)
+                aice(i1,:)= aice(i2,:)
+                vice(i1,:)= vice(i2,:)
+                eice(i1,:)= eice(i2,:)
+                esno(i1,:)= esno(i2,:)
+            ENDIF
+          ENDDO
+!!==End sea ice open boundary=====
+!==============================================================================|
+# endif
 
 !==============================================================================|
    CASE(5) !!SOLID BOUNDARY CONDITIONS ON U AND V                              !
@@ -608,7 +639,7 @@
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS,SED=SEDDIS)
 # endif
 # if defined(BioGen)
-         CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
+         IF(BIOLOGICAL_MODEL)CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
 # endif
 # if !defined(SEDIMENT) && !defined(WATER_QUALITY) 
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS)
@@ -651,7 +682,7 @@
 
       END IF
       
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
       IF (HEATING_ON) THEN
          CALL UPDATE_HEAT(IntTime,SWRAD_WATTS,WTSURF_WATTS)
          
@@ -673,45 +704,56 @@
       END IF
 # endif      
       
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
       IF (HEATING_CALCULATE_ON) THEN
-         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS)
+         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
          
          ! LOAD INTO THES VARIABLE TO SAVE THE FORCING IN THE CORRECT UNITS
          SWRAD_WATTS  = SWRAD_WATTS * RAMP
          WTSURF_WATTS = WTSURF_WATTS * RAMP
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
+         HSENS_WATTS = HSENS_WATTS * RAMP
+         HLAT_WATTS = HLAT_WATTS * RAMP
+         LWRAD_WATTS = LWRAD_WATTS * RAMP
 
-# if defined (HEATING_CALCULATED)
-         SPCP=4.2174E3_SP
-         ROSEA = 1.023E3_SP
-         SPRO = SPCP*ROSEA
-# else
-         SPCP= 4.186E3_SP
-         ROSEA = 1.000E3_SP
-         SPRO = SPCP*ROSEA
-# endif
+         IF(.NOT. HEATING_FRESHWATER)THEN
+	   SPCP=4.2174E3_SP
+           ROSEA = 1.023E3_SP
+           SPRO = SPCP*ROSEA
+         ELSE
+           SPCP= 4.186E3_SP
+           ROSEA = 1.000E3_SP
+           SPRO = SPCP*ROSEA
+	 END IF  
          
          WTSURF    = -WTSURF_WATTS/SPRO
          SWRAD     = -SWRAD_WATTS/SPRO
 	 
 # if defined (MULTIPROCESSOR)
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
          IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,SWRAD_WATTS,WTSURF_WATTS)         
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
 # endif
 
       END IF
 # endif      
 # if defined (HEATING_SOLAR)
       IF (HEATING_SOLAR_ON) THEN
-         CALL UPDATE_HEAT_SOLAR(IntTime,SWRAD_WATTS,WTSURF_WATTS)
+      !EJA edit - add HS,HL,RLN - 05/03/2016
+         CALL UPDATE_HEAT_SOLAR(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
          
          ! LOAD INTO THES VARIABLE TO SAVE THE FORCING IN THE CORRECT UNITS
          SWRAD_WATTS  = SWRAD_WATTS * RAMP
          WTSURF_WATTS = WTSURF_WATTS * RAMP
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
+         HSENS_WATTS = HSENS_WATTS * RAMP
+         HLAT_WATTS = HLAT_WATTS * RAMP
+         LWRAD_WATTS = LWRAD_WATTS * RAMP
 
-         ROSEA1 = (-.0057)*T1(:,1)*T1(:,1) + 0.0249*T1(:,1) + 1000
+         ROSEA1 = (-.0057_SP)*T1(:,1)*T1(:,1) + 0.0249_SP*T1(:,1) + 1000.0_SP
          !IF(TWAT .LT. 3.9) WRITE(IPT,*)'WATER TEMP BELOW 4 C, BEWARE DENSITY CALCULATION!, TWAT = ',TWAT
          !IF(TWAT .GT. 30.1) WRITE(IPT,*)'WATER TEMP ABOVE 30 C, BEWARE DENSITY CALCULATION!, TWAT = ',TWAT
-         SPCP  = 4186
+         SPCP  = 4186.0_SP
          !SPRO  = SPCP*ROSEA
          !SPRO  = SPCP*ROSEA
          SPRO1  = SPCP*ROSEA1
@@ -724,7 +766,9 @@
          SWRAD     = -SWRAD_WATTS/SPRO1
 	 
 # if defined (MULTIPROCESSOR)
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
          IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,SWRAD_WATTS,WTSURF_WATTS)         
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
 # endif
 
       END IF
@@ -744,7 +788,24 @@
 
 # if defined (OFFLINE_SEDIMENT)
       CALL UPDATE_OFFLINE_FORCING(IntTime,offline_u,  offline_v, offline_w&
-                                        &,offline_s1, offline_el,offline_kh&
+                                        &,offline_s1, offline_t1,offline_el,offline_kh&
+# if defined (GOTM)
+                                        &,offline_teps &
+# else
+                                        &,offline_q2, offline_q2l &
+# endif
+                                        &,offline_wn, offline_wc)
+# endif
+
+
+# if defined (OFFLINE_BIOLOGY)
+      CALL UPDATE_OFFLINE_BIOLOGY_FORCING(IntTime,offline_u,  offline_v, offline_w&
+                                        &,offline_s1, offline_t1,offline_el,offline_kh&
+# if defined (GOTM)
+                                        &,offline_teps &
+# else
+                                        &,offline_q2, offline_q2l &
+# endif
                                         &,offline_wn, offline_wc)
 # endif
 

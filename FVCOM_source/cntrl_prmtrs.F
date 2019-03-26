@@ -34,7 +34,7 @@ SUBROUTINE CNTRL_PRMTRS
   USE MOD_TIME
   USE MOD_NCDIO
   USE MOD_NESTING
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
   USE MOD_HEATFLUX
 # endif 
   IMPLICIT NONE
@@ -123,7 +123,7 @@ SUBROUTINE CNTRL_PRMTRS
                 "should have the default value when the bottom roughness is set using 'static'",&
                 "(ie set from an input file!)")
            
-           BOTTOM_ROUGHNESS_LENGTHSCALE = -1.0_SP
+           BOTTOM_ROUGHNESS_LENGTHSCALE = BOTTOM_ROUGHNESS_LENGTHSCALE
         end if
         
      else if(BOTTOM_ROUGHNESS_KIND .eq. CNSTNT) THEN
@@ -140,7 +140,7 @@ SUBROUTINE CNTRL_PRMTRS
      
      
      ! FIX SCALAR_POSITIVITY_CONTROL and HEATING_TYPE SETTINGS
-#    if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL)
+#    if !defined (HEATING_CALCULATED)
      IF (HEATING_ON) THEN
 
         ! SET THE FVCOM NAMES FOR SURFACE HEATING
@@ -229,6 +229,14 @@ SUBROUTINE CNTRL_PRMTRS
   ! TEST FOR IDEALIZED MODEL CASE
   if (timezone == 'none' .or. timezone == "NONE" .or.&
        & timezone == "None") use_real_world_time = .FALSE.
+  !By Jadon Ge for realistic tidal forcing
+  if(use_real_world_time)then
+     read(start_date,"(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)")iyear&
+          &,imonth,iday,ihour,imin,isec
+     if(DBG_SET(dbg_log))write(ipt,"(a16,i4,a1,i2,a1,i2,a1,i2,a1,i2,a1&
+          &,i2)")' ! initial date:',iyear,'-',imonth,'-',iday,' ',ihour&
+          &,':',imin,':',isec
+  end if
 
 
   ! CHECK FOR VALID TIME ZONE
@@ -239,6 +247,9 @@ SUBROUTINE CNTRL_PRMTRS
 
   call REGISTER_FUNC(DUMP_NC_DAT,NC_CODE,stat)
   IF (stat/=0) CALL FATAL_ERROR("REGISTER_FUNC: FAILED TO REGISTER:: DUMP_NC_DAT")
+
+  call REGISTER_FUNC(DUMP_NC_SF,NCSF_CODE,stat)
+  IF (stat/=0) CALL FATAL_ERROR("REGISTER_FUNC: FAILED TO REGISTER:: DUMP_NC_SF")
 
   call REGISTER_FUNC(DUMP_NC_RST,RESTART_CODE,stat)
   IF (stat/=0) CALL FATAL_ERROR("REGISTER_FUNC: FAILED TO REGISTER:: DUMP_NC_RST")

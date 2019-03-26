@@ -92,10 +92,10 @@
 
       real (kind=dbl_kind) :: &
          TsfK     &! surface temperature (K)
-      ,  fsh      &! sensible heat flux  (W/m^2)
-      ,  flh      &! latent heat flux    (W/m^2)
+      ,  fsh_t      &! sensible heat flux  (W/m^2)
+      ,  flh_t      &! latent heat flux    (W/m^2)
       ,  swabs    &! surface absorbed shortwave heat flux (W/m^2)
-      ,  flwup    &! long-wave upward heat flux  (W/m^2)
+      ,  flwup_t    &! long-wave upward heat flux  (W/m^2)
       ,  ft       &! fraction reduction of positive qdp
       ,  dtcprho  ! dt/cp_ocn*rhow
 
@@ -116,16 +116,16 @@
          swabs = (c1i - albocn) * fsw(i,j)
 
          ! longwave radiative flux
-         flwup  = -stefan_boltzmann * TsfK**4
+         flwup_t  = -stefan_boltzmann * TsfK**4
 
          ! downward latent and sensible heat fluxes
-         flh = lhcoef(i,j) * delq(i,j)
-         fsh = shcoef(i,j) * delt(i,j)
+         flh_t = lhcoef(i,j) * delq(i,j)
+         fsh_t = shcoef(i,j) * delt(i,j)
 
          ! compute sst change due to exchange with atm/ice above
          ! Note: fhnet, fswthru are added in ice_therm_vertical.F
            sst(i,j) = sst(i,j) + (c1i-aice(i,j))*dtcprho/hmix(i,j) &
-                         *(fsh + flh + flwup + flw(i,j) + swabs)
+                         *(fsh_t + flh_t + flwup_t + flw(i,j) + swabs)
 
          ! adjust qdp if cooling of mixed layer would occur when sst le Tf
          if( sst(i,j) <= Tf(i,j) .and. qdp(i,j) > c0i ) qdp(i,j) = c0i

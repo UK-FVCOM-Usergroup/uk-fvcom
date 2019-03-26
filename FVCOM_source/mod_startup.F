@@ -74,7 +74,13 @@ CONTAINS
 !==============================================================================!
   SUBROUTINE STARTUP
 # if defined(SEDIMENT) 
+
+# if defined(ORIG_SED)
   USE MOD_SED, ONLY: sed_hot_start
+# elif defined(CSTMS_SED)
+  USE MOD_SED_CSTMS, ONLY: sed_hot_start
+# endif
+
 # endif
     IMPLICIT NONE
 
@@ -114,6 +120,13 @@ CONTAINS
 # if defined (EQUI_TIDE)
        CALL READ_EQI
 # endif
+
+
+! ------- New: Karsten Lettmann, June 2016 -----------------------
+# if defined(AIR_PRESSURE)
+  CALL READ_AIR_PRESS_ELE
+# endif
+! ---------- end  new --------------------------------------------
 
 !    if (dbg_set(dbg_log)) write(ipt,*) &
 !         & "! INITIALIZING SEA ICE"
@@ -166,6 +179,14 @@ CONTAINS
 # if defined (EQUI_TIDE)
        CALL READ_EQI
 # endif
+
+
+! ------- New: Karsten Lettmann, June 2016 -----------------------
+# if defined(AIR_PRESSURE)
+  CALL READ_AIR_PRESS_ELE
+# endif
+! ---------- end  new --------------------------------------------
+
 
 # if defined (ICE)    
     CALL  READ_ICE
@@ -302,6 +323,8 @@ CONTAINS
 #   endif
 
 #   if defined (BioGen)
+    IF(BIOLOGICAL_MODEL)THEN
+
     if (dbg_set(dbg_log)) write(ipt,*) &
          & "! INITIALIZING BIOLOGICAL VARIABLES"
 
@@ -309,7 +332,7 @@ CONTAINS
     SELECT CASE(STARTUP_BIO_TYPE)
     CASE(STARTUP_TYPE_OBSERVED) 
 
-       CALL BIO_INITIAL
+       CALL SET_OBSERVED_BIO
 
     CASE(STARTUP_TYPE_LINEAR)
 
@@ -328,6 +351,9 @@ CONTAINS
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN STARTUP_BIO_TYPE")
     END SELECT
+
+    ENDIF
+
 #   endif
 
     ! ONCE WE HAVE STARTED THE MODEL POINT THE START FILE OBJECT TO
@@ -419,7 +445,13 @@ CONTAINS
 
   SUBROUTINE READ_SSH
 #   if defined (SEDIMENT)
+
+#   if defined (ORIG_SED)
     USE MOD_SED, only : morpho_model,sed_hot_start 
+# elif defined(CSTMS_SED)
+  USE MOD_SED_CSTMS, ONLY:morpho_model,sed_hot_start
+# endif
+
 #   endif
     IMPLICIT NONE
     TYPE(NCVAR),  POINTER :: VAR
@@ -450,9 +482,13 @@ CONTAINS
     !----------------------------------------------------------------
 #   if defined(SEDIMENT)
     IF(MORPHO_MODEL .and. SED_HOT_START)THEN
+#   if defined(ORIG_SED)
     VAR => FIND_VAR(NC_START,'h',FOUND)
+#   elif defined(CSTMS_SED)
+    VAR => FIND_VAR(NC_START,'h_morpho',FOUND)
+#   endif
     IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'h'&
-         & IN THE HOTSTART FILE OBJECT")
+         & or 'h_morpho' IN THE HOTSTART FILE OBJECT")
     CALL NC_CONNECT_AVAR(VAR, h)
     CALL NC_READ_VAR(VAR,STKCNT)
     ENDIF
@@ -521,7 +557,10 @@ CONTAINS
     VAR => FIND_VAR(NC_START,'wet_cells_prev_ext',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'wet_cells_prev_ext'&
          & IN THE HOTSTART FILE OBJECT")
-    CALL NC_CONNECT_AVAR(VAR, ISWETC)
+    ! ------ new: Karsten Lettmann, May 2016 -------------
+    !CALL NC_CONNECT_AVAR(VAR, ISWETC)  ! original line
+    CALL NC_CONNECT_AVAR(VAR, ISWETCE)
+    ! ------------- end new ------------------------------
     CALL NC_READ_VAR(VAR,STKCNT)
 
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_WETDRY"
@@ -631,6 +670,35 @@ CONTAINS
    
   END SUBROUTINE READ_EQI
 !==============================================================================!
+
+! ------- New: Karsten Lettmann, June 2016 -----------------------
+# if defined(AIR_PRESSURE)
+!==============================================================================!
+  SUBROUTINE READ_AIR_PRESS_ELE
+    IMPLICIT NONE
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM
+    LOGICAL :: FOUND
+    INTEGER :: STKCNT
+
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_AIR_PRESS_ELE" 
+    
+    STKCNT = NC_START%FTIME%PREV_STKCNT
+
+    ! LOAD Air pressure induced elevation
+    VAR => FIND_VAR(NC_START,'el_press',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR&
+         &("COULD NOT FIND VARIABLE 'el_press' IN THE HOTSTART FILE OBJECT")
+    CALL NC_CONNECT_AVAR(VAR, EL_AIR)
+    CALL NC_READ_VAR(VAR,STKCNT)
+
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_AIR_PRESS_ELE" 
+   
+  END SUBROUTINE READ_AIR_PRESS_ELE
+!==============================================================================!
+# endif  
+! ------------- end new ---------------------------------------------------------
+
 # if defined (DYE_RELEASE)
   SUBROUTINE READ_DYE
     IMPLICIT NONE
@@ -756,7 +824,11 @@ CONTAINS
 !JQI       CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
 !JQI            & "   "//TRIM(SEA_WATER_DENSITY_FUNCTION) )
 !JQI    END SELECT
-    
+
+!J. GE
+    T0=T1
+    S0=S1
+!J. GE    
     CALL N2E3D(T1,T)
     CALL N2E3D(S1,S)
     CALL N2E3D(RHO1,RHO)
@@ -919,7 +991,10 @@ CONTAINS
        
        T1(I,1:KBM1) = TI(:)
        S1(I,1:KBM1) = SI(:)
-
+!J. Ge
+       T0(I,1:KBM1) = TI(:)
+       S0(I,1:KBM1) = SI(:)
+!J. Ge
     END DO
 
        where(S1<0.0_SP) S1=0.0
@@ -1023,6 +1098,10 @@ CONTAINS
     
        T1(I,1:kbm1) = TI
        S1(I,1:kbm1) = SI
+!J. Ge
+       T0(I,1:kbm1) = TI
+       S0(I,1:kbm1) = SI
+!J. Ge
 
     END DO
 
@@ -1066,7 +1145,10 @@ CONTAINS
 
     T1(:,1:KBM1) = STARTUP_T_VALS(1)
     S1(:,1:KBM1) = STARTUP_S_VALS(1)
-
+!J. Ge
+    T0(:,1:KBM1) = STARTUP_T_VALS(1)
+    S0(:,1:KBM1) = STARTUP_S_VALS(1)
+!J. Ge
 
     IF(.NOT.BAROTROPIC)THEN
      SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
@@ -1229,7 +1311,7 @@ CONTAINS
     VAR => FIND_VAR(NC_START,'km',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'km'&
          & IN THE HOTSTART FILE OBJECT")
-    CALL NC_CONNECT_AVAR(VAR, km)
+    CALL NC_CONNECT_AVAR(VAR, KM)
     CALL NC_READ_VAR(VAR,STKCNT)
 
     VAR => FIND_VAR(NC_START,'kq',FOUND)
@@ -1519,7 +1601,13 @@ CONTAINS
 ! Hot start the sediment model variables
 !-----------------------------------------------------------------------------
   SUBROUTINE READ_SED
+
+# if defined (ORIG_SED)
     USE MOD_SED
+# elif defined (CSTMS_SED)
+    USE MOD_SED_CSTMS
+# endif
+
     IMPLICIT NONE
     TYPE(NCVAR),  POINTER :: VAR
     TYPE(NCDIM),  POINTER :: DIM
@@ -1877,7 +1965,105 @@ CONTAINS
    
  END SUBROUTINE READ_BIO
 !==============================================================================!
+
+!==============================================================================!
+  SUBROUTINE SET_OBSERVED_BIO
+    IMPLICIT NONE
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT), POINTER :: ATT
+    TYPE(NCDIM),  POINTER :: DIM
+    LOGICAL :: FOUND
+    INTEGER :: STKCNT,ii
+    INTEGER KSL                                        !! NUMBER OF STANDARD SEA LEVELS 
+    REAL(SP), ALLOCATABLE, TARGET :: DPTHSL(:)         !! DEPTH AT STANDARD SEA LEVEL
+    REAL(SP), ALLOCATABLE, TARGET :: BIOSL_ALL(:,:,:)  !! BIO_ALL AT STANDARD SEA LEVEL
+    REAL(SP), ALLOCATABLE, TARGET :: BIO_TEMP(:,:) 
+    REAL(SP),DIMENSION(KBM1)      :: ZI,BioI
+    REAL(SP),DIMENSION(0:MT,KB) :: PRESSURE
+    INTEGER :: K, I, IB, IERR
+    REAL(SP) :: SCOUNT, FAC, RBUF
+
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "START: SET_OBSERVED_BIO" 
+
+    ALLOCATE(BIO_ALL(0:MT,KB,NTT))    ; BIO_ALL     =  0.001_SP
+    ALLOCATE(BIO_F(0:MT,KB,NTT))      ; BIO_F       =  0.001_SP
+    ALLOCATE(BIO_MEAN(00:MT,KB,NTT))  ; BIO_MEAN    =  0.001_SP
+    ALLOCATE(XFLUX_OBCB(0:MT,KB,NTT)) ; XFLUX_OBCB  =  0.0_SP
+    ALLOCATE(BIO_MEANN(0:NT,KB,NTT))  ; BIO_MEANN   =  0.001_SP
+    ALLOCATE(BIO_VAR_MEAN(0:MT,KB,NTT)) ; BIO_VAR_MEAN   =  0.0_SP
+
+    ZI       = 0.0_SP
+
+    STKCNT = NC_START%FTIME%PREV_STKCNT
+
+    DIM => FIND_DIM(NC_START,'ksl',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND DIMENSION 'ksl'&
+         & IN THE BIOLOGICAL PARAMETER FILE OBJECT")
+
+    KSL = DIM%DIM
+    ! ALLOCATE SPACE
+
+    ALLOCATE(BIOSL_ALL(MT,KSL,NTT)) ;   BIOSL_ALL  =  0.0_SP
+    ALLOCATE(BIO_TEMP(MT,KSL))      ;   BIO_TEMP = 0.0_SP
+    ALLOCATE(DPTHSL(KSL))           ;   DPTHSL   = 0.0_SP
+
+
+    ! READ THE DATA
+    DO II = 1,NTT
+    ! LOAD BIOLOGICAL VARIABLES
+    ! LOAD BIOLOGICAL VARIABLES
+      VAR => FIND_VAR(NC_START,TRIM(BIO_NAME(II,1)),FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(BIO_NAME(II,1))//" IN THE BIOLOGICAL PARAMETER FILE OBJECT")
+
+      ATT => FIND_ATT(VAR,'units',FOUND)
+      IF(TRIM(ATT%CHR(1)) /= BIO_NAME(II,2))CALL FATAL_ERROR &
+         & ("THE BIOLOGICAL PARAMETER FILE:"//TRIM(NC_START%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "THE ATTRIBUTE 'units' IS INCORRECT: EXPE&
+         &CTING "//BIO_NAME(II,2)//" and is "//TRIM(ATT%CHR(1)))
+
+      CALL NC_CONNECT_AVAR(VAR, BIO_TEMP)
+      CALL NC_READ_VAR(VAR,STKCNT)
+      CALL NC_DISCONNECT(VAR)
+
+      BIOSL_ALL(1:MT,1:KSL,II)=BIO_TEMP
+    END DO
+
+
+    VAR => FIND_VAR(NC_START,'zsl',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'zsl'&
+         & IN THE BIOLOGICAL PARAMETER FILE OBJECT")
+    CALL NC_CONNECT_AVAR(VAR, DPTHSL)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+   
+    ! NOW INTERPOLATE FROM STANDARD LEVELS TO THE VALUE AT EACH NODE
+    DO II=1,NTT
+      DO I=1,MT
+         DO K=1,KBM1
+            ZI(K)=ZZ(I,K)*D(I)+EL(I)
+         END DO
+       
+              
+         ! REAL BIO
+         CALL SINTER_EXTRP_UP(DPTHSL,BIOSL_ALL(I,:,II),ZI,BIOI,KSL,KBM1)
+       
+         BIO_ALL(I,1:KBM1,II) = BIOI(:)
+
+      END DO
+    END DO
+
+
+   DEALLOCATE(BIOSL_ALL,DPTHSL)
+
+
+   IF(DBG_SET(DBG_SBR)) write(ipt,*) "END: SET_OBSERVED_BIO" 
+    
+  END SUBROUTINE SET_OBSERVED_BIO
+
 # endif
+
+
 
 # if defined (MEAN_FLOW)
  SUBROUTINE READ_MEANFLOW_RST
@@ -2050,6 +2236,10 @@ CONTAINS
    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_WAVE" 
    
  END SUBROUTINE READ_WAVE
+
+
+
+
 # endif 
 
 END MODULE MOD_STARTUP

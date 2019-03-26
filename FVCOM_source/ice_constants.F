@@ -97,7 +97,12 @@
       ,  Lfresh    = Lsub-Lvap         &! latent heat of melting of fresh ice (J/kg)
       ,  Timelt    = 0.0_dbl_kind      &! melting temperature, ice top surface  (C)
       ,  Tsmelt    = 0.0_dbl_kind      &! melting temperature, snow top surface (C)
+#  if defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160920
+      ,  ice_ref_salinity = 0._dbl_kind   ! (psu)
+#  else
       ,  ice_ref_salinity = 4._dbl_kind   ! (psu)
+#  endif
 !c    &,  ocn_ref_salinity   = 34.7_dbl_kind  ! (psu)
 !c    &,  rho_air   = 1.2_dbl_kind      ! ambient air density (kg/m^3)
 

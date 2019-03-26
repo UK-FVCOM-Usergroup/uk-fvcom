@@ -33,6 +33,7 @@
       use ice_calendar
 !      use ice_read_write
       use ice_fileunits
+      USE CONTROL, ONLY : ICE_LONGWAVE_TYPE
 !
 !EOP
 !
@@ -1210,6 +1211,7 @@
 !
       use ice_grid, only: ANGLET, t2ugrid, hm
       use ice_state
+      use mod_utils, only: Fatal_Error
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -1254,6 +1256,8 @@
       !-----------------------------------------------------------------
       ! Compute other fields needed by model
       !-----------------------------------------------------------------
+
+      if(trim(ICE_LONGWAVE_TYPE) == 'PW')then
 
       do j=jlo,jhi
        do i = ilo, ihi
@@ -1321,6 +1325,73 @@
 
        enddo
       enddo
+      
+      else if(trim(ICE_LONGWAVE_TYPE) == 'RM')then
+
+      do j=jlo,jhi
+       do i = ilo, ihi
+
+        zlvl(i,j) = c10i
+        !wind (i,j) = sqrt(uatm(i,j)**2 + vatm(i,j)**2) ! wind speed, m/s
+        potT(i,j) = Tair(i,j)
+
+        ! divide shortwave into spectral bands
+        swvdr(i,j) = fsw(i,j)*(.28_dbl_kind)         ! visible direct
+        swvdf(i,j) = fsw(i,j)*(.24_dbl_kind)         ! visible diffuse
+        swidr(i,j) = fsw(i,j)*(.31_dbl_kind)         ! near IR direct
+        swidf(i,j) = fsw(i,j)*(.17_dbl_kind)         ! near IR diffuse
+                                            ! as in the dummy atm (latm)
+
+        ! longwave, Rosati and Miyakoda, JPO 18, p. 1607 (1988) - sort of -
+        fcc = c1i - 0.8_dbl_kind * cldf(i,j)
+        sstk = (Tsfc(i,j) * aice(i,j)                         &
+               + sst(i,j) * (c1i - aice(i,j))) + Tffresh
+        rtea = sqrt(c1000*Qa(i,j) / (0.622_dbl_kind           &
+             + 0.378_dbl_kind*Qa(i,j)))
+        ptem = Tair(i,j)  ! get this from stability?           
+        qlwm = ptem * ptem * ptem *                           &
+             ( ptem*(0.39_dbl_kind-0.05_dbl_kind*rtea)*fcc    &
+                                  + c4i*(sstk-ptem) )
+        flw(i,j) = emissivity * stefan_boltzmann * ( sstk**4 - qlwm )
+
+        flw(i,j) = flw(i,j) * hm(i,j) ! land mask
+
+        ! determine whether precip is rain or snow
+!        if (trim(precip_units) == 'mm_per_month') then
+!          fsnow(i,j) = fsnow(i,j)/2.592e+06_dbl_kind  ! mm/month -> kg/m^2 s
+!       elseif (trim(precip_units) == 'mm_per_sec' .or.
+!               trim(precip_units) == 'mks') then
+!               ! no change:  mm/sec = kg/m^2 s
+!        endif
+!        frain(i,j) = c0i                     
+!        if (Tair(i,j) >= Tffresh) then
+!            frain(i,j) = fsnow(i,j)
+!            fsnow(i,j) = c0i
+!        endif
+
+      !-----------------------------------------------------------------
+      ! rotate zonal/meridional vectors to local coordinates
+      ! Vector fields come in on T grid, but are oriented geographically
+      ! need to rotate to pop-grid FIRST using ANGLET
+      ! then interpolate to the U-cell centers  (otherwise we
+      ! interpolate across the pole)
+      ! use ANGLET which is on the T grid !
+      ! atmo variables are needed in T cell centers in subroutine stability,
+      ! and are interpolated to the U grid later as necessary
+      !-----------------------------------------------------------------
+        !workx      = uatm(i,j)                ! wind velocity, m/s
+        !worky      = vatm(i,j) 
+        !uatm (i,j) = workx*cos(ANGLET(i,j))  & ! convert to POP grid
+        !           + worky*sin(ANGLET(i,j))    ! note uatm, vatm, wind
+        !vatm (i,j) = worky*cos(ANGLET(i,j))  & !  are on the T-grid here
+        !           - workx*sin(ANGLET(i,j))
+
+       enddo
+      enddo
+      
+      else
+        CALL FATAL_ERROR("ICE_LONGWAVE_TYPE should be PW or RM")
+      end if
 
       end subroutine prepare_forcing
 

@@ -38,6 +38,7 @@ MODULE MOD_INPUT
   TYPE(NCFILE), POINTER ::NC_AVG
   TYPE(NCFILE), POINTER ::NC_RST
   TYPE(NCFILE), POINTER ::NC_START
+  TYPE(NCFILE), POINTER ::NC_SF
 
 CONTAINS
 
@@ -266,18 +267,50 @@ CONTAINS
     NC_NH_QP        = .False.
     NC_NH_RHS       = .False.
     NC_WIND_VEL     = .False.
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     NC_ATM_PRESS    = .False.
 # endif    
     NC_WIND_STRESS  = .False.
-    NC_WAVE_PARA    = .False.  !Jadon
-    NC_WAVE_STRESS  = .False.  !Jadon
+# if defined (WAVE_CURRENT_INTERACTION)
+    NC_WAVE_PARA    = .False. 
+    NC_WAVE_STRESS  = .False. 
+# endif
     NC_EVAP_PRECIP  = .False.
     NC_SURFACE_HEAT = .False.
     NC_GROUNDWATER  = .False.
+# if defined (ICE)
+    NC_ICE          = .False.
+# endif
     NC_VORTICITY    = .False.
     NC_WQM          = .False.
     NC_BIO          = .False.
+    
+    ! OUTPUT VARIABLES DEFAULT TO OFF
+
+    !--Parameters in NameList NML_NETCDF_SURFACE
+    NCSF_ON = .False.
+    NCSF_FIRST_OUT = 'Date to start NETCDF OUTPUT: Format the same as START_DATE'
+    NCSF_OUT_INTERVAL = "A length of time: 'seconds= ','days= ', or 'cycles= '"
+    NCSF_OUTPUT_STACK = 0
+    NCSF_SUBDOMAIN_FILES= "FVCOM"
+    NCSF_GRID_METRICS = .False.
+    NCSF_FILE_DATE    = .False.   
+    NCSF_VELOCITY     = .False.
+    NCSF_SALT_TEMP    = .False.
+    NCSF_TURBULENCE   = .False.
+    NCSF_WIND_VEL     = .False.
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
+    NCSF_ATM_PRESS    = .False.
+# endif    
+    NCSF_WIND_STRESS  = .False.
+# if defined (WAVE_CURRENT_INTERACTION)
+    NCSF_WAVE_PARA    = .False.
+# endif
+# if defined (ICE)
+    NCSF_ICE          = .False.
+# endif
+    NCSF_EVAP_PRECIP  = .False.
+    NCSF_SURFACE_HEAT = .False.
     
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
@@ -298,7 +331,7 @@ CONTAINS
     NCAV_NH_QP        = .False.
     NCAV_NH_RHS       = .False.
     NCAV_WIND_VEL     = .False.
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     NCAV_ATM_PRESS    = .False.  
 # endif    
     NCAV_WIND_STRESS  = .False.
@@ -353,6 +386,11 @@ CONTAINS
     SALINITY_ACTIVE     = .FALSE.          
     SURFACE_WAVE_MIXING = .FALSE.          
     WETTING_DRYING_ON   = .FALSE.
+!J. Ge
+    ! for tracer advection
+    BACKWARD_ADVECTION = .FALSE.
+    BACKWARD_STEP = -1
+!J. Ge
 
     ADCOR_ON = .TRUE.
     EQUATOR_BETA_PLANE = .FALSE.
@@ -480,15 +518,21 @@ CONTAINS
     DATA_ASSIMILATION  = .FALSE.
     DATA_ASSIMILATION_FILE = "./"//trim(casename)//"_run.nml"
     BIOLOGICAL_MODEL= .FALSE.
-!!$    BIOLOGICAL_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+!--------- J. Ge for biology --------------
+    BIOLOGICAL_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+!------------------------------------------
     STARTUP_BIO_TYPE = "'observed' use this option only now"   ! constant, linear, observed, set values
     SEDIMENT_MODEL= .FALSE.
     SEDIMENT_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # if defined (OFFLINE_SEDIMENT)
     OFFLINE_SEDIMENT_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
 # endif
+# if defined (OFFLINE_BIOLOGY)
+    OFFLINE_BIOLOGY_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+# endif
     SEDIMENT_PARAMETER_TYPE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     SEDIMENT_PARAMETER_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+    SEDIMENT_MIXING_RATIO =  1.0
     BEDFLAG_TYPE = "DO NOT ADD UNTIL FVCOM IS RUNNING BY ITS SELF FIRST"
     BEDFLAG_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     ICE_MODEL= .FALSE.
@@ -499,6 +543,9 @@ CONTAINS
     ICE_AIR_TEMP           = 0.0
     ICE_SPEC_HUMIDITY      = 0.0
     ICE_CLOUD_COVER        = 0.0
+    ICE_SHORTWAVE          = 0.0
+    ICE_LONGWAVE_TYPE      = "'PW' or 'RM'" !PW -- longwave as in Parkinson and Washington (1979)
+                                            !RM -- longwave, Rosati and Miyakoda, JPO 18, p. 1607 (1988)
 
     ICING_MODEL= .FALSE.
     ICING_FORCING_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
@@ -510,6 +557,8 @@ CONTAINS
     PROBES_ON = .FALSE.
     PROBES_NUMBER =0
     PROBES_FILE = "Probe namelist file name"
+
+    HIGH_LATITUDE_WAVE = .FALSE.
 
   END SUBROUTINE NAME_LIST_INITIALIZE
 
@@ -529,6 +578,7 @@ CONTAINS
     write(UNIT=IPT,NML=NML_INTEGRATION)
     write(UNIT=IPT,NML=NML_RESTART)
     write(UNIT=IPT,NML=NML_NETCDF)
+    write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
     write(UNIT=IPT,NML=NML_NETCDF_AV)
     write(UNIT=IPT,NML=NML_SURFACE_FORCING)
     write(UNIT=IPT,NML=NML_PHYSICS)
@@ -656,6 +706,21 @@ CONTAINS
 
     if(DBG_SET(dbg_scl)) &
          & write(UNIT=IPT,NML=NML_NETCDF)
+
+    ! Read Netcdf Output Settings
+    READ(UNIT=NMLUNIT, NML=NML_NETCDF_SURFACE,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
+       Call Fatal_Error("Can Not Read NameList NML_NETCDF_SURFACE from file: "//trim(FNAME))
+    end if
+
+    REWIND(NMLUNIT)
+
+    if(DBG_SET(dbg_scl)) &
+         & write(IPT,*) "Read_Name_List:"
+
+    if(DBG_SET(dbg_scl)) &
+         & write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
 
     ! Read Netcdf Average Output Settings
     READ(UNIT=NMLUNIT, NML=NML_NETCDF_AV,IOSTAT=ios)
@@ -988,6 +1053,7 @@ CONTAINS
     NULLIFY(NC_AVG)
     NULLIFY(NC_RST)
     NULLIFY(NC_START)
+    NULLIFY(NC_SF)
   END SUBROUTINE NULLIFY_FILE_POINTERS
 !=============================================================  
   SUBROUTINE INCRIMENT_FNAME(FNAME)
@@ -1108,7 +1174,22 @@ CONTAINS
     END IF
        
 
-    IF(NCAV_ON) then
+     IF(NCSF_ON) then
+       ! DATA FILE
+       NCSF_FILE_NAME = trim(casename)//"_surface_0001.nc"
+       pathnfile= trim(OUTPUT_DIR)//TRIM(NCSF_FILE_NAME)
+       
+       CALL SEARCH_FOR_LAST_MATCHING_NAME(PATHNFILE)
+       NCF => NEW_FILE()
+       NCF%FNAME=trim(pathnfile)
+       NCF%writable = .true.
+       NC_SF => NCF
+       FILEHEAD => ADD(FILEHEAD,NCF)
+
+    END IF
+       
+
+   IF(NCAV_ON) then
        ! DATA FILE
        NCAV_FILE_NAME = trim(casename)//"_avg_0001.nc"
        pathnfile= trim(OUTPUT_DIR)//TRIM(NCAV_FILE_NAME)
@@ -1290,7 +1371,24 @@ CONTAINS
 
     END IF
     
-    IF(NCAV_ON) THEN
+     IF(NCSF_ON) THEN
+       NCSF_FILE_NAME = trim(casename)//"_surface_0001.nc"
+       pathnfile = trim(OUTPUT_DIR)//trim(NCSF_FILE_NAME)
+       CALL NC_INIT(NCF,pathnfile)
+       if(msr) then
+          CALL NC_CREATE(NCF)
+          CALL NC_CLOSE(NCF)
+       else
+          NCF%writable = .true.
+       end if
+
+       NC_SF => NCF
+
+       FILEHEAD => ADD(FILEHEAD,NCF)
+
+    END IF
+    
+   IF(NCAV_ON) THEN
        NCAV_FILE_NAME = trim(casename)//"_avg_0001.nc"
        pathnfile = trim(OUTPUT_DIR)//trim(NCAV_FILE_NAME)
        CALL NC_INIT(NCF,pathnfile)
@@ -1327,7 +1425,7 @@ CONTAINS
 
   SUBROUTINE OPEN_FORCING
     USE CONTROL
-#   if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#   if defined (HEATING_CALCULATED)
     USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON, HEATING_CALCULATE_KIND, HEATING_CALCULATE_FILE
 #   endif
 #   if defined (HEATING_SOLAR)
@@ -1392,7 +1490,7 @@ CONTAINS
     end if
 
     ! Check Heat file and open
-#   if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+#   if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
     if (HEATING_ON .and. HEATING_KIND /= CNSTNT) then
 
        ! TEST FILE NAME
@@ -1416,7 +1514,7 @@ CONTAINS
     end if
 #   endif    
 
-#   if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#   if defined (HEATING_CALCULATED)
     if (HEATING_CALCULATE_ON .and. HEATING_CALCULATE_KIND /= CNSTNT) then
 
        ! TEST FILE NAME
@@ -1517,6 +1615,29 @@ CONTAINS
        
        ! INITIALIZE TYPE TO HOLD FILE METADATA
        pathnfile= trim(INPUT_DIR)//trim(OFFLINE_SEDIMENT_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+       
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+           FILEHEAD => ADD(FILEHEAD,NCF)
+        end if
+
+# endif
+
+
+# if defined (OFFLINE_BIOLOGY)
+    ! Check Wave file and open
+ 
+       ! TEST FILE NAME
+       charnum = index (OFFLINE_BIOLOGY_FILE,".nc",back)
+       if (charnum /= len_trim(OFFLINE_BIOLOGY_FILE)-2)&
+            & CALL WARNING("OFFLINE BIOLOGY FILE does not end in .nc", &
+            & trim(OFFLINE_BIOLOGY_FILE))
+       
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(OFFLINE_BIOLOGY_FILE)
        CALL  NC_INIT(NCF,pathnfile)
        
        ! OPEN THE FILE AND LOAD METADATA
@@ -1825,7 +1946,7 @@ CONTAINS
     END IF
 
     ! LOAD SEDIMENT PARAMETER
-    IF (SEDIMENT_PARAMETER_TYPE /= CNSTNT) THEN
+    IF (SEDIMENT_PARAMETER_TYPE /= UNIFORM) THEN
 
        ! TEST FILE NAME
        charnum = index (SEDIMENT_PARAMETER_FILE,".nc",back)
@@ -1906,10 +2027,10 @@ CONTAINS
 
   END SUBROUTINE LOAD_HORIZONTAL_MIXING_COEFFICIENT
 
-  SUBROUTINE LOAD_BOTTOM_ROUGHNESS(Z0)
+  SUBROUTINE LOAD_BOTTOM_ROUGHNESS(Z0,NUNI_CBCMIN)
     USE CONTROL
     IMPLICIT NONE
-    REAL(SP),ALLOCATABLE :: Z0(:)
+    REAL(SP),ALLOCATABLE :: Z0(:),NUNI_CBCMIN(:)
     TYPE(NCFILE), POINTER :: NCF
     TYPE(NCVAR),  POINTER :: VAR
     TYPE(NCDIM),  POINTER :: DIM1
@@ -1943,6 +2064,15 @@ CONTAINS
     CALL NC_READ_VAR(VAR)
     CALL NC_DISCONNECT(VAR)
 
+    ! FIND THE 'NUNI_CBCMIN' variable
+    VAR => FIND_VAR(NCF,'cbcmin',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND BOTTOM_ROUGHNESS_FILE VARIABLE 'cbcmin' in:",&
+         & "FILE NAME: "//TRIM(BOTTOM_ROUGHNESS_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,NUNI_cbcmin)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
     
   END SUBROUTINE LOAD_BOTTOM_ROUGHNESS
   
@@ -2331,6 +2461,58 @@ CONTAINS
        CALL NC_READ_VAR(VAR)
        CALL NC_DISCONNECT(VAR)
        
+       
+       ! h
+       ALLOCATE(G%H(0:G%MT),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%H WHILE READING:"//TRIM(NCF%FNAME))
+       G%H=0.0_SP
+       
+       VAR => FIND_VAR(NCF,'h',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'h' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+       
+       CALL NC_CONNECT_PVAR(VAR,G%H)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+       
+       ! h1
+       ALLOCATE(G%H1(0:G%NT),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%H1 WHILE READING:"//TRIM(NCF%FNAME))
+       G%H1=0.0_SP
+       
+       VAR => FIND_VAR(NCF,'h_center',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'h_center' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+       
+       CALL NC_CONNECT_PVAR(VAR,G%H1)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+       
+       ! zz
+       ALLOCATE(G%ZZ(0:G%MT,G%KBM1),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%ZZ WHILE READING:"//TRIM(NCF%FNAME))
+       G%ZZ=0.0_SP
+       
+       VAR => FIND_VAR(NCF,'siglay',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'siglay' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+       
+       CALL NC_CONNECT_PVAR(VAR,G%ZZ)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+       
+       ! zz1
+       ALLOCATE(G%ZZ1(0:G%NT,G%KBM1),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%ZZ1 WHILE READING:"//TRIM(NCF%FNAME))
+       G%ZZ1=0.0_SP
+       
+       VAR => FIND_VAR(NCF,'siglay_center',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'siglay_center' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+       
+       CALL NC_CONNECT_PVAR(VAR,G%ZZ1)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
        
     END IF
        
@@ -3250,6 +3432,10 @@ CONTAINS
           
           ! GET THE PERIOD OF THE COMPONENT
           PRD(I) = READ_FLOAT(item(2), IOS)
+          ! -------- new: Karsten Lettmann, 2016, march -------
+          ! initialize Test:
+          TEST = item(2)
+          ! -------------- end new ----------------------------
           IF(IOS /=0) CALL FATAL_ERROR&
                &("INVALID DATA IN ASCII NON_JULIAN FORCING FILE",&
                & "Non Floating Point Value: '"//TRIM(TEST)//"' ; in line: "//TRIM(LINE))
@@ -3269,19 +3455,32 @@ CONTAINS
           
           ! GET THE PERIOD OF THE COMPONENT
           PRD(I) = READ_FLOAT(item(2), IOS)
+          ! -------- new: Karsten Lettmann, 2016, march -------
+          ! initialize Test:
+          TEST = item(2)
+          ! -------------- end new ----------------------------
           IF(IOS /=0) CALL FATAL_ERROR&
                &("INVALID DATA IN ASCII NON_JULIAN FORCING FILE",&
                & "Non Floating Point Value: '"//TRIM(TEST)//"' ; in line: "//TRIM(LINE))
 
           ! GET THE EQILIBRIUM AMPLITUDE OF THE COMPONENT
           EQ_AMP(I) = READ_FLOAT(item(3), IOS)
+          ! -------- new: Karsten Lettmann, 2016, march -------
+          ! initialize Test:
+          TEST = item(3)
+          ! -------------- end new ----------------------------
           IF(IOS /=0) CALL FATAL_ERROR&
                &("INVALID DATA IN ASCII NON_JULIAN FORCING FILE",&
                & "Non Floating Point Value: '"//TRIM(TEST)//"' ; in line: "//TRIM(LINE))
 
 
           ! GET THE EQILIBRIUM BETA OF THE COMPONENT
-          EQ_BETA(I) = READ_FLOAT(item(3), IOS)
+          ! -------- new: Karsten Lettmann, 2016, march -------
+          !EQ_BETA(I) = READ_FLOAT(item(3), IOS)  ! original line
+          EQ_BETA(I) = READ_FLOAT(item(4), IOS)
+          ! initialize Test:
+          TEST = item(4)
+          ! -------------- end new ----------------------------
           IF(IOS /=0) CALL FATAL_ERROR&
                &("INVALID DATA IN ASCII NON_JULIAN FORCING FILE",&
                & "Non Floating Point Value: '"//TRIM(TEST)//"' ; in line: "//TRIM(LINE))
@@ -3872,7 +4071,7 @@ CONTAINS
 
 
   SUBROUTINE READ_COLDSTART_COORDS(GRIDUNIT,MGL,XG2,YG2)
-!    USE ALL_VARS   !Jadon Ge
+    USE ALL_VARS, ONLY : NVG
     IMPLICIT NONE
     INTEGER, INTENT(IN)    :: MGL
     INTEGER, INTENT(IN)    :: GRIDUNIT
@@ -3887,6 +4086,8 @@ CONTAINS
             EVY12,EVY13,EVY23,EVXY,VX12,VY12,VX23,VY23,VX31,VY31,&
 	    X1_DP,Y1_DP,X2_DP,Y2_DP,DTMP_DP
 #  endif
+    REAL(SP)               :: X_CW(3),Y_CW(3)
+    INTEGER                :: IS_CW
     !==============================================================================|
     
     ! DO NOT REWIND - SAVED LOCATION FROM READING CONNECTIVITY
@@ -3914,6 +4115,13 @@ CONTAINS
        write(ipt,*) "Read, ", I, "rows of data but mgl= ",mgl 
        CALL FATAL_ERROR('Number of rows of data in the grid file coordinates does not equal the stated number of nodes ?')
     END if
+    
+    IF(MSR)THEN
+      X_CW(1:3)=XG2(NVG(1,1:3))
+      Y_CW(1:3)=YG2(NVG(1,1:3))
+      CALL IS_TRI_CW(X_CW,Y_CW,IS_CW)
+      IF(IS_CW /= 1) CALL FATAL_ERROR('Nodes on a cell in *_grd.dat file are either clockwise, or triangle is so small that it appears as a line. Nodes must be specified counter-clockwise.')
+    END IF
 
       if(DBG_SET(dbg_log)) then
       WRITE(IPT,*)'!  Finished Reading coordinates from Grid File'
@@ -4510,4 +4718,39 @@ case default
 
   END SUBROUTINE HelpTxt
 
+  SUBROUTINE IS_TRI_CW(X, Y, IS_CW)
+
+  !===================================================
+  ! Subroutine to check if a triangle is clockwise.
+  ! Input  : x(3), the x-coordinate 
+  !          y(3), the y-coordinate
+  ! Output : is_cw, integer result. 1, clockwise
+  !                                -1, anti-clockwise
+  !                                 0, line
+  ! Siqi Li, SMAST.
+  ! 
+  !===================================================
+    implicit none
+    !
+    real(sp), intent(in) :: x(3), y(3)
+    integer, intent(out) :: is_cw
+    real(sp)             :: cross_prod
+    !
+    cross_prod=(x(2)-x(1))*(y(3)-y(1))-(y(2)-y(1))*(x(3)-x(1))
+    !
+    if (abs(cross_prod)<1e-8) then
+      is_cw=0
+!      print*, 'This is a line, rather than a triangle.'
+    else
+      if (cross_prod>0) then
+        is_cw=-1
+!        print*, 'This triangle is anti-clockwise.'
+      else
+        is_cw=1
+!        print*, 'This triangle is clockwise.'
+      end if
+    end if
+    !
+  END SUBROUTINE IS_TRI_CW
+ 
 END MODULE MOD_INPUT

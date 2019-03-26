@@ -1,4 +1,4 @@
-SUBROUTINE PHYTOPLANKTON
+SUBROUTINE PHYTOPLANKTON(index_id,i_id,iint_id)
 !==========================================================================
 !  This routine computes source and sink terms of phytoplankton in 1D   ===
 !  without vertical mixing                                              ===
@@ -14,13 +14,15 @@ SUBROUTINE PHYTOPLANKTON
    
    IMPLICIT NONE
    INTEGER :: I,K,J,I1,I2
-   rEAL(SPP) :: TEMPP, TRANS, TATANUL, IRRAD, IRRAD1
-   REAL(SPP) :: SINKK(10),RATIO(10),RATIOT
+   REAL(SPP) :: TEMPP, TRANS, TATANUL, IRRAD, IRRAD1
+   REAL(SPP) :: SINKK(10),RATIO(10),RATIOT,SMALL
+   
+   integer :: index_id,i_id,iint_id
 
 !=======================================================================
 !  BEGINNING EXECUTABLE
 !=======================================================================
-
+      SMALL = 1.E-30
 
         DO 10 K=1,KBVM1  !vertical
 !**************  PAR-PHYTOPLANKTON PRODUCTION    **************************
@@ -41,9 +43,11 @@ SUBROUTINE PHYTOPLANKTON
       IRRAD=(IRRAD0-IRRAD1)/TATANUL                    ! Average irradiance 
       DO 20 J=1,NNP
         UTR(J)=EXP(-A_TP(J)*ABS(TEMPP-T_OPTP(J)))      ! Temperature forcing on phyto
+     ! 	UTR(J)=A_TP(J)**((TEMPP-T_OPTP(J))/10.)
       SELECT CASE (TRIM(L_FUNCTION))                   ! Light function choice
         CASE('EXP_LIGHT')                              ! Exponential (Frank et al. ,86)
-          ULR(J)=EXP(TATANUL*DEPTH_Z(K))
+!          ULR(J)=EXP(TATANUL*DEPTH_Z(K))
+          ULR(J)=EXP(ATANU_W*DEPTH_Z(K))
         CASE('SL62_LIGHT')                             ! Exponential (Steele, 62)
           ULR(J)=IRRAD/I_OPT(J)*EXP(1-IRRAD/I_OPT(J))
         CASE('MM_LIGHT')                               ! Michaealis (Baly 35)
@@ -58,27 +62,32 @@ SUBROUTINE PHYTOPLANKTON
           ULR(J)=IRRAD/I_OPT(J)*(2+ALPHAP(J))/(1+ALPHAP(J)*IRRAD/I_OPT(J) &
                 +(IRRAD/I_OPT(J))**2)
         CASE('WNS74_LIGHT')                            ! Exponentail (Webb, 1978)
-          ULR(J)=1-EXP(-ALPHAP(J)*IRRAD/UMAX(J))
+          ULR(J)=1-EXP(-ALPHAP(J)*IRRAD/(UMAX(J)+SMALL))
         CASE('PGH80_LIGHT')                            ! Exponential (Platt et al., 80)
-          ULR(J)=(1-EXP(-ALPHAP(J)*IRRAD/UMAX(J)))*EXP(-BETAP(J)*IRRAD/UMAX(J))
+          ULR(J)=(1-EXP(-ALPHAP(J)*IRRAD/(UMAX(J)+SMALL))) &
+                *EXP(-BETAP(J)*IRRAD/(UMAX(J)+SMALL))
+	CASE('SH92_LIGHT')                             ! Exponential (STEEL & Henderson, 1992) 
+	  ULR(J)=(1-EXP(-ALPHAP(J)*IRRAD)*EXP(-BETAP(J)*IRRAD))
+        CASE('JI_LIGHT')                            ! Exponential (Platt et al., 80)
+          ULR(J)=(1-EXP(-ALPHAP(J)*IRRAD))*EXP(-BETAP(J)*IRRAD)
         CASE('JP76_LIGHT')                             ! Tangent (Jessy & Platt, 76)
-          ULR(J)=TANH(ALPHAP(J)*IRRAD/UMAX(J))
+          ULR(J)=TANH(ALPHAP(J)*IRRAD/(UMAX(J)+SMALL))
         CASE('BWDC99_LIGHT')                           ! Tangent (Bissett et al., 99)
-          ULR(J)=TANH(ALPHAP(J)*(IRRAD-I_OPT(J))/UMAX(J)) &
+          ULR(J)=TANH(ALPHAP(J)*(IRRAD-I_OPT(J))/(UMAX(J)+SMALL)) &
                 *EXP(BETAP(J)*(I_OPT(J)-IRRAD))
       END SELECT       
 !*************   NUTRIENT-PHYTOPLANKTON GORWTH   ***************
       UNRMIN(J)=1.0_SPP
       DO I1=1,NNN
-        UNR(J,I1)=FVNN(K,I1)/(FVNN(K,I1)+KSN(J,I1))
+        UNR(J,I1)=FVNN(K,I1)/(FVNN(K,I1)+KSN(I1,J))
       END DO
       IF (.NOT. NO3_ON) THEN
          DO I1=1,NNN
            IF(N2CP(I1,J).GT.0.) UNRMIN(J)=MIN(UNRMIN(J),UNR(J,I1))
          END DO    
       ELSE
-        UNR(J,2)=FVNN(K,2)/(FVNN(K,2)+KSN(J,2)) &   ! NO3 must be nutrient 2
-                *KSN(J,1)/(FVNN(K,1)+KSN(J,1))      ! Parker NH4 inhibition
+        UNR(J,2)=FVNN(K,2)/(FVNN(K,2)+KSN(2,J)) &   ! NO3 must be nutrient 2
+                *KSN(J,1)/(FVNN(K,1)+KSN(1,J))      ! Parker NH4 inhibition
         UNR(J,NNN+1)=UNR(J,1)+UNR(J,2)                ! Total nitrogen factor
          DO I1=3,NNN
            IF(N2CP(I1,J).GT.0.) UNRMIN(J)=MIN(UNRMIN(J),UNR(J,I1)) 
@@ -88,25 +97,38 @@ SUBROUTINE PHYTOPLANKTON
       U_P(K,J)=UMAX(J)*UTR(J)*(ALPHA_U(J)*ULR(J)*UNRMIN(J) &
               +(1-ALPHA_U(J))*MIN(ULR(J),UNRMIN(J)))       &
               *BIO_P(K,J)*CHL2C(J)                            !Chl concentration
+!JQIJQI
+!      if(index_id == 1 .and. mod(iint_id,30) == 0)then
+!        if(i_id == 153)write(101,'(2i6,i3,9e12.5)')   iint_id,i_id,k,u_p(k,j),utr(j),ulr(j),unrmin(j),bio_p(k,j),irrad,TATANUL,irrad0,irrad1
+!        if(i_id == 5681)write(102,'(2i6,i3,9e12.5)')  iint_id,i_id,k,u_p(k,j),utr(j),ulr(j),unrmin(j),bio_p(k,j),irrad,TATANUL,irrad0,irrad1
+!        if(i_id == 10244)write(103,'(2i6,i3,9e12.5)') iint_id,i_id,k,u_p(k,j),utr(j),ulr(j),unrmin(j),bio_p(k,j),irrad,TATANUL,irrad0,irrad1
+!      end if	
+
       DO I1=1,NNN
         UPTAKE_PN(K,I1,J)=U_P(K,J)*N2CP(I1,J)                    !Nutrient uptake
       END DO
       IF (NO3_ON) THEN
-        UPTAKE_PN(K,1,J)=U_P(K,J)*N2CP(1,J)*UNR(J,1)/UNR(J,NNN+1)    !NH4
-        UPTAKE_PN(K,2,J)=U_P(K,J)*N2CP(1,J)*UNR(J,2)/UNR(J,NNN+1)    !NO3
+        if(unr(j,nnn+1).ne.0) then
+          UPTAKE_PN(K,1,J)=U_P(K,J)*N2CP(1,J)*UNR(J,1)/UNR(J,NNN+1)    !NH4
+          UPTAKE_PN(K,2,J)=U_P(K,J)*N2CP(1,J)*UNR(J,2)/UNR(J,NNN+1)    !NO3
+        else
+          uptake_pn(k,1,j)=0.
+          uptake_pn(k,2,j)=0.
+        endif
       END IF
 !***************     SINK TERMS    ****************
       P_DOM(K,J)=DPDOM(J)*FVP(K,J)                       !DOM EXUDATION
-      P_D(K,J)=MPD(J)*FVP(K,J)**M_P(J)
+      P_D(K,J)=UTR(J)*MPD(J)*FVP(K,J)**M_P(J)
       P_N(K,J)=R_P(J)*FVP(K,J)*EXP(RP_T*TEMPP)         !Phyto respiration with T forcing
-      RATIOT=FVP(K,J)/((P_DOM(K,J)+P_D(K,J)+P_N(K,J))*T_STEP+0.0001)
-      IF(RATIOT.LT.1.) THEN
-        P_DOM(K,J)=0.0
-        P_D(K,J)=0.0
-        P_N(K,J)=0.0
-      END IF
-      FVP(K,J)=FVP(K,J)-(P_DOM(K,J)+P_D(K,J)+P_N(K,J))*T_STEP
+     ! RATIOT=FVP(K,J)/((P_DOM(K,J)+P_D(K,J)+P_N(K,J))*T_STEP+1.E-30)
+     ! IF(RATIOT.LT.1.) THEN
+     !   P_DOM(K,J)=0.0
+     !   P_D(K,J)=0.0
+     !   P_N(K,J)=0.0
+     ! END IF
+!      FVP(K,J)=FVP(K,J)-(P_DOM(K,J)+P_D(K,J)+P_N(K,J))*T_STEP
  20   CONTINUE
+      GO TO 21  !TO CONFORM JI'S
 !**************     CHECK NUTRIENT AVAILABILITY  ***********
       RATIOT=1.0
       SINKK=0.
@@ -119,7 +141,7 @@ SUBROUTINE PHYTOPLANKTON
       END DO
       DO I1=1,NNN
         IF (SINKK(I1).GT.FVNN(K,I1).AND.SINKK(I1).GT.0.0) THEN
-          RATIO(I1)=FVNN(K,I1)/(SINKK(I1)+0.001)
+          RATIO(I1)=FVNN(K,I1)/(SINKK(I1)+1.E-30)
           RATIOT=MIN(RATIOT,RATIO(I1))
         END IF
       END DO  
@@ -131,7 +153,7 @@ SUBROUTINE PHYTOPLANKTON
           END DO
         END DO
       END IF
-
+ 21   CONTINUE   
 !****************   LIGHT-CONTROLLED NITRIFICATION    *************
       IF (NO3_ON) THEN
         IF (IRRAD0.GT.0.) THEN
@@ -145,6 +167,7 @@ SUBROUTINE PHYTOPLANKTON
             NH4_NO3(K)=R_AN*FVNN(K,1)
         END IF
      END IF
+     
       IRRAD0=IRRAD1     !For next level
  10   CONTINUE
 !*******************   CELLS SINKING    ***********
@@ -156,8 +179,8 @@ SUBROUTINE PHYTOPLANKTON
       END DO 
       DO K=2,KBV-2
         DO I1=1,NNP
-         WSNK_P(K,I1)=W_P(I1)*0.5*(FVP(K-1,I1)-FVP(K+1,I1))/DELTA_D(K)
-!         WSNK_P(K,I1)=W_P(I1)*(FVP(K-1,I1)-FVP(K,I1))/DELTA_D(K)
+!         WSNK_P(K,I1)=W_P(I1)*0.5*(FVP(K-1,I1)-FVP(K+1,I1))/DELTA_D(K)
+         WSNK_P(K,I1)=W_P(I1)*(FVP(K-1,I1)-FVP(K,I1))/DELTA_D(K)
         END DO
       END DO
 !**************   PHYTOPLANKTON SOURCES AND SINKS   **************

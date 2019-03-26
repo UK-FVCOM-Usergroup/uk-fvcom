@@ -42,7 +42,7 @@
 !                                                                              |
 !==============================================================================|
 
-   SUBROUTINE BCOND_GCY(IDX)
+   SUBROUTINE BCOND_GCY(IDX,K_RK)
 
 !==============================================================================|
    USE ALL_VARS
@@ -60,8 +60,8 @@
    USE MOD_SED
 #  endif
 
-#  if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
-   USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON
+#  if defined (HEATING_CALCULATED)
+   USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON,HEATING_FRESHWATER
 #  endif
 #  if defined (HEATING_SOLAR)
    USE MOD_SOLAR, ONLY : HEATING_SOLAR_ON
@@ -89,7 +89,7 @@
    REAL(SP),POINTER :: eta_lcl(:), eta_gbl(:) ,elfgeo_gbl(:),elfgeo_lcl(:)
 
    INTEGER  I,J,K,I1,I2,J1,J2,II,L1,L2,IERR
-   INTEGER  cdx,ndx
+   INTEGER  cdx,ndx,K_RK
 
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: bcond_gcy: ",idx
@@ -102,8 +102,8 @@
 
    IF(OBC_ELEVATION_FORCING_ON) CALL BCOND_ASL
    CALL BCOND_ASL_CLP
-   CALL BCOND_GWI
-   CALL BCOND_BKI
+   CALL BCOND_GWI(K_RK)
+   CALL BCOND_BKI(K_RK)
    CALL BCOND_ORE
 
 !
@@ -500,7 +500,7 @@
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS,SED=SEDDIS)
 # endif
 # if defined(BioGen)
-         CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
+         IF(BIOLOGICAL_MODEL)CALL UPDATE_RIVERS(IntTime,QDIS,BIO=BIODIS)
 # endif
 # if !defined(SEDIMENT) && !defined(WATER_QUALITY)
          CALL UPDATE_RIVERS(IntTime,QDIS,TEMP=TDIS,SALT=SDIS)
@@ -540,7 +540,7 @@
         
      END IF
 
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) &&!defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) &&!defined (HEATING_SOLAR)
      IF (HEATING_ON) THEN
          CALL UPDATE_HEAT(IntTime,SWRAD_WATTS,WTSURF_WATTS)
          
@@ -562,45 +562,55 @@
       END IF
 # endif      
       
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
       IF (HEATING_CALCULATE_ON) THEN
-         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS)
+         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
          
          ! LOAD INTO THES VARIABLE TO SAVE THE FORCING IN THE CORRECT UNITS
          SWRAD_WATTS  = SWRAD_WATTS * RAMP
          WTSURF_WATTS = WTSURF_WATTS * RAMP
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
+         HSENS_WATTS = HSENS_WATTS * RAMP
+         HLAT_WATTS = HLAT_WATTS * RAMP
+         LWRAD_WATTS = LWRAD_WATTS * RAMP
 
-# if defined (HEATING_CALCULATED)
-         SPCP=4.2174E3_SP
-         ROSEA = 1.023E3_SP
-         SPRO = SPCP*ROSEA
-# else
-         SPCP=4.186E3_SP
-         ROSEA = 1.000E3_SP
-         SPRO = SPCP*ROSEA
-# endif
+         IF(.NOT. HEATING_FRESHWATER)THEN
+	   SPCP=4.2174E3_SP
+           ROSEA = 1.023E3_SP
+           SPRO = SPCP*ROSEA
+	 ELSE  
+           SPCP=4.186E3_SP
+           ROSEA = 1.000E3_SP
+           SPRO = SPCP*ROSEA
+	 END IF  
          
          WTSURF    = -WTSURF_WATTS/SPRO
          SWRAD     = -SWRAD_WATTS/SPRO
 	 
 # if defined (MULTIPROCESSOR)
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
          IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,SWRAD_WATTS,WTSURF_WATTS)         
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
 # endif
 
       END IF
 # endif      
 # if defined (HEATING_SOLAR)
       IF (HEATING_SOLAR_ON) THEN
-         CALL UPDATE_HEAT_SOLAR(IntTime,SWRAD_WATTS,WTSURF_WATTS)
+         CALL UPDATE_HEAT_SOLAR(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
          
          ! LOAD INTO THES VARIABLE TO SAVE THE FORCING IN THE CORRECT UNITS
          SWRAD_WATTS  = SWRAD_WATTS * RAMP
          WTSURF_WATTS = WTSURF_WATTS * RAMP
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
+         HSENS_WATTS = HSENS_WATTS * RAMP
+         HLAT_WATTS = HLAT_WATTS * RAMP
+         LWRAD_WATTS = LWRAD_WATTS * RAMP
 
-         ROSEA1 = (-.0057)*T1(:,1)*T1(:,1) + 0.0249*T1(:,1) + 1000
+         ROSEA1 = (-.0057)*T1(:,1)*T1(:,1) + 0.0249*T1(:,1) + 1000.
          !IF(TWAT .LT. 3.9) WRITE(IPT,*)'WATER TEMP BELOW 4 C, BEWARE DENSITY CALCULATION!, TWAT = ',TWAT
          !IF(TWAT .GT. 30.1) WRITE(IPT,*)'WATER TEMP ABOVE 30 C, BEWARE DENSITY CALCULATION!, TWAT = ',TWAT
-         SPCP  = 4186
+         SPCP  = 4186.
          !SPRO  = SPCP*ROSEA
          SPRO1  = SPCP*ROSEA1
                     
@@ -612,7 +622,9 @@
          SWRAD     = -SWRAD_WATTS/SPRO1
 	 
 # if defined (MULTIPROCESSOR)
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
          IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,SWRAD_WATTS,WTSURF_WATTS)         
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
 # endif
 
       END IF

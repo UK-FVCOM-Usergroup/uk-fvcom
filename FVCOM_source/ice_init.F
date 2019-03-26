@@ -85,6 +85,9 @@
        use ice_grid
 
        use ice_fileunits
+       use control
+       use ice_therm_vertical, only :  i0vis, floediam 
+       use all_vars, only : MSR
 !      use ice_exit
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -109,36 +112,42 @@
          runid                 ! identifier for coupled run
 !#endif
  
+      integer(kind=int_kind) :: ios, i
+      character(Len=120):: FNAME
+ 
       !-----------------------------------------------------------------
       ! Namelist variables.
       ! NOTE: Not all of these are used by both models.
       !-----------------------------------------------------------------
 
-      namelist /ice_nml/         &
-!     &  year_init,      istep0,          dt,            npt
-        year_init,      istep0,                     npt                 &
-!      , diagfreq,       print_points,    print_global,  diag_type         &
-!      , diag_file                                                         &
-!      , histfreq,       hist_avg,        history_dir,   history_file      &
-!      , dumpfreq,       dumpfreq_n,      dump_file                        &
-!      , restart,        restart_dir,     pointer_file,  ice_ic            &
-!      , grid_type,      grid_file,       kmt_file                         &
-      , grid_type                                 &
-      , kitd,           kcatbound                                      &
-!      , kdyn,           ndyn_dt,         ndte                          &
-      , kstrength,      krdg_partic,     krdg_redist,   advection      &
+      namelist/nml_ice/ kstrength,  krdg_partic,      krdg_redist      & 
       , albicev,        albicei,         albsnowv,      albsnowi       &
-      , fyear_init,     ycycle                                         &
-!      , atm_data_type,  atm_data_dir,    precip_units                     &
-!      , oceanmixed_ice, sss_data_type,   sst_data_type                    &
-!      , ocn_data_dir,   oceanmixed_file, restore_sst,   trestore          &
-!      , dbug                                                               
-!#ifdef CCSM
-! These variables are used in CCSM, but not CICE
-!     &, runid,           runtype,             kcolumn
-!     , runid,           runtype,      
-      , kcolumn
-!#endif
+      , kitd,           kcatbound,          i0vis,      floediam     
+
+!!     &  year_init,      istep0,          dt,            npt
+!        year_init,      istep0,                     npt                 &
+!!      , diagfreq,       print_points,    print_global,  diag_type         &
+!!      , diag_file                                                         &
+!!      , histfreq,       hist_avg,        history_dir,   history_file      &
+!!      , dumpfreq,       dumpfreq_n,      dump_file                        &
+!!      , restart,        restart_dir,     pointer_file,  ice_ic            &
+!!      , grid_type,      grid_file,       kmt_file                         &
+!      , grid_type                                 &
+!      , kitd,           kcatbound                                      &
+!!      , kdyn,           ndyn_dt,         ndte                          &
+!      , kstrength,      krdg_partic,     krdg_redist,   advection      &
+!      , albicev,        albicei,         albsnowv,      albsnowi       &
+!      , fyear_init,     ycycle                                         &
+!!      , atm_data_type,  atm_data_dir,    precip_units                     &
+!!      , oceanmixed_ice, sss_data_type,   sst_data_type                    &
+!!      , ocn_data_dir,   oceanmixed_file, restore_sst,   trestore          &
+!!      , dbug                                                               
+!!#ifdef CCSM
+!! These variables are used in CCSM, but not CICE
+!!     &, runid,           runtype,             kcolumn
+!!     , runid,           runtype,      
+!      , kcolumn
+!!#endif
 
 
 
@@ -175,9 +184,16 @@
        kcatbound     = 1  ! category boundary formula (0 = old, 1 = new)
 !      kdyn = 1           ! type of dynamics (1 = evp, 0 = off)
       ndyn_dt = 2        ! dynamics subcycles per thermodynamics timestep
+
 !      ndte = 120         ! subcycles per dynamics timestep:  ndte=dyn_dt/dte
 !      evp_damping = .false.       ! if true, use damping procedure in evp dynamics
+# if defined (ICE_FRESHWATER)
+! afm 20160717 & EJA 20160921 
+!classical Hibler's P formula produces better thickness for the Great Lakes
+      kstrength = 0      ! 1 = Rothrock 75 strength, 0 = Hibler 79 strength
+# else
       kstrength = 1      ! 1 = Rothrock 75 strength, 0 = Hibler 79 strength
+# endif
       krdg_partic   = 1  ! 1 = LH06 participation, 0 = Thorndike et al 75
       krdg_redist   = 1  ! 1 = LH06 redistribution, 0 = Hibler 80
 !      advection  = 'remap'        ! incremental remapping transport scheme
@@ -208,9 +224,28 @@
       kcolumn = 1           ! 1 = column model
 !#endif
 
+      i0vis   = 0.70_dbl_kind  ! fraction of penetrating solar rad (visible)
+      floediam = 300.0_dbl_kind   ! effective floe diameter (m)
+
       !-----------------------------------------------------------------
       ! read from input file
       !-----------------------------------------------------------------
+
+
+      ! some of the above are overwritten 
+      ! after reading the namelist file 
+      ios = 0
+      FNAME = "./"//trim(casename)//"_run.nml"
+      CALL FOPEN(NMLUNIT,trim(FNAME),'cfr')
+      READ(UNIT=NMLUNIT, NML=nml_ice,IOSTAT=ios)
+      if(MSR) write(UNIT=IPT,NML=NML_ICE)
+      if(ios .NE. 0 ) then
+       Call Fatal_Error("Can Not Read NameList NML_ICE from file: "//trim(FNAME))
+      end if
+      REWIND(NMLUNIT)
+      CLOSE(NMLUNIT)
+
+
 !      if (my_task == master_task) then
 !        open (nu_nml, file='ice_in', status='old')
 !   10   continue  !*** keep reading until right namelist is found

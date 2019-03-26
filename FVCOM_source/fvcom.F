@@ -27,19 +27,10 @@
 !/===========================================================================/
 
 !==============================================================================!
-!  VERSION 3.2.2
+!  VERSION 4.3
 !==============================================================================!
 
 PROGRAM FVCOM
-
-! CODING STATUS: Beta release
-! Remaining Work:
-! Add variable, 1/ART, 1/ART2... etc
-! Fix bottom boundary condition for scalars
-! Add sediment 
-! Add assimilation modes
-! Test GOTM Interface
-!
 
   !================================================================================!
   !                                                                                !
@@ -377,6 +368,27 @@ PROGRAM FVCOM
   !  coordinates are corrected. Many minor bugs are also corrected.                !
   !                                                                                !
   !  Enjoy!      C. Chen at SMAST/UMASSD at Dec. 8 2009.                           !
+  !                                                                                !
+  !  Note for the grid input file in the FVCOM:                                    !
+  !                                                                                !
+  !  Some users used their own Matlab to create the grid input "*_grd.dat". If     !
+  !  doing it, please check the way how nodes on each triangular cell are          !
+  !  identified in the code. In FVCOM (see chapter 3 of users' manual), on each    !
+  !  triangular cell, the three nodes are identified using integral numbers that   !
+  !  are counted clockwise from 1 to 3. When the FVCOM was coded, it was tested    !
+  !  using the grid that was created using the SMS software. Three nodes on each   !
+  !  triangular cell in the SMS-generated grid are identified counter-clockwise,   !
+  !  which are opposite to what are coded in FVCOM. For this reason, we coded the  !
+  !  program in FVCOM to covert the SMS-generated grid. We have checked most of the!
+  !  unstructured grid generation software, they all have the same definition as   !
+  !  SMS. If one uses his/her own Matlab program to generate grid with the same    !
+  !  definition of node number described in the users' manual, this conversion     !
+  !  should be unnecessary.                                                        !
+  !  We have added a program in FVCOM v4.3  or later to check the identification of!
+  !  node numbers on each triangular cell when the grid file is input. This program!
+  !  will stop the model run if the grid file does not meet the required format.   !
+  !                                                                                !
+  !                          C. Chen at SMAST/UMASSD at Apr. 23 2018.              !    
   !================================================================================!
 
   !==============================================================================!
@@ -448,10 +460,16 @@ PROGRAM FVCOM
 
 # if defined (GOTM)
   USE MOD_GOTM 
-# endif    
+# endif  
+  
 # if defined (SEDIMENT)
+# if defined (ORIG_SED)
   USE MOD_SED 
+# elif defined (CSTMS_SED)
+  USE MOD_SED_CSTMS 
 # endif
+# endif
+
 # if defined (MEAN_FLOW)
   USE MOD_MEANFLOW
   USE MOD_OBCS2
@@ -460,6 +478,11 @@ PROGRAM FVCOM
 
 # if defined (ICE)
   USE MOD_ICE
+# endif
+
+! Added by researchers at Akvaplan-niva 2018, idealized tests give promising results.
+# if defined (TVD)
+  USE MOD_TVD
 # endif
 
 # if defined (NH)
@@ -495,7 +518,8 @@ PROGRAM FVCOM
   USE MOD_PWP
 # endif
 
-  USE MOD_STATION_TIMESERIES  
+  USE MOD_STATION_TIMESERIES 
+  USE MOD_SPARSE_TIMESERIES
 
   !------------------------------------------------------------------------------|
   IMPLICIT NONE
@@ -604,6 +628,10 @@ PROGRAM FVCOM
   &  CALL SETUP_SED(SEDIMENT_MODEL_FILE,IOBCN,IOBCN_GL,N_SED,N_SED_MAX,SED_NAMES)
 #  endif
 
+   !SETUP TVD ADVECTION
+# if defined (TVD)
+   CALL SETUP_TVD
+# endif
 
 !JQI  !==============================================================================!
 !JQI  !  SETUP THE MODEL FORCING                                                     !
@@ -614,8 +642,12 @@ PROGRAM FVCOM
   !  GET THE PARAMETERS OF BIOLOGICAL MODEL                                      !
   !==============================================================================!
 #  if defined (BioGen)
-   KBV=KB
-   CALL GET_PARAMETER
+   IF(BIOLOGICAL_MODEL)THEN
+     KBV=KB
+!     CALL GET_PARAMETER("./"//trim(input_dir)//"/"//trim(BIOLOGICAL_MODEL_FILE))
+     CALL GET_PARAMETER_NEW("./"//trim(input_dir)//"/"//trim(BIOLOGICAL_MODEL_FILE))
+     CALL BIO_PARAMETER_REPORT
+   END IF
 !   RIVER_TS_SETTING = 'NONE' !No bio river yet
 #  endif
 
@@ -727,7 +759,7 @@ PROGRAM FVCOM
   !==============================================================================!
   !  CALL ARCHIVE TO SETUP THE OUTPUT AND DUMP CONSTANT VALUES                   !
   !==============================================================================!
-  CALL BCOND_GCN(8)
+  CALL BCOND_GCN(8,0)
   
   CALL ARCHIVE
   ! ORDER MATTERS - ARCHIVE_NEST MUST GO AFTER ARCHIVE DURING SETUP!
@@ -749,6 +781,9 @@ PROGRAM FVCOM
 
   CALL SET_PROBES(PROBES_ON,PROBES_NUMBER,PROBES_FILE)
   IF(OUT_STATION_TIMESERIES_ON)CALL READ_STATION_FILE
+# if defined (WAVE_CURRENT_INTERACTION)
+  IF(OUT_WAVE_SPARSE_TIMESERIES_ON)CALL SPARSE_STATION
+# endif
 
   ! Setup Bounds checking (shutdown if variables exceed threshold)
   CALL SETUP_BOUNDSCHK !bounds checking
@@ -761,9 +796,18 @@ PROGRAM FVCOM
   CALL INIT_GOTM
 # endif
   
-  IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
-  IF(OUT_STATION_TIMESERIES_ON) TIME_SERIES = STARTTIME + INTERVAL_TIME_SERIES
-
+  IF(OUT_STATION_TIMESERIES_ON)THEN
+    CALL GET_OUTPUT_FILE_INTERVAL(TRIM(OUT_INTERVAL),INTERVAL_TIME_SERIES)
+    CALL OUT_STATION_TIMESERIES
+    TIME_SERIES = STARTTIME + INTERVAL_TIME_SERIES
+  END IF
+# if defined (WAVE_CURRENT_INTERACTION)
+  IF(OUT_WAVE_SPARSE_TIMESERIES_ON)THEN
+    CALL GET_OUTPUT_FILE_INTERVAL(TRIM(OUT_INTERVAL_SPARSE),WAVE_INTERVAL_TIME_SERIES)
+    CALL OUT_WAVE_SPARSE_TIMESERIES
+    WAVE_TIME_SERIES = STARTTIME + WAVE_INTERVAL_TIME_SERIES
+  END IF
+# endif
   !==============================================================================!
   !  SELECT THE RUN MODE AND EXECUTE THE MAIN LOOP
   !==============================================================================!
@@ -835,6 +879,9 @@ PROGRAM FVCOM
 
         CALL DUMP_PROBE_DATA
         IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
+# if defined (WAVE_CURRENT_INTERACTION)
+        IF(OUT_WAVE_SPARSE_TIMESERIES_ON) CALL OUT_WAVE_SPARSE_TIMESERIES
+# endif
         !==============================================================================!
         !  CALL SHUTDOWN CHECK TO LOOK FOR BAD VALUES                                  !
         !==============================================================================!
@@ -980,6 +1027,10 @@ PROGRAM FVCOM
 
              CALL DUMP_PROBE_DATA
              IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
+#            if defined (WAVE_CURRENT_INTERACTION)
+             IF(OUT_WAVE_SPARSE_TIMESERIES_ON) CALL OUT_WAVE_SPARSE_TIMESERIES
+#            endif
+
 
 #            if defined (LAG_PARTICLE)
              CALL LAG_UPDATE
@@ -1047,6 +1098,9 @@ PROGRAM FVCOM
 
            CALL DUMP_PROBE_DATA
            IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
+#          if defined (WAVE_CURRENT_INTERACTION)
+           IF(OUT_WAVE_SPARSE_TIMESERIES_ON)CALL OUT_WAVE_SPARSE_TIMESERIES
+#          endif
            !==============================================================================!
            !  CALL SHUTDOWN CHECK TO LOOK FOR BAD VALUES                                  !
            !==============================================================================!
@@ -2027,6 +2081,9 @@ IF (ENKF_memberCONTR ==1 ) THEN
 
         CALL DUMP_PROBE_DATA
         IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
+# if defined (WAVE_CURRENT_INTERACTION)
+        IF(OUT_WAVE_SPARSE_TIMESERIES_ON)CALL OUT_WAVE_SPARSE_TIMESERIES
+# endif
         !==============================================================================!
         !  CALL SHUTDOWN CHECK TO LOOK FOR BAD VALUES                                  !
         !==============================================================================!

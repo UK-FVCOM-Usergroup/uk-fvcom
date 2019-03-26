@@ -68,7 +68,10 @@ MODULE MOD_ICE
       use ice_itd_linear
       use ice_kinds_mod
       use ice_mechred
-      use ice_ocean
+# if !defined (ICE_FRESHWATER)
+! afm 20160513 & EJA 20160921 not used for freshwater
+!      use ice_ocean
+# endif
       use ice_atmo
 
       use ice_scaling
@@ -123,6 +126,10 @@ MODULE MOD_ICE
       allocate(esno(imt_local,jmt_local))  ;esno=ZERO  ! energy of melt. of snow layer    (J/m^2)
       allocate(tmass(imt_local,jmt_local)) ;tmass=ZERO ! total mass of ice and snow
       allocate(aice_init(imt_local,jmt_local));aice_init=ZERO ! concentration of ice at beginning of dt (for diagnostics)
+! - begin afm 20171113 for ice open boundary -------------
+      allocate(xflux_ice(0:MT));xflux_ice=ZERO
+! - end afm 20171113 for ice open boundary -------------
+
       !-----------------------------------------------------------------
       ! state of the ice for each category
       !-----------------------------------------------------------------
@@ -242,6 +249,13 @@ MODULE MOD_ICE
        allocate( fsalt  (ilo:ihi,jlo:jhi))   ;fsalt   =ZERO  ! salt flux to ocean (kg/m^2/s)
        allocate( fhnet  (ilo:ihi,jlo:jhi))   ;fhnet   =ZERO  ! net heat flux to ocean (W/m^2)
        allocate( fswthru  (ilo:ihi,jlo:jhi)) ;fswthru =ZERO   ! shortwave penetrating to ocean (W/m^2)
+       ! afm 20150513 for outputs of heat fluxes.
+       allocate( fsh(ilo:ihi,jlo:jhi))   ;fsh =ZERO    ! sensible heat flux at water surface (W/m^2)
+       allocate( flh(ilo:ihi,jlo:jhi))   ;flh =ZERO    ! latent heat flux at water surface (W/m^2)
+       allocate( flwup(ilo:ihi,jlo:jhi)) ;flwup =ZERO  ! outgoing longwave radiation at water surface (W/m^2)
+       allocate( flwtot(ilo:ihi,jlo:jhi)) ;flwtot =ZERO  ! net longwave radiation at water surface (W/m^2)
+! afm 20170125 - hflx
+       allocate( flwitot(ilo:ihi,jlo:jhi)) ;flwitot =ZERO  ! net longwave radiation at ice surface (W/m^2)
 
        ! diagnostic 
 
@@ -452,7 +466,7 @@ MODULE MOD_ICE
 !
 
   IMPLICIT NONE
-      integer :: i,j,icn,n2   ! local loop indices
+      integer :: i,j,k,icn,n2   ! local loop indices
       integer :: II,i1,I2,j1,j2   ! local loop indices
       real  ::   gsum, workx, worky
       REAL(SP), allocatable, dimension (:,:) :: rbuf
@@ -501,16 +515,38 @@ MODULE MOD_ICE
          ! compute potential to freeze or melt ice
 
          frzmlt(i,j) = (Tf(i,j)-sst(i,j))*cp_ocn*rhow*(D(I))*DZ(I,1)/dtice
+# if !defined (ICE_FRESHWATER)
          frzmlt(i,j) = min(max(frzmlt(i,j),-c1000),c1000)
+# endif
 
          if (sst(i,j) <= Tf(i,j)) then
             sst(i,j) = Tf(i,j)
+
+# if defined (ICE_FRESHWATER)
+            ! afm 20151112  & EJA 20160921
+            ! When supercooling (freezing, i.e. frzmlt>0), 
+            ! T1 (temperature variable in hydrodynamic modules) is 
+            ! set to Tf in subroutine to_coupler.
+            ! The original method only counts surface layer k=1
+            do k=2,kbm1
+             IF(T1(I,K) .LT. Tf(I,j)) THEN
+              frzmlt(i,j) = frzmlt(i,j) + (Tf(i,j)-T1(i,k))*cp_ocn*rhow*D(I)*DZ(I,k)/dtice
+             END IF 
+            end do
+# else
             T1(I,1)=Tf(i,j)
+# endif
+
           endif
        
        !--- atm fluxes--
        !!======================================================
+# if defined (ICE_FRESHWATER)
+! afm 20151001 & EJA 20160921 - For solar. For non-solar, shortwave from forcing data is used. 
+          fsw(i,j)   = swrad_watts(i) 
+# else
           fsw (i,j)  = DSW_AIR(I)
+# endif
           cldf(i,j)  = CLOUD(I)
        !!======================================================
           fsnow(i,j)=0.0_SP
@@ -627,6 +663,9 @@ MODULE MOD_ICE
 
 !!=================================================================
       REAL(SP) :: SPRO,SPCP,ROSEA
+! afm 20171115 for heat flux breakdown consistency-- begin
+      REAL(SP) :: SPRO1(0:MT,jlo:jhi),ROSEA1(0:MT,jlo:jhi)
+! afm 20171115 for heat flux breakdown consistency-- end
       REAL(SP), allocatable, dimension (:,:) :: rbuf
       REAL (SP) :: Naice   ! 
 
@@ -644,21 +683,51 @@ MODULE MOD_ICE
 
       real (kind=dbl_kind) :: &
          TsfK     &! surface temperature (K)
-      ,  fsh      &! sensible heat flux  (W/m^2)
-      ,  flh      &! latent heat flux    (W/m^2)
-      ,  swabs    &! surface absorbed shortwave heat flux (W/m^2)
-      ,  flwup     ! long-wave upward heat flux  (W/m^2)
+! afm for heat flux outputs
+!      ,  fsh      &! sensible heat flux  (W/m^2)
+!      ,  flh      &! latent heat flux    (W/m^2)
+      ,  swabs    !&! surface absorbed shortwave heat flux (W/m^2)
+!      ,  flwup     ! long-wave upward heat flux  (W/m^2)
 !!====================================================================
      flag  =.false.
      SPCP  = 4.2174E3_SP
      ROSEA = 1.023E3_SP
      SPRO  = SPCP*ROSEA
 
+! afm 20171115 for heat flux breakdown consistency-- begin
+# if defined (HEATING_CALCULATED)
+     SPCP = 4.21734E3_SP
+     ROSEA = 1.023E3_SP
+     SPRO  = SPCP*ROSEA
+# endif
+# if defined (HEATING_CALCULATED_GL)
+     SPCP = 4.186E3_SP
+     ROSEA = 1.000E3_SP
+     SPRO  = SPCP*ROSEA
+# endif
+# if defined (HEATING_SOLAR)
+     SPCP = 4.186E3_SP
+     ROSEA1(:,1) = (-.0057_SP)*T1(:,1)*T1(:,1) + 0.0249_SP*T1(:,1) + 1000.0_SP
+     SPRO1  = SPCP*ROSEA1
+#endif
+! afm 20171115 for heat flux breakdown consistency-- end
+
 !  calculate the heat budget at the surface of ocean
 
 !!====================================================================
 !!====================================================================
-!!      if(.false.) then
+!      if(.false.) then
+! afm 20160622 & EJA 20160921 -- begin
+# if defined (HEATING_CALCULATED) || (HEATING_SOLAR) 
+      ! Use net heat flux (wtsurf) from COARE or SOLAR.
+      ! Import latent, sensible heat fluxes and net longwave radiation
+      ! for output purpose.
+      flh(:,jlo) = HLAT_WATTS(1:M)
+      fsh(:,jlo) = HSENS_WATTS(1:M)
+      flwtot(:,jlo) = LWRAD_WATTS(1:M)
+# else
+      ! Calculate net heat flux using CICE's algorithm. 
+      ! Overwrite wtsurf.
       call atmo_boundary_layer (1, 'ocn', sst, &
            dummy1, dummy2, dummy3, dummy4, delt,  delq)
       do j = jlo,jhi
@@ -667,26 +736,61 @@ MODULE MOD_ICE
          TsfK = sst(i,j) + Tffresh
 
          ! shortwave radiative flux
+# if defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160921 - albedo included in the solar subroutine or forcing file
+         swabs =  fsw(i,j)
+# else
          swabs = (c1i - albocn) * fsw(i,j)
+# endif
 
          ! longwave radiative flux
-         flwup  = -stefan_boltzmann * TsfK**4
+         !flwup  = -stefan_boltzmann * TsfK**4
+         ! afm for heat flux outputs
+         flwup(i,j)  = -stefan_boltzmann * TsfK**4
+
 
          ! downward latent and sensible heat fluxes
-         flh = lhcoef(i,j) * delq(i,j)
-         fsh = shcoef(i,j) * delt(i,j)
+         !flh = lhcoef(i,j) * delq(i,j)
+         !fsh = shcoef(i,j) * delt(i,j)
+! afm for heat flux outputs
+         flh(i,j) = lhcoef(i,j) * delq(i,j)
+         fsh(i,j) = shcoef(i,j) * delt(i,j)
 
-         WTSURF(I) = -(fsh + flh + flwup + flw(i,j)+swabs ) /SPRO 
+# if defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160921 - Bug fix to include emissivity, assume similar to ice surface.
+!         WTSURF(I) = -(fsh + flh + flwup + flw(i,j)+swabs ) /SPRO 
+    !WTSURF(I) = -( fsh + flh + emissivity*( flwup + flw(i,j) ) + swabs ) / SPRO 
+         ! for heat flux outputs 
+         WTSURF(I) = -( fsh(i,j) + flh(i,j) + emissivity*( flwup(i,j) + flw(i,j)) + swabs ) / SPRO
+! afm 20170125 - hflx
+! emissivity included in the output
+         FLWTOT(I,J) = emissivity * ( flwup(i,j) + flw(i,j) )
+# else
+         WTSURF(I) = -(fsh(i,j) + flh(i,j) + flwup(i,j) + flw(i,j)+swabs ) /SPRO 
+# endif
+
+# if !defined (ICE_FRESHWATER)
+! afm 20151112 albedo included in the solar subroutine
          SWRAD(I)  =  (C1i-albocn)*SWRAD(I)
+# endif
        end do
      end do
-!     endif 
 
+
+# endif
+! afm 20160622 -- end 
 !!====================================================================
 
       do j = jlo,jhi
       do i = ilo,ihi
        if (aice(i,j) > puny) then
+
+
+! afm 20171115 for heat flux breakdown consistency-- begin
+# if defined (HEATING_SOLAR)
+        SPRO = SPRO1(i,1)
+# endif
+! afm 20171115 for heat flux breakdown consistency-- end
 
          !!==========================================================
          ! When the ocean is coupled to a sea-ice model, the temperature
@@ -699,13 +803,37 @@ MODULE MOD_ICE
            WTSURF(I) =  WTSURF(I)*(c1i-aice(I,1)) &
                        -fhnet(I,J) /SPRO & 
                        -fswthru(i,j)/SPRO 
+! include wssurf correction due to 'fresh' here for salt water application.
         !  the short wave two parts
         !  first:  the open region
         !  second: penetrating through the ice to ocean
            SWRAD(I)  = SWRAD(I)*(c1i-aice(I,1))  -fswthru(i,j)/SPRO 
+
+# if defined (HEATING_CALCULATED) || defined (HEATING_SOLAR)
+! afm 20170125 - hflx
+! ------ begin
+flwitot(I,1) = flw(I,1)*emissivity + flwout(I,1)
+HSENS_WATTS(I) = fsens(I,1)*aice(I,1) + fsh(I,1)*(c1i-aice(i,jlo))
+HLAT_WATTS(I)  = flat(I,1)*aice(I,1) + flh(I,1)*(c1i-aice(i,jlo))
+LWRAD_WATTS(I) = flwitot(I,1)*aice(I,1) + flwtot(I,1)*(c1i-aice(i,jlo))
+! ------ end
+# endif
+
         end if
         enddo                   ! i
-      enddo                     ! j
+      enddo
+
+# if defined (HEATING_CALCULATED) || defined (HEATING_SOLAR)
+! afm 20170125 - hflx
+! ------ begin                      ! j
+# if defined (MULTIPROCESSOR)
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,FLWITOT)
+# endif
+! ------ end
+# endif
+
+
 
       DO I=1,M 
          IF(T1(I,1) .LT. Tf(I,1)) THEN
@@ -732,10 +860,49 @@ MODULE MOD_ICE
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,WTSURF,SWRAD)
 # endif
 
+! afm 20171115 for heat flux breakdown consistency-- begin
+# if defined (HEATING_SOLAR)
+      wtsurf_watts = -1.0_SP*wtsurf*SPRO1(:,1)
+      swrad_watts = -1.0_SP*swrad *SPRO1(:,1)
+# else
+      wtsurf_watts = -1.0_SP*wtsurf*SPRO
+      swrad_watts = -1.0_SP*swrad *SPRO
+# endif
+
+# if defined (MULTIPROCESSOR)
+       IF(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,WTSURF_WATTS,SWRAD_WATTS)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,WTSURF_WATTS,SWRAD_WATTS)
+# endif
+!! afm 20171115 -- end
+
        DO I=1,M
         IF(ISICEN(i)==1) THEN
          QEVAP(I)=(1-aice(i,1))*QEVAP(I) !+EVAP(I,1)/RHOFRESH
+# if !defined (ICE_FRESHWATER)
+# if !defined (SEMI_IMPLICIT)
          QPREC(I)=(1-aice(i,1))*QPREC(I)+(fresh(I,1)-evap(I,1))/rhofresh
+# else
+         QPREC(I)=(1-aice(i,1))*QPREC(I)-evap(I,1)/rhofresh   !!yding moved fresh out
+         QPICE(I)=fresh(I,1)/rhofresh                         !!yding treat fresh seperatelly
+# endif
+# if defined (ICE_EMBEDDING)
+         QFLICE(I) = fresh(I,1)/rhofresh     !!((RHO1(I,1)+1.0_SP)*1.0E3_SP)
+         QTHICE(I)= vice(I,1)*(RHOI/((RHO1(I,1)+1.0_SP)*1.0E3_SP))   !!yding ICE THICKNESS IN THE WATER
+
+         mlt_lat(i) = D(i)/QTHICE(i)           !!yding for lateral melting adjustment
+# endif
+
+# else
+!         QPREC(I)=(1-aice(i,1))*QPREC(I)+(fresh(I,1)-evap(I,1))/rhofresh
+! afm 20151112 & EJA 20160921 - Change in QPREC calculation.
+! no mass flux due to ice melt/freezing 
+! this causes large omega (WTS) at surface, resulting in unrealistic water
+! temperature. Temperature flux due to ice formation/melting still are taken
+! account of in wtsurf.
+! Note: fresh & evap are already weighted by aicen, and fresh is a summation 
+!       of freshwater mass flux and evap, hence (fresh-evap) in the eq. above. 
+         QPREC(I)=(1-aice(i,1))*QPREC(I)
+# endif
 
           ! evap  :: flux of vapor, atmos to ice   (kg m-2 s-1)
           !! this is the part lost from the ocean and ice system
@@ -748,19 +915,68 @@ MODULE MOD_ICE
 #        if !defined (SEMI_IMPLICIT)
          QPREC2(I) = QPREC(I)
          QEVAP2(I) = QEVAP(I)
+!         QPICE2(I) = QPICE(I)    !!yding
+!#   if defined (ICE_EMBEDDING)
+!         QFLICE2(I)= QFLICE(I)   !!yding
+!#   endif
 #        endif
 
         END IF
        END DO
+
+#   if defined (ICE_EMBEDDING)
+         QTHICE_incr = QTHICE - QTHICERK    !!yding
+
+         QTHICERK = QTHICE                  !!SAVE ICE THICKNESS FOR CURRENT STEP
+
+#   endif
 
 
 # if defined (MULTIPROCESSOR)
        if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QPREC,QEVAP)
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QPREC,QEVAP)
 
+# if !defined (ICE_FRESHWATER)
+# if defined (SEMI_IMPLICIT)
+!!yding
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QPICE)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QPICE)
+!!yding
+# endif
+
+#   if defined (ICE_EMBEDDING)
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QFLICE)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QFLICE)
+
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QTHICE)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QTHICE)
+
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QTHICERK)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QTHICERK)
+
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QTHICE_incr)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QTHICE_incr)
+
+       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,mlt_lat)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,mlt_lat)
+
+#   endif
+#   endif
+
 #      if !defined (SEMI_IMPLICIT)
        if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QPREC2,QEVAP2)
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QPREC2,QEVAP2)
+
+!!yding
+!       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QPICE2)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QPICE2)
+!!yding
+
+#   if defined (ICE_EMBEDDING)
+!       if(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,QFLICE2)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QFLICE2)
+#   endif
+
 #      endif
 # endif
 
@@ -878,7 +1094,13 @@ MODULE MOD_ICE
       ! Make sure state variables are not too close to zero.
       !-----------------------------------------------------------------
 
+# if defined (ICE_FRESHWATER)
+! afm 20160516 not needed.
+! commented out as mass loss seems significant
+!      call check_state
+# else
       call check_state
+# endif      
 
       !-----------------------------------------------------------------
       ! fill work arrays with fields to be advected
@@ -940,6 +1162,16 @@ MODULE MOD_ICE
 #endif
 
        call ICE_ADV_fvcom(Irbuf,UICE2,VICE2)
+! - begin afm 20171113 for ice open boundary -------------
+! if vice, save XFLUX to XFLUX_ICE for the open boundary treatment.
+! xflux_ice includes contributions from all the categories.
+        IF ( MOD( K, 5 ) == 3 ) then
+         DO I=1,IOBCN
+          XFLUX_ICE_OBC(I) = XFLUX_ICE_OBC(I) + XFLUX_ICE(I_OBC_N(I))
+         END DO
+        END IF
+! - end afm 20171113 for ice open boundary -------------
+
 # if defined (MULTIPROCESSOR)
        if (PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,Irbuf)
        IF (PAR) CALL AEXCHANGE(NC,MYID,NPROCS,Irbuf) 
@@ -1006,6 +1238,9 @@ MODULE MOD_ICE
       J=1
       do i = 1,imt_local
           do ni=1,ncat
+# if defined (ICE_FRESHWATER)
+                Tsfcn(i,j,ni) = max( min( Tf(i,j), Tsfcn(i,j,ni)), T_air(i) - 10. )
+# endif
            !IF(Tsfcn(i,j,ni) .le.T_air(I)) Tsfcn(i,j,ni) =T_air(i)
           enddo
       enddo
@@ -1050,6 +1285,10 @@ MODULE MOD_ICE
       if (ncat > 1) call rebin ! make sure thicknesses are in bounds
       call aggregate           ! aggregate state variables over categories
       call albedos             ! compute ice albedos
+
+! hhu ice bc 2/8/2017
+      call bcond_gcn(4)
+! hhu
 
       IF(dbg_set(dbg_SBR)) WRITE(IPT,*) "END ICE_1d_2d"
 
