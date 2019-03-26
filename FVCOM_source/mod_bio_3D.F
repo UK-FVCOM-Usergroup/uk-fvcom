@@ -87,6 +87,9 @@ SUBROUTINE BIO_3D1D
      INTEGER  :: I,J,K,L
      REAL(SP) :: SPCP,ROSEA,SPRO !,BIO_VAR_MEAN(M,KBM1,NTT)
 
+  if(dbg_set(dbg_sbr)) write(ipt,*)&
+       & "Start: BIO_3D1D"
+
      SPCP  = 4.2174E3_SP                        !HEAT SPECIFIC CAPACITY
      ROSEA = 1.023E3_SP                         !RHO OF SEA WATER
      SPRO=SPCP*ROSEA
@@ -158,11 +161,16 @@ SUBROUTINE BIO_3D1D
       END DO !I=1,M 
 #    if !defined (ONE_D_MODEL)
 #    if defined (MULTIPROCESSOR)
-       CALL BIO_EXCHANGE
+       IF(PAR)CALL BIO_EXCHANGE
 #    endif
       CALL BIO_ADV
-#    if defined (MULTIPROCESSOR)
-      CALL BIO_EXCHANGE
+#  if defined(MULTIPROCESSOR)
+      IF(PAR)THEN
+        DO J=1,NTT
+         CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,BIO_F(:,:,J))
+        END DO
+        CALL BIO_EXCHANGE
+      END IF  
 #    endif
       CALL BIO_BCOND
       BIO_ALL=BIO_F                                   !UPDATE
@@ -170,7 +178,8 @@ SUBROUTINE BIO_3D1D
 !    end if defined 1D
       WHERE (BIO_ALL < 0.001) BIO_ALL=0.001
 
-
+  if(dbg_set(dbg_sbr)) write(ipt,*)&
+       & "End: BIO_3D1D"
 !      IF(MOD(IINT-1,CDF_INT)==0) CALL BIO_OUT_NETCDF
 
 
@@ -830,40 +839,41 @@ END SUBROUTINE BIO_3D1D
            TMP=XFLUX2D+T2D*UARD_OBCN(I)
            T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
            DO K=1,KBM1
-            BIO_ALL(J,K,N1)=T2D_OBC+(BIO_ALL(J1,K,N1)-T2D_NEXT)
+!            BIO_ALL(J,K,N1)=T2D_OBC+(BIO_ALL(J1,K,N1)-T2D_NEXT)
+            BIO_F(J,K,N1)=T2D_OBC+(BIO_F(J1,K,N1)-T2D_NEXT)
            END DO
 
-         DO K=1,KBM1
-           WQMMAX = MAXVAL(BIO_ALL(NBSN(J,1:NTSN(J)),K,N1))
-           WQMMIN = MINVAL(BIO_ALL(NBSN(J,1:NTSN(J)),K,N1))
+           DO K=1,KBM1
+             WQMMAX = MAXVAL(BIO_ALL(NBSN(J,1:NTSN(J)),K,N1))
+             WQMMIN = MINVAL(BIO_ALL(NBSN(J,1:NTSN(J)),K,N1))
          
-           IF(K == 1)THEN
-            WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K+1)))
-            WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K+1)))
-           ELSE IF(K == KBM1)THEN
-            WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)))
-            WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)))
-           ELSE
-            WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)), &
-                    (BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
-		     (DZ(J,K)+DZ(J,K+1)))
-            WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
-	             (DZ(J,K)+DZ(J,K-1)), &
-                    (BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
-		     (DZ(J,K)+DZ(J,K+1)))
-           END IF
+             IF(K == 1)THEN
+               WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K+1)))
+               WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K+1)))
+             ELSE IF(K == KBM1)THEN
+               WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K-1)))
+               WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K-1)))
+             ELSE
+               WQMMAX = MAX(WQMMAX,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K-1)), &
+                       (BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
+		       (DZ(J,K)+DZ(J,K+1)))
+               WQMMIN = MIN(WQMMIN,(BIO_ALL(J,K,N1)*DZ(J,K-1)+BIO_ALL(J,K-1,N1)*DZ(J,K))/  &
+	               (DZ(J,K)+DZ(J,K-1)), &
+                       (BIO_ALL(J,K,N1)*DZ(J,K+1)+BIO_ALL(J,K+1,N1)*DZ(J,K))/  &
+		       (DZ(J,K)+DZ(J,K+1)))
+             END IF
  
-           IF(WQMMIN-BIO_F(J,K,N1) > 0.0_SP)BIO_F(J,K,N1) = WQMMIN
-           IF(BIO_F(J,K,N1)-WQMMAX > 0.0_SP)BIO_F(J,K,N1) = WQMMAX
+             IF(WQMMIN-BIO_F(J,K,N1) > 0.0_SP)BIO_F(J,K,N1) = WQMMIN
+             IF(BIO_F(J,K,N1)-WQMMAX > 0.0_SP)BIO_F(J,K,N1) = WQMMAX
 
-         END DO
+           END DO
 
-          ELSE
+         ELSE
 
            IF(OBC_BIO_NUDGING) THEN
              DO K=1,KBM1
@@ -924,6 +934,204 @@ SUBROUTINE BIO_EXCHANGE
 #endif
   END SUBROUTINE BIO_EXCHANGE
 
+
+
+  SUBROUTINE BIO_PARAMETER_REPORT
+    IMPLICIT NONE
+
+    INTEGER :: I,J,K
+
+    !*******************************************************************!
+    ! *********     PRINT OUT MODEL SETUP AND PARAMETER VALUES      ****!
+    !*******************************************************************!
+    IF (MSR) THEN
+       PRINT*
+       PRINT*,'*****************************************************'
+       PRINT*,'**  STRUCTURE AND FUNCTION OF THE BIOLOGICAL MODEL **'
+       PRINT*,'*****************************************************'
+
+       PRINT*
+       PRINT*,'MODEL STRUCTURE        : ',  MODEL_STRUCTURE
+       DO I=1,NNN
+          PRINT*,'                         ',  NUTRIENT_NAME(I)
+       END DO
+       DO I=1,NNP
+          PRINT*,'                         ',  PHYTO_NAME(I)
+       END DO
+       DO I=1,NNZ
+          PRINT*,'                         ',  ZOO_NAME(I)
+       END DO
+       DO I=1,NND
+          PRINT*,'                         ',  DETRITUS_NAME(I)
+       END DO
+       DO I=1,NNM
+          PRINT*,'                         ', DOM_NAME(I)
+       END DO
+       DO I=1,NNB
+          PRINT*,'                         ', BACTERIA_NAME(I)
+       END DO
+       WRITE(*,'(A26,A20)')' LIGHT FUNCTION         : ', L_FUNCTION
+       WRITE(*,'(A26,A20)')' GRAZING FUNCTION       : ', G_FUNCTION
+       PRINT*
+       PRINT*,'*********    PHYTOPLANTON PARAMETERS    **************'
+       PRINT*
+       IF(L_FUNCTION.NE.'EXP_LIGHT'.AND.L_FUNCTION.NE.'SL62_LIGHT') THEN
+          PRINT*,'ALPHA                  : '  , (ALPHAP(I),I=1,NNP)
+       END IF
+       PRINT*,'L_N COMBINE            : ' , (ALPHA_U(I),I=1,NNP)
+       PRINT*,'T FORCING              : ' , (A_TP(I),I=1,NNP)
+       PRINT*,'CHL ATTANUATION        : ' , ATANU_C
+       PRINT*,'D ATTANUATION          : ', ATANU_D
+       PRINT*,'WATER ATTANUATION      : ', ATANU_W
+       IF(L_FUNCTION.EQ.'PGH80_LIGHT'.OR.L_FUNCTION.EQ.'V65_LIGHT'.OR. &
+            L_FUNCTION.EQ.'BWDC9_LIGHT') THEN       
+          PRINT*,'BETAP                  : ', (BETAP(I),I=1,NNP)
+       END IF
+       PRINT*,'CHL:C                  : ',(CHL2C(I),I=1,NNP)
+       PRINT*,'ACTIVE DOM EXUD.       : ',(D_DOM(I),I=1,NNP)
+       PRINT*,'PASSIVE DOM EXUD.      : ', (DPDOM(I),I=1,NNP)
+       IF(L_FUNCTION.EQ.'SL62_LIGHT'.OR.L_FUNCTION.EQ.'V65_LIGHT'.OR. &
+            L_FUNCTION.EQ.'PE78_LIGHT') THEN       
+          PRINT*,'OPTIMAL LIGHT          : ',(I_OPT(I),I=1,NNP)
+       END IF
+       IF(L_FUNCTION.EQ.'MM_LIGHT'.OR.L_FUNCTION.EQ.'LB_LIGHT') THEN 
+          PRINT*,'LIGHT HALF SATURATTION : ', (K_LIGHT(I),I=1,NNP)
+       END IF
+       PRINT*,'MORTALITY              : ', (MPD(I),I=1,NNP)
+       PRINT*,'MORTALITY POWER        : ', (M_P(I),I=1,NNP)
+       IF(L_FUNCTION.EQ.'LB_LIGHT'.OR.L_FUNCTION.EQ.'V65_LIGHT') THEN 
+          PRINT*,'POWER OF LIGHT         : ', (N_P(I),I=1,NNP)
+       END IF
+       PRINT*,'THRESHOLD              : ', (P_0(I),I=1,NNP)
+       PRINT*,'T ON RESPIRATION       : ', RP_T
+       PRINT*,'RESPIRATION            : ', (R_P(I),I=1,NNP)
+       PRINT*,'OPTIMAL T              : ', (T_OPTP(I),I=1,NNP)
+       PRINT*,'MAXIMUM GROWTH         : ', (UMAX(I),I=1,NNP)
+       PRINT*,'SINKING VELOCITY       : ', (W_P(I),I=1,NNP)
+       PRINT*
+
+       PRINT*,'********    ZOOPLANKTON PARAMETERS   ****************'
+       PRINT*
+       PRINT*,'ACTIVE RESPIRATION     : ', (ACTIVE_R(I),I=1,NNZ)
+       PRINT*,'T FORCING EXPONENTIAL  : ', (A_TZ(I),I=1,NNZ)
+       IF (NNB.GE.1) THEN
+          PRINT*,'EFFICIENCY ON BACTERIA : ',((EFFIB(I,J),I=1,NNB),J=1,NNZ)
+       END IF
+       IF (NND.GE.1) THEN
+          PRINT*,'EFFICIENCY ON DETRITUS : ',((EFFID(I,J),I=1,NND),J=1,NNZ)
+       END IF
+       PRINT*,'EFFICIENCY ON PHYTO    : ',((EFFIP(I,J),I=1,NNP),J=1,NNZ)
+       PRINT*,'EFFICIENCY ON ZOO      : ',((EFFIZ(I,J),I=1,NNZ),J=1,NNZ)
+       PRINT*,'MAX GRAIZING RATE      : ',(G_MAX(I),I=1,NNZ)
+       IF(G_FUNCTION.EQ.'RECTI_G'.OR.G_FUNCTION.EQ.'MM1_G' .AND. &
+            G_FUNCTION.EQ.'MM2_G') THEN 
+          PRINT*,'HALF SATURATION        : ', (K_ZG(I),I=1,NNZ)
+       END IF
+       PRINT*,'GRAZING POWER          : ',(M_G(I),I=1,NNZ)
+       PRINT*,'MORALITY               : ',(MZD(I),I=1,NNZ)
+       PRINT*,'MORTALITY POWER        : ',(M_Z(I),I=1,NNZ)
+       IF(G_FUNCTION.EQ.'MM2_G') THEN 
+          PRINT*,'GRAZING THRESHOLD      : ',(P_C(I),I=1,NNZ)
+       END IF
+       IF (NNZ.GE.1) THEN
+          PRINT*,'RECRUITMENT            : ',(R_RECRUIT(I),I=1,NNZ)
+       END IF
+       PRINT*,'RESPIRATION            : ',(R_Z(I),I=1,NNZ)
+       IF (NNB.GE.1) THEN
+          PRINT*,'PREFERENCE ON BACTERIA : ',((SIGMA_B(I,J),I=1,NNB),J=1,NNZ)
+       END IF
+       IF (NND.GE.1) THEN
+          PRINT*,'PREFERENCE ON DETRITUS : ',((SIGMA_D(I,J),I=1,NND),J=1,NNZ)
+       END IF
+       PRINT*,'PREFERENCE ON PHYTO    : ',((SIGMA_P(I,J),I=1,NNP),J=1,NNZ)
+       PRINT*,'PREFERENCE ON ZOO      : ',((SIGMA_Z(I,J),I=1,NNZ),J=1,NNZ)
+       PRINT*,'OPTIMAL T              : ',(T_OPTZ(I),I=1,NNZ)
+       PRINT*,'ZOO THRESHOLD          : ',(Z_0(I),I=1,NNZ)
+       PRINT*
+       PRINT*,'*********    NUTRIENT PARAMETERS    ***********'
+       PRINT*
+       PRINT*,'HALF-SATURATION',((KSN(I,J),I=1,NNN),J=1,NNP)
+       IF (NNB.GE.1) THEN
+          PRINT*,'ELEMENT RATIO IN BAC.  : ',((N2CB(I,J),I=1,NNN),J=1,NNB)
+       END IF
+       IF (NND.GE.1) THEN
+          PRINT*,'ELEMENT RATIO IN D     : ',((N2CD(I,J),I=1,NNN),J=1,NND)
+       END IF
+       PRINT*,'ELEMENT RATIO IN PHYTO : ',((N2CP(I,J),I=1,NNN),J=1,NNP)
+       PRINT*,'ELEMENT RATIO IN ZOO   : ',((N2CZ(I,J),I=1,NNN),J=1,NNZ)
+       IF (NNM.GE.1)  THEN
+          PRINT*,'ELEMENT RATIO IN DOM   : ', ((N2CDOM(I,J),I=1,NNN),J=1,NNM)
+       END IF
+       PRINT*,'THRESHOLD              : ', (N_0(I),I=1,NNN)
+       IF (NO3_ON)    THEN
+          PRINT*,'NITRIFICATION RATE     : ', R_AN
+       END IF
+       PRINT*
+       IF (NNB.GE.1) THEN
+          PRINT*,'*********  BACTERIA PARAMETERS  ************'
+          PRINT*
+          PRINT*,'T_FORCING              : ',(A_TB(I),I=1,NNB)
+          PRINT*,'THRESHOLD              : ', (B_0(I),I=1,NNB)
+          PRINT*,'RATIO OF NH4 VS DON    : ',(DELTA_B(I),I=1,NNB)
+          PRINT*,'EFFICIENCY OF DETRITUS : ',((EFFIBD(I,J),I=1,NND),J=1,NNB)
+          PRINT*,'EFFICIENCY OF DOM      : ',((EFFIDOM(I,J),I=1,NNM),J=1,NNB)
+          PRINT*,'EFFICIENCY OF NUTRIENT : ', ((EFFIN(I,J),I=1,NNN),J=1,NNB)
+          PRINT*,'RESPIRATION            : ',(R_B(I),I=1,NNB)
+          PRINT*,'PREFERENCE ON DETRITUS : ',((SIGMA_BD(I,J),I=1,NND),J=1,NNB)
+          PRINT*,'PREFERENCE ON DOM      : ',((SIGMA_DOM(I,J),I=1,NNM),J=1,NNB)
+          PRINT*,'PREFERENCE ON NUTRIENT : ',((SIGMA_N(I,J),I=1,NNN),J=1,NNB)
+          PRINT*,'OPTIMAL TEMPERATURE    : ',(T_OPTB(I),I=1,NNB)
+          PRINT*,'MAXIMUM GROWTH RATE    : ',(UBMAX(I),I=1,NNB)
+          PRINT*
+       END IF
+       IF (NND.GE.1) THEN
+          PRINT*, '********  DETRITUS PARAMETERS  *************'
+          PRINT*
+          IF (NNB.GE.1) THEN
+             PRINT*,'GRAZING ON B TO D      : ', (((ALPHA_BD(I,J,K),I=1,NND),J=1,NNB),K=1,NNZ)
+          END IF
+          PRINT*,'AGGREGATION            : ', (ALPHA_DAG(I),I=1,NND)
+          PRINT*,'GRAZING LOSS ON D TO D : ', (((ALPHA_DD(I,J,K),I=1,NND),J=1,NND),K=1,NNZ)
+          PRINT*,'DISAGGREGATION         : ', (ALPHA_DAG(I),I=1,NND)
+          PRINT*,'GRAZING LOSS ON P TO D : ', (((ALPHA_PD(I,J,K),I=1,NND),J=1,NNP),K=1,NNZ)
+          PRINT*,'GRAZING LOSS ON Z TO D : ', (((ALPHA_ZD(I,J,K),I=1,NND),J=1,NNZ),K=1,NNZ)
+          IF (NNM.GE.1) THEN
+             PRINT*,'DISSOLUTION            : ', (D_DOM(I),I=1,NND)
+          END IF
+          PRINT*,'REMINERALIZATION       : ', (D_RN(I),I=1,NND)
+          PRINT*,'THRESHOLD              : ', (D_0(I),I=1,NND)
+          PRINT*,'P MORTALITY TO DETRITUS: ', ((EPSILON_PD(I,J),I=1,NND),J=1,NNP)
+          PRINT*,'Z MORTALITY TO DETRITUS: ', ((EPSILON_ZD(I,J),I=1,NND),J=1,NNZ)
+          PRINT*,'SINING VELOCITY        : ', (W_D(I),I=1,NND)
+          PRINT*
+       END IF
+       IF (NNM.GE.1) THEN
+          PRINT*,'*********     DOM PARAMETERS     *************'
+          PRINT*
+          PRINT*,'DOM AGEING COEFFICIENT : ', (ALPHA_DOM(I),I=1,NNM)
+          PRINT*,'PHYTO EXUDATION        : ', ((ALPHA_PDOM(I,J),I=1,NNM),J=1,NNP)
+          PRINT*,'DETRITUS DISSOLUTION   : ', ((ALPHA_DDOM(I,J),I=1,NNM),J=1,NND)
+          IF (NNB.GE.1) THEN
+             PRINT*,'GRAZING LOSS ON B > DOM: ', (((ALPHA_ZBDOM(I,J,K),I=1,NNM),J=1,NNB),K=1,NNZ)
+          END IF
+          IF (NND.GE.1) THEN
+             PRINT*,'GRAZING LOSS ON D > DOM: ', (((ALPHA_ZDDOM(I,J,K),I=1,NNM),J=1,NND),K=1,NNZ)
+          END IF
+          PRINT*,'GRAZING LOSS ON P > DOM: ', (((ALPHA_ZPDOM(I,J,K),I=1,NNM),J=1,NNP),K=1,NNZ)
+          PRINT*,'GRAZING LOSS ON Z > DOM: ', (((ALPHA_ZZDOM(I,J,K),I=1,NNM),J=1,NNZ),K=1,NNZ)
+          PRINT*,'THRESHOLD              : ', (DOM_0(I),I=1,NNM)
+          PRINT*
+       END IF
+       PRINT*
+       PRINT*,'*****************************************************'
+       PRINT*,'*********    END OF BIOLOGICAL MODEL     ************'
+       PRINT*,'*****************************************************'
+    END IF !(MSR)
+
+  END SUBROUTINE BIO_PARAMETER_REPORT
+
+
+
    SUBROUTINE BIO_INITIAL
 !=============================================================================!
 ! THS PROGRAM INITIALIZES THE 3D BIOLOGICAL FIELD FOR THE GENERALIZED         !
@@ -962,195 +1170,6 @@ SUBROUTINE BIO_EXCHANGE
       ALLOCATE(BIO_MEANN(0:NT,KB,NTT))  ; BIO_MEANN   =  0.001_SP
       ALLOCATE(BIO_VAR_MEAN(0:MT,KB,NTT)) ; BIO_VAR_MEAN   =  0.0_SP
 
-
-!*******************************************************************!
-! *********     PRINT OUT MODEL SETUP AND PARAMETER VALUES      ****!
-!*******************************************************************!
-       IF (MSR) THEN
-       PRINT*
-       PRINT*,'*****************************************************'
-       PRINT*,'**  STRUCTURE AND FUNCTION OF THE BIOLOGICAL MODEL **'
-       PRINT*,'*****************************************************'
-
-          PRINT*
-          PRINT*,'MODEL STRUCTURE        : ',  MODEL_STRUCTURE
-         DO I=1,NNN
-          PRINT*,'                         ',  NUTRIENT_NAME(I)
-         END DO
-         DO I=1,NNP
-          PRINT*,'                         ',  PHYTO_NAME(I)
-         END DO
-         DO I=1,NNZ
-          PRINT*,'                         ',  ZOO_NAME(I)
-         END DO
-         DO I=1,NND
-          PRINT*,'                         ',  DETRITUS_NAME(I)
-         END DO
-         DO I=1,NNM
-          PRINT*,'                         ', DOM_NAME(I)
-         END DO
-         DO I=1,NNB
-          PRINT*,'                         ', BACTERIA_NAME(I)
-         END DO
-          WRITE(*,'(A26,A20)')' LIGHT FUNCTION         : ', L_FUNCTION
-          WRITE(*,'(A26,A20)')' GRAZING FUNCTION       : ', G_FUNCTION
-          PRINT*
-      PRINT*,'*********    PHYTOPLANTON PARAMETERS    **************'
-        PRINT*
-        IF(L_FUNCTION.NE.'EXP_LIGHT'.AND.L_FUNCTION.NE.'SL62_LIGHT') THEN
-          PRINT*,'ALPHA                  : '  , (ALPHAP(I),I=1,NNP)
-        END IF
-          PRINT*,'L_N COMBINE            : ' , (ALPHA_U(I),I=1,NNP)
-          PRINT*,'T FORCING              : ' , (A_TP(I),I=1,NNP)
-          PRINT*,'CHL ATTANUATION        : ' , ATANU_C
-          PRINT*,'D ATTANUATION          : ', ATANU_D
-          PRINT*,'WATER ATTANUATION      : ', ATANU_W
-        IF(L_FUNCTION.EQ.'PGH80_LIGHT'.OR.L_FUNCTION.EQ.'V65_LIGHT'.OR. &
-           L_FUNCTION.EQ.'BWDC9_LIGHT') THEN       
-          PRINT*,'BETAP                  : ', (BETAP(I),I=1,NNP)
-        END IF
-          PRINT*,'CHL:C                  : ',(CHL2C(I),I=1,NNP)
-          PRINT*,'ACTIVE DOM EXUD.       : ',(D_DOM(I),I=1,NNP)
-          PRINT*,'PASSIVE DOM EXUD.      : ', (DPDOM(I),I=1,NNP)
-        IF(L_FUNCTION.EQ.'SL62_LIGHT'.OR.L_FUNCTION.EQ.'V65_LIGHT'.OR. &
-           L_FUNCTION.EQ.'PE78_LIGHT') THEN       
-          PRINT*,'OPTIMAL LIGHT          : ',(I_OPT(I),I=1,NNP)
-        END IF
-        IF(L_FUNCTION.EQ.'MM_LIGHT'.OR.L_FUNCTION.EQ.'LB_LIGHT') THEN 
-          PRINT*,'LIGHT HALF SATURATTION : ', (K_LIGHT(I),I=1,NNP)
-        END IF
-          PRINT*,'MORTALITY              : ', (MPD(I),I=1,NNP)
-          PRINT*,'MORTALITY POWER        : ', (M_P(I),I=1,NNP)
-        IF(L_FUNCTION.EQ.'LB_LIGHT'.OR.L_FUNCTION.EQ.'V65_LIGHT') THEN 
-          PRINT*,'POWER OF LIGHT         : ', (N_P(I),I=1,NNP)
-        END IF
-          PRINT*,'THRESHOLD              : ', (P_0(I),I=1,NNP)
-          PRINT*,'T ON RESPIRATION       : ', RP_T
-          PRINT*,'RESPIRATION            : ', (R_P(I),I=1,NNP)
-          PRINT*,'OPTIMAL T              : ', (T_OPTP(I),I=1,NNP)
-          PRINT*,'MAXIMUM GROWTH         : ', (UMAX(I),I=1,NNP)
-          PRINT*,'SINKING VELOCITY       : ', (W_P(I),I=1,NNP)
-          PRINT*
-
-          PRINT*,'********    ZOOPLANKTON PARAMETERS   ****************'
-          PRINT*
-          PRINT*,'ACTIVE RESPIRATION     : ', (ACTIVE_R(I),I=1,NNZ)
-          PRINT*,'T FORCING EXPONENTIAL  : ', (A_TZ(I),I=1,NNZ)
-        IF (NNB.GE.1) THEN
-          PRINT*,'EFFICIENCY ON BACTERIA : ',((EFFIB(I,J),I=1,NNB),J=1,NNZ)
-        END IF
-        IF (NND.GE.1) THEN
-          PRINT*,'EFFICIENCY ON DETRITUS : ',((EFFID(I,J),I=1,NND),J=1,NNZ)
-        END IF
-          PRINT*,'EFFICIENCY ON PHYTO    : ',((EFFIP(I,J),I=1,NNP),J=1,NNZ)
-          PRINT*,'EFFICIENCY ON ZOO      : ',((EFFIZ(I,J),I=1,NNZ),J=1,NNZ)
-          PRINT*,'MAX GRAIZING RATE      : ',(G_MAX(I),I=1,NNZ)
-        IF(G_FUNCTION.EQ.'RECTI_G'.OR.G_FUNCTION.EQ.'MM1_G' .AND. &
-           G_FUNCTION.EQ.'MM2_G') THEN 
-          PRINT*,'HALF SATURATION        : ', (K_ZG(I),I=1,NNZ)
-        END IF
-          PRINT*,'GRAZING POWER          : ',(M_G(I),I=1,NNZ)
-          PRINT*,'MORALITY               : ',(MZD(I),I=1,NNZ)
-          PRINT*,'MORTALITY POWER        : ',(M_Z(I),I=1,NNZ)
-        IF(G_FUNCTION.EQ.'MM2_G') THEN 
-          PRINT*,'GRAZING THRESHOLD      : ',(P_C(I),I=1,NNZ)
-        END IF
-        IF (NNZ.GE.1) THEN
-          PRINT*,'RECRUITMENT            : ',(R_RECRUIT(I),I=1,NNZ)
-        END IF
-          PRINT*,'RESPIRATION            : ',(R_Z(I),I=1,NNZ)
-        IF (NNB.GE.1) THEN
-          PRINT*,'PREFERENCE ON BACTERIA : ',((SIGMA_B(I,J),I=1,NNB),J=1,NNZ)
-        END IF
-        IF (NND.GE.1) THEN
-          PRINT*,'PREFERENCE ON DETRITUS : ',((SIGMA_D(I,J),I=1,NND),J=1,NNZ)
-        END IF
-          PRINT*,'PREFERENCE ON PHYTO    : ',((SIGMA_P(I,J),I=1,NNP),J=1,NNZ)
-          PRINT*,'PREFERENCE ON ZOO      : ',((SIGMA_Z(I,J),I=1,NNZ),J=1,NNZ)
-          PRINT*,'OPTIMAL T              : ',(T_OPTZ(I),I=1,NNZ)
-          PRINT*,'ZOO THRESHOLD          : ',(Z_0(I),I=1,NNZ)
-          PRINT*
-          PRINT*,'*********    NUTRIENT PARAMETERS    ***********'
-          PRINT*
-          PRINT*,'HALF-SATURATION',((KSN(I,J),I=1,NNN),J=1,NNP)
-        IF (NNB.GE.1) THEN
-          PRINT*,'ELEMENT RATIO IN BAC.  : ',((N2CB(I,J),I=1,NNN),J=1,NNB)
-        END IF
-        IF (NND.GE.1) THEN
-          PRINT*,'ELEMENT RATIO IN D     : ',((N2CD(I,J),I=1,NNN),J=1,NND)
-        END IF
-          PRINT*,'ELEMENT RATIO IN PHYTO : ',((N2CP(I,J),I=1,NNN),J=1,NNP)
-          PRINT*,'ELEMENT RATIO IN ZOO   : ',((N2CZ(I,J),I=1,NNN),J=1,NNZ)
-        IF (NNM.GE.1)  THEN
-          PRINT*,'ELEMENT RATIO IN DOM   : ', ((N2CDOM(I,J),I=1,NNN),J=1,NNM)
-        END IF
-          PRINT*,'THRESHOLD              : ', (N_0(I),I=1,NNN)
-        IF (NO3_ON)    THEN
-          PRINT*,'NITRIFICATION RATE     : ', R_AN
-        END IF
-          PRINT*
-        IF (NNB.GE.1) THEN
-          PRINT*,'*********  BACTERIA PARAMETERS  ************'
-          PRINT*
-          PRINT*,'T_FORCING              : ',(A_TB(I),I=1,NNB)
-          PRINT*,'THRESHOLD              : ', (B_0(I),I=1,NNB)
-          PRINT*,'RATIO OF NH4 VS DON    : ',(DELTA_B(I),I=1,NNB)
-          PRINT*,'EFFICIENCY OF DETRITUS : ',((EFFIBD(I,J),I=1,NND),J=1,NNB)
-          PRINT*,'EFFICIENCY OF DOM      : ',((EFFIDOM(I,J),I=1,NNM),J=1,NNB)
-          PRINT*,'EFFICIENCY OF NUTRIENT : ', ((EFFIN(I,J),I=1,NNN),J=1,NNB)
-          PRINT*,'RESPIRATION            : ',(R_B(I),I=1,NNB)
-          PRINT*,'PREFERENCE ON DETRITUS : ',((SIGMA_BD(I,J),I=1,NND),J=1,NNB)
-          PRINT*,'PREFERENCE ON DOM      : ',((SIGMA_DOM(I,J),I=1,NNM),J=1,NNB)
-          PRINT*,'PREFERENCE ON NUTRIENT : ',((SIGMA_N(I,J),I=1,NNN),J=1,NNB)
-          PRINT*,'OPTIMAL TEMPERATURE    : ',(T_OPTB(I),I=1,NNB)
-          PRINT*,'MAXIMUM GROWTH RATE    : ',(UBMAX(I),I=1,NNB)
-          PRINT*
-        END IF
-        IF (NND.GE.1) THEN
-          PRINT*, '********  DETRITUS PARAMETERS  *************'
-          PRINT*
-        IF (NNB.GE.1) THEN
-          PRINT*,'GRAZING ON B TO D      : ', (((ALPHA_BD(I,J,K),I=1,NND),J=1,NNB),K=1,NNZ)
-        END IF
-          PRINT*,'AGGREGATION            : ', (ALPHA_DAG(I),I=1,NND)
-          PRINT*,'GRAZING LOSS ON D TO D : ', (((ALPHA_DD(I,J,K),I=1,NND),J=1,NND),K=1,NNZ)
-          PRINT*,'DISAGGREGATION         : ', (ALPHA_DAG(I),I=1,NND)
-          PRINT*,'GRAZING LOSS ON P TO D : ', (((ALPHA_PD(I,J,K),I=1,NND),J=1,NNP),K=1,NNZ)
-          PRINT*,'GRAZING LOSS ON Z TO D : ', (((ALPHA_ZD(I,J,K),I=1,NND),J=1,NNZ),K=1,NNZ)
-        IF (NNM.GE.1) THEN
-          PRINT*,'DISSOLUTION            : ', (D_DOM(I),I=1,NND)
-        END IF
-          PRINT*,'REMINERALIZATION       : ', (D_RN(I),I=1,NND)
-          PRINT*,'THRESHOLD              : ', (D_0(I),I=1,NND)
-          PRINT*,'P MORTALITY TO DETRITUS: ', ((EPSILON_PD(I,J),I=1,NND),J=1,NNP)
-          PRINT*,'Z MORTALITY TO DETRITUS: ', ((EPSILON_ZD(I,J),I=1,NND),J=1,NNZ)
-          PRINT*,'SINING VELOCITY        : ', (W_D(I),I=1,NND)
-          PRINT*
-        END IF
-        IF (NNM.GE.1) THEN
-          PRINT*,'*********     DOM PARAMETERS     *************'
-          PRINT*
-          PRINT*,'DOM AGEING COEFFICIENT : ', (ALPHA_DOM(I),I=1,NNM)
-          PRINT*,'PHYTO EXUDATION        : ', ((ALPHA_PDOM(I,J),I=1,NNM),J=1,NNP)
-          PRINT*,'DETRITUS DISSOLUTION   : ', ((ALPHA_DDOM(I,J),I=1,NNM),J=1,NND)
-        IF (NNB.GE.1) THEN
-          PRINT*,'GRAZING LOSS ON B > DOM: ', (((ALPHA_ZBDOM(I,J,K),I=1,NNM),J=1,NNB),K=1,NNZ)
-        END IF
-        IF (NND.GE.1) THEN
-          PRINT*,'GRAZING LOSS ON D > DOM: ', (((ALPHA_ZDDOM(I,J,K),I=1,NNM),J=1,NND),K=1,NNZ)
-        END IF
-          PRINT*,'GRAZING LOSS ON P > DOM: ', (((ALPHA_ZPDOM(I,J,K),I=1,NNM),J=1,NNP),K=1,NNZ)
-          PRINT*,'GRAZING LOSS ON Z > DOM: ', (((ALPHA_ZZDOM(I,J,K),I=1,NNM),J=1,NNZ),K=1,NNZ)
-          PRINT*,'THRESHOLD              : ', (DOM_0(I),I=1,NNM)
-          PRINT*
-        END IF
-       PRINT*
-       PRINT*,'*****************************************************'
-       PRINT*,'*********    END OF BIOLOGICAL MODEL     ************'
-       PRINT*,'*****************************************************'
-       END IF !(MSR)
-
-
 !*********      NUTRIENT INITIAL CONDITIONS   *************
       DO LL=1,NNN
         WRITE(BIO_NUMBER,'(I1.1)')LL
@@ -1180,6 +1199,7 @@ SUBROUTINE BIO_EXCHANGE
             END DO
           END DO
         END IF !LINEAR
+
         IF (TRIM(INI_TYPE).EQ.'DATA') THEN
 	  ALLOCATE(DPTHSL(KSL))
 	  ALLOCATE(TEMPB(MGL,KSL))
@@ -1217,7 +1237,6 @@ SUBROUTINE BIO_EXCHANGE
 	  DEALLOCATE(DPTHSL,TEMPB,DATA_3D)
         END IF !DATA
       END DO !L=1,NNN; NUTRIENT INITIALIZATION
-
 !*********      PHYTOPLANKTON INITIAL CONDITIONS   *************
       DO LL=1,NNP
         WRITE(BIO_NUMBER,'(I1.1)')LL

@@ -289,7 +289,8 @@
 !--Determine NTSN  = Number of Nodes Surrounding a Node (+1)-------------------!
 !--Determine NBSN  = Node Numbers of Nodes Surrounding a Node------------------!
 !
-   ALLOCATE(NB_TMP(M,MX_NBR_ELEM+1))
+!Lettmann&JQI   ALLOCATE(NB_TMP(M,MX_NBR_ELEM+1))
+   ALLOCATE(NB_TMP(MX_NBR_ELEM+1,2))
    DO I=1,M
      IF(ISONB(I) == 0) THEN
        NB_TMP(1,1)=NBVE(I,1)

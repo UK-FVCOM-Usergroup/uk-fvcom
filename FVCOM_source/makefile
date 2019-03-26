@@ -68,7 +68,6 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	ice_flux_in.F	ice_itd.F	ice_mechred.F	ice_itd_linear.F\
 	ice_scaling.F	ice_atmo.F	ice_ocean.F	ice_therm_vertical.F\
 	ice_init.F	ice_therm_itd.F	mod_ice2d.F	mod_ice.F	\
-	mod_nesting.F \
 	mod_startup.F	mod_wqm.F	mod_ncdio.F	mod_setup.F	\
 	mod_newinp.F	particle.F	linklist.F	mod_lag.F	\
 	mod_northpole.F mod_pwp.F	mod_dye.F	mod_optimal_interpolation.F\
@@ -77,8 +76,11 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	mod_obcs3.F	mod_sed.F	mod_enkf.F	mod_etkf.F	\
 	mod_rrk.F	mod_rrkf_obs.F	mod_rrkassim.F	mod_enkf_ncd.F	\
 	enkf_ncdio.F	mod_enkf_obs.F	mod_enkfassim.F mod_assim.F	\
-	mod_visit.F     mod_plbc.F mod_dam.F		\
-	mod_station_timeseries.F	mod_boundschk.F mod_heatflux_gl.F
+	mod_nesting.F	mod_visit.F     mod_plbc.F mod_dam.F		\
+	mod_station_timeseries.F	mod_sparse_timeseries.F 	\
+	mod_boundschk.F mod_heatflux_gl.F	mod_esmf_nesting.F	\
+	mod_cstms_vars.F	mod_flocmod.F	mod_sed_cstms.F		\
+	mod_fluid_mud.F 
 
 MODS_W = mod_main_wave.F	swmod1.F	swmod2.F	swmod3.F\
 	mod_action_im.F mod_action_ex.F mod_wavesetup.F 		\
@@ -105,7 +107,7 @@ MAIN  =	fvcom.F		genmap.F	tge.F		longshore_flow.F\
 MAIN_W = ocpmix.F	ocpcre.F	ocpids.F	\
 	swanpre1.F	swanpre2.F	swanser.F	swanmain.F	\
 	swancom1.F	swancom2.F	swancom3.F	swancom4.F	\
-	swancom5.F
+	swancom5.F	w3part.F
 
 COBJS = func_pointer.c
 

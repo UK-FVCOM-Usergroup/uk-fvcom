@@ -116,7 +116,16 @@ MODULE CONTROL
     CHARACTER(Len=80) START_DATE     !!DATE TO START MODEL
     CHARACTER(Len=80) END_DATE       !!DATE TO END MODEL 
     CHARACTER(Len=80) DATE_REFERENCE !!USER DEFINED REFERENCE DATE OR DEFAULT
-    
+
+!------------------------------Jianzhong-----------------------------------!
+    INTEGER IYEAR          !!INITIAL TIME OF COMPUTATION(YEAR)
+    INTEGER IMONTH         !!INITIAL TIME OF COMPUTATION(MONTH)
+    INTEGER IDAY           !!INITIAL TIME OF COMPUTATION(DAY)
+    INTEGER IHOUR          !!INITIAL TIME OF COMPUTATION(HOUR)
+    INTEGER IMIN           !!INITIAL TIME OF COMPUTATION(MINITE)
+    INTEGER ISEC           !!INITIAL TIME OF COMPUTATION(SECOND)
+!--------------------------------------------------------------------------|     
+
     LOGICAL USE_REAL_WORLD_TIME
     NAMELIST /NML_CASE/        &
          & CASE_TITLE,         &
@@ -429,6 +438,11 @@ MODULE CONTROL
     CHARACTER(LEN=80) BAROCLINIC_PRESSURE_GRADIENT
     LOGICAL TEMPERATURE_ACTIVE
     LOGICAL SALINITY_ACTIVE
+!J. Ge
+    ! for tracer advection
+    LOGICAL BACKWARD_ADVECTION
+    INTEGER BACKWARD_STEP
+!J. Ge
     LOGICAL SURFACE_WAVE_MIXING
 
     ! AT PRESENT YOU CAN NOT COMPILE WITH WET DRY WITHOUT USING IT!
@@ -469,6 +483,10 @@ MODULE CONTROL
          & TEMPERATURE_ACTIVE,           &
          & SALINITY_ACTIVE,              &
          & SURFACE_WAVE_MIXING,          &
+!J. Ge
+         & BACKWARD_ADVECTION,           &
+         & BACKWARD_STEP,                &
+!J. Ge
          & WETTING_DRYING_ON,            &
          & ADCOR_ON,                     &
 	 & EQUATOR_BETA_PLANE,           &
@@ -534,6 +552,10 @@ MODULE CONTROL
     CHARACTER(LEN=80), parameter:: SPEED  = "speed"
     CHARACTER(LEN=80), parameter:: STRESS = "stress"
 
+!J. Ge
+    CHARACTER(LEN=80),parameter:: UNIFORM = "uniform"
+    CHARACTER(LEN=80),parameter:: NON_UNIFORM = "non-uniform"
+!J. Ge
 
     NAMELIST /NML_SURFACE_FORCING/          &
          & WIND_ON,                         &
@@ -768,7 +790,13 @@ MODULE CONTROL
     LOGICAL DATA_ASSIMILATION
     CHARACTER(LEN=80) DATA_ASSIMILATION_FILE
     LOGICAL BIOLOGICAL_MODEL
-!!$    CHARACTER(LEN=80) BIOLOGICAL_MODEL_FILE
+! J. Ge for online biology
+    CHARACTER(LEN=80) BIOLOGICAL_MODEL_FILE
+!--------------------------
+# if defined (OFFLINE_BIOLOGY)
+    CHARACTER(LEN=80) OFFLINE_BIOLOGY_FILE
+# endif
+
     CHARACTER(LEN=80) STARTUP_BIO_TYPE  !!TYPE OF BIO START
     LOGICAL SEDIMENT_MODEL
     CHARACTER(LEN=80) SEDIMENT_MODEL_FILE
@@ -777,6 +805,7 @@ MODULE CONTROL
 # endif
     CHARACTER(LEN=80) SEDIMENT_PARAMETER_TYPE
     CHARACTER(LEN=80) SEDIMENT_PARAMETER_FILE
+    REAL(SP) :: SEDIMENT_MIXING_RATIO
     CHARACTER(LEN=80) BEDFLAG_TYPE 
     CHARACTER(LEN=80) BEDFLAG_FILE 
 
@@ -794,6 +823,9 @@ MODULE CONTROL
     REAL(SP) ::ICE_SPEC_HUMIDITY
     REAL(SP) ::ICE_CLOUD_COVER
     REAL(SP) ::ICE_SHORTWAVE
+    CHARACTER(LEN=80) ICE_LONGWAVE_TYPE
+    
+    LOGICAL HIGH_LATITUDE_WAVE
 
     !ADDITIONAL MODEL DATA
     INTEGER            :: N_SED
@@ -829,8 +861,13 @@ MODULE CONTROL
          & DATA_ASSIMILATION,             &
          & DATA_ASSIMILATION_FILE,        &
          & BIOLOGICAL_MODEL,              &
-!!$         & BIOLOGICAL_MODEL_FILE,         &
          & STARTUP_BIO_TYPE,              &
+!--------- J. Ge for biology --------------
+         & BIOLOGICAL_MODEL_FILE,         &
+!------------------------------------------
+# if defined (OFFLINE_BIOLOGY)
+         & OFFLINE_BIOLOGY_FILE,         &
+# endif
          & SEDIMENT_MODEL,                &
          & SEDIMENT_MODEL_FILE,           &
 # if defined (OFFLINE_SEDIMENT)
@@ -838,6 +875,7 @@ MODULE CONTROL
 # endif
          & SEDIMENT_PARAMETER_TYPE,       &
          & SEDIMENT_PARAMETER_FILE,       &
+         & SEDIMENT_MIXING_RATIO,         &
          & BEDFLAG_TYPE,                  &
          & BEDFLAG_FILE,                  &
          & ICING_MODEL,                   &
@@ -852,7 +890,9 @@ MODULE CONTROL
          & ICE_AIR_TEMP,                  &
          & ICE_SPEC_HUMIDITY,             &
          & ICE_SHORTWAVE,                 &
-         & ICE_CLOUD_COVER
+         & ICE_LONGWAVE_TYPE,                 &
+         & ICE_CLOUD_COVER,               &
+         & HIGH_LATITUDE_WAVE
 
     !--Parameters in NameList NML_PROBE
     LOGICAL PROBES_ON
@@ -1254,6 +1294,9 @@ MODULE ALL_VARS
 
    REAL(SP), ALLOCATABLE,TARGET :: CBC(:)           !!BOTTOM FRICTION     
    REAL(SP), ALLOCATABLE,TARGET :: CC_Z0B(:)        !!BOTTOM ROUGHNESS VARIABLE
+!Jadon Ge
+   REAL(SP), ALLOCATABLE,TARGET :: NUNI_CBCMIN(:)    !! BOTTOM ROUGHNESS MINIMUM
+!Jadon Ge
 
    REAL(SP), ALLOCATABLE,TARGET :: SWRAD_WATTS(:)  !!SURFACE INCIDENT RADIATION
    REAL(SP), ALLOCATABLE,TARGET :: WTSURF_WATTS(:) !!NET HEAT FLUX AT SURFACE
@@ -1336,13 +1379,20 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: WPER_BOT(:)     !!BOTTOM WAVE PERIOD
    REAL(SP), ALLOCATABLE,TARGET :: WUB_BOT(:)      !!BOTTOM ORBITAL VELOCITY
 
-# if defined (OFFLINE_SEDIMENT)
+# if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_U(:,:)  !! OFFLINE U VELOCITY
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_V(:,:)  !! OFFLINE V VELOCITY
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_W(:,:)  !! OFFLINE W VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_S1(:,:)  !! OFFLINE W VELOCIT
+   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_S1(:,:) !! OFFLINE SALINITY
+   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_T1(:,:) !! OFFLINE TEMPERATURE
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_EL(:)   !! OFFLINE ELEVATION
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_KH(:,:) !! OFFLINE KH
+# if defined (GOTM)
+   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_TEPS(:,:) !! OFFLINE TEPS
+# else
+   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_Q2(:,:) !! OFFLINE Q2
+   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_Q2L(:,:)!! OFFLINE Q2L
+# endif
    INTEGER , ALLOCATABLE,TARGET :: OFFLINE_WN(:)   !! OFFLINE WET NODES
    INTEGER , ALLOCATABLE,TARGET :: OFFLINE_WC(:)   !! OFFLINE WET CELLS
 # endif
@@ -1362,6 +1412,22 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET  :: WSSURF(:)        !!  sea surface salinity    flux
    REAL(SP), ALLOCATABLE,TARGET  :: WHSURF(:)        !!  sea surface heat        flux
    REAL(SP), ALLOCATABLE,TARGET  :: FWtSURF(:)       !!  sea surface fresh water flux
+
+!!============yding=============================================================
+   REAL(SP), ALLOCATABLE,TARGET :: QPICE(:)         !!SURFACE ice volume FOR INT
+!!============yding end===========================================================
+
+#   if defined (ICE_EMBEDDING)
+   REAL(SP), ALLOCATABLE,TARGET :: QFLICE(:)         !!water volume FOR INT
+
+   REAL(SP), ALLOCATABLE,TARGET :: QTHICE(:)         !!ice thickness in the water
+   REAL(SP), ALLOCATABLE,TARGET :: mlt_lat(:)         !!ice thickness in the water
+   REAL(SP), ALLOCATABLE,TARGET :: QTHICERK(:)       !!ice thickness in the water
+   REAL(SP), ALLOCATABLE,TARGET :: QTHICE_incr(:)    !!ice thickness increament
+   REAL(SP), ALLOCATABLE,TARGET :: QTHICE1(:)         !!ice thickness in the water
+
+#   endif
+
 # endif
 # if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
    REAL(SP), ALLOCATABLE,TARGET  :: PA_AIR(:)        !!SURFACE PRESSURE
@@ -1439,6 +1505,12 @@ MODULE ALL_VARS
   REAL(SP), ALLOCATABLE,TARGET :: RHO1(:,:)       !!DENSITY AT NODES               
   REAL(SP), ALLOCATABLE,TARGET :: TF1(:,:)        !!TEMPERATURE FROM PREVIOUS TIME
   REAL(SP), ALLOCATABLE,TARGET :: SF1(:,:)        !!SALINITY FROM PREVIOUS TIME 
+!J. Ge for tracer advection
+  REAL(SP), ALLOCATABLE,TARGET :: T0(:,:)         !!TEMPERATURE AT NODES AT PREVIOUS TIME STEP
+  REAL(SP), ALLOCATABLE,TARGET :: T2(:,:)         !!TEMPERATURE AT NODES AT PREVIOUS TWO STEP
+  REAL(SP), ALLOCATABLE,TARGET :: S0(:,:)         !!SALINITY AT NODES AT PREVIOUS TIME STEP
+  REAL(SP), ALLOCATABLE,TARGET :: S2(:,:)         !!SALINITY AT NODES AT PREVIOUS TWO STEP
+!J. Ge for tracer advection
   REAL(SP), ALLOCATABLE,TARGET :: TMEAN1(:,:)     !!MEAN INITIAL TEMP
   REAL(SP), ALLOCATABLE,TARGET :: SMEAN1(:,:)     !!MEAN INITIAL SALINITY 
   REAL(SP), ALLOCATABLE,TARGET :: RMEAN1(:,:)     !!MEAN INITIAL DENSITY 
@@ -1774,6 +1846,10 @@ CONTAINS
 
    ALLOCATE(CBC(0:NT))           ;CBC    = ZERO     !!BOTTOM FRICTION     
    ALLOCATE(CC_Z0B(0:NT))        ;CC_Z0B = ZERO     !!BOTTOM ROUGHNESS VARIABLE     
+!Jadon Ge
+   ALLOCATE(NUNI_CBCMIN(0:NT))  ;NUNI_CBCMIN = ZERO !! BOTTOM ROUGHNESS MINIMUM
+!Jadon Ge
+
 !# if !defined (SEMI_IMPLICIT)
    ALLOCATE(WUSURF2(0:NT))       ;WUSURF2= ZERO     !!SURFACE FRICTION FOR EXT
    ALLOCATE(WVSURF2(0:NT))       ;WVSURF2= ZERO     !!SURFACE FRICTION FOR EXT
@@ -1816,15 +1892,23 @@ CONTAINS
    ALLOCATE(WUB_BOT(0:MT))       ;WUB_BOT  = ZERO
 # endif
 
-# if defined (OFFLINE_SEDIMENT)
-   ALLOCATE(OFFLINE_U(0:NT,KB) )   ;OFFLINE_U  = ZERO
-   ALLOCATE(OFFLINE_V(0:NT,KB) )   ;OFFLINE_V  = ZERO
-   ALLOCATE(OFFLINE_W(0:MT,KB) )   ;OFFLINE_W  = ZERO
-   ALLOCATE(OFFLINE_S1(0:MT,KB) )  ;OFFLINE_S1  = ZERO
-   ALLOCATE(OFFLINE_EL(0:MT)   )   ;OFFLINE_EL = ZERO
-   ALLOCATE(OFFLINE_KH(0:MT,KB))   ;OFFLINE_KH = ZERO
-   ALLOCATE(OFFLINE_WN(0:MT)   )   ;OFFLINE_WN = ZERO
-   ALLOCATE(OFFLINE_WC(0:NT)   )   ;OFFLINE_WC = ZERO
+# if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
+   ALLOCATE(OFFLINE_U(0:NT,KB) )    ;OFFLINE_U   = ZERO
+   ALLOCATE(OFFLINE_V(0:NT,KB) )    ;OFFLINE_V   = ZERO
+   ALLOCATE(OFFLINE_W(0:MT,KB) )    ;OFFLINE_W   = ZERO
+   ALLOCATE(OFFLINE_S1(0:MT,KB))    ;OFFLINE_S1  = ZERO
+   ALLOCATE(OFFLINE_T1(0:MT,KB))    ;OFFLINE_T1  = ZERO
+   ALLOCATE(OFFLINE_EL(0:MT)   )    ;OFFLINE_EL  = ZERO
+   ALLOCATE(OFFLINE_KH(0:MT,KB))    ;OFFLINE_KH  = ZERO
+   ALLOCATE(OFFLINE_WN(0:MT)   )    ;OFFLINE_WN  = ZERO
+   ALLOCATE(OFFLINE_WC(0:NT)   )    ;OFFLINE_WC  = ZERO
+
+# if defined (GOTM)
+   ALLOCATE(OFFLINE_TEPS(0:MT,KB))  ;OFFLINE_TEPS= ZERO
+# else
+   ALLOCATE(OFFLINE_Q2(0:MT,KB))    ;OFFLINE_Q2  = ZERO
+   ALLOCATE(OFFLINE_Q2L(0:MT,KB))   ;OFFLINE_Q2L = ZERO
+# endif
 # endif
 
    MEMCNT = NT*10*NDB + MT*8*NDB + MEMCNT
@@ -1856,6 +1940,19 @@ CONTAINS
    ALLOCATE(WHSURF(0:MT))        ;WHSURF = ZERO      !  sea surface heat        flux
    ALLOCATE(FWtSURF(0:MT))       ;FWtSURF= ZERO      !  sea surface fresh water flux
    MEMCNT =  MT*4*NDB + MEMCNT
+
+!!yding
+   ALLOCATE(QPICE(0:MT))         ;QPICE = ZERO      !!SURFACE ice volume FOR INT
+!!yding
+#   if defined (ICE_EMBEDDING)
+   ALLOCATE(QFLICE(0:MT))         ;QFLICE = ZERO      !!SURFACE ice volume FOR INT
+   ALLOCATE(QTHICE(0:MT))         ;QTHICE = ZERO      !!ice thickness for current step
+   ALLOCATE(mlt_lat(0:MT))         ;mlt_lat = ZERO      !!ice thickness for current step
+   ALLOCATE(QTHICERK(0:MT))       ;QTHICERK = ZERO    !!ice thickness for previous step
+   ALLOCATE(QTHICE_incr(0:MT))    ;QTHICE_incr = ZERO    !!ice thickness increament
+   ALLOCATE(QTHICE1(0:NT))         ;QTHICE1 = ZERO       !!ice thickness for current step
+#  endif
+
 # endif
 # if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
    ALLOCATE(PA_AIR(0:MT))        !!SURFACE PRESSURE
@@ -1924,6 +2021,12 @@ CONTAINS
 
    ALLOCATE(T1(0:MT,KB))         ;T1     = ZERO  !!TEMPERATURE AT NODES               
    ALLOCATE(S1(0:MT,KB))         ;S1     = ZERO  !!SALINITY AT NODES               
+!J. Ge for tracer advection
+   ALLOCATE(T0(0:MT,KB))         ;T0    = ZERO   !!TEMPERATURE FROM PREVIOUS TIME STEP 
+   ALLOCATE(T2(0:MT,KB))         ;T2    = ZERO   !!TEMPERATURE FROM PREVIOUS TWO STEP
+   ALLOCATE(S0(0:MT,KB))         ;S0    = ZERO   !!SALINITY FROM PREVIOUS TIME STEP 
+   ALLOCATE(S2(0:MT,KB))         ;S2    = ZERO   !!SALINITY FROM PREVIOUS TWO STEP 
+!J. Ge for tracer advection
    ALLOCATE(RHO1(0:MT,KB))       ;RHO1   = ZERO  !!DENSITY AT NODES               
    ALLOCATE(TF1(0:MT,KB))        ;TF1    = ZERO  !!TEMPERATURE FROM PREVIOUS TIME
    ALLOCATE(SF1(0:MT,KB))        ;SF1    = ZERO  !!SALINITY FROM PREVIOUS TIME 

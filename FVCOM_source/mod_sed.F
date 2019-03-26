@@ -76,16 +76,21 @@
 !
 !=======================================================================
 Module Mod_Sed  
-#if defined (SEDIMENT)
+#if defined (SEDIMENT) && (ORIG_SED)
 Use Mod_Par
 Use Mod_Prec 
 Use Mod_Types
 Use Mod_wd
 Use Control, only : seddis
-Use all_vars,only : CNSTNT,SEDIMENT_PARAMETER_TYPE
+Use all_vars,only : CNSTNT,UNIFORM,SEDIMENT_PARAMETER_TYPE
 # if defined (WAVE_CURRENT_INTERACTION)
 USE MOD_WAVE_CURRENT_INTERACTION
 # endif
+
+# if defined (FLUID_MUD)
+USE MOD_FLUID_MUD
+# endif
+
 implicit none 
 
 !--------------------------------------------------
@@ -111,6 +116,9 @@ implicit none
 ! cflx         => store advective flux at open bndry 
 ! cobc         => user specd open bndry concentration 
 ! depm         => store deposited mass
+! Jianzhong Ge 03/05/2013
+! wset         => store settling velocity
+! Jianzhong Ge 03/05/2013
 ! arraysize    => spatial size of sediment arrays
 !--------------------------------------------------
 type sed_type
@@ -124,6 +132,10 @@ type sed_type
   real(sp)          :: tau_cd
   real(sp)          :: Srho 
   real(sp)          :: Spor 
+! Jianzhong Ge 03/05/2013
+  real(sp)          :: Chin ! concentration for hindered settling 
+  real(sp)          :: Wrdc ! reduction scale for hindered settling velocity
+! Jianzhong Ge 03/05/2013
   real(sp)          :: erate 
   real(dp)          :: cmax 
   real(dp)          :: cmin 
@@ -139,6 +151,9 @@ type sed_type
   real(sp), allocatable :: cflx(:,:)
   real(sp), allocatable :: cobc(:)
   real(sp), allocatable :: depm(:)   
+! Jianzhong Ge 03/05/2013
+  real(sp), allocatable :: wset0(:,:) ! vertical settling velocity
+! Jianzhong Ge 03/05/2013
 !-------------------Jianzhong Ge-------------------
   real(sp), allocatable :: t_cd(:)   ! =tau_cd
   real(sp), allocatable :: t_ce(:)   ! =tau_ce
@@ -186,6 +201,9 @@ integer  :: sed_ramp
 logical  :: sed_dumpbed
 logical  :: sed_dumpbot 
 logical  :: sed_source
+!Jianzhong Ge 03/05/2013
+logical  :: vert_hindered
+!Jianzhong Ge 03/05/2013
 logical  :: morpho_model = .false.
 real(sp) :: morpho_factor = 1.0
 integer  :: morpho_incr = 1
@@ -209,6 +227,9 @@ real(sp), parameter   :: thck_cr = .005
 !--------------Jianzhong Ge------------------------
 real(sp), parameter   :: mf=0.012,Vcons=1.e-6
 real(sp), allocatable :: csed(:,:)
+real(sp) :: deposition_d50
+real(sp) :: sed_rhos
+real(sp) :: sed_wset
 !--------------------------------------------------
 logical, parameter    :: debug_sed = .false.
 
@@ -221,12 +242,16 @@ logical, parameter    :: debug_sed = .false.
 !  init_bed_porosity:  initial bed porosity [0,1]
 !  init_bed_thickness: initial bed thickness [m] [> 0]
 !  init_bed_fraction:  initial bed fraction [-] [> 0]
+!  thickness_threshold: user-defined threshold for bed thickness [m]
+!  F_fixfac: fixed layer proximity factor
+!            F_fixfac=DPSED/THRESS, limited to the range [0,1]
 !--------------------------------------------------
  
 real(sp) :: init_bed_porosity  = 1.0
 real(sp), allocatable :: init_bed_thickness(:) 
 real(sp), allocatable :: init_bed_fraction(:) 
-
+real(sp) :: thickness_threshold
+real(sp) :: F_fixfac
 !--------------------------------------------------
 !Bedload 
 !
@@ -271,9 +296,9 @@ integer, parameter    :: n_bed_chars = 3
 !     "bed thickness","bed age","bed porosity"]
 !character(len=80), dimension(n_bed_chars) :: bed_units =  [character(len=80) :: & 
 !     "m","days","-"]
-character(len=80), dimension(n_bed_chars) :: bed_snames = (/"bed_thick","bed_age","bed_por"/)
-character(len=80), dimension(n_bed_chars) :: bed_lnames = (/"bed thickness","bed age","bed porosity"/)
-character(len=80), dimension(n_bed_chars) :: bed_units = (/"m","days","-"/)
+character(len=9), dimension(n_bed_chars) :: bed_snames = (/"bed_thick","bed_age  ","bed_por  "/)
+character(len=13), dimension(n_bed_chars) :: bed_lnames = (/"bed thickness","bed age      ","bed porosity "/)
+character(len=4), dimension(n_bed_chars) :: bed_units = (/"m   ","days","-   "/)
 
 integer, parameter    :: ithck = 1
 integer, parameter    :: iaged = 2
@@ -357,18 +382,74 @@ integer, parameter    :: n_bot_vars  = 22
 !       "m","kg/m^3","m/s","N/m^2","days","m","m","m","kg","m","m","m","m","m"&
 !      ,"m","m","m","m","m","m","-","-"] 
 character(len=80), dimension(n_bot_vars) :: bot_snames = &
-      (/"bot_sd50","bot_dens","bot_wset","bot_tauc","bot_actv","bot_nthck",&
-      "bot_lthck","bot_dthck","bot_tmass","morph","rip_length","&
-      &rip_height","wav_excur","def_rough","app_rough","Niku_rough","b&
-      &io_rough","bfm_rough","bld_rough","wave_bbl","bot_phi","bedflag"/)
+      (/"bot_sd50  ",&
+        "bot_dens  ",&
+        "bot_wset  ",&
+        "bot_tauc  ",&
+        "bot_actv  ",&
+        "bot_nthck ",&
+        "bot_lthck ",&
+        "bot_dthck ",&
+        "bot_tmass ",&
+        "morph     ",&
+        "rip_length",&
+        "rip_height",&
+        "wav_excur ",&
+        "def_rough ",&
+        "app_rough ",&
+        "Niku_rough",&
+        "bio_rough ",&
+        "bfm_rough ",&
+        "bld_rough ",&
+        "wave_bbl  ",&
+        "bot_phi   ",&
+        "bedflag   "/)
 character(len=80), dimension(n_bot_vars) :: bot_lnames = &
-      (/"bot_sd50","bot_dens","bot_wset","bot_tauc","bot_actv","sedlayer_depth_current_iteration",&
-      "sedlayer_dapth_last_iteration","sedlayer_depth_net_change","bot_tmass","morph","rip_length","&
-      &rip_height","wav_excur","def_rough","app_rough","Niku_rough","b&
-      &io_rough","bfm_rough","bld_rough","wave_bbl","bot_phi","bedflag"/)
-character(len=80), dimension(n_bot_vars) :: bot_units = (/"m","kg&
-     &/m^3","m/s","N/m^2","days","m","m","m","kg","m","m","m","m","m"&
-     &,"m","m","m","m","m","m","-","-"/)
+      (/"bot_sd50                        ",&
+        "bot_dens                        ",&
+        "bot_wset                        ",&
+        "bot_tauc                        ",&
+        "bot_actv                        ",&
+        "sedlayer_depth_current_iteration",&
+        "sedlayer_dapth_last_iteration   ",&
+        "sedlayer_depth_net_change       ",&
+        "bot_tmass                       ",&
+        "morph                           ",&
+        "rip_length                      ",&
+        "rip_height                      ",&
+        "wav_excur                       ",&
+        "def_rough                       ",&
+        "app_rough                       ",&
+        "Niku_rough                      ",&
+        "bio_rough                       ",&
+        "bfm_rough                       ",&
+        "bld_rough                       ",&
+        "wave_bbl                        ",&
+        "bot_phi                         ",&
+        "bedflag                         "/)
+character(len=80), dimension(n_bot_vars) :: bot_units = &
+      (/"m     ",&
+        "kg/m^3",&
+        "m/s   ",&
+        "N/m^2 ",&
+        "days  ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "kg    ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "m     ",&
+        "-     ",&
+        "-     "/)
 
 integer, parameter    :: isd50  = 1  
 integer, parameter    :: idens  = 2
@@ -406,6 +487,10 @@ real(sp), allocatable, target :: bottom(:,:)
 !--------------------------------------------------
 
 type(sed_type), allocatable, target :: sed(:)
+
+!J. Ge for tracer advection
+type(sed_type), allocatable, target :: sed0(:),sed2(:)
+!J. Ge for tracer advection
 
 contains
 
@@ -457,6 +542,16 @@ contains
 ! read in sediment parameter file                    
 !----------------------------------------------------------------
   call read_sed_params
+
+! J. Ge for fluid mud layer
+# if defined (FLUID_MUD)
+!----------------------------------------------------------------
+! read in fluid mud layer parameter file
+!----------------------------------------------------------------
+  call initialize_fluid_mud
+# endif
+! J. Ge for fluid mud layer
+
 
 !----------------------------------------------------------------
 ! allocate data                                      
@@ -602,6 +697,9 @@ End Subroutine Setup_Sed
   !read in logical for infinite sediment supply 
   Call Get_Val(inf_bed,sedfile,'INF_BED',line=linenum,echo=.false.)
 
+  !read in user-defined threshold for bed thickness
+  Call Get_Val(thickness_threshold,sedfile,'THICKNESS_THRESHOLD',line=linenum,echo=.false.)
+
   !read in initial bed porosity  
   Call Get_Val(init_bed_porosity,sedfile,'INIT_BED_POROSITY',line=linenum,echo=.false.)
   if(init_bed_porosity < 0. .or. init_bed_porosity > 1)then
@@ -694,6 +792,9 @@ End Subroutine Setup_Sed
   if(settle_limiter==1) qlim = 0.
   if(settle_limiter==2) qlim = 1.
   if(settle_limiter==3) qlim = 2.
+ 
+  !hindered effect on vertical diffusion
+  Call Get_Val(VERT_HINDERED,sedfile,'VERT_HINDERED',line=linenum,echo=.false.)
 
   !read in point source switch 
   Call Get_Val(sed_source,sedfile,'SED_PTSOURCE',line=linenum,echo=.false.)
@@ -729,6 +830,12 @@ End Subroutine Setup_Sed
   !allocate sediment data space
   Allocate(sed(nsed))
 
+!J. Ge for tracer advection
+  Allocate(sed0(nsed))
+  Allocate(sed2(nsed))
+!J. Ge for tracer advection
+
+
   !read in sediment parameters
   k1 = 1
 
@@ -746,7 +853,9 @@ End Subroutine Setup_Sed
 
     !read mean diameter
     Call Get_Val(ftemp,sedfile,'SED_SD50',line=linenum,echo=.false.,start=k1)
+!Jianzhong GE
     sed(i)%Sd50 = ftemp
+    deposition_d50 = ftemp*0.001
 !------------------Jianzhong---------------
 !    sed(i)%w0 = -4.*4.27*Vcons/(ftemp*1.0e-3)/1.22+ &
 !                sqrt((4.*4.27/1.22*Vcons/(ftemp*1.0e-3))**2+ &
@@ -754,12 +863,16 @@ End Subroutine Setup_Sed
 !------------------------------------------
     !read sediment density 
     Call Get_Val(ftemp,sedfile,'SED_SRHO',line=linenum,echo=.false.,start=k1)
-    sed(i)%Srho = ftemp
+    sed(i)%Srho = ftemp 
+!Jianzhong GE
+    sed_rhos = ftemp
 
     !read sediment settling rate 
     Call Get_Val(ftemp,sedfile,'SED_WSET',line=linenum,echo=.false.,start=k1)
     sed(i)%Wset = ftemp
     sed(i)%w0   = ftemp
+!Jianzhong GE
+    sed_wset = ftemp*0.001
 
     !read sediment surface erosion rate 
     Call Get_Val(ftemp,sedfile,'SED_ERAT',line=linenum,echo=.false.,start=k1)
@@ -776,6 +889,22 @@ End Subroutine Setup_Sed
     !read sediment porosity
     Call Get_Val(ftemp,sedfile,'SED_PORS',line=linenum,echo=.false.,start=k1)
     sed(i)%Spor = ftemp
+
+!Jianzhong Ge 03/05/2013
+    if(VERT_HINDERED)then
+      !read concentration for hindered settling  
+      if(sed(i)%stype=='cohesive')then
+        Call Get_Val(ftemp,sedfile,'SED_CHIN',line=linenum,echo=.false.,start=k1)
+        sed(i)%Chin = ftemp
+      end if
+
+      !read reduction scale for settling velocity
+      if(sed(i)%stype=='cohesive')then
+        Call Get_Val(ftemp,sedfile,'SED_WRDC',line=linenum,echo=.false.,start=k1)
+        sed(i)%Wrdc = ftemp
+      end if
+    end if
+!Jianzhong Ge 03/05/2013
 
   end do
 
@@ -798,6 +927,7 @@ End Subroutine Setup_Sed
   Use Scalar
   Use Control, only : ireport,iint,msr,par
   Use Lims,    only : m,mt,nt,kbm1,numqbc,kb,nprocs,myid
+  Use All_Vars,only : BACKWARD_ADVECTION,BACKWARD_STEP
 !  Use Mod_OBCS,only : iobcn
 # if defined (MULTIPROCESSOR)
   Use Mod_Par
@@ -875,6 +1005,39 @@ End Subroutine Setup_Sed
     !calculate erosive flux
     call calc_erosion
 
+! J. Ge for fluid mud layer
+
+# if defined (FLUID_MUD)
+
+!# if defined (WAVE_CURRENT_INTERACTION)
+!    call fluid_mud_source_sink(DTsed,sed(1)%Srho,bottom(:,bflag),bed(:,1,ithck),bed(:,1,iporo),sed(1)%frac(:,1),bustrcwmax,bvstrcwmax,,sed(1)%t_ce,sed(1)%rate)
+!# else
+!    call fluid_mud_source_sink(DTsed,sed(1)%Srho,bottom(:,bflag),bed(:,1,ithck),bed(:,1,iporo),sed(1)%frac(:,1),wubot,wvbot,sed(1)%t_ce,sed(1)%rate)
+!# endif
+    call fluid_mud_source_sink(DTsed,sed(1)%Srho,bottom(:,bflag),bed(:,1,ithck),bed(:,1,iporo),sed(1)%frac(:,1),taub,sed(1)%t_ce,sed(1)%rate)
+
+    call internal_step_fluid_mud
+
+    do ised=1,nsed
+      do i=1,m
+# if defined (WET_DRY)
+        if(iswetn(i)==1)then
+# endif
+          sed(ised)%conc(i,kbm1) = sed(ised)%conc(i,kbm1) + Entrainment(i)/(d(i)*dz(i,kbm1))
+          sed(ised)%dflx(i) = dewatering(i)
+          sed(ised)%eflx(i) = BedErosion(i) 
+# if defined (WET_DRY)
+        else
+          sed(ised)%conc(i,kbm1) = 0.0_sp
+          sed(ised)%dflx(i) = 0.0_sp
+          sed(ised)%eflx(i) = 0.0_sp
+        end if
+# endif
+      end do
+    end do
+
+# endif
+
     !adjust surface bed properties
     call update_surface_bed('susload')
 
@@ -905,14 +1068,28 @@ End Subroutine Setup_Sed
       endif
   
       !3D advection
-      call adv_scal(sed(i)%conc, &
+
+!      call adv_scal(sed(i)%conc, &
+!                      sed(i)%cnew, &
+!                      d_cdis,      &
+!                      sed(i)%cdis(1:numqbc), &
+!                      d_cflx,      &
+!                      sed(i)%cflx, &
+!                      DTsed ,sed_source)
+  
+
+!J. Ge for tracer advection
+      call adv_scal(sed(i)%conc,sed0(i)%conc,sed2(i)%conc, &
                       sed(i)%cnew, &
                       d_cdis,      &
                       sed(i)%cdis(1:numqbc), &
                       d_cflx,      &
                       sed(i)%cflx, &
                       DTsed ,sed_source)
-  
+
+!J. Ge for tracer advection
+
+
       call fct_sed(sed(i)%conc,sed(i)%cnew)
   
     end do
@@ -926,6 +1103,10 @@ End Subroutine Setup_Sed
   !------------------------------------------------------
   !Vertical Diffusion of Sediment Concentrations
   !------------------------------------------------------
+
+!Jianzhong GE 03/05/2013
+  if(vert_hindered)call hindered_diffusion
+!Jianzhong GE 03/05/2013
 
   do i=1,nsed
     call vdif_scal(sed(i)%cnew,DTsed) 
@@ -1003,6 +1184,21 @@ End Subroutine Setup_Sed
   endif
 # endif
 
+!J. Ge for tracer advection
+  IF(BACKWARD_ADVECTION.eqv..TRUE.)THEN
+    IF(BACKWARD_STEP==1)THEN
+      do i=1,nsed
+        SED0(i)%conc = sed(i)%cnew
+      end do
+    ELSEIF(BACKWARD_STEP==2)THEN
+      do i=1,nsed
+        SED2(i)%conc  = SED0(i)%conc 
+        SED0(i)%conc  = sed(i)%cnew 
+      end do
+    ENDIF
+  ENDIF
+!J. Ge for tracer advection
+
   !------------------------------------------------------
   ! Update Depth Delta and Morphology Array
   ! this array is positive if material has accumulated,
@@ -1052,12 +1248,23 @@ End Subroutine Setup_Sed
     allocate(sed(i)%cflx(tmp2,kbm1))      ; sed(i)%cflx = 0.0
     allocate(sed(i)%cobc(tmp3     ))      ; sed(i)%cobc = 0.0
     allocate(sed(i)%depm(0:mt     ))      ; sed(i)%depm = 0.0
+! Jianzhong Ge 03/05/2013
+    allocate(sed(i)%wset0(0:mt,kb  ))     ; sed(i)%wset0 = 0.0
+    sed(i)%wset0 = sed_wset
+! Jianzhong Ge 03/05/2013
 
-!    if(SEDIMENT_PARAMETER_TYPE/=CNSTNT)then
+!    if(SEDIMENT_PARAMETER_TYPE/=UNIFORM)then
     allocate(sed(i)%t_cd(0:mt     ))      ; sed(i)%t_cd = 0.0
     allocate(sed(i)%t_ce(0:mt     ))      ; sed(i)%t_ce = 0.0
     allocate(sed(i)%rate(0:mt     ))      ; sed(i)%rate = 0.0
 !    end if
+
+!J. Ge for tracer advection
+!    if(backward_advection==.true.)then
+      allocate(sed0(i)%conc(0:mt,kb  ))     ; sed0(i)%conc = 0.0
+      allocate(sed2(i)%conc(0:mt,kb  ))     ; sed2(i)%conc = 0.0
+!    endif
+!J. Ge for tracer advection
   end do
 
   !allocate bottom shear stress array 
@@ -1188,6 +1395,11 @@ End Subroutine Setup_Sed
   implicit none
   real(dp) :: tau_min,tau_max,tmp1(3),tmp2(3),dthck_max
   integer :: i,dim1,dim2,ierr
+#  if defined (FLUID_MUD)
+  real(dp) :: temp1(5),temp2(5),mud_max,ua_max,va_max,ua_min,va_min
+  REAL(DP), DIMENSION(3) :: SBUF,RBUF1,RBUF2,RBUF3
+  real(dp) :: ESTOT,NSTOT
+#  endif
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Sed_Report "
 
@@ -1206,6 +1418,24 @@ End Subroutine Setup_Sed
   dthck_max = maxval(abs(bottom(1:m,dthck)))
   tau_max   = maxval(taub(1:m))
   tau_min   = minval(taub(1:m))
+
+#  if defined (FLUID_MUD)
+  ESTOT = DBLE(NGL)
+  NSTOT = DBLE(MGL)
+  !calculate/max/min/rms mud layer
+  mud_max = maxval(abs(D_FMLcm))
+  ua_max = maxval(ua_fml)
+  ua_min = minval(ua_fml)
+  va_max = maxval(va_fml)
+  va_min = minval(va_fml)
+
+  SBUF(1)  = SUM(DBLE(UA_fml(1:n)))
+  SBUF(2)  = SUM(DBLE(VA_fml(1:n)))
+  SBUF(3)  = SUM(DBLE(D_FML(1:m)))
+
+  RBUF1 = SBUF
+
+#  endif
  
 # if defined (MULTIPROCESSOR)
   IF(PAR)THEN
@@ -1226,6 +1456,25 @@ End Subroutine Setup_Sed
   dthck_max = tmp2(1) 
   tau_min   = tmp2(2) 
   tau_max   = tmp2(3) 
+
+#  if defined (FLUID_MUD)
+  temp1(1:5) = (/mud_max,ua_max,ua_min,va_max,va_min/)
+  CALL MPI_REDUCE(temp1(1),temp2(1),1,MPI_DP,MPI_MAX,MSRID-1,MPI_FVCOM_GROUP,IERR)
+  CALL MPI_REDUCE(temp1(2),temp2(2),1,MPI_DP,MPI_MAX,MSRID-1,MPI_FVCOM_GROUP,IERR)
+  CALL MPI_REDUCE(temp1(3),temp2(3),1,MPI_DP,MPI_MIN,MSRID-1,MPI_FVCOM_GROUP,IERR)
+  CALL MPI_REDUCE(temp1(4),temp2(4),1,MPI_DP,MPI_MAX,MSRID-1,MPI_FVCOM_GROUP,IERR)
+  CALL MPI_REDUCE(temp1(5),temp2(5),1,MPI_DP,MPI_MIN,MSRID-1,MPI_FVCOM_GROUP,IERR)
+  mud_max = temp2(1)
+  ua_max  = temp2(2)
+  ua_min  = temp2(3)
+  va_max  = temp2(4)
+  va_min  = temp2(5)
+  CALL MPI_REDUCE(SBUF,RBUF1,3,MPI_DP,MPI_SUM,MSRID-1,MPI_FVCOM_GROUP,IERR)
+  IF(ISNAN(RBUF1(1)).or.ISNAN(RBUF1(2)).or.ISNAN(RBUF1(3)))THEN
+     CALL FATAL_ERROR("fluid mud caclulation fails with unstable iteration","Please check the model")
+   END IF
+#  endif
+
   ENDIF
 # endif
 
@@ -1239,7 +1488,16 @@ End Subroutine Setup_Sed
   write(*,*  )'!  max sed thick change  :     ',dthck_max
   write(*,*  )'!  max bottom stress     :     ',tau_max
   write(*,*  )'!  min bottom stress     :     ',tau_min
-  
+#  if defined (FLUID_MUD)
+  write(*,*  )'!  max mud thickness     :     ',mud_max
+  write(*,*  )'!  max u-speed of mud    :     ',ua_max
+  write(*,*  )'!  min u-speed of mud    :     ',ua_min
+  write(*,*  )'!  max v-speed of mud    :     ',va_max
+  write(*,*  )'!  min v-speed of mud    :     ',va_min
+  write(*,*  )'!  avg u-speed of mud    :     ',RBUF1(1)/ESTOT
+  write(*,*  )'!  avg v-speed of mud    :     ',RBUF1(2)/ESTOT
+  write(*,*  )'!  avg thickness of mud  :     ',RBUF1(3)/NSTOT
+#  endif  
 
   100 format(1x,a1,a20,a5,3f12.6)
   101 format(1x,a26,f12.6)
@@ -1652,6 +1910,10 @@ End Subroutine Setup_Sed
   integer  :: cnt,jj,cc
   real(sp),dimension(mt) :: unode,vnode
 
+  ! ------ new: Karsten Lettmann ---
+  real(sp) :: dz_bed, eflux_avail
+  ! --------------------------------
+
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Calc_Erosion "
   ! Compute bottom velocity at node
    if(.not.oned_model)then
@@ -1665,7 +1927,7 @@ End Subroutine Setup_Sed
 # if defined (WET_DRY)
       if(iswetn(i)/=1)cycle  ! no calculation when dry node
 # endif      
-      if(SEDIMENT_PARAMETER_TYPE/=CNSTNT)then
+      if(SEDIMENT_PARAMETER_TYPE/=UNIFORM)then
         erate  = sed(ised)%rate(i)
         tau_ce = sed(ised)%t_ce(i) 
       else
@@ -1694,7 +1956,18 @@ End Subroutine Setup_Sed
 # if defined (WAVE_CURRENT_INTERACTION)
       end if
 # endif
+     
+! J. Ge for fluid mud layer
+# if !defined (FLUID_MUD)
 
+      ! limit the erosion rate within the fixed layer
+      F_fixfac=bottom(i,lthck)/thickness_threshold
+      if(F_fixfac<=1.0_sp)erate = erate*F_fixfac
+
+      ! limit the tau_ce above original bed thickness 
+      ! accumulated layer is positive.
+      ! specify the tau_ce as 0.2N/m2 for this fluffy deposited layer.
+      if(bottom(i,dthck)>0.0_sp)tau_ce=0.2_sp 
 
       bed_por  = bed(i,1,iporo)
       bed_frac = sed(ised)%frac(i,1)
@@ -1708,9 +1981,34 @@ End Subroutine Setup_Sed
 
       !shutdown erosion if node is inactive 
       sed(ised)%eflx(i) = sed(ised)%eflx(i)*bottom(i,bflag)
+
+      ! ========= new: Karsten Lettmann, Okt. 2012 ==========
+      ! limit the eflux by the thickness of the top layer_report
+      ! how much is available for erosion
+      dz_bed = bed(i,1,ithck)
+      eflux_avail = bed_frac * sed(ised)%srho*(1.0-bed_por) * dz_bed + dep
+
+      ! limit the available source above original bed thickness 
+      ! accumulated layer is positive.
+      if(bottom(i,dthck)>0.0_sp)then
+         eflux_avail=  bed_frac * sed(ised)%srho*(1.0-bed_por)*bottom(i,dthck)+dep
+      endif
+
+      ! take only 99% of possible material
+      sed(ised)%eflx(i) = min(sed(ised)%eflx(i) , eflux_avail)
+      ! ===============  end new ================================
+
+!      if(i==1)print*,'calc_erosion:',dep,bed(i,1,ithck),eflux_avail,sed(ised)%eflx(i)
+
+! J. Ge for fluid mud layer
+# endif
+
     end do
   end do
 
+! J. Ge for fluid mud layer
+
+# if !defined (FLUID_MUD)
   !Update Concentration in Bottom of Water Column
   do ised=1,nsed
     do i=1,m
@@ -1725,6 +2023,7 @@ End Subroutine Setup_Sed
 # endif
     end do
   end do
+# endif
   
   if(dbg_set(dbg_sbr)) write(ipt,*) "End: Calc_Erosion "
 
@@ -1740,9 +2039,26 @@ End Subroutine Setup_Sed
   real(sp), intent(in) ::  bed_frac 
   real(sp), intent(in) ::  tau_w 
   real(sp), intent(in) ::  tau_ce 
+!Jianzhong
+  real(sp),parameter :: a1=-0.144,a2=0.904,a3=-0.823,a4=0.204  
+  real(sp)::ratio
+!JIanzhong
 
   !standard CSTM formulation 
-  Erosion = MAX(Erate*(1.0-bed_por)*Bed_Frac*(tau_w/tau_ce-1.0),0.0)
+!  Erosion = MAX(Erate*(1.0-bed_por)*Bed_Frac*(tau_w/tau_ce-1.0),0.0)
+
+!Jianzhong
+  !Prooijen-Winterwerp formulation
+   ratio=tau_w/tau_ce
+   if(ratio<0.52)then
+     Erosion=0.0
+   elseif(ratio>1.7)then
+     Erosion = Erate*(1.0-bed_por)*Bed_Frac*(tau_w/tau_ce-1.0)    
+   else
+     Erosion = Erate*(1.0-bed_por)*Bed_Frac*(a1*ratio**3+a2*ratio**2&
+          &+a3*ratio+a4)
+   endif
+!JIanzhong
 
   !Winterwerp
   !Erosion =  MAX(Erate*Bed_Frac*(tau_w/tau_ce-1.0),0.0)
@@ -1760,7 +2076,7 @@ End Subroutine Setup_Sed
   integer  :: cnt,jj,cc
   real(sp),dimension(0:mt,1:kb) :: unode,vnode
   real(sp),dimension(0:mt)      :: cbcn
-  real(sp) :: ud
+  real(sp) :: ud,cff
 
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Calc_Deposition "
@@ -1816,16 +2132,26 @@ End Subroutine Setup_Sed
 # if defined (WAVE_CURRENT_INTERACTION)
         end if
 # endif
-        g1 = 0.0
-        do k=1,kbm1
-          if(d(i)<=5.0)then
-            je = mf**2*(unode(i,k)**2 + vnode(i,k)**2)/5**(4./3.) 
-          else
-            je = mf**2*(unode(i,k)**2 + vnode(i,k)**2)/d(i)**(4./3.) 
-          end if          
-          g1(k)=sqrt(grav*sqrt(unode(i,k)**2+vnode(i,k)**2)*je/Vcons)
-        end do
-        call calc_wset_floc(kbm1,c,sal,g1,ds50,sed(ised)%w0,wset)
+
+!        g1 = 0.0
+!        do k=1,kbm1
+!          if(d(i)<=5.0)then
+!            je = mf**2*(unode(i,k)**2 + vnode(i,k)**2)/5**(4./3.) 
+!          else
+!            je = mf**2*(unode(i,k)**2 + vnode(i,k)**2)/d(i)**(4./3.) 
+!          end if          
+!          g1(k)=sqrt(grav*sqrt(unode(i,k)**2+vnode(i,k)**2)*je/Vcons)
+!        end do
+!        call calc_wset_floc(kbm1,c,sal,g1,ds50,sed(ised)%w0,wset)
+         if(vert_hindered)then
+           call calc_wset_hindered(kbm1,c,sed(ised)%w0,wset,sed(ised)%Chin,sed(ised)%Wrdc) 
+         else
+           call calc_wset_delft(kbm1,c,sed(ised)%w0,wset)
+         end if
+! Jianzhong Ge 03/05/2013
+        sed(ised)%wset0(i,1:kbm1)=wset(1:kbm1)
+! Jianzhong Ge 03/05/2013
+
 !        if(d(i)<1.0)then
 !          ud = 0.812*(ds50*1000.0)**(0.4)*(wset(kbm1)*1000.0*1.0)**(0.2)
 !        else
@@ -1835,7 +2161,7 @@ End Subroutine Setup_Sed
         tau_cd = sed(ised)%t_cd(i)
       else
         wset = sed(ised)%Wset
-        if(SEDIMENT_PARAMETER_TYPE/=CNSTNT)then
+        if(SEDIMENT_PARAMETER_TYPE/=UNIFORM)then
            tau_cd = sed(ised)%t_cd(i)
         else
            tau_cd = sed(ised)%tau_cd
@@ -1856,8 +2182,25 @@ End Subroutine Setup_Sed
         end if
       end do
 
+! Jianzhong Ge 03/05/2013
+      sed(ised)%wset0(i,1:kbm1)=wset(1:kbm1)
+! Jianzhong Ge 03/05/2013
+
       !store solution in 3D array
       sed(ised)%conc(i,1:kbm1) = c(1:kbm1)
+
+!J. Ge
+!      !linear effect of critical shear stress for deposition
+!      if(tau_cd<taub(i))then  
+!        sed(ised)%conc(i,1:kbm1) = sed(ised)%conc(i,1:kbm1) + flux/(d(i)*dz(i,kbm1))
+!        flux = 0.0
+!      else
+!        cff = flux
+!        cff = (1.0_sp-taub(i)/tau_cd)*cff
+!        sed(ised)%conc(i,1:kbm1) = sed(ised)%conc(i,1:kbm1) + (flux-cff)/(d(i)*dz(i,kbm1))
+!        flux = cff
+!      endif
+!J. Ge
 
       !store depositional flux
       sed(ised)%dflx(i) = flux 
@@ -1869,6 +2212,24 @@ End Subroutine Setup_Sed
     endif
     end do
   end do
+
+! J. Ge for fluid mud layer
+# if defined (FLUID_MUD)
+  Settling = 0.0_SP
+  do ised=1,nsed
+    do i=1,m
+# if defined (WET_DRY)
+      if(iswetn(i)==1)then
+# endif
+        Settling(i) = Settling(i) + sed(ised)%dflx(i)
+# if defined (WET_DRY)
+      else
+        Settling(i) = 0.0_sp
+      end if
+# endif
+    end do
+  end do  
+# endif
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "End: Calc_Deposition "
 
@@ -1915,6 +2276,66 @@ End Subroutine Setup_Sed
 
   End Subroutine Calc_Wset_Floc
 
+  Subroutine Calc_Wset_hindered(n,c,w0,wset,cmax,scale) 
+  implicit none
+  integer , intent(in   ) :: n
+  real(sp), intent(in   ) :: w0,cmax,scale,c(n)
+  real(sp), intent(inout) :: wset(n)
+ 
+  integer :: i
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Calc_Wset_Floc2"
+
+  do i=1,n
+    if(c(i) < cmax)then
+       wset(i) = w0
+    else
+      wset(i)=w0*(1.0-c(i)/1650.0)**5
+      !wset(i) = w0*scale
+      !wset(i) = w0*(cmax/c(i))**3
+    endif
+  end do
+
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "End: Calc_Wset_Floc2"
+
+  End Subroutine Calc_Wset_hindered
+
+!Jianzhong Ge 03/05/2013
+  Subroutine Hindered_Diffusion
+  use lims, only: m
+  use all_vars,only: kh,kbm1
+  implicit none
+  real(sp) :: sed_conc(1:m,1:kbm1)  !mass concentration
+  real(sp) :: vol_conc(1:m,1:kbm1)  !volume concentration
+  integer :: i,ii,k
+  real,parameter :: cs0=0.65
+  real :: phi
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Hindered_Diffusion"
+
+  sed_conc = 0.0  
+  do ii=1,nsed
+     sed_conc=sed_conc+sed(ii)%cnew
+  end do
+
+  do i=1,m
+    do k=1,kbm1
+      if(sed_conc(i,k)>2.5)then
+!        vol_conc(i,k)=sed_conc(i,k)/2650.0
+!        phi=1+(vol_conc(i,k)/Cs0)**0.8-2.0*(vol_conc(i,k)/Cs0)**0.4
+!        kh(i,k)=kh(i,k)*phi**4.0
+         kh(i,k)=kh(i,k)*0.02
+!        print*,kh(i,k),phi**4.0,vol_conc(i,k),sed_conc(i,k)
+      end if
+    end do
+  end do
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "End: Hindered_Diffusion"
+
+  End Subroutine Hindered_Diffusion
+!Jianzhong Ge 03/05/2013
+
 !==========================================================================
 ! Calculate settling velocity of cohesive sediment using the method of
 !    Mehta, 1986 or
@@ -1948,6 +2369,34 @@ End Subroutine Setup_Sed
   if(dbg_set(dbg_sbr)) write(ipt,*) "End: Calc_Wset"
 
   End Subroutine Calc_Wset
+
+
+
+
+!==========================================================================
+! Calculate settling velocity of cohesive sediment using the method of
+!    Richardson & Zaki (1954)
+!    Hindered settlement strategy
+!    or
+!    User Defined
+!==========================================================================
+  Subroutine Calc_Wset_delft(n,c,Wset_max,wset) 
+  implicit none
+  integer , intent(in   ) :: n
+  real(sp), intent(in   ) :: c(n)
+  real(sp), intent(inout) :: wset(n)
+  real(sp), intent(in   ) :: Wset_Max
+  integer :: i
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Calc_Wset_delft"
+
+  do i=1,n
+     wset(i)=(1-c(i)/1600.0)**5.0*Wset_max
+  end do
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "End: Calc_Wset_delft"
+
+  End Subroutine Calc_Wset_delft
 
 !==========================================================================
 ! Calculate Settling Flux and Update Sediment Concentration in Water Column 
@@ -2245,7 +2694,7 @@ End Subroutine Setup_Sed
   do i=1,m
     sum1 = 1.0 ; sum2 = 1.0 ; sum3 = 1.0 ; sum4 = 1.0
     do ised=1,nsed
-      if(SEDIMENT_PARAMETER_TYPE/=CNSTNT)then
+      if(SEDIMENT_PARAMETER_TYPE/=UNIFORM)then
         sum1 = sum1*(sed(ised)%t_ce(i))**sed(ised)%frac(i,1) 
       else
         sum1 = sum1*(sed(ised)%tau_ce)**sed(ised)%frac(i,1)

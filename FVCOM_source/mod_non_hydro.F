@@ -764,9 +764,15 @@ MODULE NON_HYDRO
   !-----------------------------------------------------------------------------
   !load global vectors using a scatter with the l2g index set  ==> b
   !-----------------------------------------------------------------------------
+# if defined (OLD_PETSC)
   CALL VecScatterBegin(BLOCAL,B,INSERT_VALUES,SCATTER_FORWARD,L2G,IERR);CHKERRQ(IERR)
   !could put code here
   call VecScatterEnd(BLOCAL,B,INSERT_VALUES,SCATTER_FORWARD,L2G,IERR);CHKERRQ(IERR)
+# else
+  CALL VecScatterBegin(L2G,BLOCAL,B,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+  !could put code here
+  call VecScatterEnd(L2G,BLOCAL,B,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+# endif
   IF(PDEBUG) WRITE(PUNIT,*) 'FINISHING: ',TRIM(SUBNAME)
 
   !============================================================================
@@ -1679,9 +1685,9 @@ MODULE NON_HYDRO
 
 # if !defined (SEMI_IMPLICIT)
 # if defined (GCN)
-    CALL BCOND_GCN(3)    ! Boundary Condition on U/V At River Input           !
+    CALL BCOND_GCN(3,0)    ! Boundary Condition on U/V At River Input           !
 # else
-    CALL BCOND_GCY(3)    ! Boundary Condition on U/V At River Input           !
+    CALL BCOND_GCY(3,0)    ! Boundary Condition on U/V At River Input           !
 # endif
 # endif
 
@@ -2074,8 +2080,13 @@ MODULE NON_HYDRO
   END DO
 !
 
+# if defined (OLD_PETSC)
   CALL VecScatterBegin(BL_EL,B_EL,INSERT_VALUES,SCATTER_FORWARD,L2G_EL,IERR);CHKERRQ(IERR)
   CALL VecScatterEnd(BL_EL,B_EL,INSERT_VALUES,SCATTER_FORWARD,L2G_EL,IERR);CHKERRQ(IERR)
+# else
+  CALL VecScatterBegin(L2G_EL,BL_EL,B_EL,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+  CALL VecScatterEnd(L2G_EL,BL_EL,B_EL,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+# endif
 
   CALL MatZeroEntries(A_EL,IERR);CHKERRQ(IERR)   
 
@@ -2182,8 +2193,13 @@ MODULE NON_HYDRO
   CALL PETSc_SETICS_EL
   CALL PETSc_SOLVER_EL
 
+# if defined (OLD_PETSC)
   CALL VecScatterBegin(X_EL,XL_EL,INSERT_VALUES,SCATTER_FORWARD,G2L_EL,IERR);CHKERRQ(IERR)
   CALL VecScatterEnd(X_EL,XL_EL,INSERT_VALUES,SCATTER_FORWARD,G2L_EL,IERR);CHKERRQ(IERR)
+# else
+  CALL VecScatterBegin(G2L_EL,X_EL,XL_EL,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+  CALL VecScatterEnd(G2L_EL,X_EL,XL_EL,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+# endif
   CALL VecGetArrayF90(XL_EL,XVALS_EL,IERR);CHKERRQ(IERR)
 
   EL = 0.0_SP
@@ -2269,9 +2285,15 @@ MODULE NON_HYDRO
   !-----------------------------------------------------------------------------
   !load global vector using a scatter with the l2g index set  ==> x
   !-----------------------------------------------------------------------------
+# if defined (OLD_PETSC)
   CALL VecScatterBegin(XLOCAL,X,INSERT_VALUES,SCATTER_FORWARD,L2G,IERR);CHKERRQ(IERR)
     !could put code here
   CALL VecScatterEnd(XLOCAL,X,INSERT_VALUES,SCATTER_FORWARD,L2G,IERR);CHKERRQ(IERR)
+# else
+  CALL VecScatterBegin(L2G,XLOCAL,X,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+  !could put code here
+  CALL VecScatterEnd(L2G,XLOCAL,X,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+# endif
 
   IF(PDEBUG) WRITE(PUNIT,*) 'FINISHING: ',TRIM(SUBNAME)
 
@@ -2303,8 +2325,13 @@ MODULE NON_HYDRO
     CALL VecSetValues(XL_EL,1,I-1,QTERM,INSERT_VALUES,IERR);CHKERRQ(IERR)
   ENDDO
 
+# if defined (OLD_PETSC)
   CALL VecScatterBegin(XL_EL,X_EL,INSERT_VALUES,SCATTER_FORWARD,L2G_EL,IERR);CHKERRQ(IERR)
   CALL VecScatterEnd(XL_EL,X_EL,INSERT_VALUES,SCATTER_FORWARD,L2G_EL,IERR);CHKERRQ(IERR)
+# else
+  CALL VecScatterBegin(L2G_EL,XL_EL,X_EL,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+  CALL VecScatterEnd(L2G_EL,XL_EL,X_EL,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+# endif
 
   RETURN
   END SUBROUTINE PETSc_SETICS_EL
@@ -2338,8 +2365,13 @@ MODULE NON_HYDRO
   ! scatter the solution vector back to local array and set back in q solution
   ! in theory, xvals is just a pointer and will not require additional memory.
   !--------------------------------------------------------------------------
+# if defined (OLD_PETSC)
   CALL VecScatterBegin(X,XLOCAL,INSERT_VALUES,SCATTER_FORWARD,G2L,IERR);CHKERRQ(IERR)
   CALL VecScatterEnd(X,XLOCAL,INSERT_VALUES,SCATTER_FORWARD,G2L,IERR);CHKERRQ(IERR)
+# else
+  CALL VecScatterBegin(G2L,X,XLOCAL,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+  CALL VecScatterEnd(G2L,X,XLOCAL,INSERT_VALUES,SCATTER_FORWARD,IERR);CHKERRQ(IERR)
+# endif
   CALL VecGetArrayF90(XLOCAL,XVALS,IERR);CHKERRQ(IERR)
 
   !--------------------------------------------------------------------------

@@ -307,10 +307,13 @@ MODULE MOD_SEMI_IMPLICIT
       YFLUX_TMP_NP(I) = YFLUX_TMP_NP(I) + VA_TMP*DT1(I) + DTI*IFCETA*( -WVSURF_TMP + WVBOT_TMP )
     ENDIF
   ENDDO
-# endif
 # if defined (MULTIPROCESSOR)
   IF(PAR) CALL AEXCHANGE(EC,MYID,NPROCS,XFLUX_TMP_NP,YFLUX_TMP_NP)
 # endif
+# endif
+!JQI# if defined (MULTIPROCESSOR)
+!JQI  IF(PAR) CALL AEXCHANGE(EC,MYID,NPROCS,XFLUX_TMP_NP,YFLUX_TMP_NP)
+!JQI# endif
 
 # endif
 
@@ -373,8 +376,22 @@ MODULE MOD_SEMI_IMPLICIT
 # endif
 # endif
 
+
+IF (PRECIPITATION_ON) THEN       !!yding
 !  XFLUX = XFLUX+(QEVAP-QPREC)*ROFVROS*ART1
   XFLUX = XFLUX-(QEVAP+QPREC)*ROFVROS*ART1
+END IF
+
+#   if defined (ICE_EMBEDDING)
+    DO I=1,M
+      XFLUX(I)=XFLUX(I) + QFLICE(I)*(917.0_SP/((RHO1(I,1)+1.0_SP)*1.0E3_SP))*ART1(I)  !!yding
+    END DO
+#   endif
+
+
+
+
+
 
   IF(GROUNDWATER_ON)THEN
     DO I=1,M
@@ -790,8 +807,38 @@ MODULE MOD_SEMI_IMPLICIT
   DO I = 1, NT
     EL1(I) = (EL(NV(I,1))+EL(NV(I,2))+EL(NV(I,3)))/3.0_SP
   END DO
-  D   = H + EL
-  D1  = H1 + EL1
+
+#   if defined (ICE_EMBEDDING)
+  DO I = 1, NT
+    QTHICE1(I) = (QTHICE(NV(I,1))+QTHICE(NV(I,2))+QTHICE(NV(I,3)))/3.0_SP   !!yding
+  END DO
+
+  D   = H + EL - QTHICE     
+  D1  = H1 + EL1 - QTHICE1
+
+!!---------Adjust total depth if the node/cell is dry------------!!yding
+     DO I = 1, MT
+      IF (D(I)-MIN_DEPTH<1.0E-5_SP) THEN
+       D(I) = MIN_DEPTH
+      END IF
+     END DO
+
+    DO I = 1, NT
+      IF (D1(I)-MIN_DEPTH<1.0E-5_SP) THEN
+       D1(I) = MIN_DEPTH
+      END IF
+     END DO
+
+!!=====================yding change end
+
+#   else
+
+ D   = H + EL
+ D1  = H1 + EL1
+
+#   endif
+
+
 
   DO I=1, NE
     IA=IEC(I,1)
@@ -1106,9 +1153,28 @@ MODULE MOD_SEMI_IMPLICIT
   END DO
 # endif
 
+
+  IF (PRECIPITATION_ON) THEN       !!yding
 ! this part may need be changed to semi-implicit form 
 !  XFLUX = XFLUX+(QEVAP-QPREC)*ROFVROS*ART1
   XFLUX = XFLUX-(QEVAP+QPREC)*ROFVROS*ART1
+  END IF
+
+!!======================yding======================
+#  if defined (ICE)
+
+   XFLUX = XFLUX-QPICE*ROFVROS*ART1
+
+#  endif
+
+
+
+#   if defined (ICE_EMBEDDING)
+    DO I=1,M
+      XFLUX(I)=XFLUX(I) + QFLICE(I)*(917.0_SP/((RHO1(I,1)+1.0_SP)*1.0E3_SP))*ART1(I)  !!yding
+    END DO
+
+#   endif
 
   IF(GROUNDWATER_ON)THEN
     DO I=1,M

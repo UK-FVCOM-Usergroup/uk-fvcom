@@ -276,8 +276,14 @@ MODULE MOD_FORCE
   CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE    :: WINDS_FORCING_COMMENTS(:)
   TYPE(INTERP_WEIGHTS),POINTER :: WINDS_INTP_N
   TYPE(INTERP_WEIGHTS),POINTER :: WINDS_INTP_C
-  TYPE(NCVAR), POINTER :: WINDS_STRX_N, WINDS_STRX_P   ! STRESS IN THE Y DIRECTION
-  TYPE(NCVAR), POINTER :: WINDS_STRY_N, WINDS_STRY_P   ! STRESS IN THE X DIRECTION
+  TYPE(NCVAR), POINTER :: WINDS_STRX_N, WINDS_STRX_P   ! STRESS IN THE X DIRECTION
+  TYPE(NCVAR), POINTER :: WINDS_STRY_N, WINDS_STRY_P   ! STRESS IN THE Y DIRECTION
+# if defined (WAVE_CURRENT_INTERACTION)
+  TYPE(INTERP_WEIGHTS),POINTER :: WINDW_INTP_N
+  TYPE(INTERP_WEIGHTS),POINTER :: WINDW_INTP_C
+  TYPE(NCVAR), POINTER :: WINDW_STRX_N, WINDW_STRX_P   ! STRESS IN THE X DIRECTION (wave)
+  TYPE(NCVAR), POINTER :: WINDW_STRY_N, WINDW_STRY_P   ! STRESS IN THE Y DIRECTION (wave)
+# endif
 
 # if defined (OFFLINE_SEDIMENT)
   ! =================================================================
@@ -293,16 +299,62 @@ MODULE MOD_FORCE
   CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE    :: SEDIMENTS_FORCING_COMMENTS(:)
   TYPE(INTERP_WEIGHTS),POINTER :: SEDIMENTS_INTP_N
   TYPE(INTERP_WEIGHTS),POINTER :: SEDIMENTS_INTP_C
-  TYPE(NCVAR), POINTER :: SEDIMENTS_U_N , SEDIMENTS_U_P  ! U VELOCITY 
-  TYPE(NCVAR), POINTER :: SEDIMENTS_V_N , SEDIMENTS_V_P  ! V VELOCITY
-  TYPE(NCVAR), POINTER :: SEDIMENTS_W_N , SEDIMENTS_W_P  ! W VELOCITY
-  TYPE(NCVAR), POINTER :: SEDIMENTS_S1_N, SEDIMENTS_S1_P ! SALINITY
-  TYPE(NCVAR), POINTER :: SEDIMENTS_EL_N, SEDIMENTS_EL_P ! EL 
-  TYPE(NCVAR), POINTER :: SEDIMENTS_KH_N, SEDIMENTS_KH_P ! KM
+  TYPE(NCVAR), POINTER :: SEDIMENTS_U_N  , SEDIMENTS_U_P   ! U VELOCITY 
+  TYPE(NCVAR), POINTER :: SEDIMENTS_V_N  , SEDIMENTS_V_P   ! V VELOCITY
+  TYPE(NCVAR), POINTER :: SEDIMENTS_W_N  , SEDIMENTS_W_P   ! W VELOCITY
+  TYPE(NCVAR), POINTER :: SEDIMENTS_S1_N , SEDIMENTS_S1_P  ! SALINITY
+  TYPE(NCVAR), POINTER :: SEDIMENTS_T1_N , SEDIMENTS_T1_P  ! TEMPERATURE
+  TYPE(NCVAR), POINTER :: SEDIMENTS_EL_N , SEDIMENTS_EL_P  ! EL 
+  TYPE(NCVAR), POINTER :: SEDIMENTS_KH_N , SEDIMENTS_KH_P  ! KM
+# if defined (GOTM)
+  TYPE(NCVAR), POINTER :: SEDIMENTS_TEPS_N , SEDIMENTS_TEPS_P ! TEPS
+# else
+  TYPE(NCVAR), POINTER :: SEDIMENTS_Q2_N , SEDIMENTS_Q2_P  ! q2
+  TYPE(NCVAR), POINTER :: SEDIMENTS_Q2L_N, SEDIMENTS_Q2L_P ! q2l
+# endif
+# if defined (WET_DRY)
   TYPE(NCVAR), POINTER :: SEDIMENTS_WN_N, SEDIMENTS_WN_P ! WET NODES
   TYPE(NCVAR), POINTER :: SEDIMENTS_WC_N, SEDIMENTS_WC_P ! WET CELLS
+# endif
 
 # endif
+
+
+
+# if defined (OFFLINE_BIOLOGY)
+  ! =================================================================
+  ! OFFLINE BIOLOGY FILE DATA 
+  INTEGER :: BIOLOGY_FORCING_TYPE
+
+  INTEGER, PARAMETER :: BIOLOGY_ARE_WRFGRID   = 0
+  INTEGER, PARAMETER :: BIOLOGY_ARE_FVCOMGRID = 1
+
+  TYPE(TIME) :: BIOLOGY_PERIOD
+
+  TYPE(NCFILE), POINTER :: BIOLOGY_FILE
+  CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE    :: BIOLOGY_FORCING_COMMENTS(:)
+  TYPE(INTERP_WEIGHTS),POINTER :: BIOLOGY_INTP_N
+  TYPE(INTERP_WEIGHTS),POINTER :: BIOLOGY_INTP_C
+  TYPE(NCVAR), POINTER :: BIOLOGY_U_N  , BIOLOGY_U_P   ! U VELOCITY 
+  TYPE(NCVAR), POINTER :: BIOLOGY_V_N  , BIOLOGY_V_P   ! V VELOCITY
+  TYPE(NCVAR), POINTER :: BIOLOGY_W_N  , BIOLOGY_W_P   ! W VELOCITY
+  TYPE(NCVAR), POINTER :: BIOLOGY_S1_N , BIOLOGY_S1_P  ! SALINITY
+  TYPE(NCVAR), POINTER :: BIOLOGY_T1_N , BIOLOGY_T1_P  ! TEMPERATURE
+  TYPE(NCVAR), POINTER :: BIOLOGY_EL_N , BIOLOGY_EL_P  ! EL 
+  TYPE(NCVAR), POINTER :: BIOLOGY_KH_N , BIOLOGY_KH_P  ! KM
+# if defined (GOTM)
+  TYPE(NCVAR), POINTER :: BIOLOGY_TEPS_N , BIOLOGY_TEPS_P ! TEPS
+# else
+  TYPE(NCVAR), POINTER :: BIOLOGY_Q2_N , BIOLOGY_Q2_P  ! q2
+  TYPE(NCVAR), POINTER :: BIOLOGY_Q2L_N, BIOLOGY_Q2L_P ! q2l
+# endif
+# if defined (WET_DRY)
+  TYPE(NCVAR), POINTER :: BIOLOGY_WN_N, BIOLOGY_WN_P ! WET NODES
+  TYPE(NCVAR), POINTER :: BIOLOGY_WC_N, BIOLOGY_WC_P ! WET CELLS
+# endif
+
+# endif
+
 
 !Jadon
   ! =================================================================
@@ -407,8 +459,12 @@ MODULE MOD_FORCE
   PUBLIC :: UPDATE_HEAT_SOLAR
 # endif
 
-# if defined (OFFLINE_SEDIMENT)
+# if defined (OFFLINE_SEDIMENT)  
   PUBLIC :: UPDATE_OFFLINE_FORCING
+# endif
+
+# if defined (OFFLINE_BIOLOGY)
+  PUBLIC :: UPDATE_OFFLINE_BIOLOGY_FORCING
 # endif
 
   PUBLIC :: UPDATE_PRECIPITATION
@@ -425,8 +481,10 @@ MODULE MOD_FORCE
 # endif  
   PUBLIC :: UPDATE_ICE
   PUBLIC :: UPDATE_ICING
+# if defined (WAVE_CURRENT_INTERACTION)
   PUBLIC :: SURFACE_WIND2WAVE
   PUBLIC :: UPDATE_WIND2WAVE
+# endif  
 
 CONTAINS
 
@@ -479,11 +537,44 @@ CONTAINS
          & SEDIMENTS_U_N,     SEDIMENTS_U_P,     &
          & SEDIMENTS_V_N,     SEDIMENTS_V_P,     &
          & SEDIMENTS_W_N,     SEDIMENTS_W_P,     &
-         & SEDIMENTS_S1_N,     SEDIMENTS_S1_P,     &
+         & SEDIMENTS_S1_N,    SEDIMENTS_S1_P,     &
+         & SEDIMENTS_T1_N,    SEDIMENTS_T1_P,     &
          & SEDIMENTS_EL_N,    SEDIMENTS_EL_P,     &
-         & SEDIMENTS_KH_N,    SEDIMENTS_KH_P,     &
+# if defined (WET_DRY)
          & SEDIMENTS_WN_N,    SEDIMENTS_WN_P,     &
-         & SEDIMENTS_WC_N,    SEDIMENTS_WC_P      )
+         & SEDIMENTS_WC_N,    SEDIMENTS_WC_P,     &
+# endif
+# if defined (GOTM)
+         & SEDIMENTS_TEPS_N,  SEDIMENTS_TEPS_P,     &
+# else
+         & SEDIMENTS_Q2_N,    SEDIMENTS_Q2_P,     &
+         & SEDIMENTS_Q2L_N,   SEDIMENTS_Q2L_P,     &
+# endif
+         & SEDIMENTS_KH_N,    SEDIMENTS_KH_P     )
+
+# endif
+
+
+# if defined (OFFLINE_BIOLOGY)
+    NULLIFY(BIOLOGY_FILE,BIOLOGY_INTP_N,BIOLOGY_INTP_C, &
+         & BIOLOGY_U_N,     BIOLOGY_U_P,     &
+         & BIOLOGY_V_N,     BIOLOGY_V_P,     &
+         & BIOLOGY_W_N,     BIOLOGY_W_P,     &
+         & BIOLOGY_S1_N,    BIOLOGY_S1_P,     &
+         & BIOLOGY_T1_N,    BIOLOGY_T1_P,     &
+         & BIOLOGY_EL_N,    BIOLOGY_EL_P,     &
+# if defined (WET_DRY)
+         & BIOLOGY_WN_N,    BIOLOGY_WN_P,     &
+         & BIOLOGY_WC_N,    BIOLOGY_WC_P,     &
+# endif
+# if defined (GOTM)
+         & BIOLOGY_TEPS_N,  BIOLOGY_TEPS_P,     &
+# else
+         & BIOLOGY_Q2_N,    BIOLOGY_Q2_P,     &
+         & BIOLOGY_Q2L_N,   BIOLOGY_Q2L_P,     &
+# endif
+         & BIOLOGY_KH_N,    BIOLOGY_KH_P     )
+
 # endif
 
 
@@ -494,7 +585,7 @@ CONTAINS
     CALL OBC_WQM
 # endif    
 # if defined (BioGen)
-    CALL OBC_BIO
+    IF(BIOLOGICAL_MODEL)CALL OBC_BIO
 # endif    
     CALL RIVER_DISCHARGE
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)    
@@ -512,6 +603,10 @@ CONTAINS
 
 # if defined (OFFLINE_SEDIMENT)
     CALL OFFLINE_SEDIMENT_FORCING
+# endif
+
+# if defined (OFFLINE_BIOLOGY)
+    CALL OFFLINE_BIOLOGY_FORCING
 # endif
 
 # if defined (WAVE_CURRENT_INTERACTION) && (WAVE_OFFLINE)
@@ -549,7 +644,7 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "START GROUND_WATER"
 
     IF (.NOT. GROUNDWATER_ON ) THEN
-       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! GROUND WATER FORCING IS OFF!"
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "!  GROUND WATER FORCING IS OFF!"
        ALLOCATE(GWATER_FORCING_COMMENTS(1))
        GWATER_FORCING_COMMENTS="GROUND WATER FORCING IS OFF!"
        RETURN
@@ -609,7 +704,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(GROUNDWATER_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
             & TRIM(fvcom_grid_source)) THEN
@@ -685,7 +780,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(GROUNDWATER_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
             & TRIM(fvcom_cap_grid_source)) THEN
@@ -876,6 +971,21 @@ CONTAINS
     END SELECT
     !==================================================================
 
+    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    ! PRECIPITATION
+    GWATER_FLUX_P%curr_stkcnt = 0 ; GWATER_FLUX_N%curr_stkcnt = 0
+    GWATER_TEMP_P%curr_stkcnt = 0 ; GWATER_TEMP_N%curr_stkcnt = 0
+    GWATER_SALT_P%curr_stkcnt = 0 ; GWATER_SALT_N%curr_stkcnt = 0
+    ! --------- end new ----------------------------------------------------------------
+
+
+
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END GROUND_WATER"
   END SUBROUTINE GROUND_WATER
   !================================================================
@@ -938,7 +1048,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION ELEVATION FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -1569,6 +1679,15 @@ CONTAINS
        TIDE_FORCING_TYPE = TIDE_FORCING_TIMESERIES
 
 
+    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0
+    ! --------- end new --------------------------------------------
+
        ! NOT MUCH ELSE TO REPORT SINCE WE DON'T LOAD ANY DATA NOW
 
        !=====================================
@@ -1578,10 +1697,9 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
-
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END TIDAL_ELEVATION"
 
@@ -1849,7 +1967,9 @@ CONTAINS
     ALLOCATE(SEDDIS(NUMQBC,N_SED)); SEDDIS  = 0.0_SP
 # endif
 # if defined (BioGen)
-    ALLOCATE(BIODIS(NUMQBC,NTT));   BIODIS  = 0.0_SP
+    IF(BIOLOGICAL_MODEL)THEN
+      ALLOCATE(BIODIS(NUMQBC,NTT));   BIODIS  = 0.0_SP
+    END IF
 # endif
     ALLOCATE(TDIS(NUMQBC));         TDIS   = 0.0_SP
     ALLOCATE(SDIS(NUMQBC));         SDIS   = 0.0_SP
@@ -2024,6 +2144,17 @@ CONTAINS
        CALL NC_CONNECT_PVAR(RIVER_FORCING(I)%SALT_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 
+       ! ============= New : 2016, April ===================
+       ! Initialize some variables 
+       ! Similar to the hints by Qi and afm 20160216
+       RIVER_FORCING(I)%FLUX_N%curr_stkcnt = 0; RIVER_FORCING(I)%FLUX_P%curr_stkcnt = 0
+       RIVER_FORCING(I)%TEMP_N%curr_stkcnt = 0; RIVER_FORCING(I)%TEMP_P%curr_stkcnt = 0
+       RIVER_FORCING(I)%SALT_N%curr_stkcnt = 0; RIVER_FORCING(I)%SALT_P%curr_stkcnt = 0 
+       ! ==================== end new ======================================
+
+
+
+
 # if defined (WATER_QUALITY)
        ! GET THE WATER QUALITY VARIABLE
        VAR => FIND_VAR(NCF,'river_wqm1',FOUND)
@@ -2137,6 +2268,23 @@ CONTAINS
        RIVER_FORCING(I)%WQM8_P => reference_var(var)
        CALL NC_CONNECT_PVAR(RIVER_FORCING(I)%WQM8_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
+       
+      ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+      ! Initialize some variables 
+      ! afm 20150914
+      ! Need initialization. Otherwise, random values are asigned
+      ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+      ! This problem reported with Intel15.0.3. 
+       river_forcing(i)%wqm1_n%curr_stkcnt = 0; river_forcing(i)%wqm1_p%curr_stkcnt = 0
+       river_forcing(i)%wqm2_n%curr_stkcnt = 0; river_forcing(i)%wqm2_p%curr_stkcnt = 0
+       river_forcing(i)%wqm3_n%curr_stkcnt = 0; river_forcing(i)%wqm3_p%curr_stkcnt = 0
+       river_forcing(i)%wqm4_n%curr_stkcnt = 0; river_forcing(i)%wqm4_p%curr_stkcnt = 0
+       river_forcing(i)%wqm5_n%curr_stkcnt = 0; river_forcing(i)%wqm5_p%curr_stkcnt = 0
+       river_forcing(i)%wqm6_n%curr_stkcnt = 0; river_forcing(i)%wqm6_p%curr_stkcnt = 0
+       river_forcing(i)%wqm7_n%curr_stkcnt = 0; river_forcing(i)%wqm7_p%curr_stkcnt = 0
+       river_forcing(i)%wqm8_n%curr_stkcnt = 0; river_forcing(i)%wqm8_p%curr_stkcnt = 0
+      ! ----------------------------------------------------------------------------------
+
        
 # endif
 # if defined (SEDIMENT)
@@ -2361,8 +2509,46 @@ CONTAINS
        ENDIF
 
 
-       ENDIF !SEDIMENT_MODEL ACTIVE
+       ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+       ! Initialize some variables 
+       ! afm 20160216
+       ! Need initialization. Otherwise, random values are asigned
+       ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+       ! This problem reported with Intel15.0.3. 
+       if(n_sed>0)then
+         river_forcing(i)%sed1_n%curr_stkcnt = 0; river_forcing(i)%sed1_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>1)then
+         river_forcing(i)%sed2_n%curr_stkcnt = 0; river_forcing(i)%sed2_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>2)then
+         river_forcing(i)%sed3_n%curr_stkcnt = 0; river_forcing(i)%sed3_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>3)then
+         river_forcing(i)%sed4_n%curr_stkcnt = 0; river_forcing(i)%sed4_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>4)then
+         river_forcing(i)%sed5_n%curr_stkcnt = 0; river_forcing(i)%sed5_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>5)then
+         river_forcing(i)%sed6_n%curr_stkcnt = 0; river_forcing(i)%sed6_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>6)then
+         river_forcing(i)%sed7_n%curr_stkcnt = 0; river_forcing(i)%sed7_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>7)then
+         river_forcing(i)%sed8_n%curr_stkcnt = 0; river_forcing(i)%sed8_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>8)then
+         river_forcing(i)%sed9_n%curr_stkcnt = 0; river_forcing(i)%sed9_p%curr_stkcnt = 0
+       end if	 
+       if(n_sed>9)then
+         river_forcing(i)%sed10_n%curr_stkcnt = 0; river_forcing(i)%sed10_p%curr_stkcnt = 0
+       end if	 
 
+       ! --------------------------------------------------------------------------------
+
+       ENDIF !SEDIMENT_MODEL ACTIVE
 # endif
 
 # if defined (BioGen)
@@ -2795,7 +2981,76 @@ CONTAINS
        ENDIF
 
 
+       ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+       ! Initialize some variables 
+       ! afm 20160216
+       ! Need initialization. Otherwise, random values are asigned
+       ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+       ! This problem reported with Intel15.0.3. 
+       IF(NTT > 0)THEN
+         RIVER_FORCING(I)%BIO1_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO1_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 1)THEN
+         RIVER_FORCING(I)%BIO2_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO2_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 2)THEN
+         RIVER_FORCING(I)%BIO3_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO3_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 3)THEN
+         RIVER_FORCING(I)%BIO4_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO4_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 4)THEN
+         RIVER_FORCING(I)%BIO5_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO5_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 5)THEN
+         RIVER_FORCING(I)%BIO6_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO6_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 6)THEN
+         RIVER_FORCING(I)%BIO7_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO7_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 7)THEN
+         RIVER_FORCING(I)%BIO8_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO8_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 8)THEN
+         RIVER_FORCING(I)%BIO9_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO9_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 9)THEN
+         RIVER_FORCING(I)%BIO10_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO10_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 10)THEN
+         RIVER_FORCING(I)%BIO11_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO11_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 11)THEN
+         RIVER_FORCING(I)%BIO12_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO12_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 12)THEN
+         RIVER_FORCING(I)%BIO13_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO13_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 13)THEN
+         RIVER_FORCING(I)%BIO14_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO14_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 14)THEN
+         RIVER_FORCING(I)%BIO15_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO15_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 15)THEN
+         RIVER_FORCING(I)%BIO16_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO16_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 16)THEN
+         RIVER_FORCING(I)%BIO17_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO17_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 17)THEN
+         RIVER_FORCING(I)%BIO18_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO18_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 18)THEN
+         RIVER_FORCING(I)%BIO19_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO19_P%CURR_STKCNT = 0;
+       END IF
+       IF(NTT > 19)THEN
+         RIVER_FORCING(I)%BIO20_N%CURR_STKCNT = 0; RIVER_FORCING(I)%BIO20_P%CURR_STKCNT = 0;
+       END IF
+       ! --------------------------------------------------------------------------------
+
        ENDIF !BIOLOGICAL_MODEL ACTIVE
+
 
 # endif
 
@@ -3168,6 +3423,7 @@ CONTAINS
 
 # endif
 # if defined (BioGen)
+    IF(BIOLOGICAL_MODEL)THEN
     DO NS=1,NTT
       VAR => FIND_VAR(NCF,TRIM(BIO_NAME(NS,1)),FOUND)
       IF(.NOT. FOUND)  CALL FATAL_ERROR &
@@ -3183,7 +3439,7 @@ CONTAINS
          &//TRIM(VAR%VARNAME), "THE ATTRIBUTE 'units' IS INCORRECT: EXPE&
          &CTING "//BIO_NAME(NS,2)//" and is "//TRIM(ATT%CHR(1)))
     END DO
-
+    END IF
 # endif
   END SUBROUTINE CHECK_RIVER_FILE
   !==============================================================================|
@@ -3370,13 +3626,13 @@ CONTAINS
     CASE ('unifor')
        
        ! ALREADY SET VALUES
-       WRITE(IPT,*) "UNIFORM RIVER DISTRIBUTION",MYDIST
+!       WRITE(IPT,*) "UNIFORM RIVER DISTRIBUTION",MYDIST
        ! HEAVISIDE FUNCTION
     CASE('heavis')
        
        NLINE=-1
        NCHAR = LEN_TRIM(NAME)
-       CALL GET_VAL(NLINE,NCHAR,NAME,VARNAME,VARTYPE,LOGVAL&
+       CALL GET_VALUE(NLINE,NCHAR,NAME,VARNAME,VARTYPE,LOGVAL&
             &,STRINGVAL,REALVAL,INTVAL,NVAL)
        
        IF(VARTYPE /= "float") THEN
@@ -3447,7 +3703,7 @@ CONTAINS
 
        NLINE=-1
        NCHAR = LEN_TRIM(NAME)
-       CALL GET_VAL(NLINE,NCHAR,NAME,VARNAME,VARTYPE,LOGVAL&
+       CALL GET_VALUE(NLINE,NCHAR,NAME,VARNAME,VARTYPE,LOGVAL&
             &,STRINGVAL,REALVAL,INTVAL,NVAL)
        
        IF(VARTYPE /= "float") THEN
@@ -3552,7 +3808,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION TEMPERATURE FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_TEMP_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -3700,12 +3956,21 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TEMPERATURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_TEMP_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_TEMPERATURE"
+
+    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3.     
+    OBC_T_N%curr_stkcnt = 0; OBC_T_P%curr_stkcnt = 0
+    ! ---------- end new ---------------------------------------
 
   END SUBROUTINE OBC_TEMPERATURE
   !================================================================
@@ -3750,7 +4015,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION SALINITY FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_SALT_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -3899,9 +4164,17 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION SALINITY FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_SALT_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
+    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    OBC_S_N%curr_stkcnt = 0; OBC_S_P%curr_stkcnt = 0
+    ! -------- end new ---------------------------------------------
 
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_SALINITY"
@@ -3951,7 +4224,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION WATER QUALITY FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -4317,9 +4590,28 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
+
+
+    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    OBC_W_P1%curr_stkcnt = 0; OBC_W_N1%curr_stkcnt = 0
+    OBC_W_P2%curr_stkcnt = 0; OBC_W_N2%curr_stkcnt = 0
+    OBC_W_P3%curr_stkcnt = 0; OBC_W_N3%curr_stkcnt = 0
+    OBC_W_P4%curr_stkcnt = 0; OBC_W_N4%curr_stkcnt = 0
+    OBC_W_P5%curr_stkcnt = 0; OBC_W_N5%curr_stkcnt = 0
+    OBC_W_P6%curr_stkcnt = 0; OBC_W_N6%curr_stkcnt = 0
+    OBC_W_P7%curr_stkcnt = 0; OBC_W_N7%curr_stkcnt = 0
+    OBC_W_P8%curr_stkcnt = 0; OBC_W_N8%curr_stkcnt = 0
+    ! -------- end new ----------------------------------------------------------------
+
+
 
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_WQM"
@@ -4370,7 +4662,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -5153,10 +5445,38 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
+
+    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    OBC_B_P1%CURR_STKCNT = 0; OBC_B_N1%CURR_STKCNT = 0
+    OBC_B_P2%CURR_STKCNT = 0; OBC_B_N2%CURR_STKCNT = 0
+    OBC_B_P3%CURR_STKCNT = 0; OBC_B_N3%CURR_STKCNT = 0
+    OBC_B_P4%CURR_STKCNT = 0; OBC_B_N4%CURR_STKCNT = 0
+    OBC_B_P5%CURR_STKCNT = 0; OBC_B_N5%CURR_STKCNT = 0
+    OBC_B_P6%CURR_STKCNT = 0; OBC_B_N6%CURR_STKCNT = 0
+    OBC_B_P7%CURR_STKCNT = 0; OBC_B_N7%CURR_STKCNT = 0
+    OBC_B_P8%CURR_STKCNT = 0; OBC_B_N8%CURR_STKCNT = 0
+    OBC_B_P9%CURR_STKCNT = 0; OBC_B_N9%CURR_STKCNT = 0
+    OBC_B_P10%CURR_STKCNT = 0; OBC_B_N10%CURR_STKCNT = 0
+    OBC_B_P11%CURR_STKCNT = 0; OBC_B_N11%CURR_STKCNT = 0
+    OBC_B_P12%CURR_STKCNT = 0; OBC_B_N12%CURR_STKCNT = 0
+    OBC_B_P13%CURR_STKCNT = 0; OBC_B_N13%CURR_STKCNT = 0
+    OBC_B_P14%CURR_STKCNT = 0; OBC_B_N14%CURR_STKCNT = 0
+    OBC_B_P15%CURR_STKCNT = 0; OBC_B_N15%CURR_STKCNT = 0
+    OBC_B_P16%CURR_STKCNT = 0; OBC_B_N16%CURR_STKCNT = 0
+    OBC_B_P17%CURR_STKCNT = 0; OBC_B_N17%CURR_STKCNT = 0
+    OBC_B_P18%CURR_STKCNT = 0; OBC_B_N18%CURR_STKCNT = 0
+    OBC_B_P19%CURR_STKCNT = 0; OBC_B_N19%CURR_STKCNT = 0
+    OBC_B_P20%CURR_STKCNT = 0; OBC_B_N20%CURR_STKCNT = 0
+    ! -------- end new ----------------------------------------------------------------
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_BIO"
 
@@ -5585,7 +5905,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -5600,7 +5920,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -5684,7 +6004,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -5931,6 +6251,18 @@ CONTAINS
     END SELECT
     !==================================================================
 
+    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    heat_net_n%curr_stkcnt=0
+    heat_net_p%curr_stkcnt=0
+    heat_swv_n%curr_stkcnt=0
+    heat_swv_p%curr_stkcnt=0
+    ! -------- end new ----------------------------------------------
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING"
   END SUBROUTINE SURFACE_HEATING
 # endif
@@ -6046,7 +6378,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -6061,7 +6393,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6145,7 +6477,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6566,6 +6898,20 @@ CONTAINS
     END SELECT
     !==================================================================
 
+ 
+    ! ========== New: Karsten Lettmann, 2016, march from Qi =============
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    t_air_n%curr_stkcnt   = 0;t_air_p%curr_stkcnt   = 0
+    rh_air_n%curr_stkcnt  = 0;rh_air_p%curr_stkcnt  = 0
+    pa_air_n%curr_stkcnt  = 0;pa_air_p%curr_stkcnt  = 0
+    dlw_air_n%curr_stkcnt = 0;dlw_air_p%curr_stkcnt = 0
+    dsw_air_n%curr_stkcnt = 0;dsw_air_p%curr_stkcnt = 0
+    ! =========== end New ================================================
+
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING_CALCULATED"
   END SUBROUTINE SURFACE_HEATING_CALCULATED
 # endif
@@ -6660,7 +7006,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -6679,7 +7025,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_SOLAR_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6991,6 +7337,16 @@ CONTAINS
     END SELECT
     !==================================================================
 
+    ! ========== New: Karsten Lettmann, 2016, march from Qi =============
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    t_air_n%curr_stkcnt = 0;t_air_p%curr_stkcnt = 0
+    tdew_n%curr_stkcnt  = 0;tdew_p%curr_stkcnt  = 0
+    ccov_n%curr_stkcnt  = 0;ccov_p%curr_stkcnt  = 0
+    ! ====================== end new ===========================
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING_SOLAR"
   END SUBROUTINE SURFACE_HEATING_SOLAR
 # endif
@@ -7060,7 +7416,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT ICE FORCING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT ICE FORCING Not Set Up Yet")
        !       HEAT_FORCING_COMMENTS = "Using TIME DEPENDENT heating from file"
 
     CASE(PRDC)
@@ -7077,7 +7433,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7161,7 +7517,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7558,6 +7914,19 @@ CONTAINS
     END SELECT
     !==================================================================
 
+
+    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    ice_swv_n%curr_stkcnt   = 0;ice_swv_p%curr_stkcnt   = 0
+    ice_sat_n%curr_stkcnt   = 0;ice_sat_p%curr_stkcnt   = 0
+    ice_spq_n%curr_stkcnt   = 0;ice_spq_p%curr_stkcnt   = 0
+    ice_cld_n%curr_stkcnt   = 0;ice_cld_p%curr_stkcnt   = 0
+    ! --------- end new --------------------------------------------
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END ICE MODEL FORCING"
   END SUBROUTINE ICE_MODEL_FORCING
   !================================================================
@@ -7617,7 +7986,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
        !       HEAT_FORCING_COMMENTS = "Using TIME DEPENDENT heating from file"
 
     CASE(PRDC)
@@ -7633,7 +8002,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE ICING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICING_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7717,7 +8086,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE ICING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICING_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
 
        ICING_FORCING_COMMENTS ="VARIABLE ICING: "//TRIM(ATT%CHR(1))
 
@@ -8021,6 +8390,20 @@ CONTAINS
     END SELECT
     !==================================================================
 
+
+    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    ICING_SAT_P%CURR_STKCNT = 0;  ICING_SAT_N%CURR_STKCNT = 0
+    ICING_WSPX_P%CURR_STKCNT = 0; ICING_WSPX_N%CURR_STKCNT = 0
+    ICING_WSPY_P%CURR_STKCNT = 0; ICING_WSPY_N%CURR_STKCNT = 0
+    ! --------------------- end new ----------------------------------------------------
+
+
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END ICING FORCING"
   END SUBROUTINE ICING_FORCING
 !================================================================
@@ -8097,7 +8480,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -8112,7 +8495,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -8197,7 +8580,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -8571,6 +8954,16 @@ CONTAINS
     END SELECT
 !==============================================================
 
+    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    winds_strx_n%curr_stkcnt = 0; winds_strx_p%curr_stkcnt = 0
+    winds_stry_n%curr_stkcnt = 0; winds_stry_p%curr_stkcnt = 0
+    ! -------- end new ---------------------------------------------
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_WINDSTRESS"
   END SUBROUTINE SURFACE_WINDSTRESS
 
@@ -8611,7 +9004,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OFFLINE SEDIMENT FILE OBJECT",&
             & "FILE NAME: "//TRIM(OFFLINE_SEDIMENT_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -8799,6 +9192,30 @@ CONTAINS
        CALL NC_CONNECT_PVAR(SEDIMENTS_S1_P,STORAGE_ARR)
        NULLIFY(STORAGE_ARR)
 
+       ! TEMPERATURE
+       VAR => FIND_VAR(SEDIMENTS_FILE,"temp",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(SEDIMENTS_FILE,"t1",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE SEDIMENT HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_SEDIMENT_FILE),&
+            & "COULD NOT FIND VARIABLE 'temp' or 't1'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SEDIMENTS_T1_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(SEDIMENTS_T1_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SEDIMENTS_T1_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(SEDIMENTS_T1_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
        ! EL OF OFFLINE FORCING
        VAR => FIND_VAR(SEDIMENTS_FILE,"zeta",FOUND)
        IF(.not. FOUND) VAR => FIND_VAR(SEDIMENTS_FILE,"el",FOUND)
@@ -8847,6 +9264,81 @@ CONTAINS
        CALL NC_CONNECT_PVAR(SEDIMENTS_KH_P,STORAGE_ARR)
        NULLIFY(STORAGE_ARR)
 
+# if defined (GOTM)
+       ! TEPS OF OFFLINE FORCING
+       VAR => FIND_VAR(SEDIMENTS_FILE,"teps",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(SEDIMENTS_FILE,"TEPS",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE SEDIMENT HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_SEDIMENT_FILE),&
+            & "COULD NOT FIND VARIABLE 'teps' or 'TEPS'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SEDIMENTS_TEPS_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(SEDIMENTS_TEPS_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SEDIMENTS_TEPS_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(SEDIMENTS_TEPS_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+# else
+       ! Q2 OF OFFLINE FORCING
+       VAR => FIND_VAR(SEDIMENTS_FILE,"q2",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(SEDIMENTS_FILE,"Q2",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE SEDIMENT HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_SEDIMENT_FILE),&
+            & "COULD NOT FIND VARIABLE 'q2' or 'Q2'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SEDIMENTS_Q2_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(SEDIMENTS_Q2_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SEDIMENTS_Q2_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(SEDIMENTS_Q2_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! Q2L OF OFFLINE FORCING
+       VAR => FIND_VAR(SEDIMENTS_FILE,"q2l",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(SEDIMENTS_FILE,"Q2L",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE SEDIMENT HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_SEDIMENT_FILE),&
+            & "COULD NOT FIND VARIABLE 'q2l' or 'Q2L'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SEDIMENTS_Q2L_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(SEDIMENTS_Q2L_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       SEDIMENTS_Q2L_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(SEDIMENTS_Q2L_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+# endif
+
+#  if defined (WET_DRY)
        ! KH OF OFFLINE FORCING
        VAR => FIND_VAR(SEDIMENTS_FILE,"wet_nodes",FOUND)
        IF(.not. FOUND) VAR => FIND_VAR(SEDIMENTS_FILE,"wet_nodes",FOUND)
@@ -8894,12 +9386,467 @@ CONTAINS
        IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
        CALL NC_CONNECT_PVAR(SEDIMENTS_WC_P,STORAGE_INT)
        NULLIFY(STORAGE_INT)
+# endif
+
+      ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+      ! Initialize some variables 
+      ! afm 20150914
+      ! Need initialization. Otherwise, random values are asigned
+      ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+      ! This problem reported with Intel15.0.3. 
+      SEDIMENTS_U_P%CURR_STKCNT = 0; SEDIMENTS_U_N%CURR_STKCNT = 0
+      SEDIMENTS_V_P%CURR_STKCNT = 0; SEDIMENTS_V_N%CURR_STKCNT = 0
+      SEDIMENTS_W_P%CURR_STKCNT = 0; SEDIMENTS_W_N%CURR_STKCNT = 0
+      SEDIMENTS_S1_P%CURR_STKCNT = 0; SEDIMENTS_S1_N%CURR_STKCNT = 0
+      SEDIMENTS_EL_P%CURR_STKCNT = 0; SEDIMENTS_EL_N%CURR_STKCNT = 0
+      SEDIMENTS_KH_P%CURR_STKCNT = 0; SEDIMENTS_KH_N%CURR_STKCNT = 0
+#  if defined (WET_DRY)
+      SEDIMENTS_WN_P%CURR_STKCNT = 0; SEDIMENTS_WN_N%CURR_STKCNT = 0
+      SEDIMENTS_WC_P%CURR_STKCNT = 0; SEDIMENTS_WC_N%CURR_STKCNT = 0
+# endif
+      ! -------------- end new ----------------------------------------------------------
+
+
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OFFLINE_SEDIMENT_FORCING"
   END SUBROUTINE OFFLINE_SEDIMENT_FORCING
 
 !================================================================
 # endif
+
+
+
+
+
+# if defined (OFFLINE_BIOLOGY)
+!================================================================
+!================================================================
+  SUBROUTINE OFFLINE_BIOLOGY_FORCING
+    IMPLICIT NONE
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT, ATT_DATE
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    LOGICAL :: FOUND
+    REAL(SP), POINTER :: STORAGE_ARR(:,:), storage_vec(:)
+    INTEGER , POINTER :: STORAGE_INT(:)
+    TYPE(TIME) :: TIMETEST
+    INTEGER :: LATS, LONS, I, Ntimes
+    INTEGER :: STATUS
+    CHARACTER(len=60) :: xstr, ystr
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START OFFLINE_BIOLOGY_FORCING"
+
+    NULLIFY(ATT,DIM,VAR,STORAGE_ARR,STORAGE_VEC,STORAGE_INT)
+
+! DETERMINE THE VARIABLE FORCING TO LOAD THE DATA
+
+       BIOLOGY_FILE => FIND_FILE(FILEHEAD,trim(OFFLINE_BIOLOGY_FILE),FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND OFFLINE BIOLOGY HYDRODRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE))
+
+       ! DETERMINE GRID TYPE BASED ON SOURCE ATTRIBUTE   
+       ATT => FIND_ATT(BIOLOGY_FILE,"source",FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(BIOLOGY_FILE,"Source",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+       
+       IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
+            & TRIM(wrf2fvcom_source)) THEN
+          BIOLOGY_FORCING_TYPE = BIOLOGY_ARE_WRFGRID 
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
+            & TRIM(fvcom_grid_source)) THEN
+          BIOLOGY_FORCING_TYPE = BIOLOGY_ARE_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
+            & TRIM(fvcom_cap_grid_source)) THEN
+          BIOLOGY_FORCING_TYPE = BIOLOGY_ARE_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(wrf_grid_source)) ==&
+            & TRIM(wrf_grid_source)) THEN
+          BIOLOGY_FORCING_TYPE = BIOLOGY_ARE_WRFGRID
+       ELSE IF (ATT%CHR(1)(1:5)=='fvcom'.or.ATT%CHR(1)(1:5)=='FVCOM')THEN
+          BIOLOGY_FORCING_TYPE = BIOLOGY_ARE_FVCOMGRID
+       ELSE
+          CALL PRINT_FILE(BIOLOGY_FILE)
+          CALL FATAL_ERROR("CAN NOT RECOGNIZE OFFLINE BIOLOGY FILE!",&
+               & "UNKNOWN SOURCE STRING:",TRIM(ATT%CHR(1)))
+       END IF
+       ! GOT GRID TYPE
+
+       ALLOCATE(BIOLOGY_FORCING_COMMENTS(4))
+       BIOLOGY_FORCING_COMMENTS(1) = "FVCOM variable offline sedimen&
+            &t hydraulic forcing:"
+       BIOLOGY_FORCING_COMMENTS(2) = "FILE NAME:"//TRIM(OFFLINE_BIOLOGY_FILE)
+       
+       BIOLOGY_FORCING_COMMENTS(3) = "SOURCE:"//TRIM(ATT%CHR(1))
+       
+       ATT_DATE => FIND_ATT(BIOLOGY_FILE,"START_DATE",FOUND)
+       IF (FOUND) THEN
+          BIOLOGY_FORCING_COMMENTS(4) ="MET DATA START DATE:"//TRIM(ATT_DATE%CHR(1))
+       ELSE
+          BIOLOGY_FORCING_COMMENTS(4) = "Unknown start date meta data format"
+       END IF
+              
+       ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_UNLIMITED(BIOLOGY_FILE,FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            &"COULD NOT FIND THE UNLIMITED DIMENSION")
+       
+       NTIMES = DIM%DIM
+       
+       ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
+       TIMETEST = get_file_time(BIOLOGY_FILE,1)
+       IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            &"THE MODEL RUN STARTS BEFORE THE FORCING TIME SERIES")
+       
+       TIMETEST = get_file_time(BIOLOGY_FILE,ntimes)
+       IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            &"THE MODEL RUN ENDS AFTER THE FORCING TIME SERIES")
+
+!----------------------------------------------------------------!
+!--SET THE DATA TYPE OF FVCOM FORMAT                             !
+!----------------------------------------------------------------!
+
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP OFFLINE BIOLOGY HYDRAULIC FORCING FROM A 'FVCOM GRID' FILE"
+
+       DIM => FIND_DIM(BIOLOGY_FILE,'node',FOUND)  
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND DIMENSION 'node'")
+
+       if (mgl /= dim%dim) CALL FATAL_ERROR&
+            &("Offline biology forcing: the number of nodes in the file does not match the fvcom grid?")
+
+       DIM => FIND_DIM(BIOLOGY_FILE,'nele',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND DIMENSION 'nele'")
+
+       if (ngl /= dim%dim) CALL FATAL_ERROR&
+            &("Offline biology forcing: the number of elements in the file does not match the fvcom grid?")
+
+
+       ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
+       
+       ! X-DIRECTION U VELOCITY
+       VAR => FIND_VAR(BIOLOGY_FILE,"u",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"U",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'u' or 'U'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_U_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:NT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_U_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_U_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:NT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_U_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! Y-DIRECTION V VELOCITY
+       VAR => FIND_VAR(BIOLOGY_FILE,"v",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"V",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'v' or 'V'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_V_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:NT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_V_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_V_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:NT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_V_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! Z-DIRECTION W VELOCITY
+       VAR => FIND_VAR(BIOLOGY_FILE,"omega",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"ww",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'omega' or 'ww'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_W_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_W_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_W_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_W_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! SALINITY
+       VAR => FIND_VAR(BIOLOGY_FILE,"salinity",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"s1",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'salinity' or 's1'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_S1_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_S1_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_S1_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_S1_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! TEMPERATURE
+       VAR => FIND_VAR(BIOLOGY_FILE,"temp",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"t1",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'temp' or 't1'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_T1_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_T1_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_T1_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_T1_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! EL OF OFFLINE FORCING
+       VAR => FIND_VAR(BIOLOGY_FILE,"zeta",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"el",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'zeta' or 'el'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_EL_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_EL_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_EL_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_EL_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       ! KH OF OFFLINE FORCING
+       VAR => FIND_VAR(BIOLOGY_FILE,"kh",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"KH",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'KH' or 'kh'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_KH_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_KH_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_KH_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_KH_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+# if defined (GOTM)
+       ! TEPS OF OFFLINE FORCING
+       VAR => FIND_VAR(BIOLOGY_FILE,"teps",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"TEPS",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'teps' or 'TEPS'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_TEPS_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_TEPS_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_TEPS_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_TEPS_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+# else
+       ! Q2 OF OFFLINE FORCING
+       VAR => FIND_VAR(BIOLOGY_FILE,"q2",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"Q2",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'q2' or 'Q2'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_Q2_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_Q2_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_Q2_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_Q2_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! Q2L OF OFFLINE FORCING
+       VAR => FIND_VAR(BIOLOGY_FILE,"q2l",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"Q2L",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'q2l' or 'Q2L'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_Q2L_N => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_Q2L_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_Q2L_P => reference_var(var)
+       ALLOCATE(STORAGE_ARR(0:MT,KB), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_Q2L_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+# endif
+
+#  if defined (WET_DRY)
+       ! KH OF OFFLINE FORCING
+       VAR => FIND_VAR(BIOLOGY_FILE,"wet_nodes",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"wet_nodes",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'wet_nodes' or 'wet_nodes'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_WN_N => reference_var(var)
+       ALLOCATE(STORAGE_INT(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_WN_N,STORAGE_INT)
+       NULLIFY(STORAGE_INT)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_WN_P => reference_var(var)
+       ALLOCATE(STORAGE_INT(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_WN_P,STORAGE_INT)
+       NULLIFY(STORAGE_INT)
+
+       ! KH OF OFFLINE FORCING
+       VAR => FIND_VAR(BIOLOGY_FILE,"wet_cells",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(BIOLOGY_FILE,"wet_cells",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE BIOLOGY HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
+            & "COULD NOT FIND VARIABLE 'wet_cells' or 'wet_cells'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_WC_N => reference_var(var)
+       ALLOCATE(STORAGE_INT(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_WC_N,STORAGE_INT)
+       NULLIFY(STORAGE_INT)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       BIOLOGY_WC_P => reference_var(var)
+       ALLOCATE(STORAGE_INT(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FORCING")
+       CALL NC_CONNECT_PVAR(BIOLOGY_WC_P,STORAGE_INT)
+       NULLIFY(STORAGE_INT)
+
+# endif
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OFFLINE_BIOLOGY_FORCING"
+  END SUBROUTINE OFFLINE_BIOLOGY_FORCING
+
+!================================================================
+# endif
+
+
+
+
+
 
 !================================================================
   SUBROUTINE SURFACE_WAVE
@@ -8967,7 +9914,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WAVE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WAVE Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -8982,7 +9929,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -9068,18 +10015,18 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
           WAVES_FORCING_TYPE = WAVES_ARE_WRFGRID 
 
        ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
-            & TRIM(fvcom_grid_source)) THEN
+            & TRIM(fvcom_grid_source).or.(ATT%CHR(1)(1:5)=='fvcom')) THEN
           WAVES_FORCING_TYPE = WAVES_ARE_FVCOMGRID
 
        ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
-            & TRIM(fvcom_cap_grid_source)) THEN
+            & TRIM(fvcom_cap_grid_source).or.(ATT%CHR(1)(1:5)=='FVCOM')) THEN
           WAVES_FORCING_TYPE = WAVES_ARE_FVCOMGRID
 
        ELSE IF (ATT%CHR(1)(1:len_trim(wrf_grid_source)) ==&
@@ -9209,11 +10156,11 @@ CONTAINS
 
       ! WAVE DIRECTION
        VAR => FIND_VAR(WAVES_FILE,"dirm",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(WAVES_FILE,"wdir",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            & "COULD NOT FIND VARIABLE 'dirm' ")
-
+            & "COULD NOT FIND VARIABLE 'dirm' or 'wdir' ")
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        WAVES_DIRECTION_N => reference_var(var)
@@ -9222,15 +10169,13 @@ CONTAINS
        CALL NC_CONNECT_PVAR(WAVES_DIRECTION_N,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 
-
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        WAVES_DIRECTION_P => reference_var(var)
        ALLOCATE(STORAGE_VEC(0:MT), stat = status)
        IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN WAVE DIRECTION")
        CALL NC_CONNECT_PVAR(WAVES_DIRECTION_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
-
-
+ 
       ! WAVE PERIOD
        VAR => FIND_VAR(WAVES_FILE,"tpeak",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
@@ -9257,10 +10202,11 @@ CONTAINS
 
       ! BOTTOM WAVE PERIOD
        VAR => FIND_VAR(WAVES_FILE,"pwave_bot",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(WAVES_FILE,"tmbot",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            & "COULD NOT FIND VARIABLE 'pwave_bot' ")
+            & "COULD NOT FIND VARIABLE 'pwave_bot' or 'tmbot' ")
 
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
@@ -9281,10 +10227,11 @@ CONTAINS
 
       ! BOTTOM ORBITAL VELOCITY
        VAR => FIND_VAR(WAVES_FILE,"ub_bot",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(WAVES_FILE,"ubot",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            & "COULD NOT FIND VARIABLE 'ub_bot' ")
+            & "COULD NOT FIND VARIABLE 'ub_bot' or 'ubot' ")
 
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
@@ -9369,7 +10316,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT AIR PRESSURE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT AIR PRESSURE Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -9384,7 +10331,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -9470,7 +10417,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -9656,6 +10603,18 @@ CONTAINS
     END SELECT
 !==============================================================
 
+    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    ! PRECIPITATION
+    AIR_PRESSURE_P%curr_stkcnt = 0 ; AIR_PRESSURE_N%curr_stkcnt = 0
+    ! --------- end new ----------------------------------------------------------------
+
+
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_AIRPRESSURE"
   END SUBROUTINE SURFACE_AIRPRESSURE
 
@@ -9711,7 +10670,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -9727,7 +10686,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -9813,7 +10772,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -9988,14 +10947,14 @@ CONTAINS
 
 
        IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
-            & "! SETTING UP WIND STRESS FORCING FROM A 'FVCOM grid' FILE"
+            & "! SETTING UP PRECIPITATION FORCING FROM A 'FVCOM grid' FILE"
 
        ! LOOK FOR THE DIMENSIONS
 
 
        DIM => FIND_DIM(PRECIP_FILE,'node',FOUND)  
        IF(.not. FOUND) CALL FATAL_ERROR &
-            & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+            & ("IN PRECIPITATION BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
             & "COULD NOT FIND DIMENSION 'node'")
 
@@ -10005,7 +10964,7 @@ CONTAINS
 
        DIM => FIND_DIM(PRECIP_FILE,'nele',FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
-            & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+            & ("IN PRECIPITATION BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
             & "COULD NOT FIND DIMENSION 'nele'")
 
@@ -10019,7 +10978,7 @@ CONTAINS
        ! WIND STRESS IN THE X or EAST-WEST DIRECTION
        VAR => FIND_VAR(PRECIP_FILE,"precip",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
-            & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+            & ("IN PRECIPITATION BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
             & "COULD NOT FIND VARIABLE 'precip'")
 
@@ -10041,7 +11000,7 @@ CONTAINS
        ! EVAP
        VAR => FIND_VAR(PRECIP_FILE,"evap",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
-            & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+            & ("IN PRECIPITATION BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
             & "COULD NOT FIND VARIABLE 'evap'")
 
@@ -10067,6 +11026,23 @@ CONTAINS
 !=====================================================================
     END SELECT
 !=====================================================================
+
+
+    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    ! PRECIPITATION
+    PRECIP_PRE_P%curr_stkcnt = 0
+    PRECIP_PRE_N%curr_stkcnt = 0
+    ! EVAPORATION
+    PRECIP_EVP_N%curr_stkcnt = 0
+    PRECIP_EVP_P%curr_stkcnt = 0
+    ! --------- end new ----------------------------------------------------------------
+
+
 
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_PRECIPITATION"
@@ -10121,10 +11097,12 @@ CONTAINS
             &("THE RIVER SEDIMENT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
     END IF
 # endif    
-# if defined (BioGen)      
+# if defined (BioGen)  
+    IF(BIOLOGICAL_MODEL)THEN    
     IF(PRESENT(BIO)) THEN
        IF(.NOT. ALLOCATED(BIO)) CALL FATAL_ERROR &
             &("THE RIVER BIOLOGICAL VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    END IF
     END IF
 # endif    
 
@@ -10175,7 +11153,7 @@ CONTAINS
        !
        ! Nearest time sets the value
        CURRENT = VNP
-       if (FTM%PREV_WGHT .gt. 0.5_sp) current = VPP
+       if (FTM%PREV_WGHT .gt. 0.5_sp) CURRENT = VPP
        !====================================================
 
        DO J =1,NRSF
@@ -10222,7 +11200,7 @@ CONTAINS
 
        IF(PRESENT(TEMP)) THEN
 
-          ! RIVER SALT
+          ! RIVER TEMP
           VAR_N => RIVER_FORCING(I)%TEMP_N
           VAR_P => RIVER_FORCING(I)%TEMP_P
           CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,RIVTIME,STATUS)
@@ -10726,6 +11704,7 @@ CONTAINS
 # endif
 
 # if defined (BioGen)
+       IF(BIOLOGICAL_MODEL)THEN
        IF(PRESENT(BIO)) THEN
 
        ! RIVER BIOLOGICAL LOAD FOR BIO1
@@ -11129,7 +12108,7 @@ CONTAINS
        ENDIF
 
        END IF
-
+       END IF ! END OF BIOLOGICAL MODEL
 # endif
 
     END DO ! FOR EACH FILE
@@ -11180,7 +12159,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT GROUNDWATER Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT GROUNDWATER Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -11298,7 +12277,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -11455,7 +12434,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -11649,7 +12628,7 @@ CONTAINS
          t1k=t1(i,1)+273.16_sp
          ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         HEAT_SWV(I)  = DSW_AIR(I)
+         HEAT_SWV(I) = DSW_AIR(I)
 # endif
 # if defined (HEATING_CALCULATED_GL)
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
@@ -11715,7 +12694,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -11827,8 +12806,10 @@ CONTAINS
   
        END DO
        
+#      if defined (MULTIPROCESSOR)
        !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+#      endif
 
     CASE(HEAT_IS_FVCOMGRID)
 
@@ -11914,8 +12895,10 @@ CONTAINS
 
        END DO
 
-    !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
-    IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+#      if defined (MULTIPROCESSOR)
+       !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+#      endif
 
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN HEAT_FORCING_TYPE IN UPDATE HEAT")
@@ -11958,7 +12941,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12066,13 +13049,23 @@ CONTAINS
 # if defined (OFFLINE_SEDIMENT)
   !==============================================================================|
   SUBROUTINE UPDATE_OFFLINE_FORCING(NOW,offline_u,  offline_v, offline_w&
-                                      &,offline_s1, offline_el,offline_kh&
+                                      &,offline_s1, offline_t1, offline_el,offline_kh&
+# if defined (GOTM)
+                                      &,offline_teps &
+# else
+                                      &,offline_q2, offline_q2l &
+# endif
                                       &,offline_wn, offline_wc)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: WTIME
-    REAL(SP), ALLOCATABLE  :: offline_u(:,:),offline_v(:,:),offline_w(:,:),offline_s1(:,:)
+    REAL(SP), ALLOCATABLE  :: offline_u(:,:),offline_v(:,:),offline_w(:,:),offline_s1(:,:),offline_t1(:,:)
     REAL(SP), ALLOCATABLE  :: offline_el(:), offline_kh(:,:)
+# if defined (GOTM)
+    REAL(SP), ALLOCATABLE  :: offline_teps(:,:)
+# else
+    REAL(SP), ALLOCATABLE  :: offline_q2(:,:), offline_q2l(:,:)
+# endif
     INTEGER , ALLOCATABLE  :: offline_wn(:), offline_wc(:)
 
     REAL(SP), POINTER :: VNP(:), VPP(:)
@@ -12090,6 +13083,8 @@ CONTAINS
          &("THE offline_w VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
     IF(.NOT. ALLOCATED(offline_s1)) CALL FATAL_ERROR &
          &("THE offline_s1 VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_t1)) CALL FATAL_ERROR &
+         &("THE offline_t1 VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
     IF(.NOT. ALLOCATED(offline_el)) CALL FATAL_ERROR &
          &("THE offline_el VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
     IF(.NOT. ALLOCATED(offline_kh)) CALL FATAL_ERROR &
@@ -12098,7 +13093,15 @@ CONTAINS
          &("THE offline_wn VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
     IF(.NOT. ALLOCATED(offline_wc)) CALL FATAL_ERROR &
          &("THE offline_wc VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
-
+# if defined (GOTM)
+    IF(.NOT. ALLOCATED(offline_teps)) CALL FATAL_ERROR &
+         &("THE offline_teps VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+# else
+    IF(.NOT. ALLOCATED(offline_q2)) CALL FATAL_ERROR &
+         &("THE offline_q2 VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_q2l)) CALL FATAL_ERROR &
+         &("THE offline_q2l VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+# endif
 !===================================================
 
     WTIME = NOW
@@ -12151,6 +13154,16 @@ CONTAINS
     CALL NC_POINT_VAR(SEDIMENTS_S1_P,VPP_ARR)   
     OFFLINE_S1 = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
 
+    ! THE TEMPERATURE
+    CALL UPDATE_VAR_BRACKET(SEDIMENTS_FILE,SEDIMENTS_T1_P,SEDIMENTS_T1_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE SEDIMENT_T1 BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(SEDIMENTS_T1_N,VNP_ARR)
+    CALL NC_POINT_VAR(SEDIMENTS_T1_P,VPP_ARR)   
+    OFFLINE_T1 = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
     ! THE EL
     CALL UPDATE_VAR_BRACKET(SEDIMENTS_FILE,SEDIMENTS_EL_P,SEDIMENTS_EL_N,WTIME,STATUS)
     IF (STATUS /= 0) THEN
@@ -12171,6 +13184,40 @@ CONTAINS
     CALL NC_POINT_VAR(SEDIMENTS_KH_P,VPP_ARR)   
     OFFLINE_KH = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
 
+# if defined (GOTM)
+    ! THE TEPS
+    CALL UPDATE_VAR_BRACKET(SEDIMENTS_FILE,SEDIMENTS_TEPS_P,SEDIMENTS_TEPS_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE SEDIMENT_KH BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(SEDIMENTS_TEPS_N,VNP_ARR)
+    CALL NC_POINT_VAR(SEDIMENTS_TEPS_P,VPP_ARR)   
+    OFFLINE_TEPS = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+# else
+    ! THE Q2
+    CALL UPDATE_VAR_BRACKET(SEDIMENTS_FILE,SEDIMENTS_Q2_P,SEDIMENTS_Q2_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE SEDIMENT_KH BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(SEDIMENTS_Q2_N,VNP_ARR)
+    CALL NC_POINT_VAR(SEDIMENTS_Q2_P,VPP_ARR)   
+    OFFLINE_Q2 = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE Q2L
+    CALL UPDATE_VAR_BRACKET(SEDIMENTS_FILE,SEDIMENTS_Q2L_P,SEDIMENTS_Q2L_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE SEDIMENT_KH BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(SEDIMENTS_Q2L_N,VNP_ARR)
+    CALL NC_POINT_VAR(SEDIMENTS_Q2L_P,VPP_ARR)   
+    OFFLINE_Q2L = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+# endif
+
+# if defined (WET_DRY)
     ! THE WET NODES
     CALL UPDATE_VAR_BRACKET(SEDIMENTS_FILE,SEDIMENTS_WN_P,SEDIMENTS_WN_N,WTIME,STATUS)
     IF (STATUS /= 0) THEN
@@ -12194,9 +13241,214 @@ CONTAINS
     DO I=1,MT
       OFFLINE_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
+# endif
 
   END SUBROUTINE UPDATE_OFFLINE_FORCING
 # endif
+
+
+
+
+# if defined (OFFLINE_BIOLOGY)
+  !==============================================================================|
+  SUBROUTINE UPDATE_OFFLINE_BIOLOGY_FORCING(NOW,offline_u,  offline_v, offline_w&
+                                      &,offline_s1, offline_t1,offline_el,offline_kh&
+# if defined (GOTM)
+                                      &,offline_teps &
+# else
+                                      &,offline_q2, offline_q2l &
+# endif
+                                      &,offline_wn, offline_wc)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    TYPE(TIME)             :: WTIME
+    REAL(SP), ALLOCATABLE  :: offline_u(:,:),offline_v(:,:),offline_w(:,:),offline_s1(:,:),offline_t1(:,:)
+    REAL(SP), ALLOCATABLE  :: offline_el(:), offline_kh(:,:)
+# if defined (GOTM)
+    REAL(SP), ALLOCATABLE  :: offline_teps(:,:)
+# else
+    REAL(SP), ALLOCATABLE  :: offline_q2(:,:), offline_q2l(:,:)
+# endif
+    INTEGER , ALLOCATABLE  :: offline_wn(:), offline_wc(:)
+
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+    REAL(SP), POINTER :: VNP_ARR(:,:), VPP_ARR(:,:)  
+    INTEGER , POINTER :: VNP_INT(:), VPP_INT(:)    
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS,I
+
+
+    IF(.NOT. ALLOCATED(offline_u)) CALL FATAL_ERROR &
+         &("THE offline_u VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_v)) CALL FATAL_ERROR &
+         &("THE offline_v VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_w)) CALL FATAL_ERROR &
+         &("THE offline_w VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_s1)) CALL FATAL_ERROR &
+         &("THE offline_s1 VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_t1)) CALL FATAL_ERROR &
+         &("THE offline_t1 VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_el)) CALL FATAL_ERROR &
+         &("THE offline_el VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_kh)) CALL FATAL_ERROR &
+         &("THE offline_kh VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_wn)) CALL FATAL_ERROR &
+         &("THE offline_wn VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_wc)) CALL FATAL_ERROR &
+         &("THE offline_wc VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+# if defined (GOTM)
+    IF(.NOT. ALLOCATED(offline_teps)) CALL FATAL_ERROR &
+         &("THE offline_teps VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+# else
+    IF(.NOT. ALLOCATED(offline_q2)) CALL FATAL_ERROR &
+         &("THE offline_q2 VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offline_q2l)) CALL FATAL_ERROR &
+         &("THE offline_q2l VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+# endif
+!===================================================
+
+    WTIME = NOW
+
+!===================================================
+!===================================================
+
+!===================================================
+!    CASE(WINDS_ARE_FVCOMGRID)
+!===================================================
+    FTM => BIOLOGY_FILE%FTIME
+
+    ! THE X DIRECTION U VELOCITY
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_U_P,BIOLOGY_U_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_U BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_U_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_U_P,VPP_ARR)   
+    OFFLINE_U = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE Y DIRECTION V VELOCITY
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_V_P,BIOLOGY_V_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_V BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_V_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_V_P,VPP_ARR)   
+    OFFLINE_V = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE Z DIRECTION W VELOCITY
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_W_P,BIOLOGY_W_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_W BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_W_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_W_P,VPP_ARR)   
+    OFFLINE_W = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE SALINITY
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_S1_P,BIOLOGY_S1_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_S1 BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_S1_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_S1_P,VPP_ARR)   
+    OFFLINE_S1 = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE TEMPERATURE
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_T1_P,BIOLOGY_T1_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_T1 BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_T1_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_T1_P,VPP_ARR)   
+    OFFLINE_T1 = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE EL
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_EL_P,BIOLOGY_EL_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_EL BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_EL_N,VNP)
+    CALL NC_POINT_VAR(BIOLOGY_EL_P,VPP)   
+    OFFLINE_EL = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+    ! THE KH
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_KH_P,BIOLOGY_KH_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_KH BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_KH_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_KH_P,VPP_ARR)   
+    OFFLINE_KH = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+# if defined (GOTM)
+    ! THE TEPS
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_TEPS_P,BIOLOGY_TEPS_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_KH BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_TEPS_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_TEPS_P,VPP_ARR)   
+    OFFLINE_TEPS = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+# else
+    ! THE Q2
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_Q2_P,BIOLOGY_Q2_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_KH BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_Q2_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_Q2_P,VPP_ARR)   
+    OFFLINE_Q2 = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+
+    ! THE Q2L
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_Q2L_P,BIOLOGY_Q2L_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_KH BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_Q2L_N,VNP_ARR)
+    CALL NC_POINT_VAR(BIOLOGY_Q2L_P,VPP_ARR)   
+    OFFLINE_Q2L = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
+# endif
+
+# if defined (WET_DRY)
+    ! THE WET NODES
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_WN_P,BIOLOGY_WN_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_WN BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_WN_N,VNP_INT)
+    CALL NC_POINT_VAR(BIOLOGY_WN_P,VPP_INT)
+    DO I=1,MT
+      OFFLINE_WN(I)=VNP_INT(I)*VPP_INT(I)
+    END DO
+
+    ! THE WET CELLS
+    CALL UPDATE_VAR_BRACKET(BIOLOGY_FILE,BIOLOGY_WC_P,BIOLOGY_WC_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE BIOLOGY_WC BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(BIOLOGY_WC_N,VNP_INT)
+    CALL NC_POINT_VAR(BIOLOGY_WC_P,VPP_INT) 
+    DO I=1,MT
+      OFFLINE_WC(I)=VNP_INT(I)*VPP_INT(I)
+    END DO  
+# endif
+
+  END SUBROUTINE UPDATE_OFFLINE_BIOLOGY_FORCING
+# endif
+
 
 !==============================================================================|
   SUBROUTINE UPDATE_PRECIPITATION(NOW,Qprec,Qevap)
@@ -12229,7 +13481,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12361,7 +13613,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12522,7 +13774,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT AIR PRESSURE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT AIR PRESSURE Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12635,7 +13887,7 @@ CONTAINS
 
        FTM => OBC_S_FILE%FTIME
 
-       ! PRECIPITATION
+       ! OBC_SALT
        CALL UPDATE_VAR_BRACKET(OBC_S_FILE,OBC_S_P,OBC_S_N,NOW,STATUS)
        IF (STATUS /= 0) THEN
           CALL FATAL_ERROR("COULD NOT UPATE OBC SALINITY BRACKET: BOUNDS EXCEEDED?")
@@ -13075,7 +14327,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT ICE FORCING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT ICE FORCING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13242,7 +14494,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT ICING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT ICING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13829,6 +15081,7 @@ CONTAINS
   END SUBROUTINE ASTRONOMY
 # endif
 
+# if defined (WAVE_CURRENT_INTERACTION)
 !================================================================
   SUBROUTINE SURFACE_WIND2WAVE(IGRD)
     USE SWCOMM2
@@ -13877,7 +15130,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -13896,7 +15149,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
        
        ! LOOK FOR THE DIMENSIONS
        DIM => FIND_UNLIMITED(WINDS_FILE,FOUND)
@@ -13932,6 +15185,280 @@ CONTAINS
     CASE DEFAULT
        CALL FATAL_ERROR("SURFACE_WINDSTRESS: UNKNOWN WIND KIND?")
     END SELECT
+
+!==============================================================
+    SELECT CASE(WINDS_FORCING_TYPE)
+!==============================================================
+    CASE(WINDS_ARE_WRFGRID)
+!==============================================================
+
+
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP WIND STRESS FORCING FROM A 'wrf grid' FILE"
+
+       DIM => FIND_DIM(WINDS_FILE,'south_north',FOUND)  
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(WIND_FILE),&
+            & "COULD NOT FIND DIMENSION 'south_north'")
+
+       LATS = DIM%DIM
+
+       DIM => FIND_DIM(WINDS_FILE,'west_east',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(WIND_FILE),&
+            & "COULD NOT FIND DIMENSION 'west_east'")
+       LONS = DIM%DIM
+
+       CALL SET_FILE_INTERP_bilinear(WINDS_FILE,WINDW_INTP_N,WINDW_INTP_C)
+
+       ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
+
+       IF (WIND_TYPE == SPEED)THEN
+
+          ! WIND SPEED IN THE X or EAST-WEST DIRECTION
+          VAR => FIND_VAR(WINDS_FILE,"uwind_speed",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(WINDS_FILE,"U10",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+               & "FILE NAME: "//TRIM(WIND_FILE),&
+               & "COULD NOT FIND VARIABLE 'uwind_speed' or 'U10'")
+
+       ELSEIF(WIND_TYPE == STRESS)THEN
+       END IF
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       WINDW_STRX_N => reference_var(var)
+       CALL NC_CONNECT_PVAR(WINDW_STRX_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! MAKE SPACE FOR THE INTERPOLATED DATA
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRX_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       WINDW_STRX_P => reference_var(var)
+       CALL NC_CONNECT_PVAR(WINDW_STRX_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! MAKE SPACE FOR THE INTERPOLATED DATA
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRX_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+       
+       IF (WIND_TYPE == SPEED)THEN
+
+          ! WIND SPEED IN THE Y or NORTH SOUTH DIRECTION
+          VAR => FIND_VAR(WINDS_FILE,"vwind_speed",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(WINDS_FILE,"V10",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+               & "FILE NAME: "//TRIM(WIND_FILE),&
+               & "COULD NOT FIND VARIABLE 'vwind_speed' or 'V10'")
+
+       ELSEIF(WIND_TYPE == STRESS)THEN
+       END IF
+          
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       WINDW_STRY_N => reference_var(var)
+       CALL NC_CONNECT_PVAR(WINDW_STRY_N,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! MAKE SPACE FOR THE INTERPOLATED DATA
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRY_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       WINDW_STRY_P => reference_var(var)
+       CALL NC_CONNECT_PVAR(WINDW_STRY_P,STORAGE_ARR)
+       NULLIFY(STORAGE_ARR)
+
+       ! MAKE SPACE FOR THE INTERPOLATED DATA
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRY_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+!==============================================================
+    CASE(WINDS_ARE_FVCOMGRID)
+!==============================================================
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP WIND STRESS FORCING FROM A 'FVCOM GRID' FILE"
+
+       DIM => FIND_DIM(WINDS_FILE,'node',FOUND)  
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(WIND_FILE),&
+            & "COULD NOT FIND DIMENSION 'node'")
+
+       if (mgl /= dim%dim) CALL FATAL_ERROR&
+            &("Surface Windstress: the number of nodes in the file does not match the fvcom grid?")
+
+       DIM => FIND_DIM(WINDS_FILE,'nele',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(WIND_FILE),&
+            & "COULD NOT FIND DIMENSION 'nele'")
+
+       if (ngl /= dim%dim) CALL FATAL_ERROR&
+            &("Surface Windstress: the number of elements in the file does not match the fvcom grid?")
+
+
+       ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
+
+       IF (WIND_TYPE == SPEED)THEN
+       
+          ! WIND SPEED IN THE X or EAST-WEST DIRECTION
+          VAR => FIND_VAR(WINDS_FILE,"uwind_speed",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(WINDS_FILE,"U10",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+               & "FILE NAME: "//TRIM(WIND_FILE),&
+               & "COULD NOT FIND VARIABLE 'uwind_speed' or 'U10'")
+
+       ELSEIF(WIND_TYPE == STRESS)THEN
+       END IF
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       WINDW_STRX_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRX_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       WINDW_STRX_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRX_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       IF (WIND_TYPE == SPEED)THEN
+
+          ! WIND SPEED IN THE Y or NORTH SOUTH DIRECTION
+          VAR => FIND_VAR(WINDS_FILE,"vwind_speed",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(WINDS_FILE,"V10",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+               & "FILE NAME: "//TRIM(WIND_FILE),&
+               & "COULD NOT FIND VARIABLE 'vwind_speed' or 'V10'")
+       ELSEIF(WIND_TYPE == STRESS)THEN
+       END IF
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       WINDW_STRY_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRY_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       WINDW_STRY_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRY_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+       
+!==============================================================
+    CASE(WINDS_ARE_PT_SOURCE)
+!==============================================================
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP WIND STRESS FORCING FROM A 'FVCOM GRID' FILE"
+
+
+       ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
+
+       IF (WIND_TYPE == SPEED)THEN
+       
+          ! WIND SPEED IN THE X or EAST-WEST DIRECTION
+          VAR => FIND_VAR(WINDS_FILE,"uwind_speed",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(WINDS_FILE,"U10",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+               & "FILE NAME: "//TRIM(WIND_FILE),&
+               & "COULD NOT FIND VARIABLE 'uwind_speed' or 'U10'")
+
+       ELSEIF(WIND_TYPE == STRESS)THEN
+       END IF
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       WINDW_STRX_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRX_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       WINDW_STRX_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRX_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       IF (WIND_TYPE == SPEED)THEN
+
+          ! WIND SPEED IN THE Y or NORTH SOUTH DIRECTION
+          VAR => FIND_VAR(WINDS_FILE,"vwind_speed",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(WINDS_FILE,"V10",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
+               & "FILE NAME: "//TRIM(WIND_FILE),&
+               & "COULD NOT FIND VARIABLE 'vwind_speed' or 'V10'")
+       ELSEIF(WIND_TYPE == STRESS)THEN
+       END IF
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       WINDW_STRY_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRY_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       WINDW_STRY_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(1), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE WINDSTRESS")
+       CALL NC_CONNECT_PVAR(WINDW_STRY_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+       
+!==============================================================
+    CASE DEFAULT
+!==============================================================
+       CALL FATAL_ERROR("CAN NOT RECOGNIZE WIND FILE TYPE!")
+!==============================================================
+    END SELECT
+!==============================================================
+
+    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    windw_strx_n%curr_stkcnt = 0; windw_strx_p%curr_stkcnt = 0
+    windw_stry_n%curr_stkcnt = 0; windw_stry_p%curr_stkcnt = 0
+    ! -------- end new ---------------------------------------------
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_WIND2WAVE"
   END SUBROUTINE SURFACE_WIND2WAVE
@@ -13971,7 +15498,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -14000,23 +15527,23 @@ CONTAINS
        FTM => WINDS_FILE%FTIME
 
        ! THE X DIRECTION WIND STRESS
-       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDS_STRX_P,WINDS_STRX_N,WTIME,STATUS,WINDS_INTP_C)
+       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDW_STRX_P,WINDW_STRX_N,WTIME,STATUS,WINDW_INTP_C)
        IF (STATUS /= 0) THEN
           CALL FATAL_ERROR("COULD NOT UPATE WIND  X BRACKET: BOUNDS EXCEEDED?")
        end if
 
-       CALL NC_POINT_VAR(WINDS_STRX_N,UNP)
-       CALL NC_POINT_VAR(WINDS_STRX_P,UPP)   
+       CALL NC_POINT_VAR(WINDW_STRX_N,UNP)
+       CALL NC_POINT_VAR(WINDW_STRX_P,UPP)   
        WSTRX = FTM%NEXT_WGHT * UNP + FTM%PREV_WGHT * UPP
 
        ! THE Y DIRECTION WIND STRESS
-       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDS_STRY_P,WINDS_STRY_N,WTIME,STATUS,WINDS_INTP_C)
+       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDW_STRY_P,WINDW_STRY_N,WTIME,STATUS,WINDW_INTP_C)
        IF (STATUS /= 0) THEN
           CALL FATAL_ERROR("COULD NOT UPATE WIND Y BRACKET: BOUNDS EXCEEDED?")
        end if
 
-       CALL NC_POINT_VAR(WINDS_STRY_N,VNP)
-       CALL NC_POINT_VAR(WINDS_STRY_P,VPP)   
+       CALL NC_POINT_VAR(WINDW_STRY_N,VNP)
+       CALL NC_POINT_VAR(WINDW_STRY_P,VPP)   
        WSTRY = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
        
        ALLOCATE(UVNP(0:NT))
@@ -14044,23 +15571,23 @@ CONTAINS
        FTM => WINDS_FILE%FTIME
 
        ! THE X DIRECTION WIND STRESS
-       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDS_STRX_P,WINDS_STRX_N,WTIME,STATUS)
+       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDW_STRX_P,WINDW_STRX_N,WTIME,STATUS)
        IF (STATUS /= 0) THEN
           CALL FATAL_ERROR("COULD NOT UPATE WIND X BRACKET: BOUNDS EXCEEDED?")
        end if
 
-       CALL NC_POINT_VAR(WINDS_STRX_N,UNP)
-       CALL NC_POINT_VAR(WINDS_STRX_P,UPP)   
+       CALL NC_POINT_VAR(WINDW_STRX_N,UNP)
+       CALL NC_POINT_VAR(WINDW_STRX_P,UPP)   
        WSTRX = FTM%NEXT_WGHT * UNP + FTM%PREV_WGHT * UPP
 
        ! THE Y DIRECTION WIND STRESS
-       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDS_STRY_P,WINDS_STRY_N,WTIME,STATUS)
+       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDW_STRY_P,WINDW_STRY_N,WTIME,STATUS)
        IF (STATUS /= 0) THEN
           CALL FATAL_ERROR("COULD NOT UPATE WIND Y BRACKET: BOUNDS EXCEEDED?")
        end if
 
-       CALL NC_POINT_VAR(WINDS_STRY_N,VNP)
-       CALL NC_POINT_VAR(WINDS_STRY_P,VPP)   
+       CALL NC_POINT_VAR(WINDW_STRY_N,VNP)
+       CALL NC_POINT_VAR(WINDW_STRY_P,VPP)   
        WSTRY = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
        
        ALLOCATE(UVNP(0:NT))
@@ -14088,23 +15615,23 @@ CONTAINS
        FTM => WINDS_FILE%FTIME
 
        ! THE X DIRECTION WIND STRESS
-       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDS_STRX_P,WINDS_STRX_N,WTIME,STATUS)
+       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDW_STRX_P,WINDW_STRX_N,WTIME,STATUS)
        IF (STATUS /= 0) THEN
           CALL FATAL_ERROR("COULD NOT UPATE WIND X BRACKET: BOUNDS EXCEEDED?")
        end if
 
-       CALL NC_POINT_VAR(WINDS_STRX_N,VNP)
-       CALL NC_POINT_VAR(WINDS_STRX_P,VPP)
+       CALL NC_POINT_VAR(WINDW_STRX_N,VNP)
+       CALL NC_POINT_VAR(WINDW_STRX_P,VPP)
        WSTRX(1:NT) =   FTM%NEXT_WGHT * VNP(1) + FTM%PREV_WGHT * VPP(1)
 
        ! THE Y DIRECTION WIND STRESS
-       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDS_STRY_P,WINDS_STRY_N,WTIME,STATUS)
+       CALL UPDATE_VAR_BRACKET(WINDS_FILE,WINDW_STRY_P,WINDW_STRY_N,WTIME,STATUS)
        IF (STATUS /= 0) THEN
           CALL FATAL_ERROR("COULD NOT UPATE WIND Y BRACKET: BOUNDS EXCEEDED?")
        end if
 
-       CALL NC_POINT_VAR(WINDS_STRY_N,VNP)
-       CALL NC_POINT_VAR(WINDS_STRY_P,VPP)
+       CALL NC_POINT_VAR(WINDW_STRY_N,VNP)
+       CALL NC_POINT_VAR(WINDW_STRY_P,VPP)
        WSTRY(1:NT) = FTM%NEXT_WGHT * VNP(1) + FTM%PREV_WGHT * VPP(1)
 
        
@@ -14115,6 +15642,7 @@ CONTAINS
 !===================================================
 
   END SUBROUTINE UPDATE_WIND2WAVE
+# endif
 
 !==============================================================================|
   !========================================================================

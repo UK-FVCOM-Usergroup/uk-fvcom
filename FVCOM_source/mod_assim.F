@@ -44,6 +44,10 @@ MODULE MOD_ASSIM
       USE ENKFVAL,  ONLY : ENKF_NENS
       USE MOD_ENKF,   ONLY : ENKF_memberCONTR
 #  endif
+#  if defined (SEDIMENT)
+      USE MOD_SED
+#  endif
+
   IMPLICIT NONE
   SAVE
 
@@ -227,15 +231,15 @@ MODULE MOD_ASSIM
 !--Current Assimilation Object Type
 !
   TYPE ASSIM_OBJ_CUR
-   INTEGER  :: N_TIMES                     !!NUMBER OF DATA TIMES
-   INTEGER  :: N_INTPTS                    !!NUMBER OF INTERPOLATION POINTS 
-   INTEGER  :: N_T_WEIGHT                  !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
-   INTEGER  :: N_LAYERS                    !!NUMBER OF OBSERVATIONS IN THE VERTICAL
-   INTEGER  :: N_CELL                      !!CELL NUMBER OF OBSERVATION
-   REAL(SP) :: X,Y                         !!X AND Y COORDINATES OF OBSERVATION
-   REAL(SP) :: T_WEIGHT                    !!TIME WEIGHT
-   REAL(SP) :: DEPTH                       !!DEPTH AT OBSERVATION STATION (MOORING)
-   REAL(SP) :: SITA                        !!LOCAL ISOBATH ANGLE AT OBSERVATION
+   INTEGER  :: N_TIMES =0                    !!NUMBER OF DATA TIMES
+   INTEGER  :: N_INTPTS=0                    !!NUMBER OF INTERPOLATION POINTS 
+   INTEGER  :: N_T_WEIGHT=0                  !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
+   INTEGER  :: N_LAYERS=0                    !!NUMBER OF OBSERVATIONS IN THE VERTICAL
+   INTEGER  :: N_CELL=0                      !!CELL NUMBER OF OBSERVATION
+   REAL(SP) :: X=0.,Y=0.                         !!X AND Y COORDINATES OF OBSERVATION
+   REAL(SP) :: T_WEIGHT=0.                    !!TIME WEIGHT
+   REAL(SP) :: DEPTH =0.                      !!DEPTH AT OBSERVATION STATION (MOORING)
+   REAL(SP) :: SITA =0.                       !!LOCAL ISOBATH ANGLE AT OBSERVATION
    REAL(SP),ALLOCATABLE,DIMENSION(:)  :: ODEPTH      !!OBSERVATION DEPTHS
 !   REAL(SP),ALLOCATABLE,DIMENSION(:)  :: TIMES       !!DATA TIMES
    TYPE(TIME),ALLOCATABLE,DIMENSION(:)  :: TIMES       !!DATA TIMES
@@ -250,15 +254,15 @@ MODULE MOD_ASSIM
 !--Temperature/Salinity Assimilation Object Type
 !
    TYPE ASSIM_OBJ_TS  
-     INTEGER  :: N_TIMES                                  !!NUMBER OF DATA TIMES
-     INTEGER  :: N_INTPTS                                 !!NUMBER OF INTERPOLATION POINTS
-     INTEGER  :: N_T_WEIGHT                               !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
-     INTEGER  :: N_LAYERS                                 !!NUMBER OF OBSERVATIONS IN THE VERTICAL
-     INTEGER  :: N_CELL                                   !!CELL NUMBER OF OBSERVATION
-     REAL(SP) :: X,Y                                      !!X AND Y COORDINATES OF OBSERVATION
-     REAL(SP) :: T_WEIGHT                                 !!TIME WEIGHT
-     REAL(SP) :: DEPTH                                    !!DEPTH AT OBSERVATION STATION (MOORING)
-     REAL(SP) :: SITA                                     !!LOCAL ISOBATH ANGLE AT OBSERVATION
+     INTEGER  :: N_TIMES =0                                  !!NUMBER OF DATA TIMES
+     INTEGER  :: N_INTPTS =0                                !!NUMBER OF INTERPOLATION POINTS
+     INTEGER  :: N_T_WEIGHT=0                               !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
+     INTEGER  :: N_LAYERS =0                                !!NUMBER OF OBSERVATIONS IN THE VERTICAL
+     INTEGER  :: N_CELL =0                                  !!CELL NUMBER OF OBSERVATION
+     REAL(SP) :: X=0.,Y=0.                                      !!X AND Y COORDINATES OF OBSERVATION
+     REAL(SP) :: T_WEIGHT=0.                                 !!TIME WEIGHT
+     REAL(SP) :: DEPTH =0.                                   !!DEPTH AT OBSERVATION STATION (MOORING)
+     REAL(SP) :: SITA =0.                                    !!LOCAL ISOBATH ANGLE AT OBSERVATION
      REAL(SP), ALLOCATABLE, DIMENSION(:)   :: ODEPTH      !!OBSERVATION DEPTHS
 !     REAL(SP), ALLOCATABLE, DIMENSION(:)   :: TIMES       !!DATA TIMES
      TYPE(TIME),ALLOCATABLE,DIMENSION(:)  :: TIMES        !!DATA TIMES
@@ -290,9 +294,9 @@ MODULE MOD_ASSIM
 
 
   TYPE ASSIM_OBS_LOC
-     INTEGER  :: N_TIMES
+     INTEGER  :: N_TIMES =0
      TYPE(TIME), ALLOCATABLE, DIMENSION(:) :: OBSTIME(:)
-     INTEGER  :: N_LOCS
+     INTEGER  :: N_LOCS =0
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: X ! (N_LOCS,N_TIMES)
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: Y ! (N_LOCS,N_TIMES)
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: Z ! (N_LOCS,N_TIMES)
@@ -309,15 +313,15 @@ MODULE MOD_ASSIM
 
   TYPE ASSIM_OBJ
      CHARACTER(LEN=80) :: VARNAME
-     REAL(SP), POINTER, DIMENSION(:,:) :: DATA
-     REAL(SP), POINTER, DIMENSION(:) :: X,Y,EL,H
-     REAL(SP), POINTER, DIMENSION(:,:) :: SIGMA
-     REAL(SP):: RADIUS
-     REAL(SP):: WEIGHT_MAX
-     REAL(SP):: TIMESCALE  
-     REAL(SP):: TIME_WINDOW
-     TYPE(NCFILE), POINTER :: FILE
-     INTEGER :: N_OBS
+     REAL(SP), POINTER, DIMENSION(:,:) :: DATA  => NULL()
+     REAL(SP), POINTER, DIMENSION(:) :: X => NULL(),Y => NULL(),EL => NULL(),H => NULL()
+     REAL(SP), POINTER, DIMENSION(:,:) :: SIGMA => NULL()
+     REAL(SP):: RADIUS = 0.
+     REAL(SP):: WEIGHT_MAX=0.
+     REAL(SP):: TIMESCALE=0.  
+     REAL(SP):: TIME_WINDOW=0.
+     TYPE(NCFILE), POINTER :: FILE => NULL()
+     INTEGER :: N_OBS =0
      TYPE(ASSIM_OBS_LOC), POINTER :: OBS_LOC
      TYPE(ASSIM_OBS_DATA), POINTER :: OBS_DAT
   END TYPE ASSIM_OBJ
@@ -449,6 +453,9 @@ MODULE MOD_ASSIM
   REAL(SP), ALLOCATABLE, DIMENSION(:)     ::ET_BUF
   REAL(SP), ALLOCATABLE, DIMENSION(:)     ::H_BUF
 
+# if defined (SEDIMENT)
+  REAL(SP), ALLOCATABLE, DIMENSION(:,:,:)   ::CONC_BUF
+# endif
  
 
 # if defined (DYE_RELEASE)  
@@ -4087,6 +4094,9 @@ in:  DO WHILE(.TRUE.)
    IF(T_WEIGHT == 0.0) RETURN
 
    DO I=1,M
+# if defined (WET_DRY)
+     IF(WETTING_DRYING_ON.and.ISWETN(i)==0)cycle
+# endif
       !TRUTH = MODEL_SAVED@INTERVAL + OBSERVED_AVG  - MODEL_AVG
       TRUTH = SST_SAVED(I,SST_SAVE_INDEX) + SST_OBS(I) - SST_AVG(I)
       ! ADJUSMENT = MAX_WEIGHT * (TRUTH-CURRENT) * (WEIGHT_BY_TIME)
@@ -4203,8 +4213,20 @@ in:  DO WHILE(.TRUE.)
 
    CALL N2E2D(EL,EL1)
 
+#   if defined (ICE_EMBEDDING)
+  DO I = 1, NT                                !!yding
+    QTHICE1(I) = (QTHICE(NV(I,1))+QTHICE(NV(I,2))+QTHICE(NV(I,3)))/3.0_SP
+  END DO
+
+  D   = H + EL - QTHICE     !!yding
+  D1  = H1 + EL1 - QTHICE1  !!yding
+
+#   else
+
    D   = H + EL
    D1  = H1 + EL1
+
+#   endif
 
    RETURN
    END SUBROUTINE SSHGRD_NUDGE
@@ -4716,6 +4738,8 @@ in:  DO WHILE(.TRUE.)
 
     IMPLICIT NONE
 
+    INTEGER :: I
+
     if(dbg_set(dbg_sbr)) WRITE(IPT,*) "start RESTORE_STATE"
 
     IINT   = IINT_BUF
@@ -4742,6 +4766,12 @@ in:  DO WHILE(.TRUE.)
     EL     = EL_BUF
     ET     = ET_BUF
     H      = H_BUF
+
+#  if defined (SEDIMENT)
+   DO I=1,NSED
+     sed(i)%conc = conc_buf(i,:,:)
+   END DO
+#  endif
 
 #  if defined (EQUI_TIDE)
     EL_EQI = EL_EQI_BUF
@@ -4771,8 +4801,14 @@ in:  DO WHILE(.TRUE.)
     IF(PAR) CALL EXCHANGE_ALL
 
     ! SET DEPTH AN INTERPOLATE VALUES TO CELL CENTERS
+#   if defined (ICE_EMBEDDING)
+    D   = H + EL - QTHICE     !!yding
+    D   = H + ET - QTHICERK   !!yding
+#   else
     D  = H + EL
     DT = H + ET
+#   endif
+
 
     CALL N2E2D(H,H1)
     CALL N2E2D(EL,EL1)
@@ -4923,6 +4959,8 @@ in:  DO WHILE(.TRUE.)
 
    IMPLICIT NONE
 
+   INTEGER :: I
+
    ExtTime_BUF = ExtTime
    IntTime_BUF = IntTime
    IINT_BUF   = IINT
@@ -4952,6 +4990,12 @@ in:  DO WHILE(.TRUE.)
    EL_BUF     = EL
    ET_BUF     = ET
    H_BUF      = H
+
+#  if defined (SEDIMENT)
+   do i=1,nsed
+      CONC_BUF(i,:,:) = sed(i)%conc
+   end do 
+#  endif
 
 #  if defined (DYE_RELEASE)
    DYE_BUF    = DYE
@@ -5037,6 +5081,10 @@ in:  DO WHILE(.TRUE.)
    ALLOCATE(EL_BUF(0:MT));     EL_BUF = 0.0_SP
    ALLOCATE(ET_BUF(0:MT));     ET_BUF = 0.0_SP
    ALLOCATE(H_BUF(0:MT));      H_BUF = 0.0_SP
+
+#  if defined (SEDIMENT)
+   ALLOCATE(CONC_BUF(NSED,0:MT,KB));  CONC_BUF = 0.0_SP
+#  endif
 
 #  if defined (EQUI_TIDE)
    ALLOCATE(EL_EQI_BUF(0:MT)); EL_EQI_BUF = 0.0_SP
