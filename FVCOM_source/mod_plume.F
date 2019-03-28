@@ -7,15 +7,18 @@
 ! estimates the depth the plume will reach a hydrostatically stable
 ! configuration based on entrainment of water from the sides.
 ! A net flux of temperature, salinity and tracer is
-! released at the depth predicted by the mtt model.
+! released at the depth predicted by the MTT model.
 
 ! Important note!:
+! ---
 ! MTT theory assumes that the buoyancy flux and stratification is
 ! independent of time. However, the stratification changes with 
-! with time in FVCOM. By using this plume model we assume that the 
-! plume adapts to the changing environment and reaches a stable
-! configuration instantaneously. This is not the case in nature, 
-! and should be accounted for in the future development of this code.
+! with time in FVCOM, and this module updates the source buoyancy flux
+! continuously since the sea water density changes with time.
+!  This plume model assumes that the plume adapts to the changing 
+! environment and reaches a stable configuration instantaneously. 
+! This is not the case in nature, and should be accounted for in 
+! the future development of this code.
        
 ! Copyright (c) Akaplan-niva 2019
 ! ----------------------------------------------------------------------
@@ -23,6 +26,7 @@
 ! Original authors: Håvard Espenes     (hes@akvaplan.niva.no)
 !                   Qin Zhou           (qin@akvaplan.niva.no)
 !                   Ole Anders Nøst    (oan@akvaplan.niva.no)
+!                   -> March 2019
 
 ! Ps. To use this module, you must activate both "PLUME" and
 !     "PLUME_CALCULATED" when you compile the code.
@@ -152,13 +156,17 @@ MODULE MOD_PLUME
 !     ----------------
 !     SOURCE_MOM:   Source momentum flux
 !     SOURCE_VOL:   Source volume flux
-!     SOURCE_BUOY:  Source buoyancy flux
 !     PTEMP:        Initial plume temperature
 !     PSALT:        Initial plume salinity
 !     PTRACER:      Initial plume concentration
 !     Inode:        Node where the plume was released
 !     IFABM:        Id of FABM variable
 !     INS:          Input sigma layer
+
+!     PLUME INITIALIZATION VARIABLES
+!     ------------------------------
+!     PRHO:         Plume density at the source
+!     SOURCE_BUOY:  Plume buoyancy flux
 
 !     OUTPUT:
 !     ----------------
@@ -171,44 +179,49 @@ MODULE MOD_PLUME
 !     LOCAL:
 !     ---------------
 !     DST:          Distance from releasenode to the rest of the nodes in the domain
-!     MAXsigma:     Sigma layer where the plume stops
-!     HYDsigma:     Sigma layer where the plume is in hydrostatic equilibrium
 !     entcoef:      Entrainment coefficient
 !     area:         Area covered by the plume at MAXsigma
 !     radius:       Plume radius at MAXsigma
-!     vertspeed:    Vertical velocity of the plume
-!     Wn,Vn,Fn:     Updated volume, momentum and buoyancy flux
-!     PDEPTH:       Thickness of sigma layer
+!     Wn,Vn,Fn:     Updated volume-, momentum- and buoyancy flux
+!     PDEPTH:       Thickness of sigma layer (I,K)
 !     NN:           Nyquist frequency (intertial stratication frequency)
 !     TEMPPF:       Temperature in sigma layers, plume value at sigmalayer of release
 !     SALTPF:       Salinity                  ------||------
 !     FABMPF:       FABM tracer concentration ------||-------
 !     TMP:          Dummy variable to store data while reallocating RELEASENODES
-!     RELEASENODES: The nodes we release the plume in
+!     WEIGHT_TMP:   Dummy variable to store data while reallocating WEIGHT
+!     WEIGHT:       Weight number to ensure mass conservation when releasing the flux
+!                   over several nodes.
+!     RELEASENODES: The nodes over which we release the plume.
+!     INIT_V:       Initial volume source term, used when releasing the flux over
+!                   several nodes.
+!     PRESSURE:     Pressure where the plume is released, used to estimate density.
 ! ------------------------------------------------------------------------------------
-
+      USE EQS_OF_STATE
       USE ALL_VARS
       USE MOD_UTILS
-      !USE MOD_PAR, ONLY: EGID
+      USE MOD_PAR, ONLY: NGID
 # if defined (FABM)
       USE MOD_FABM_DATA
 # endif
+
       IMPLICIT NONE
       REAL(SP)                                            :: SOURCE_MOM, SOURCE_VOL, SOURCE_BUOY
       REAL(SP)                                            ::  PLUME_AREA,DST,PTEMP,PSALT,PTRACER
       REAL(SP), INTENT(OUT), DIMENSION(0:MT,KB), OPTIONAL ::                          PTR, PT,PS
       INTEGER,  INTENT(OUT), DIMENSION(0:MT,KB)           ::                               VDIST
       REAL(SP), INTENT(OUT), DIMENSION(0:MT,KB)           ::                               PFLUX
-      INTEGER                                             ::             INS,IFABM,INODE,K,I,J,O
-      REAL(SP)                                            ::        entcoef,AREA,radius,Wn,Vn,Fn
+      INTEGER                                             ::       A,B,C,INS,IFABM,INODE,K,I,J,O
+      INTEGER                                             ::                            NEWROUND
+      REAL(SP)                                            :: INIT_V,entcoef,AREA,radius,Wn,Vn,Fn
       REAL(SP), DIMENSION(KB)                             ::      PDEPTH,NN,TEMPPF,SALTPF,FABMPF
       INTEGER,  ALLOCATABLE                               ::             TMP(:), RELEASENODES(:)
       REAL(SP), ALLOCATABLE                               ::            WEIGHT_TMP(:), WEIGHT(:)
       LOGICAL                                             ::                           RUN_PLUME
+      REAL(SP), DIMENSION(1:2)                            ::            PRHO, PRESSURE, PTT, PSS
 
 !     Constants and ICs
       entcoef      = 0.07_SP  ! The exact value of this parameter is disputed
-      !CALL GENMAP             ! To get EGID?
 
 !===========Added by Qin, need to be modified=================================
       INODE        =    PLUME_RELEASE_NODEID     
@@ -220,32 +233,53 @@ MODULE MOD_PLUME
       IFABM        =    1
 # endif   
       SOURCE_MOM   =    PLUME_INITIAL_MOMENTUM_FLUX   
-      SOURCE_VOL   =    PLUME_INITIAL_VOLUME_FLUX     
-      SOURCE_BUOY  =    PLUME_INITIAL_BOUYANCY_FLUX
+      SOURCE_VOL   =    PLUME_INITIAL_VOLUME_FLUX
+
 !=================================================================================
 ! Initializing the code. The routine will only be run for the plume release node.
-      RUN_PLUME    = .TRUE.
-      !DO I = 1,MT
-      !   IF (INODE.EQ.EGID(I)) THEN
-      !      RUN_PLUME = .TRUE.
-      !      INODE = I
-      !   END IF
-      !END DO
-# if defined (FABM)
-      IF (PRESENT(PTR)) THEN
-         PTR = ZERO
-      END IF
-# endif
-      IF (PRESENT(PT)) THEN
-         PT = ZERO
-         PS = ZERO
-      END IF
+      RUN_PLUME    = .FALSE.
+      DO I = 1,M
+         IF (INODE.EQ.NGID(I)) THEN
+            RUN_PLUME = .TRUE.
+            INODE     = I
+            EXIT
+         END IF
+      END DO
+
       PFLUX = ZERO
       VDIST = ZERO
       
       IF (RUN_PLUME) THEN
 !=================================================================================
-! Buoyancy frequency squared, stolen from the gotm routine
+! Calculate the buoyancy flux based on input salt and temperature
+! ---
+     PRESSURE = -GRAV_N(INODE)*1.025_SP*(ZZ(INODE,INS)*D(INODE))*0.1_SP 
+     PTT      = PTEMP
+     PSS      = PSALT
+
+     SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
+     CASE(SW_DENS1)
+       CALL FOFONOFF_MILLARD(PSS,PTT,PRESSURE,0.0_SP,PRHO)
+
+     CASE(SW_DENS2)
+       CALL DENS2G(PSS,PTT,PRHO)
+
+     CASE(SW_DENS3)      
+       CALL JACKET_MCDOUGALL(PSS,PTT,PRESSURE,PRHO)                                                   
+
+     CASE DEFAULT
+      CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
+           & "   "//TRIM(SEA_WATER_DENSITY_FUNCTION) )
+     END SELECT
+! --- 
+     SOURCE_BUOY = GRAV_N(INODE)*(RHO1(INODE,INS)-PRHO(1))*SIZE(RHO1(INODE,:))&
+           &/(SUM(RHO1(INODE,:))) * SOURCE_VOL
+     IF (SOURCE_BUOY.LT.0) THEN
+           CALL FATAL_ERROR("INVALID BUOYANCY FLUX, MOD_PLUME DOES NOT SUPPORT&
+           & SINKING PLUMES AT THE MOMENT.")
+     END IF
+!=================================================================================
+! Buoyancy frequency, stolen from the gotm routine
 ! ----
       DO K=2,KBM1
          NN(K)       = -GRAV_N(INODE)*(RHO1(INODE,K-1)-RHO1(INODE,K))/(DZZ(INODE,K-1)*D(INODE))
@@ -270,7 +304,8 @@ MODULE MOD_PLUME
       IF (PRESENT(PTR)) THEN
          PTR         = FABM_ALL(:,:,IFABM) !PTR(:,:,IFABM) = FABM_ALL(:,:,IFABM)
       END IF
-!     Basic stuff
+
+!     Integrate from the input sigma layer, activate it
       K              = INS    ! INPUT sigma layer
       VDIST(INODE,K) = 1
 
@@ -283,9 +318,11 @@ MODULE MOD_PLUME
       IF (PRESENT(PTR)) THEN
          FABMPF(K)   = SOURCE_VOL*PTRACER
       END IF
+      
+      INIT_V = SOURCE_VOL ! Storing the source volume flux for later
 
 ! ======================================================================================
-!                                The MTT plume model
+!                         And then finally: The MTT plume model
 ! ======================================================================================
 !     Initialize stuff
       ALLOCATE(RELEASENODES(1))
@@ -294,91 +331,95 @@ MODULE MOD_PLUME
       WEIGHT(1)          = 1.0_SP
       AREA               = ART1(INODE)
       DO WHILE (.TRUE.)
-         K = K-1
+         K               = K-1
          radius          = SOURCE_VOL/SOURCE_MOM
          PLUME_AREA      = PI*radius**2
-         ! If the plume covers an area bigger than the CV, then we need to distribute it
-         ! over the surrounding nodes as well. Primitive procedure, will need further
-         ! development to let the plume expand over more nodes than those connected
-         ! to INODE as well.
+
          IF (PLUME_AREA.GT.AREA) THEN
+            I = 0
             outer: DO WHILE (PLUME_AREA.GT.AREA)
-               ! Will spread the plume over the nodes surrounding INODE, but not the nodes
-               ! surrounding them again. Will need future improvements. The best solution may
-               ! be to expand the loop underneath.
-               DO J = 1,NTSN(INODE)
-                  O = NBSN(INODE,J)
+               I = I+1
+               inner: DO J = 1,NTSN(RELEASENODES(I))
+                  O = NBSN(RELEASENODES(I),J)
+                  ! To avoid storing the same node twice
+                  DO A = 1,SIZE(RELEASENODES)
+                     IF (RELEASENODES(A).EQ.O) THEN
+                        CYCLE inner
+                     END IF
+                  END DO
                   VDIST(O,K) = 1
                   AREA       = AREA+ART1(O)
+
                   ! Identify the nodes covering the rising plume, and store them
                   ALLOCATE(TMP(SIZE(RELEASENODES)+1))
                   TMP(1:SIZE(RELEASENODES))   = RELEASENODES
                   TMP(SIZE(RELEASENODES)+1)   = O
                   CALL MOVE_ALLOC(TMP,RELEASENODES)
-                  ! If the area covered by the RELEASENODES is greater than 
-                  ! the plume, exit the loop
+
+                  ! Do not stop storing more releasenodes until you cover the entire plume
                   IF (AREA.GT.PLUME_AREA) THEN
+                     ALLOCATE(WEIGHT_TMP(SIZE(RELEASENODES)))
+                     WEIGHT_TMP(1:SIZE(WEIGHT)) = WEIGHT
+                     WEIGHT_TMP(SIZE(WEIGHT)+1:SIZE(RELEASENODES)) = (1-SUM(WEIGHT))/(SIZE(RELEASENODES)-SIZE(WEIGHT))
+                     CALL MOVE_ALLOC(WEIGHT_TMP, WEIGHT)
                      EXIT outer
                   END IF
-               END DO
-            END DO outer
+              END DO inner
+               
+              ! We got this far, thus all of the nodes in the last NBSN were used, and they should
+              ! get their fair share of the flux
+              ALLOCATE(WEIGHT_TMP(SIZE(RELEASENODES)))
+              WEIGHT_TMP = ART1(INODE)/PLUME_AREA
+              CALL MOVE_ALLOC(WEIGHT_TMP, WEIGHT)
+           END DO outer
+        END IF
+        VDIST(RELEASENODES,K) = 1
+        
+        IF ((ISNAN(SOURCE_MOM)).OR.(K.EQ.1)) THEN
+           ! Plume reached the top, releasing it there. (NB: Hydrostatically unstable...)
+           DO I = 1,SIZE(RELEASENODES)
+              PFLUX(RELEASENODES(I),K)      =  -SUM(PFLUX(RELEASENODES(I),:))+INIT_V*WEIGHT(I)
+              IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
+                 PT(RELEASENODES(I),K)      = (TEMPPF(K+1)/SOURCE_VOL)
+                 PS(RELEASENODES(I),K)      = (SALTPF(K+1)/SOURCE_VOL)
+              END IF
+              IF (PRESENT(PTR)) THEN
+                 PTR(RELEASENODES(I),K)     = (FABMPF(K+1)/SOURCE_VOL)
+              END IF
+           END DO
+           EXIT
+        END IF
 
-            ! Have now found the number of surrounding nodes, sets how much we should
-            ! weight of those nodes.
-            ALLOCATE(WEIGHT_TMP(SIZE(RELEASENODES)))
-            WEIGHT_TMP(1) = ART1(INODE)/PLUME_AREA
-            WEIGHT_TMP(2:SIZE(RELEASENODES)) = (1.0_SP-WEIGHT_TMP(1))/(SIZE(RELEASENODES)-1.0_SP)
-            CALL MOVE_ALLOC(WEIGHT_TMP, WEIGHT)
-         END IF
-         VDIST(RELEASENODES,K) = 1
-
-         IF ((ISNAN(SOURCE_MOM)).OR.(K.EQ.1)) THEN
-            ! Plume reached the top, releasing it there. (NB: Hydrostatically unstable...)
-            ! FIX THE WEIGHT-STUFF LATER ON
-            DO I = 1,SIZE(RELEASENODES)
-               PFLUX(RELEASENODES(I),K)      =  SOURCE_VOL * WEIGHT(I)  ! This should be the correct way of doing it?
-               !PFLUX                         =  PFLUX                   ! *PI? Think about it... 
-               IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
-                  PT(RELEASENODES(I),K)      = (TEMPPF(K+1)/SOURCE_VOL)
-                  PS(RELEASENODES(I),K)      = (SALTPF(K+1)/SOURCE_VOL)
-               END IF
-               IF (PRESENT(PTR)) THEN
-                  PTR(RELEASENODES(I),K)     = (FABMPF(K+1)/SOURCE_VOL)
-               END IF
-            END DO
-            EXIT
-         END IF
-
-         ! Solving the plume model equations
-         Wn             = SOURCE_VOL    + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)
-         Vn             = SOURCE_MOM**4 + 2.0_SP*SOURCE_BUOY*SOURCE_VOL*PDEPTH(K)
-         Fn             = SOURCE_BUOY   - (NN(K)**2)*SOURCE_VOL*PDEPTH(K)
+        ! Solving the plume model equations
+        Wn             = SOURCE_VOL    + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)
+        Vn             = SOURCE_MOM**4 + 2.0_SP*SOURCE_BUOY*SOURCE_VOL*PDEPTH(K)
+        Fn             = SOURCE_BUOY   - (NN(K)**2)*SOURCE_VOL*PDEPTH(K)
          
-         ! Finding the flux og S,T and TRACER upwards from given sigma layer, thus accounting
-         ! for entrainment of matter from the sides.
-         IF ((PRESENT(PS)).AND.(PRESENT(PT))) THEN
-            SALTPF(K)   = SALTPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*S1(INODE,K)
-            TEMPPF(K)   = TEMPPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*T1(INODE,K)
-         END IF
+        ! Finding the flux og S,T and TRACER upwards from given sigma layer, thus accounting
+        ! for entrainment of matter from the sides.
+        IF ((PRESENT(PS)).AND.(PRESENT(PT))) THEN
+           SALTPF(K)   = SALTPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*S1(INODE,K)
+           TEMPPF(K)   = TEMPPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*T1(INODE,K)
+        END IF
 # if defined (FABM)
-         IF (PRESENT(PTR)) THEN
-            FABMPF(K)   = FABMPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*FABM_ALL(INODE,K,IFABM)
-         END IF
+        IF (PRESENT(PTR)) THEN
+           FABMPF(K)   = FABMPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*FABM_ALL(INODE,K,IFABM)
+        END IF
 # endif
 
-         ! Distribute the flux over the nodes influenced by the plume at every sigma layer
-         DO J = 1,SIZE(RELEASENODES)
-            PFLUX(RELEASENODES(J),K) = -2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*WEIGHT(J)
-         END DO
+        ! Distribute the flux over the nodes influenced by the plume at every sigma layer
+        DO J = 1,SIZE(RELEASENODES)
+           PFLUX(RELEASENODES(J),K) = -2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*WEIGHT(J)
+        END DO
 
-         ! We update the plume parameters if the plume is still rising
-         SOURCE_MOM     = Vn**(0.25_SP)            ! Momentum flux
-         SOURCE_VOL     = Wn                       ! Volume flux
-         SOURCE_BUOY    = Fn                       ! Buoyancy flux
-
-         IF (.NOT.(ISNAN(SOURCE_MOM))) THEN
-            radius      = SOURCE_VOL/SOURCE_MOM    ! Plume radius
-         END IF
+        ! We update the plume parameters if the plume is still rising
+        SOURCE_MOM     = Vn**(0.25_SP) ! Momentum flux
+        SOURCE_VOL     = Wn     ! Volume flux
+        SOURCE_BUOY    = Fn     ! Buoyancy flux
+        
+        IF (.NOT.(ISNAN(SOURCE_MOM))) THEN
+           radius      = SOURCE_VOL/SOURCE_MOM ! Plume radius
+        END IF
       END DO
       END IF
   RETURN
