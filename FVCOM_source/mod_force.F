@@ -151,6 +151,7 @@ MODULE MOD_FORCE
   END TYPE A_RIVER_FILE
   TYPE(A_RIVER_FILE), ALLOCATABLE,PUBLIC :: RIVER_FORCING(:)
 
+# if defined (PLUME)
   ! =================================================================
   ! PLUME FORCING VARIABLES FOR UPDATE ANE SETUP, added by Qin 04/03/2019
   ! NOTE PLUMS MIGHT HAVE THE SAME PAIN AS RIVERS ARE - EACH PROCESSOR HAS TO FETCH ITS OWN DATA!
@@ -171,6 +172,7 @@ MODULE MOD_FORCE
      ! ADD MORE HERE!
   END TYPE A_PLUME_FILE
   TYPE(A_PLUME_FILE), ALLOCATABLE,PUBLIC :: PLUME_FORCING(:)
+# endif
 
   ! =================================================================
   ! GROUND WATER FORCING VARIABLES FOR UPDATE AND SETUP
@@ -1841,6 +1843,7 @@ CONTAINS
   !===================================================================
   !==================================================================
   ! READ PLUME PARAMETERA, added by Qin 04/03/2019
+# if defined (PLUME)
 # if !defined(PLUME_CALCULATED)    
   SUBROUTINE PLUME_DISCHARGE 
 # if defined (FABM)
@@ -1919,7 +1922,7 @@ CONTAINS
                   & "YOU SPECIFIED NODE NUMBER: "//chr)
           END IF
 
-          ! COUNT THE NUMBER OF RIVERS OWNED BY THIS PROC
+          ! COUNT THE NUMBER OF PLUMES OWNED BY THIS PROC
           IF (NLID(PLUMES(I)%LOCATION) .GT. 0) NUMPLM = NUMPLM + 1
 
        ! COUNT THE NUMBER OF FILES
@@ -2172,7 +2175,8 @@ CONTAINS
 
   END SUBROUTINE PLUME_DISCHARGE
 # endif 
-    !================================================================
+
+  !================================================================
   !================================================================  
   SUBROUTINE CHECK_PLUME_FILE(NCF,PERIOD)
     ! CALL FATAL_ERROR IF THERE IS ANYTHING WRONG WITH THE FILE
@@ -2302,6 +2306,7 @@ CONTAINS
          &CTING 'PSU'")
 		 
   END SUBROUTINE CHECK_PLUME_FILE
+# endif
   !================================================================
   !================================================================
 
@@ -13462,6 +13467,8 @@ CONTAINS
     END DO ! FOR EACH FILE
 
   END SUBROUTINE UPDATE_RIVERS
+
+# if defined (PLUME)
   !==============================================================================|
   ! UPDATE PLUMES, added by Qin 05/03/2019
   !==============================================================================|
@@ -13726,6 +13733,8 @@ CONTAINS
     END DO ! FOR EACH FILE
 
   END SUBROUTINE UPDATE_PLUMES
+# endif
+
   !==============================================================================|
   SUBROUTINE UPDATE_GROUNDWATER(NOW,GW_FLUX,GW_TEMP,GW_SALT)
     IMPLICIT NONE

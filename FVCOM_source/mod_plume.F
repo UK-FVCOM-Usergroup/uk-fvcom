@@ -39,26 +39,35 @@ MODULE MOD_PLUME
     SAVE
 	
     LOGICAL PLUME_CALCULATE_ON
+    LOGICAL PLUME_DIFFUSOR_ON
     INTEGER(SP) :: PLUME_RELEASE_NODEID          ! GLOBAL NODE ID WHERE PLUME IS RELEASED
     INTEGER(SP) :: PLUME_RELEASE_SIGMALAYER      ! THE SIGMA LAYER WHERE PLUME IS RELEASED
+    REAL(SP)    :: PLUME_DIFFUSOR_UP             ! Number of diffusors pointing down
+    REAL(SP)    :: PLUME_DIFFUSOR_DOWN           ! Number of diffusors pointing upward
+    REAL(SP)    :: PLUME_DIFFUSOR_DISTANCE       ! Distance between diffusors
+    REAL(SP)    :: PLUME_DIFFUSOR_RADIUS         ! Radius of the plume source
+    REAL(SP)    :: PLUME_DIFFUSOR_DEPTH          ! Depth between bottom and diffusor
     REAL(SP)    :: PLUME_INITIAL_TEMPERATURE     ! INITIAL PLUME TEMPERATURE
     REAL(SP)    :: PLUME_INITIAL_SALINITY        ! INITIAL PLUME SALINITY
     REAL(SP)    :: PLUME_INITIAL_CONCENTRATION   ! INITIAL PLUME CONCENTRATION
-    REAL(SP)    :: PLUME_INITIAL_MOMENTUM_FLUX   ! INITIAL PLUME MOMENTUM FLUX
     REAL(SP)    :: PLUME_INITIAL_VOLUME_FLUX     ! INITIAL PLUME VOLUMN FLUX
-    REAL(SP)    :: PLUME_INITIAL_BOUYANCY_FLUX   ! INITIAL PLUME BOUYANCY FLUX
-	
+    REAL(SP)    :: PIPE_RADIUS                   ! RADIUS OF THE PIPE PROVIDING THE VOLUMEFLUX
+
     NAMELIST /NML_PLUME_CALCULATED/            &
     & PLUME_CALCULATE_ON,                      &
+    & PLUME_DIFFUSOR_ON,                       &
     & PLUME_RELEASE_NODEID,                    &
     & PLUME_RELEASE_SIGMALAYER,                &
+    & PLUME_DIFFUSOR_UP,                       &
+    & PLUME_DIFFUSOR_DOWN,                     &
+    & PLUME_DIFFUSOR_DISTANCE,                 &
+    & PLUME_DIFFUSOR_RADIUS,                   &
+    & PLUME_DIFFUSOR_DEPTH,                    &
     & PLUME_INITIAL_TEMPERATURE,               &
     & PLUME_INITIAL_SALINITY,                  &
     & PLUME_INITIAL_CONCENTRATION,             &
-    & PLUME_INITIAL_MOMENTUM_FLUX,             &
     & PLUME_INITIAL_VOLUME_FLUX,               &
-    & PLUME_INITIAL_BOUYANCY_FLUX             
-	
+    & PIPE_RADIUS
 	
     CONTAINS
 
@@ -66,79 +75,85 @@ MODULE MOD_PLUME
 !   Input Parameters for the Plume Model                
 !==============================================================================|
 
-   SUBROUTINE PLUME_CALCULATE_NAMELIST_INITIALIZE
-   USE control, only : casename
-   IMPLICIT NONE
+      SUBROUTINE PLUME_CALCULATE_NAMELIST_INITIALIZE
+      USE control, only : casename
+      IMPLICIT NONE
+      
+      PLUME_CALCULATE_ON            =  .FALSE.                
+      PLUME_DIFFUSOR_ON             =  .FALSE.
+      PLUME_RELEASE_NODEID          =  0                 
+      PLUME_RELEASE_SIGMALAYER      =  0   
+      PLUME_DIFFUSOR_UP             =  0.0_SP
+      PLUME_DIFFUSOR_DOWN           =  0.0_SP
+      PLUME_DIFFUSOR_DISTANCE       =  0.0_SP
+      PLUME_DIFFUSOR_RADIUS         =  0.0_SP
+      PLUME_DIFFUSOR_DEPTH          =  0.0_SP
+      PLUME_INITIAL_TEMPERATURE     =  0.0_SP          
+      PLUME_INITIAL_SALINITY        =  0.0_SP        
+      PLUME_INITIAL_CONCENTRATION   =  0.0_SP              
+      PLUME_INITIAL_VOLUME_FLUX     =  0.0_SP            
+      PIPE_RADIUS                   =  0.0_SP
    
-   PLUME_CALCULATE_ON            =  .FALSE.                
-   PLUME_RELEASE_NODEID          =  0                 
-   PLUME_RELEASE_SIGMALAYER      =  0         
-   PLUME_INITIAL_TEMPERATURE     =  0.0_SP          
-   PLUME_INITIAL_SALINITY        =  0.0_SP        
-   PLUME_INITIAL_CONCENTRATION   =  0.0_SP            
-   PLUME_INITIAL_MOMENTUM_FLUX   =  0.0_SP  
-   PLUME_INITIAL_VOLUME_FLUX     =  0.0_SP            
-   PLUME_INITIAL_BOUYANCY_FLUX   =  0.0_SP            
-   
-   RETURN
-   END SUBROUTINE PLUME_CALCULATE_NAMELIST_INITIALIZE
-   
-!------------------------------------------------------------------------------|
-   SUBROUTINE PLUME_CALCULATE_NAMELIST_PRINT
-   USE CONTROL, ONLY : IPT
-   
-   IMPLICIT NONE
-   
-   WRITE(UNIT=IPT,NML=NML_PLUME_CALCULATED)
-   
-   RETURN
-   END SUBROUTINE PLUME_CALCULATE_NAMELIST_PRINT  
+      RETURN
+      END SUBROUTINE PLUME_CALCULATE_NAMELIST_INITIALIZE
    
 !------------------------------------------------------------------------------|
-   SUBROUTINE PLUME_CALCULATE_NAMELIST_READ    
-   USE CONTROL, ONLY : casename,NMLUNIT
+      SUBROUTINE PLUME_CALCULATE_NAMELIST_PRINT
+      USE CONTROL, ONLY : IPT
    
-   IMPLICIT NONE
+      IMPLICIT NONE
+      
+      WRITE(UNIT=IPT,NML=NML_PLUME_CALCULATED)
    
-   INTEGER :: IOS, I
-   CHARACTER(LEN=120) :: FNAME
-   CHARACTER(LEN=160) :: PATHNFILE
+      RETURN
+      END SUBROUTINE PLUME_CALCULATE_NAMELIST_PRINT  
    
-   IF(DBG_SET(DBG_SBR)) &
-         & WRITE(IPT,*) "Subroutine Begins: Read_Plume_Calculate_Namelist;"
+!------------------------------------------------------------------------------|
+      SUBROUTINE PLUME_CALCULATE_NAMELIST_READ    
+      USE CONTROL, ONLY : casename,NMLUNIT
+      
+      IMPLICIT NONE
+   
+      INTEGER :: IOS, I
+      CHARACTER(LEN=120) :: FNAME
+      CHARACTER(LEN=160) :: PATHNFILE
+   
+      IF(DBG_SET(DBG_SBR)) &
+      & WRITE(IPT,*) "Subroutine Begins: Read_Plume_Calculate_Namelist;"
 
-   IOS = 0
+      IOS = 0
 
-   FNAME = "./"//trim(casename)//"_run.nml"
+      FNAME = "./"//trim(casename)//"_run.nml"
 
-   CALL FOPEN(NMLUNIT,trim(FNAME),'cfr')
+      CALL FOPEN(NMLUNIT,trim(FNAME),'cfr')
 
    !READ NAME LIST FILE
-    REWIND(NMLUNIT)
+      REWIND(NMLUNIT)
 
    ! Read IO Information
-   READ(UNIT=NMLUNIT, NML=NML_PLUME_CALCULATED,IOSTAT=ios)
-   if(ios .NE. 0 ) Then
-     if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_PLUME_CALCULATED)
-     Call Fatal_error("Can Not Read NameList NML_PLUME_CALCULATED from file: "//trim(FNAME))
-   end if
-   CLOSE(NMLUNIT)
+      READ(UNIT=NMLUNIT, NML=NML_PLUME_CALCULATED,IOSTAT=ios)
+      if(ios .NE. 0 ) Then
+        if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_PLUME_CALCULATED) 
+        Call Fatal_error("Can Not Read NameList NML_PLUME_CALCULATED from file: "//trim(FNAME))
+        !"
+      end if
+      CLOSE(NMLUNIT)
  
-   RETURN
-   END SUBROUTINE PLUME_CALCULATE_NAMELIST_READ
+      RETURN
+      END SUBROUTINE PLUME_CALCULATE_NAMELIST_READ
 
 !==============================================================================|
 ! Allocate variables output from the plume model	
 !==============================================================================|
- SUBROUTINE PLUME_CALCULATE_INIT
-   ALLOCATE(FLXPLM(0:MT,KB)) ;              FLXPLM     =   ZERO  ! 
-   ALLOCATE(VDISTPLM(0:MT,KB)) ;            VDISTPLM   =   ZERO  ! 
-   ALLOCATE(TPLM(0:MT,KB)) ;                TPLM       =   ZERO  ! 
-   ALLOCATE(SPLM(0:MT,KB)) ;                SPLM       =   ZERO  !
-   ALLOCATE(FABMPLM(0:MT,KB,1)) ;           FABMPLM    =   ZERO  !
+      SUBROUTINE PLUME_CALCULATE_INIT
+      ALLOCATE(FLXPLM(0:MT,KB)) ;              FLXPLM     =   ZERO ! 
+      ALLOCATE(VDISTPLM(0:MT,KB)) ;            VDISTPLM   =   ZERO ! 
+      ALLOCATE(TPLM(0:MT,KB)) ;                TPLM       =   ZERO ! 
+      ALLOCATE(SPLM(0:MT,KB)) ;                SPLM       =   ZERO !
+      ALLOCATE(FABMPLM(0:MT,KB,1)) ;           FABMPLM    =   ZERO !
    
 !==============================================================================|
-  END SUBROUTINE PLUME_CALCULATE_INIT
+      END SUBROUTINE PLUME_CALCULATE_INIT
 !==============================================================================|
 
 !==============================================================================|
@@ -154,7 +169,7 @@ MODULE MOD_PLUME
 !     ----------------
 !     NAMELIST INPUT:
 !     ----------------
-!     SOURCE_MOM:   Source momentum flux
+!     PIPE_RADIUS:  Radius of the pipe providing the effluent
 !     SOURCE_VOL:   Source volume flux
 !     PTEMP:        Initial plume temperature
 !     PSALT:        Initial plume salinity
@@ -219,9 +234,17 @@ MODULE MOD_PLUME
       REAL(SP), ALLOCATABLE                               ::            WEIGHT_TMP(:), WEIGHT(:)
       LOGICAL                                             ::                           RUN_PLUME
       REAL(SP), DIMENSION(1:2)                            ::            PRHO, PRESSURE, PTT, PSS
+   
+      ! Diffusor stuff
+      REAL(SP) :: PLUME_SOURCE, PLUME_ANGLE, PLUME_MERGING_DISTANCE
+      REAL(SP) :: Rdiff, Wdiff, PI, DIFF_VOL, DIFF_MOM, DIFF_BUOY
+      REAL(SP) :: PSF, PTF, PTRF, TOT_PLUMES
+
+
 
 !     Constants and ICs
       entcoef      = 0.07_SP  ! The exact value of this parameter is disputed
+      PI           = 4.0_SP*ATAN(1.0_SP)
 
 !===========Added by Qin, need to be modified=================================
       INODE        =    PLUME_RELEASE_NODEID     
@@ -231,10 +254,9 @@ MODULE MOD_PLUME
 # if defined (FABM)
       PTRACER      =    PLUME_INITIAL_CONCENTRATION
       IFABM        =    1
-# endif   
-      SOURCE_MOM   =    PLUME_INITIAL_MOMENTUM_FLUX   
+# endif       
       SOURCE_VOL   =    PLUME_INITIAL_VOLUME_FLUX
-
+      SOURCE_MOM   =    SOURCE_VOL/(PIPE_RADIUS)
 !=================================================================================
 ! Initializing the code. The routine will only be run for the plume release node.
       RUN_PLUME    = .FALSE.
@@ -250,10 +272,12 @@ MODULE MOD_PLUME
       VDIST = ZERO
       
       IF (RUN_PLUME) THEN
-!=================================================================================
+! ---
 ! Calculate the buoyancy flux based on input salt and temperature
 ! ---
      PRESSURE = -GRAV_N(INODE)*1.025_SP*(ZZ(INODE,INS)*D(INODE))*0.1_SP 
+     ! H: I could not get this function work for scalar T and S, hence
+     !    passing the variables as vectors instead.
      PTT      = PTEMP
      PSS      = PSALT
 
@@ -271,14 +295,18 @@ MODULE MOD_PLUME
       CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
            & "   "//TRIM(SEA_WATER_DENSITY_FUNCTION) )
      END SELECT
+
 ! --- 
+! Estimate the buoyancy flux
+! ---
      SOURCE_BUOY = GRAV_N(INODE)*(RHO1(INODE,INS)-PRHO(1))*SIZE(RHO1(INODE,:))&
            &/(SUM(RHO1(INODE,:))) * SOURCE_VOL
      IF (SOURCE_BUOY.LT.0) THEN
            CALL FATAL_ERROR("INVALID BUOYANCY FLUX, MOD_PLUME DOES NOT SUPPORT&
            & SINKING PLUMES AT THE MOMENT.")
      END IF
-!=================================================================================
+
+!===========================================================================
 ! Buoyancy frequency, stolen from the gotm routine
 ! ----
       DO K=2,KBM1
@@ -291,11 +319,8 @@ MODULE MOD_PLUME
       NN(1)          = 0.0_SP
       NN(KB)         = 0.0_SP
       PDEPTH         = DZZ(INODE,:)*D(INODE)
-!===========================================================================
-! The plume model - Designed exclusively for rising plumes.
-!                   Can be fixed quite easilly with an if statement
-!                   which reverses the integration direction.
-! ----
+
+!     Initializing plume temperature and salinity
 !     Filling vectors with data
       IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
          PT          = T1
@@ -318,11 +343,125 @@ MODULE MOD_PLUME
       IF (PRESENT(PTR)) THEN
          FABMPF(K)   = SOURCE_VOL*PTRACER
       END IF
-      
-      INIT_V = SOURCE_VOL ! Storing the source volume flux for later
+
+      INIT_V = SOURCE_VOL
+
+      IF (PLUME_DIFFUSOR_ON) THEN
+!===========================================================================
+! Enhanced initial entrainment due to use of diffusors
+! ----
+! ===========================================================================
+         ! Must change the source terms to account for enhanced entrainment
+         ! due to diffusors. We only account for the mixing due to the
+         ! momentum supplied by the tube
+         
+         ! To begin with (proof of concept): Look at diffusors pointing in
+         ! the same direction.
+
+         ! For a given line of plumes: When will they coalesce?
+         !                 Our answer: When they expand far enough to the
+         !                             sides, such that they grow into 
+         !                             each other.
+
+         ! Ps. This routine is only valid for relatively small (ie. <6m) 
+         ! vertical displacements before they coalesce.
+! ============================================================================ 
+         TOT_PLUMES           = PLUME_DIFFUSOR_UP + PLUME_DIFFUSOR_DOWN
+         Rdiff                = PLUME_DIFFUSOR_RADIUS
+         Wdiff                = SOURCE_VOL/(TOT_PLUMES*Rdiff**2)
+         IF (Rdiff.GT.(PLUME_DIFFUSOR_DISTANCE/2)) THEN
+            CALL FATAL_ERROR("The diffusor radius is bigger than the diffusor separation distance/2")
+            !"
+         END IF
+         ! Diffusor source and momentum fluxes
+         DIFF_MOM  = Rdiff * Wdiff
+         DIFF_VOL  = Rdiff**2 * Wdiff
+         DIFF_BUOY = Rdiff**2 * Wdiff * (SOURCE_MOM**2/SOURCE_VOL)
+
+         ! We also need to update the plume temperature and salinity
+         IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
+            PTF    = DIFF_VOL*PTEMP
+            PSF    = DIFF_VOL*PSALT
+         END IF
+
+         IF (PRESENT(PTR)) THEN
+            PTRF   = DIFF_VOL*PTRACER
+         END IF
+
+         ! Idea: Integrate these equations until they merge
+         K = INS
+         big: DO WHILE (.TRUE.)
+             ! Integrate until the diffusor plume radius is equal to half
+             ! the distance between the diffusors.
+
+             ! Perhaps smart to integrate with higher resolution since we expect
+             ! the diffusors to be more efficient than the "super plume"
+             K = K-1
+             ! Run the plume model
+             DO I = 1,10
+               Wn             = DIFF_VOL    + 2.0_SP*entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP
+               Vn             = DIFF_MOM**4 + 2.0_SP*DIFF_BUOY*DIFF_VOL*PDEPTH(K)/10.0_SP
+               Fn             = DIFF_BUOY   - (NN(K)**2)*DIFF_VOL*PDEPTH(K)/10.0_SP
+               IF (ISNAN(Vn**(0.25_SP))) THEN
+                  EXIT big
+               END IF
+               
+               IF ((PRESENT(PS)).AND.(PRESENT(PT))) THEN
+                  PSF         = PSF  + 2.0_SP*(entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP)*S1(INODE,K)
+                  PTF         = PTF  + 2.0_SP*(entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP)*T1(INODE,K)
+               END IF
+
+# if defined (FABM)
+               IF (PRESENT(PTR)) THEN
+                  PTRF        = PTRF + 2.0_SP*(entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP)*FABM_ALL(INODE,K,IFABM)
+               END IF
+# endif
+               
+               PFLUX(INODE,INS) = PFLUX(INODE,INS) - 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)/10
+               
+               DIFF_VOL       = Wn
+               DIFF_MOM       = Vn**(0.25_SP)
+               DIFF_BUOY      = Fn
+               IF ((DIFF_VOL/DIFF_MOM).GT.(PLUME_DIFFUSOR_DISTANCE/2)) THEN
+                  EXIT big
+               END IF
+            END DO
+         END DO big
+         
+         IF (PRESENT(PT)) THEN
+            PTEMP    = PTF/DIFF_VOL
+            PSALT    = PSF/DIFF_VOL
+         END IF
+         IF (PRESENT(PTR)) THEN
+            PTRACER  = PTRF/DIFF_VOL
+         END IF
+         
+         ! The area of the big plume should be TOT_PLUMES times bigger than the small ones
+         ! Hence the radius should be SQRT(TOT_PLUMES) times bigger
+         Rdiff                = SQRT(TOT_PLUMES)*DIFF_VOL/DIFF_MOM
+
+         ! Now, assume that these plumes coalesce and form a perfect "superplume". This is
+         ! the new input for the plume model.
+         SOURCE_VOL          = (Rdiff**2)*DIFF_MOM**2/DIFF_VOL    ! VOLsource  = r**2*w
+         SOURCE_MOM          = Rdiff*(DIFF_MOM**2/DIFF_VOL)       ! MOMsource  = rw
+         SOURCE_BUOY         = SOURCE_VOL*DIFF_BUOY/DIFF_VOL      ! BUOYsource = r**2*w*g'
+         
+         ! Update the initial temperature-, salinity- and tracer-flux.
+         IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
+            TEMPPF(INS)   = SOURCE_VOL*PTEMP
+            SALTPF(INS)   = SOURCE_VOL*PSALT
+         END IF
+         
+         IF (PRESENT(PTR)) THEN
+            FABMPF(INS)   = SOURCE_VOL*PTRACER
+         END IF
+
+         K = INS
+      END IF
+      !INIT_V = SOURCE_VOL ! Storing the source volume flux for later
 
 ! ======================================================================================
-!                         And then finally: The MTT plume model
+!                         And then finally: The plume model
 ! ======================================================================================
 !     Initialize stuff
       ALLOCATE(RELEASENODES(1))
@@ -421,7 +560,9 @@ MODULE MOD_PLUME
            radius      = SOURCE_VOL/SOURCE_MOM ! Plume radius
         END IF
       END DO
+      print *, 'utvanning: Vf_new/Vf_old  = ', SOURCE_VOL/INIT_V
       END IF
   RETURN
   END SUBROUTINE UPDATE_PLUMES_CALCULATED
+
 END MODULE MOD_PLUME

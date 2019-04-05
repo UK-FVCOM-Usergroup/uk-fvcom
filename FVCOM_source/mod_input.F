@@ -422,7 +422,7 @@ CONTAINS
     RIVER_VERTICAL_DISTRIBUTION = "FUNCTIONAL VERTICAL RIVER DISTROBUTION: SEE FVCOM MANUAL FOR HELP"
 # endif
 
-
+# if defined (PLUME)
     !--Paramers in NameList NML_PLUME_TYPE, added by Qin, 04/03/2019
     PLUME_NUMBER          =  -1
     PLUME_KIND            = "Options:"//TRIM(PRDC)//" or "//TRIM(VRBL)
@@ -433,7 +433,7 @@ CONTAINS
     PLUME_NAME = "Plume Name in netcdf data file; use mulitple namelists for multiple plumes!"
     PLUME_FILE = trim(casename)//"_plume.nc"
     PLUME_GRID_LOCATION = -1
-	
+# endif	
 	
     !--Parameters in NameList NML_OPEN_BOUNDARY
     OBC_ON = .FALSE.
@@ -575,9 +575,11 @@ CONTAINS
     write(UNIT=IPT,NML=NML_SURFACE_FORCING)
     write(UNIT=IPT,NML=NML_PHYSICS)
     write(UNIT=IPT,NML=NML_RIVER_TYPE)
-    write(UNIT=IPT,NML=NML_RIVER) 
-	write(UNIT=IPT,NML=NML_PLUME_TYPE)
+    write(UNIT=IPT,NML=NML_RIVER)
+# if defined (PLUME)
+    write(UNIT=IPT,NML=NML_PLUME_TYPE)
     write(UNIT=IPT,NML=NML_PLUME)
+# endif
     write(UNIT=IPT,NML=NML_OPEN_BOUNDARY_CONTROL)
     write(UNIT=IPT,NML=NML_GRID_COORDINATES)
     write(UNIT=IPT,NML=NML_GROUNDWATER)
@@ -816,7 +818,7 @@ CONTAINS
     END IF
 
     REWIND(NMLUNIT)
-
+# if defined (PLUME)
 ! Read Plume settings, added by Qin, 04/03/2019
     READ(UNIT=NMLUNIT, NML=NML_PLUME_TYPE,IOSTAT=ios)
     if(ios .NE. 0 ) then
@@ -877,6 +879,7 @@ CONTAINS
     END IF
 
     REWIND(NMLUNIT)
+# endif
 	
 	
 
@@ -1701,7 +1704,7 @@ CONTAINS
 
     end do
 	
-	
+# if defined (PLUME)	
     !Check PLUME files and open, added by Qin 04/03/2019
     
     do i =1, plume_number
@@ -1724,7 +1727,7 @@ CONTAINS
        end if
 
     end do
-
+# endif
     
     !Check OBC files and open:
 
