@@ -150,7 +150,6 @@ MODULE MOD_PLUME
       ALLOCATE(VDISTPLM(0:MT,KB)) ;            VDISTPLM   =   ZERO ! 
       ALLOCATE(TPLM(0:MT,KB)) ;                TPLM       =   ZERO ! 
       ALLOCATE(SPLM(0:MT,KB)) ;                SPLM       =   ZERO !
-      ALLOCATE(FABMPLM(0:MT,KB,1)) ;           FABMPLM    =   ZERO !
    
 !==============================================================================|
       END SUBROUTINE PLUME_CALCULATE_INIT
@@ -222,14 +221,16 @@ MODULE MOD_PLUME
 
       IMPLICIT NONE
       REAL(SP)                                            :: SOURCE_MOM, SOURCE_VOL, SOURCE_BUOY
-      REAL(SP)                                            ::  PLUME_AREA,DST,PTEMP,PSALT,PTRACER
-      REAL(SP), INTENT(OUT), DIMENSION(0:MT,KB), OPTIONAL ::                          PTR, PT,PS
+      REAL(SP)                                            ::          PLUME_AREA,DST,PTEMP,PSALT
+      REAL(SP), INTENT(OUT), DIMENSION(0:MT,KB), OPTIONAL ::                               PT,PS
+      REAL(SP), INTENT(OUT), ALLOCATABLE, OPTIONAL        ::                          PTR(:,:,:)
       INTEGER,  INTENT(OUT), DIMENSION(0:MT,KB)           ::                               VDIST
       REAL(SP), INTENT(OUT), DIMENSION(0:MT,KB)           ::                               PFLUX
       INTEGER                                             ::       A,B,C,INS,IFABM,INODE,K,I,J,O
-      INTEGER                                             ::                            NEWROUND
+      INTEGER                                             ::                        FAB,NEWROUND
       REAL(SP)                                            :: INIT_V,entcoef,AREA,radius,Wn,Vn,Fn
-      REAL(SP), DIMENSION(KB)                             ::      PDEPTH,NN,TEMPPF,SALTPF,FABMPF
+      REAL(SP), DIMENSION(KB)                             ::             PDEPTH,NN,TEMPPF,SALTPF
+      REAL(SP), ALLOCATABLE                               ::             FABMPF(:,:), PTRACER(:)
       INTEGER,  ALLOCATABLE                               ::             TMP(:), RELEASENODES(:)
       REAL(SP), ALLOCATABLE                               ::            WEIGHT_TMP(:), WEIGHT(:)
       LOGICAL                                             ::                           RUN_PLUME
@@ -238,9 +239,11 @@ MODULE MOD_PLUME
       ! Diffusor stuff
       REAL(SP) :: PLUME_SOURCE, PLUME_ANGLE, PLUME_MERGING_DISTANCE
       REAL(SP) :: Rdiff, Wdiff, PI, DIFF_VOL, DIFF_MOM, DIFF_BUOY
-      REAL(SP) :: PSF, PTF, PTRF, TOT_PLUMES
+      REAL(SP) :: PSF, PTF, TOT_PLUMES
+      REAL(SP), ALLOCATABLE                               :: PTRF(:)
 
-
+      ! TODO: MOD_PLUME does, at the moment, not support multiple FABM variables, eventhough
+      !       it likes to give that impression.
 
 !     Constants and ICs
       entcoef      = 0.07_SP  ! The exact value of this parameter is disputed
@@ -251,10 +254,6 @@ MODULE MOD_PLUME
       INS          =    PLUME_RELEASE_SIGMALAYER      
       PTEMP        =    PLUME_INITIAL_TEMPERATURE     
       PSALT        =    PLUME_INITIAL_SALINITY        
-# if defined (FABM)
-      PTRACER      =    PLUME_INITIAL_CONCENTRATION
-      IFABM        =    1
-# endif       
       SOURCE_VOL   =    PLUME_INITIAL_VOLUME_FLUX
       SOURCE_MOM   =    SOURCE_VOL/(PIPE_RADIUS)
 !=================================================================================
@@ -326,9 +325,15 @@ MODULE MOD_PLUME
          PT          = T1
          PS          = S1
       END IF
+# if defined (FABM)
       IF (PRESENT(PTR)) THEN
-         PTR         = FABM_ALL(:,:,IFABM) !PTR(:,:,IFABM) = FABM_ALL(:,:,IFABM)
+         IFABM       = SIZE(FABM_ALL(1,1,:))
+         ALLOCATE(PTR, SOURCE = FABM_ALL)
+         ALLOCATE(FABMPF(KB,IFABM))
+         ALLOCATE(PTRACER(IFABM))
+         PTRACER     = PLUME_INITIAL_CONCENTRATION
       END IF
+# endif
 
 !     Integrate from the input sigma layer, activate it
       K              = INS    ! INPUT sigma layer
@@ -340,9 +345,13 @@ MODULE MOD_PLUME
          SALTPF(K)   = SOURCE_VOL*PSALT
       END IF
 
+# if defined (FABM)
       IF (PRESENT(PTR)) THEN
-         FABMPF(K)   = SOURCE_VOL*PTRACER
+         DO FAB = 1,IFABM
+            FABMPF(K,FAB)   = SOURCE_VOL*PTRACER(FAB)
+         END DO
       END IF
+# endif
 
       INIT_V = SOURCE_VOL
 
@@ -384,9 +393,14 @@ MODULE MOD_PLUME
             PSF    = DIFF_VOL*PSALT
          END IF
 
+# if defined (FABM)
          IF (PRESENT(PTR)) THEN
-            PTRF   = DIFF_VOL*PTRACER
+            ALLOCATE(PTRF(IFABM))
+            DO FAB = 1,IFABM
+               PTRF(FAB)   = DIFF_VOL*PTRACER(FAB)
+            END DO
          END IF
+# endif
 
          ! Idea: Integrate these equations until they merge
          K = INS
@@ -413,7 +427,9 @@ MODULE MOD_PLUME
 
 # if defined (FABM)
                IF (PRESENT(PTR)) THEN
-                  PTRF        = PTRF + 2.0_SP*(entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP)*FABM_ALL(INODE,K,IFABM)
+                  DO FAB = 1,IFABM
+                     PTRF(FAB)  = PTRF(FAB) + 2.0_SP*(entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP)*FABM_ALL(INODE,K,FAB)
+                  END DO
                END IF
 # endif
                
@@ -432,9 +448,14 @@ MODULE MOD_PLUME
             PTEMP    = PTF/DIFF_VOL
             PSALT    = PSF/DIFF_VOL
          END IF
+
+# if defined (FABM)
          IF (PRESENT(PTR)) THEN
-            PTRACER  = PTRF/DIFF_VOL
+            DO FAB = 1,IFABM
+               PTRACER(FAB)  = PTRF(FAB)/DIFF_VOL
+            END DO
          END IF
+# endif
          
          ! The area of the big plume should be TOT_PLUMES times bigger than the small ones
          ! Hence the radius should be SQRT(TOT_PLUMES) times bigger
@@ -452,13 +473,17 @@ MODULE MOD_PLUME
             SALTPF(INS)   = SOURCE_VOL*PSALT
          END IF
          
+# if defined (FABM)
          IF (PRESENT(PTR)) THEN
-            FABMPF(INS)   = SOURCE_VOL*PTRACER
+            DO FAB = 1,IFABM
+               FABMPF(INS,FAB)   = SOURCE_VOL*PTRACER(FAB)
+            END DO
          END IF
+# endif
 
          K = INS
       END IF
-      !INIT_V = SOURCE_VOL ! Storing the source volume flux for later
+      ! INIT_V = SOURCE_VOL ! Storing the source volume flux for later
 
 ! ======================================================================================
 !                         And then finally: The plume model
@@ -517,14 +542,19 @@ MODULE MOD_PLUME
         IF ((ISNAN(SOURCE_MOM)).OR.(K.EQ.1)) THEN
            ! Plume reached the top, releasing it there. (NB: Hydrostatically unstable...)
            DO I = 1,SIZE(RELEASENODES)
-              PFLUX(RELEASENODES(I),K)      =  -SUM(PFLUX(RELEASENODES(I),:))+INIT_V*WEIGHT(I)
+              PFLUX(RELEASENODES(I),K)         =  -SUM(PFLUX(RELEASENODES(I),:))+INIT_V*WEIGHT(I)
               IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
-                 PT(RELEASENODES(I),K)      = (TEMPPF(K+1)/SOURCE_VOL)
-                 PS(RELEASENODES(I),K)      = (SALTPF(K+1)/SOURCE_VOL)
+                 PT(RELEASENODES(I),K)         = (TEMPPF(K+1)/SOURCE_VOL)
+                 PS(RELEASENODES(I),K)         = (SALTPF(K+1)/SOURCE_VOL)
               END IF
+# if defined (FABM)
               IF (PRESENT(PTR)) THEN
-                 PTR(RELEASENODES(I),K)     = (FABMPF(K+1)/SOURCE_VOL)
+                 DO FAB = 1,IFABM
+                    PTR(RELEASENODES(I),K,FAB) = (FABMPF(K+1,FAB)/SOURCE_VOL)
+                 END DO
               END IF
+# endif
+
            END DO
            EXIT
         END IF
@@ -542,7 +572,9 @@ MODULE MOD_PLUME
         END IF
 # if defined (FABM)
         IF (PRESENT(PTR)) THEN
-           FABMPF(K)   = FABMPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*FABM_ALL(INODE,K,IFABM)
+           DO FAB = 1,IFABM
+              FABMPF(K,FAB)   = FABMPF(K+1,FAB) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*FABM_ALL(INODE,K,FAB)
+           END DO
         END IF
 # endif
 
