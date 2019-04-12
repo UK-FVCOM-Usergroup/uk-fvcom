@@ -269,6 +269,22 @@ MODULE MOD_PLUME
 
       PFLUX = ZERO
       VDIST = ZERO
+    
+!     Initializing plume temperature and salinity
+!     Filling vectors with data
+      IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
+         PT          = T1
+         PS          = S1
+      END IF
+# if defined (FABM)
+      IF (PRESENT(PTR)) THEN
+         IFABM       = SIZE(FABM_ALL(1,1,:))
+         ALLOCATE(PTR, SOURCE = FABM_ALL)
+         ALLOCATE(FABMPF(KB,IFABM))
+         ALLOCATE(PTRACER(IFABM))
+         PTRACER     = PLUME_INITIAL_CONCENTRATION
+      END IF
+# endif
       
       IF (RUN_PLUME) THEN
 ! ---
@@ -318,22 +334,6 @@ MODULE MOD_PLUME
       NN(1)          = 0.0_SP
       NN(KB)         = 0.0_SP
       PDEPTH         = DZZ(INODE,:)*D(INODE)
-
-!     Initializing plume temperature and salinity
-!     Filling vectors with data
-      IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
-         PT          = T1
-         PS          = S1
-      END IF
-# if defined (FABM)
-      IF (PRESENT(PTR)) THEN
-         IFABM       = SIZE(FABM_ALL(1,1,:))
-         ALLOCATE(PTR, SOURCE = FABM_ALL)
-         ALLOCATE(FABMPF(KB,IFABM))
-         ALLOCATE(PTRACER(IFABM))
-         PTRACER     = PLUME_INITIAL_CONCENTRATION
-      END IF
-# endif
 
 !     Integrate from the input sigma layer, activate it
       K              = INS    ! INPUT sigma layer
