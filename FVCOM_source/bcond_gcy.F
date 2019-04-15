@@ -525,7 +525,6 @@
 
 !-----Plume Dischage----------------------------
 !  Added by Qin  05/03/2019
-
 # if defined(PLUME)
       IF(NUMPLM_GL .GT. 0)  THEN
         CALL UPDATE_PLUMES(IntTime,QPLMDIS,TEMP=TPLMDIS,SALT=SPLMDIS)  
