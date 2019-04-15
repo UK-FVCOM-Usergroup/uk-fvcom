@@ -1071,6 +1071,9 @@ SUBROUTINE ADV_T
    END DO
 # endif
 # endif
+!---------------------------------------------------------------------
+! Her slutter if !defined (MPDATA). Litt rart at det ikke skjer et hakk lenger
+! ned?
 # endif
 
   ! APPLY GROUND WATER TEMPERATURE FORCING

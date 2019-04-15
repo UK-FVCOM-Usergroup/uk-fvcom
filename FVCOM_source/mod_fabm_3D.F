@@ -1985,7 +1985,8 @@ END SUBROUTINE FABM_MIXING
    END DO
 # endif
 # endif
-# endif
+!-------------------------------------------------------------------------------!
+# endif   ! end of !defined MPDATA 
 
   !--Update Variables------------------------------------------------------------!
   !

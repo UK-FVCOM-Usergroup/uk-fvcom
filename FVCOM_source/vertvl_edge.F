@@ -218,7 +218,7 @@
        END DO
      END IF
    END IF
-!---------------PLUME DISCHARGE INFLOW----------------------
+!---------------PLUME  FLUX----------------------
 !Added by Qin 05/03/2019
 # if defined(PLUME)
 # if defined(PLUME_CALCULATED)
