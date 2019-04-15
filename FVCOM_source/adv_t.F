@@ -693,11 +693,13 @@ SUBROUTINE ADV_T
   !---------------------Plume flux part-----------------------------------------
   ! Added by Qin 06/03/2019
 # if defined(PLUME)
+# if defined(PLUME_CALCULATED)
    DO I=1,M
          DO K=1,KBM1
              XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*VDISTPLM(I,K)*TPLM(I,K)  
          END DO
    END DO
+# endif
 # endif
   ! We remove the offset at the end of the smolarkiewicz loop
 
@@ -1061,13 +1063,14 @@ SUBROUTINE ADV_T
   !---------------------------------------------------------------------
   !--  For Plume influx ------------------------------------
 # if defined(PLUME)
+# if defined(PLUME_CALCULATED)
    DO I=1,M
          DO K=1,KBM1
              XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*VDISTPLM(I,K)*TPLM(I,K) 
          END DO
    END DO
 # endif
-
+# endif
 # endif
 
   ! APPLY GROUND WATER TEMPERATURE FORCING

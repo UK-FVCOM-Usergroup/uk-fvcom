@@ -688,11 +688,13 @@ MODULE NON_HYDRO
 ! added by Qin, 07/08/2019
   ALLOCATE(XFLUX_EXT_PLM(0:MT,KBM1)) ;  XFLUX_EXT_PLM = 0.0_SP
 # if defined(PLUME)
+# if defined(PLUME_CALCULATED)
   DO I=1,M
         DO K=1,KBM1
           XFLUX_EXT_PLM(I,K)=XFLUX_EXT_PLM(I,K)-FLXPLM(I,K)*VDISTPLM(I,K)
         END DO
     END DO
+# endif
 # endif
 
 !--------------------------------------------
@@ -747,7 +749,9 @@ MODULE NON_HYDRO
     DO K=1, KBM1
       RHS(I,K) = RHS(I,K) + 1.0E3_SP*XFLUX_EXT(I,K)/DTI
 # if defined (PLUME)
+# if defined(PLUME_CALCULATED)
      RHS(I,K) = RHS(I,K) + 1.0E3_SP*XFLUX_EXT_PLM(I,K)/DTI
+# endif
 # endif
     ENDDO
 
@@ -1926,12 +1930,14 @@ MODULE NON_HYDRO
 !---------------------- external source from plume------------------
 !Added by Qin 07/03/2019
 # if defined(PLUME)
+# if defined(PLUME_CALCULATED)
   DO I=1,M
         DO K=1,KBM1
           XFLUX(I,K)=XFLUX(I,K)-FLXPLM(I,K)*VDISTPLM(I,K)
         END DO
     END DO
 # endif 
+# endif
 !------------------------------------------------------------------
 
   DO I=1, M
@@ -2083,9 +2089,11 @@ MODULE NON_HYDRO
 !---------------------- external source from plume------------------
 !Added by Qin 07/03/2019
 # if defined(PLUME)
+# if defined(PLUME_CALCULATED)
      DO I=1,M
        XFLUX(I)=XFLUX(I)-SUM(FLXPLM(I,1:KBM1))
       END DO
+# endif
 # endif
 
   DO I=1, M

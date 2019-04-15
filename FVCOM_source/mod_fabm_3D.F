@@ -1667,13 +1667,14 @@ END SUBROUTINE FABM_MIXING
  !--------------------------------Plum flux part----------------------
 ! Added by Qin 07/03/2019
 # if  defined (PLUME)
+# if defined(PLUME_CALCULATED)
   DO I=1,M
        DO K=1,KBM1
   !             FABM_FRESH(JJ,K)=FABMDIS(J,K,IFABM)
                XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM) - FLXPLM(I,K)*VDISTPLM(I,K)*FABMPLM(I,K,IFABM)
          END DO
      END DO
-
+# endif
 # endif
 
   ! The horizontal term of advection is neglected here
@@ -1976,13 +1977,14 @@ END SUBROUTINE FABM_MIXING
 !--------------------------------Plum flux part----------------------
 ! Added by Qin 07/03/2019
 # if defined (PLUME)
+# if defined(PLUME_CALCULATED)
    DO I=1,M
          DO K=1,KBM1
               XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM) - FLXPLM(I,K)*VDISTPLM(I,K)*FABMPLM(I,K,IFABM)
          END DO
    END DO
 # endif
-
+# endif
 # endif
 
   !--Update Variables------------------------------------------------------------!
