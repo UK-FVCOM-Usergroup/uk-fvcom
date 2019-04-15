@@ -1667,24 +1667,12 @@ END SUBROUTINE FABM_MIXING
  !--------------------------------Plum flux part----------------------
 ! Added by Qin 07/03/2019
 # if  defined (PLUME)
-# if !defined (PLUME_CALCULATED)
-   IF (NUMPLM>0) THEN
-     DO J=1,NUMPLM
-          JJ=INODEPLM(J)
-           DO K=1,KBM1
-!               FABM_FRESH(JJ,K,IFABM)=FABMDIS(J,K,IFABM)
-               XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - FLXPLM(J,K)*VDISTPLM(J,K)*FABMPLM(J,K,IFABM)
-            END DO
-      END DO
-   END IF
-# else
   DO I=1,M
        DO K=1,KBM1
   !             FABM_FRESH(JJ,K)=FABMDIS(J,K,IFABM)
                XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM) - FLXPLM(I,K)*VDISTPLM(I,K)*FABMPLM(I,K,IFABM)
          END DO
      END DO
-# endif
 
 # endif
 
@@ -1988,22 +1976,11 @@ END SUBROUTINE FABM_MIXING
 !--------------------------------Plum flux part----------------------
 ! Added by Qin 07/03/2019
 # if defined (PLUME)
-# if !defined (PLUME_CALCULATED)
-   IF (NUMPLM>0) THEN
-     DO J=1,NUMPLM
-          JJ=INODEPLM(J)
-           DO K=1,KBM1
-               XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - FLXPLM(J,K)*VDISTPLM(J,K)*FABMPLM(J,K,IFABM)
-            END DO
-      END DO
-   END IF
-# else
    DO I=1,M
          DO K=1,KBM1
               XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM) - FLXPLM(I,K)*VDISTPLM(I,K)*FABMPLM(I,K,IFABM)
          END DO
    END DO
-# endif
 # endif
 
 # endif
