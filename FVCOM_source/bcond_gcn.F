@@ -639,17 +639,22 @@
 !  Added by Qin  05/03/2019
 
 # if defined(PLUME)
-# if !defined (PLUME_CALCULATED)
+#   if !defined (PLUME_CALCULATED)
       IF(NUMPLM_GL .GT. 0)  THEN
         CALL UPDATE_PLUMES(IntTime,FLXPLM,VDISTPLM,TEMP=TPLM,SALT=SPLM)  
-# if defined(FABM)
+#     if defined(FABM)
         CALL UPDATE_PLUMES(IntTime,FLXPLM,VDISTPLM,FABMR=FABMPLM)  ! needs to double check
-# endif   
+#     endif   
         FLXPLM    = FLXPLM*RAMP
       END IF
-#  else
-       CALL UPDATE_PLUMES_CALCULATED(FLXPLM,TPLM,SPLM,VDISTPLM,PTR=FABMPLM)
-# endif
+#   else
+#     if defined(FABM)
+       CALL UPDATE_PLUMES_CALCULATED(FLXPLM,VDISTPLM,PT=TPLM,PS=SPLM)
+       IF (FABM_MODEL) CALL UPDATE_PLUMES_CALCULATED(FLXPLM,VDISTPLM,PTR=FABMPLM)
+#     else
+       CALL UPDATE_PLUMES_CALCULATED(FLXPLM,VDISTPLM,PT=TPLM,PS=SPLM)
+#     endif
+#   endif
 # endif   
 !----------------------------------      
       
