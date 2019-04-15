@@ -47,26 +47,20 @@ MODULE MOD_PLUME
     REAL(SP)    :: PLUME_DIFFUSOR_DISTANCE       ! Distance between diffusors
     REAL(SP)    :: PLUME_DIFFUSOR_RADIUS         ! Radius of the plume source
     REAL(SP)    :: PLUME_DIFFUSOR_DEPTH          ! Depth between bottom and diffusor
-    REAL(SP)    :: PLUME_INITIAL_TEMPERATURE     ! INITIAL PLUME TEMPERATURE
-    REAL(SP)    :: PLUME_INITIAL_SALINITY        ! INITIAL PLUME SALINITY
-    REAL(SP)    :: PLUME_INITIAL_CONCENTRATION   ! INITIAL PLUME CONCENTRATION
-    REAL(SP)    :: PLUME_INITIAL_VOLUME_FLUX     ! INITIAL PLUME VOLUMN FLUX
+    REAL(SP)    :: PLUME_RELEASE_TEMPERATURE     ! PLUME DISCHARGE TEMPERATURE
+    REAL(SP)    :: PLUME_RELEASE_SALINITY        ! PLUME DISCHARGE SALINITY
+    REAL(SP)    :: PLUME_RELEASE_CONCENTRATION   ! PLUME DISCHARGE CONCENTRATION
+    REAL(SP)    :: PLUME_RELEASE_FLUX            ! PLUME DISCHARGE VOLUMN FLUX
     REAL(SP)    :: PIPE_RADIUS                   ! RADIUS OF THE PIPE PROVIDING THE VOLUMEFLUX
 
     NAMELIST /NML_PLUME_CALCULATED/            &
     & PLUME_CALCULATE_ON,                      &
     & PLUME_DIFFUSOR_ON,                       &
-    & PLUME_RELEASE_NODEID,                    &
-    & PLUME_RELEASE_SIGMALAYER,                &
     & PLUME_DIFFUSOR_UP,                       &
     & PLUME_DIFFUSOR_DOWN,                     &
     & PLUME_DIFFUSOR_DISTANCE,                 &
     & PLUME_DIFFUSOR_RADIUS,                   &
     & PLUME_DIFFUSOR_DEPTH,                    &
-    & PLUME_INITIAL_TEMPERATURE,               &
-    & PLUME_INITIAL_SALINITY,                  &
-    & PLUME_INITIAL_CONCENTRATION,             &
-    & PLUME_INITIAL_VOLUME_FLUX,               &
     & PIPE_RADIUS
 	
     CONTAINS
@@ -80,18 +74,12 @@ MODULE MOD_PLUME
       IMPLICIT NONE
       
       PLUME_CALCULATE_ON            =  .FALSE.                
-      PLUME_DIFFUSOR_ON             =  .FALSE.
-      PLUME_RELEASE_NODEID          =  0                 
-      PLUME_RELEASE_SIGMALAYER      =  0   
+      PLUME_DIFFUSOR_ON             =  .FALSE. 
       PLUME_DIFFUSOR_UP             =  0.0_SP
       PLUME_DIFFUSOR_DOWN           =  0.0_SP
       PLUME_DIFFUSOR_DISTANCE       =  0.0_SP
       PLUME_DIFFUSOR_RADIUS         =  0.0_SP
-      PLUME_DIFFUSOR_DEPTH          =  0.0_SP
-      PLUME_INITIAL_TEMPERATURE     =  0.0_SP          
-      PLUME_INITIAL_SALINITY        =  0.0_SP        
-      PLUME_INITIAL_CONCENTRATION   =  0.0_SP              
-      PLUME_INITIAL_VOLUME_FLUX     =  0.0_SP            
+      PLUME_DIFFUSOR_DEPTH          =  0.0_SP           
       PIPE_RADIUS                   =  0.0_SP
    
       RETURN
@@ -150,7 +138,10 @@ MODULE MOD_PLUME
       ALLOCATE(VDISTPLM(0:MT,KB)) ;            VDISTPLM   =   ZERO ! 
       ALLOCATE(TPLM(0:MT,KB)) ;                TPLM       =   ZERO ! 
       ALLOCATE(SPLM(0:MT,KB)) ;                SPLM       =   ZERO !
-   
+# if defined(FABM)
+      USE MOD_FABM_DATA
+      ALLOCATE(FABMPLM(0:MT,KB,SIZE(FABM_ALL(0,0,:)))) ; FABMPLM    =   ZERO !
+# endif   
 !==============================================================================|
       END SUBROUTINE PLUME_CALCULATE_INIT
 !==============================================================================|
@@ -227,7 +218,7 @@ MODULE MOD_PLUME
       INTEGER,  INTENT(OUT), DIMENSION(0:MT,KB)           ::                               VDIST
       REAL(SP), INTENT(OUT), DIMENSION(0:MT,KB)           ::                               PFLUX
       INTEGER                                             ::       A,B,C,INS,IFABM,INODE,K,I,J,O
-      INTEGER                                             ::                        FAB,NEWROUND
+      INTEGER                                             ::                  II,JJ,FAB,NEWROUND
       REAL(SP)                                            :: INIT_V,entcoef,AREA,radius,Wn,Vn,Fn
       REAL(SP), DIMENSION(KB)                             ::             PDEPTH,NN,TEMPPF,SALTPF
       REAL(SP), ALLOCATABLE                               ::             FABMPF(:,:), PTRACER(:)
@@ -249,51 +240,65 @@ MODULE MOD_PLUME
       entcoef      = 0.07_SP  ! The exact value of this parameter is disputed
       PI           = 4.0_SP*ATAN(1.0_SP)
 
-!===========Added by Qin, need to be modified=================================
-      INODE        =    PLUME_RELEASE_NODEID     
-      INS          =    PLUME_RELEASE_SIGMALAYER      
-      PTEMP        =    PLUME_INITIAL_TEMPERATURE     
-      PSALT        =    PLUME_INITIAL_SALINITY        
-      SOURCE_VOL   =    PLUME_INITIAL_VOLUME_FLUX
-      SOURCE_MOM   =    SOURCE_VOL/(PIPE_RADIUS)
 !=================================================================================
 ! Initializing the code. The routine will only be run for the plume release node.
-      RUN_PLUME    = .FALSE.
-      DO I = 1,M
-         IF (INODE.EQ.NGID(I)) THEN
-            RUN_PLUME = .TRUE.
-            INODE     = I
-            EXIT
-         END IF
-      END DO
-
-      PFLUX = ZERO
-      VDIST = ZERO
-      
-      IF (RUN_PLUME) THEN
+       RUN_PLUME    =  .FALSE.
+       PFLUX        =  ZERO
+       VDIST        =  ZERO
+       IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
+            PT          = T1
+            PS          = S1
+       END IF
+	  
+# if defined (FABM)
+      IF (PRESENT(PTR)) THEN
+         IFABM       = SIZE(FABM_ALL(1,1,:))
+         ALLOCATE(PTR, SOURCE = FABM_ALL)
+         ALLOCATE(FABMPF(KB,IFABM))
+         ALLOCATE(PTRACER(IFABM))
+         PTRACER     = PLUME_INITIAL_CONCENTRATION
+      END IF
+# endif
+	  
+      IF(NUMPLM>0) THEN
+	    DO II = 1,NUMPLM
+             INODE       =   INODEPLM(II)
+             INS         =   KSIGPLM(II)
+             PTEMP       =   TPLMDIS(II)
+             PSALT       =   SPLMDIS(II)
+             SOURCE_VOL  =   QPLMDIS(II) 
+			 SOURCE_MOM   =    SOURCE_VOL/(PIPE_RADIUS)			 
+             DO  I = 1,M
+                IF (INODE.EQ.NGID(I)) THEN
+	                RUN_PLUME  = .TRUE.
+				    INODE     = I
+                 EXIT
+                END IF
+             END DO
+         IF (RUN_PLUME) THEN           
 ! ---
 ! Calculate the buoyancy flux based on input salt and temperature
 ! ---
-     PRESSURE = -GRAV_N(INODE)*1.025_SP*(ZZ(INODE,INS)*D(INODE))*0.1_SP 
+         PRESSURE = -GRAV_N(INODE)*1.025_SP*(ZZ(INODE,INS)*D(INODE))*0.1_SP 
      ! H: I could not get this function work for scalar T and S, hence
      !    passing the variables as vectors instead.
-     PTT      = PTEMP
-     PSS      = PSALT
+        PTT      = PTEMP
+        PSS      = PSALT
 
-     SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
-     CASE(SW_DENS1)
-       CALL FOFONOFF_MILLARD(PSS,PTT,PRESSURE,0.0_SP,PRHO)
+       SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
+        CASE(SW_DENS1)
+        CALL FOFONOFF_MILLARD(PSS,PTT,PRESSURE,0.0_SP,PRHO)
 
-     CASE(SW_DENS2)
+       CASE(SW_DENS2)
        CALL DENS2G(PSS,PTT,PRHO)
 
-     CASE(SW_DENS3)      
+       CASE(SW_DENS3)      
        CALL JACKET_MCDOUGALL(PSS,PTT,PRESSURE,PRHO)                                                   
 
-     CASE DEFAULT
-      CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
+       CASE DEFAULT
+       CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
            & "   "//TRIM(SEA_WATER_DENSITY_FUNCTION) )
-     END SELECT
+       END SELECT
 
 ! --- 
 ! Estimate the buoyancy flux
@@ -319,21 +324,7 @@ MODULE MOD_PLUME
       NN(KB)         = 0.0_SP
       PDEPTH         = DZZ(INODE,:)*D(INODE)
 
-!     Initializing plume temperature and salinity
-!     Filling vectors with data
-      IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
-         PT          = T1
-         PS          = S1
-      END IF
-# if defined (FABM)
-      IF (PRESENT(PTR)) THEN
-         IFABM       = SIZE(FABM_ALL(1,1,:))
-         ALLOCATE(PTR, SOURCE = FABM_ALL)
-         ALLOCATE(FABMPF(KB,IFABM))
-         ALLOCATE(PTRACER(IFABM))
-         PTRACER     = PLUME_INITIAL_CONCENTRATION
-      END IF
-# endif
+
 
 !     Integrate from the input sigma layer, activate it
       K              = INS    ! INPUT sigma layer
@@ -344,14 +335,6 @@ MODULE MOD_PLUME
          TEMPPF(K)   = SOURCE_VOL*PTEMP
          SALTPF(K)   = SOURCE_VOL*PSALT
       END IF
-
-# if defined (FABM)
-      IF (PRESENT(PTR)) THEN
-         DO FAB = 1,IFABM
-            FABMPF(K,FAB)   = SOURCE_VOL*PTRACER(FAB)
-         END DO
-      END IF
-# endif
 
       INIT_V = SOURCE_VOL
 
@@ -591,9 +574,10 @@ MODULE MOD_PLUME
         IF (.NOT.(ISNAN(SOURCE_MOM))) THEN
            radius      = SOURCE_VOL/SOURCE_MOM ! Plume radius
         END IF
-      END DO
-      print *, 'utvanning: Vf_new/Vf_old  = ', SOURCE_VOL/INIT_V
-      END IF
+        END DO
+       END IF ! RUN_PLUME
+       END DO ! II
+      END IF ! NUMPLM>0
   RETURN
   END SUBROUTINE UPDATE_PLUMES_CALCULATED
 

@@ -59,6 +59,9 @@
 #  if defined (SEDIMENT)
    USE MOD_SED
 #  endif
+# if defined (PLUME_CALCULATED)
+  USE MOD_PLUME
+# endif
 
 #  if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
    USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON
@@ -524,17 +527,18 @@
 !  Added by Qin  05/03/2019
 
 # if defined(PLUME)
-# if !defined (PLUME_CALCULATED)
       IF(NUMPLM_GL .GT. 0)  THEN
-        CALL UPDATE_PLUMES(IntTime,FLXPLM,VDISTPLM,TEMP=TPLM,SALT=SPLM)  
+        CALL UPDATE_PLUMES(IntTime,QPLMDIS,TEMP=TPLMDIS,SALT=SPLMDIS)  
 # if defined(FABM)
-        CALL UPDATE_PLUMES(IntTime,FLXPLM,VDISTPLM,FABMR=FABMPLM)  ! needs to double check
-# endif   
-        FLXPLM    = FLXPLM*RAMP         
+        CALL UPDATE_PLUMES(IntTime,QPLMDIS,FABMR=FABMPLMDIS)  ! needs to double check
+# endif           
       END IF
-#  else
-    CALL  UPDATE_PLUMES_CALCULATED(FLXPLM,TPLM,SPLM,VDISTPLM,PTR=FABMPLM)
-# endif
+!  call plume model,  the case of not-call-plume-model is not ready.
+!  Qin, 14/04/2019
+      CALL UPDATE_PLUMES_CALCULATED(FLXPLM,VDISTPLM,PT=TPLM,PS=SPLM)
+# if defined(FABM)
+       IF (FABM_MODEL) CALL UPDATE_PLUMES_CALCULATED(FLXPLM,VDISTPLM,PTR=FABMPLM)
+# endif 
 # endif   
 !----------------------------------      
 

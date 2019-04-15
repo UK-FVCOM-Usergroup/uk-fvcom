@@ -433,6 +433,7 @@ CONTAINS
     PLUME_NAME = "Plume Name in netcdf data file; use mulitple namelists for multiple plumes!"
     PLUME_FILE = trim(casename)//"_plume.nc"
     PLUME_GRID_LOCATION = -1
+    PLUME_SIGMA_LAYER   = -1
 # endif	
 	
     !--Parameters in NameList NML_OPEN_BOUNDARY
@@ -853,6 +854,7 @@ CONTAINS
           PLUMES(i)%NAME=PLUME_NAME
           PLUMES(i)%FILE=PLUME_FILE
           PLUMES(i)%LOCATION=PLUME_GRID_LOCATION
+          PLUMES(i)%SIGLAYER=PLUME_SIGMA_LAYER
        END DO
 
        IF(I .NE. PLUME_NUMBER) THEN

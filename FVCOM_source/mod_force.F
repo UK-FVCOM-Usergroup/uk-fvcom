@@ -162,7 +162,6 @@ MODULE MOD_FORCE
      TYPE(TIME) :: PLUME_PERIOD  
      INTEGER, ALLOCATABLE :: PLM_FILE2LOC(:)
      TYPE(NCVAR), POINTER :: FLUX_N, FLUX_P
-     TYPE(NCVAR), POINTER :: VDIST_N,VDIST_P
      TYPE(NCVAR), POINTER :: TEMP_N, TEMP_P
      TYPE(NCVAR), POINTER :: SALT_N, SALT_P
 
@@ -708,9 +707,7 @@ CONTAINS
     CALL RIVER_DISCHARGE
 
 # if defined (PLUME) 
-# if !defined (PLUME_CALCULATED)
     CALL  PLUME_DISCHARGE	
-# endif
 # endif 
 	
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)    
@@ -1841,10 +1838,9 @@ CONTAINS
   END SUBROUTINE TIDAL_ELEVATION
   
   !===================================================================
-  !==================================================================
-  ! READ PLUME PARAMETERA, added by Qin 04/03/2019
-# if defined (PLUME)
-# if !defined(PLUME_CALCULATED)    
+  !===================================================================
+  ! READ PLUME PARAMETER, added by Qin 04/03/2019; modified by Qin 14/03/2019
+# if defined (PLUME)    
   SUBROUTINE PLUME_DISCHARGE 
 # if defined (FABM)
   USE MOD_FABM_DATA
@@ -1871,9 +1867,9 @@ CONTAINS
     NULLIFY(STORAGE_ARR)
 
     ! TRANSLATE TO THE OLD NAME FOR TOTAL NUMBER OF PLUMES
-    NUMPLM_GL = plume_number
+    NUMPLM_GL = PLUME_NUMBER
 
-    IF (plume_number == 0 ) THEN
+    IF (PLUME_NUMBER == 0 ) THEN
        NUMPLM = 0
        IF(DBG_SET(DBG_LOG)) write(IPT,*) "! THERE ARE NO PLUMES IN THIS MODEL"
        ALLOCATE(PLUME_FORCING_COMMENTS(1))
@@ -1892,7 +1888,8 @@ CONTAINS
           write(IPT,*) "Plume number:",I
           WRITE(IPT,*) "Plume File ="//TRIM(PLUMES(i)%FILE)
           WRITE(IPT,*) "Plume Name ="//trim(PLUMES(i)%NAME)
-          WRITE(IPT,*) "Plume Location =",PLUMES(i)%LOCATION
+          WRITE(IPT,*) "Plume Location    = ",PLUMES(i)%LOCATION
+          WRITE(IPT,*) "Plume Sigma Layer = ",PLUMES(i)%SIGLAYER 
           WRITE(IPT,*)"============================="
        END DO
     END IF
@@ -1922,7 +1919,17 @@ CONTAINS
                   & "YOU SPECIFIED NODE NUMBER: "//chr)
           END IF
 
-          ! COUNT THE NUMBER OF PLUMES OWNED BY THIS PROC
+       ! CHECK THE RELEASE SIGMA LAYER  OF EACH PLUME
+       ! COUNT THE NUMBER THAT BELONG TO EACH PROCESSOR
+          IF(PLUMES(i)%SIGLAYER > KBM1 .or. PLUMES(i)%SIGLAYER < 1)THEN
+             write(chr,'(I7)') PLUMES(i)%SIGLAYER
+             CALL FATAL_ERROR ("PLUME_DISCHARGE: FOR THE PLUME NAMED: " &
+                  &//trim(PLUMES(i)%NAME),"THE PLUME RELEASE SIGMA LAYER IN&
+                  & THE NAME LIST DOES NOT MATCH THE MODEL SETUP",&
+                  & "YOU SPECIFIED SIGMA LAYER: "//chr)
+          END IF
+
+       ! COUNT THE NUMBER OF PLUMES OWNED BY THIS PROC
           IF (NLID(PLUMES(I)%LOCATION) .GT. 0) NUMPLM = NUMPLM + 1
 
        ! COUNT THE NUMBER OF FILES
@@ -1950,8 +1957,6 @@ CONTAINS
        NULLIFY(PLUME_FORCING(I)%NCF)
        NULLIFY(PLUME_FORCING(I)%FLUX_N)
        NULLIFY(PLUME_FORCING(I)%FLUX_P)
-       NULLIFY(PLUME_FORCING(I)%VDIST_N)
-       NULLIFY(PLUME_FORCING(I)%VDIST_P)
        NULLIFY(PLUME_FORCING(I)%TEMP_N)
        NULLIFY(PLUME_FORCING(I)%TEMP_P)
        NULLIFY(PLUME_FORCING(I)%SALT_N)
@@ -1965,13 +1970,14 @@ CONTAINS
 
     ! ALLOCATE THE SPACE FOR THE PLUME DATA
     ALLOCATE(INODEPLM(NUMPLM))
-    ALLOCATE(VDISTPLM(NUMPLM,KBM1));  VDISTPLM = 0
-    ALLOCATE(FLXPLM(NUMPLM,KBM1));    FLXPLM   = 0.0_SP
+    ALLOCATE(KSIGPLM(NUMPLM))
+    ALLOCATE(QPLMDIS(NUMPLM));              QPLMDIS      =  0.0_SP
+    ALLOCATE(TPLMDIS(NUMPLM));              TPLMDIS      =  0.0_SP
+    ALLOCATE(SPLMDIS(NUMPLM));              SPLMDIS      =  0.0_SP
 # if defined (FABM)
-    ALLOCATE(FABMPLM(NUMPLM,KBM1,size(model%state_variables))); FABMPLM  = 0.0_SP
+    ALLOCATE(FABMPLMDIS(NUMPLM,size(model%state_variables))); FABMPLMDIS  = 0.0_SP
 # endif
-    ALLOCATE(TPLM(NUMPLM,KBM1));            TPLM   = 0.0_SP
-    ALLOCATE(SPLM(NUMPLM,KBM1));            SPLM   = 0.0_SP
+ 
 
     FCNT = 0
     RCNT = 0
@@ -1985,6 +1991,7 @@ CONTAINS
           IF (NLID(PLUMES(I)%LOCATION) .GT. 0) THEN
              rcnt = rcnt + 1
              INODEPLM(rcnt)       = NLID(PLUMES(I)%LOCATION)
+             KSIGPLM(rcnt)        = PLUMES(I)%SIGLAYER
              MINE = .TRUE.
           END IF
 
@@ -2053,62 +2060,48 @@ CONTAINS
        ! GET THE FLUX VARIABLE
        VAR => FIND_VAR(NCF,'plume_flux',FOUND)
 
-       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       ALLOCATE(STORAGE_VEC(nrs), stat = status)
        IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
        PLUME_FORCING(I)%FLUX_N => reference_var(var)
-       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FLUX_N,STORAGE_ARR)
-       NULLIFY(STORAGE_ARR)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FLUX_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
 
-       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       ALLOCATE(STORAGE_VEC(nrs), stat = status)
        IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
        PLUME_FORCING(I)%FLUX_P => reference_var(var)
-       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FLUX_P,STORAGE_ARR)
-       NULLIFY(STORAGE_ARR)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FLUX_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
 
-       ! GET THE VERTICAL DISTRIBUTION VARIABLE
-
-       VAR => FIND_VAR(NCF,'plume_vdist',FOUND)
-       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
-       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
-       PLUME_FORCING(I)%VDIST_N => reference_var(var)
-       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%VDIST_N,STORAGE_ARR)
-       NULLIFY(STORAGE_ARR)
-
-       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
-       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
-       PLUME_FORCING(I)%VDIST_P => reference_var(var)
-       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%VDIST_P,STORAGE_ARR)
-       NULLIFY(STORAGE_ARR)
 
        ! GET THE TEMPERATURE VARIABLE
        VAR => FIND_VAR(NCF,'plume_temp',FOUND)
 
-       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       ALLOCATE(STORAGE_VEC(nrs), stat = status)
        IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
        PLUME_FORCING(I)%TEMP_N => reference_var(var)
-       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%TEMP_N,STORAGE_ARR)
-       NULLIFY(STORAGE_ARR)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%TEMP_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
 
-       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       ALLOCATE(STORAGE_VEC(nrs), stat = status)
        IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
        PLUME_FORCING(I)%TEMP_P => reference_var(var)
-       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%TEMP_P,STORAGE_ARR)
-       NULLIFY(STORAGE_ARR)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%TEMP_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
 
        ! GET THE SALINITY VARIABLE
        VAR => FIND_VAR(NCF,'plume_salt',FOUND)
 	   
-       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       ALLOCATE(STORAGE_VEC(nrs), stat = status)
        IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
        PLUME_FORCING(I)%SALT_N => reference_var(var)
-       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%SALT_N,STORAGE_ARR)
-       NULLIFY(STORAGE_ARR)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%SALT_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
 
-       ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+       ALLOCATE(STORAGE_VEC(nrs), stat = status)
        IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
        PLUME_FORCING(I)%SALT_P => reference_var(var)
-       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%SALT_P,STORAGE_ARR)
-       NULLIFY(STORAGE_ARR)
+       CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%SALT_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
 
        ! ============= New : 2016, April ===================
 	   ! DON'T KNOW IF IT IS NEEDED FOR PLUME
@@ -2127,17 +2120,17 @@ CONTAINS
          ! GET THE BIOLOGICAL CONCENTRATION FOR CURRENT PELAGIC STATE VARIABLE
            VAR => FIND_VAR(NCF,TRIM(model%state_variables(IFABM)%name),FOUND)
            IF(FOUND) THEN
-             ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+             ALLOCATE(STORAGE_VEC(nrs), stat = status)
              IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
              PLUME_FORCING(I)%FABM_N(IFABM)%P => reference_var(var)
-             CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FABM_N(IFABM)%P,STORAGE_ARR)
-             NULLIFY(STORAGE_ARR)
+             CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FABM_N(IFABM)%P,STORAGE_VEC)
+             NULLIFY(STORAGE_VEC)
 
-             ALLOCATE(STORAGE_ARR(nrs,KBM1), stat = status)
+             ALLOCATE(STORAGE_VEC(nrs), stat = status)
              IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PLUME_DISCHARGE")
              PLUME_FORCING(I)%FABM_P(IFABM)%P => reference_var(var)
-             CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FABM_P(IFABM)%P,STORAGE_ARR)
-             NULLIFY(STORAGE_ARR)
+             CALL NC_CONNECT_PVAR(PLUME_FORCING(I)%FABM_P(IFABM)%P,STORAGE_VEC)
+             NULLIFY(STORAGE_VEC)
            ENDIF
 
          END DO
@@ -2174,7 +2167,7 @@ CONTAINS
 
 
   END SUBROUTINE PLUME_DISCHARGE
-# endif 
+
 
   !================================================================
   !================================================================  
@@ -13470,24 +13463,23 @@ CONTAINS
 
 # if defined (PLUME)
   !==============================================================================|
-  ! UPDATE PLUMES, added by Qin 05/03/2019
+  ! UPDATE PLUMES FROM NAMELIST, added by Qin 05/03/2019
   !==============================================================================|
-  SUBROUTINE UPDATE_PLUMES(NOW,FLUX,VDIST,TEMP,SALT,FABMR)
+  SUBROUTINE UPDATE_PLUMES(NOW,FLUX,TEMP,SALT,FABMR)
 # if defined (FABM)
     USE MOD_FABM_DATA
 # endif  
 
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
-    REAL(SP), ALLOCATABLE :: FLUX(:,:)
-    REAL(SP), ALLOCATABLE :: VDIST(:,:)
-    REAL(SP), ALLOCATABLE, OPTIONAL :: TEMP(:,:)
-    REAL(SP), ALLOCATABLE, OPTIONAL :: SALT(:,:)
-    REAL(SP), ALLOCATABLE, OPTIONAL :: FABMR(:,:,:)
+    REAL(SP), ALLOCATABLE :: FLUX(:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: TEMP(:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: SALT(:)
+    REAL(SP), ALLOCATABLE, OPTIONAL :: FABMR(:,:)
 
-    REAL(SP), POINTER :: VNP(:,:), VPP(:,:)
+    REAL(SP), POINTER :: VNP(:), VPP(:)
 
-    REAL(SP), ALLOCATABLE :: CURRENT(:,:)
+    REAL(SP), ALLOCATABLE :: CURRENT(:)
     TYPE(TIME) :: PLMTIME
 
     TYPE(NCFILE), POINTER :: NCF
@@ -13501,10 +13493,6 @@ CONTAINS
 
     IF(.NOT. ALLOCATED(FLUX)) CALL FATAL_ERROR &
          &("THE PLUME FLUX VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
-
-    IF(.NOT. ALLOCATED(VDIST)) CALL FATAL_ERROR &
-         &("THE PLUME VERTICAL DISTRIBUTION  VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
-
 
     IF(PRESENT(TEMP)) THEN
        IF(.NOT. ALLOCATED(TEMP)) CALL FATAL_ERROR &
@@ -13549,7 +13537,7 @@ CONTAINS
           CALL FATAL_ERROR("COULD NOT UPATE PLUME_FILE TIME BRACKET: BOUNDS EXCEEDED?")
        end if
 
-       ALLOCATE(CURRENT(NRSF,KBM1))
+       ALLOCATE(CURRENT(NRSF))
 
        CALL NC_POINT_VAR(VAR_N,VNP)
        CALL NC_POINT_VAR(VAR_P,VPP)
@@ -13567,43 +13555,12 @@ CONTAINS
 
        DO J =1,NRSF
           IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
-          IF(IND /= 0) FLUX(IND,:) = CURRENT(J,:)
+          IF(IND /= 0) FLUX(IND) = CURRENT(J)
        END DO
 
        DEALLOCATE(CURRENT)
       
-       ! PLUME VERTICAL DISTRIBUTION
-       VAR_N => PLUME_FORCING(I)%VDIST_N
-       VAR_P => PLUME_FORCING(I)%VDIST_P
-       CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,PLMTIME,STATUS)
-       IF (STATUS /= 0) THEN
-          CALL FATAL_ERROR("COULD NOT UPATE PLUME_FILE TIME BRACKET: BOUNDS EXCEEDED?")
-       end if
-
-       ALLOCATE(CURRENT(NRSF,KBM1))
-
-       CALL NC_POINT_VAR(VAR_N,VNP)
-       CALL NC_POINT_VAR(VAR_P,VPP)
-
-       !====================================================
-       ! Linear interpolation between time points
-       !CURRENT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
-       !
-       ! OR
-       !
-       ! Nearest time sets the value
-       CURRENT = VNP
-       if (FTM%PREV_WGHT .gt. 0.5_sp) CURRENT = VPP
-       !====================================================
-
-       DO J =1,NRSF
-          IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
-          IF(IND /= 0) VDIST(IND,:) = CURRENT(J,:)
-       END DO
-
-       DEALLOCATE(CURRENT)
-
-
+     
        IF(PRESENT(SALT)) THEN
 
           ! PLUME SALT
@@ -13614,7 +13571,7 @@ CONTAINS
              CALL FATAL_ERROR("COULD NOT UPATE PLUME_FILE TIME BRACKET: BOUNDS EXCEEDED?")
           end if
 
-          ALLOCATE(CURRENT(NRSF,KBM1))
+          ALLOCATE(CURRENT(NRSF))
 
           CALL NC_POINT_VAR(VAR_N,VNP)
           CALL NC_POINT_VAR(VAR_P,VPP)        
@@ -13633,7 +13590,7 @@ CONTAINS
 
           DO J =1,NRSF
              IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
-             IF(IND /= 0) SALT(IND,:) = CURRENT(J,:)
+             IF(IND /= 0) SALT(IND) = CURRENT(J)
           END DO
 
           DEALLOCATE(CURRENT)
@@ -13649,7 +13606,7 @@ CONTAINS
              CALL FATAL_ERROR("COULD NOT UPATE PLM_FILE TIME BRACKET: BOUNDS EXCEEDED?")
           end if
 
-          ALLOCATE(CURRENT(NRSF,KBM1))
+          ALLOCATE(CURRENT(NRSF))
 
           CALL NC_POINT_VAR(VAR_N,VNP)
           CALL NC_POINT_VAR(VAR_P,VPP)        
@@ -13667,7 +13624,7 @@ CONTAINS
 
           DO J =1,NRSF
              IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
-             IF(IND /= 0) TEMP(IND,:) = CURRENT(J,:)
+             IF(IND /= 0) TEMP(IND) = CURRENT(J)
           END DO
 
           DEALLOCATE(CURRENT)
@@ -13688,7 +13645,7 @@ CONTAINS
                 CALL FATAL_ERROR("COULD NOT UPDATE PLUME_FILE TIME BRACKET: BOUNDS EXCEEDED?")
              END IF
 
-             ALLOCATE(CURRENT(NRSF,KBM1))
+             ALLOCATE(CURRENT(NRSF))
 
              CALL NC_POINT_VAR(VAR_N,VNP)
              CALL NC_POINT_VAR(VAR_P,VPP)
@@ -13706,7 +13663,7 @@ CONTAINS
 
              DO J =1,NRSF
                 IND = PLUME_FORCING(I)%PLM_FILE2LOC(J)
-                IF(IND /= 0)  FABMR(IND,1:KBM1,IFABM) = CURRENT(J,1:KBM1)
+                IF(IND /= 0)  FABMR(IND,IFABM) = CURRENT(J)
              END DO
 
              DEALLOCATE(CURRENT)
