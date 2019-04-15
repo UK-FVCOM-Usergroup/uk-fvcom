@@ -554,11 +554,8 @@ MODULE MOD_FORCE
   PUBLIC :: UPDATE_OBC_SALT
   
 # if defined (PLUME)
-# if !defined (PLUME_CALCULATED)
   PUBLIC :: UPDATE_PLUMES
-# else
   PUBLIC :: UPDATE_PLUMES_CALCULATED
-# endif
 # endif  
 # if defined (WATER_QUALITY)
   PUBLIC :: UPDATE_OBC_WQM

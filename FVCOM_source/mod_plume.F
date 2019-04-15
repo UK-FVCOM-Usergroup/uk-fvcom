@@ -35,6 +35,7 @@ MODULE MOD_PLUME
     USE ALL_VARS
     USE MOD_UTILS
     USE MOD_PREC
+
     IMPLICIT NONE
     SAVE
 	
@@ -47,10 +48,6 @@ MODULE MOD_PLUME
     REAL(SP)    :: PLUME_DIFFUSOR_DISTANCE       ! Distance between diffusors
     REAL(SP)    :: PLUME_DIFFUSOR_RADIUS         ! Radius of the plume source
     REAL(SP)    :: PLUME_DIFFUSOR_DEPTH          ! Depth between bottom and diffusor
-    REAL(SP)    :: PLUME_RELEASE_TEMPERATURE     ! PLUME DISCHARGE TEMPERATURE
-    REAL(SP)    :: PLUME_RELEASE_SALINITY        ! PLUME DISCHARGE SALINITY
-    REAL(SP)    :: PLUME_RELEASE_CONCENTRATION   ! PLUME DISCHARGE CONCENTRATION
-    REAL(SP)    :: PLUME_RELEASE_FLUX            ! PLUME DISCHARGE VOLUMN FLUX
     REAL(SP)    :: PIPE_RADIUS                   ! RADIUS OF THE PIPE PROVIDING THE VOLUMEFLUX
 
     NAMELIST /NML_PLUME_CALCULATED/            &
@@ -134,12 +131,14 @@ MODULE MOD_PLUME
 ! Allocate variables output from the plume model	
 !==============================================================================|
       SUBROUTINE PLUME_CALCULATE_INIT
+#  if defined(FABM)
+    USE MOD_FABM_DATA
+#  endif 
       ALLOCATE(FLXPLM(0:MT,KB)) ;              FLXPLM     =   ZERO ! 
       ALLOCATE(VDISTPLM(0:MT,KB)) ;            VDISTPLM   =   ZERO ! 
       ALLOCATE(TPLM(0:MT,KB)) ;                TPLM       =   ZERO ! 
       ALLOCATE(SPLM(0:MT,KB)) ;                SPLM       =   ZERO !
 # if defined(FABM)
-      USE MOD_FABM_DATA
       ALLOCATE(FABMPLM(0:MT,KB,SIZE(FABM_ALL(0,0,:)))) ; FABMPLM    =   ZERO !
 # endif   
 !==============================================================================|
@@ -256,7 +255,6 @@ MODULE MOD_PLUME
          ALLOCATE(PTR, SOURCE = FABM_ALL)
          ALLOCATE(FABMPF(KB,IFABM))
          ALLOCATE(PTRACER(IFABM))
-         PTRACER     = PLUME_INITIAL_CONCENTRATION
       END IF
 # endif
 	  
@@ -267,7 +265,10 @@ MODULE MOD_PLUME
              PTEMP       =   TPLMDIS(II)
              PSALT       =   SPLMDIS(II)
              SOURCE_VOL  =   QPLMDIS(II) 
-			 SOURCE_MOM   =    SOURCE_VOL/(PIPE_RADIUS)			 
+			 SOURCE_MOM   =    SOURCE_VOL/(PIPE_RADIUS)
+# if defined (FABM)
+      IF (PRESENT(PTR)) PTRACER     = 	FABMPLMDIS(II,:)
+# endif	  
              DO  I = 1,M
                 IF (INODE.EQ.NGID(I)) THEN
 	                RUN_PLUME  = .TRUE.
