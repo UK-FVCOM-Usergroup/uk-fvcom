@@ -750,18 +750,31 @@ SUBROUTINE ADV_T
            IF(K == 1)THEN
               TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
               TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+              TMAX = MAX(TMAX,T1(I,K+1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+              TMIN = MIN(TMIN,T1(I,K+1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+# else
               TMAX = MAX(TMAX,T1(I,K+1),T1(I,K),T1_FRESH(I,K))
               TMIN = MIN(TMIN,T1(I,K+1),T1(I,K),T1_FRESH(I,K))
+# endif
            ELSEIF(K == KBM1) THEN
               TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
               TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+              TMAX = MAX(TMAX,T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+              TMIN = MIN(TMIN,T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+# else
               TMAX = MAX(TMAX,T1(I,K-1),T1(I,K),T1_FRESH(I,K))
               TMIN = MIN(TMIN,T1(I,K-1),T1(I,K),T1_FRESH(I,K))
+# endif
            ELSE
               TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
               TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
-              TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
-              TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
+# if defined (PLUME)
+# else
+              TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+              TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+# endif()
            END IF
 
            ! Added by Akvaplan 2018 to avoid single precision-crash
@@ -820,8 +833,13 @@ SUBROUTINE ADV_T
      DO I=1,M
         TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),1))
         TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),1))
+# if defined (PLUME)
+        TMAX = MAX(TMAX,T1(I,2),T1(I,1),T1_FRESH(I,1),TPLM(I,1))
+        TMIN = MIN(TMIN,T1(I,2),T1(I,1),T1_FRESH(I,1),TPLM(I,1))
+# else
         TMAX = MAX(TMAX,T1(I,2),T1(I,1),T1_FRESH(I,1))
         TMIN = MIN(TMIN,T1(I,2),T1(I,1),T1_FRESH(I,1))
+# endif
 
         TEMP=0.5*((WWWS(I,2)+ABS(WWWS(I,2)))*T1_S(I,2))*(DTI/DTFA(I))/DZ(I,1)
         BETAIN(I,1)=(TMAX-T1_S(I,1))/(TEMP+1.E-10)
@@ -838,9 +856,13 @@ SUBROUTINE ADV_T
         DO I=1,M
            TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
            TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+           TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+           TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+# else
            TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
-           
+# endif           
            TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*T1_S(I,K+1)-  &
                 (WWWS(I,K)-ABS(WWWS(I,K)))*T1_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)
            BETAIN(I,K)=(TMAX-T1_S(I,K))/(TEMP+1.E-10)
@@ -859,8 +881,13 @@ SUBROUTINE ADV_T
      DO I=1,M
         TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
         TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+        TMAX = MAX(TMAX,T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+        TMIN = MIN(TMIN,T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+# else
         TMAX = MAX(TMAX,T1(I,K-1),T1(I,K),T1_FRESH(I,K))
         TMIN = MIN(TMIN,T1(I,K-1),T1(I,K),T1_FRESH(I,K))
+# endif
 
         TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*T1_S(I,K+1)-  &
              (WWWS(I,K)-ABS(WWWS(I,K)))*T1_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)

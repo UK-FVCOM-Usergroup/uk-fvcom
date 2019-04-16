@@ -740,21 +740,35 @@ SUBROUTINE ADV_S
          ! and the precipitation to cell I further diminish the salt concentration.
           
            IF(K == 1)THEN
-              ! Vadj = (D(I)*DZ(I,1)-(QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1))
               SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+              SMAX = MAX(SMAX,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K),SPLM(I,K))
+              SMIN = MIN(SMIN,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K),SPLM(I,K))
+# else
               SMAX = MAX(SMAX,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K))
               SMIN = MIN(SMIN,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K))
+# endif
            ELSEIF(K == KBM1) THEN
               SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+              SMAX = MAX(SMAX,S1(I,K-1),S1(I,K),S1_FRESH(I,K),SPLM(I,K))
+              SMIN = MIN(SMIN,S1(I,K-1),S1(I,K),S1_FRESH(I,K),SPLM(I,K))
+# else
               SMAX = MAX(SMAX,S1(I,K-1),S1(I,K),S1_FRESH(I,K))
               SMIN = MIN(SMIN,S1(I,K-1),S1(I,K),S1_FRESH(I,K))
+# endif
            ELSE
               SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+              SMAX = MAX(SMAX,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K),SPLM(I,K))
+              SMIN = MIN(SMIN,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K),SPLM(I,K))
+# else
               SMAX = MAX(SMAX,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K))
               SMIN = MIN(SMIN,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K))
+# endif
            END IF
 
          ! Total (horizontal + vertical) flux to the cell
@@ -824,8 +838,13 @@ SUBROUTINE ADV_S
         ! Vadj = (D(I)*DZ(I,1)-(QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1)) 
         SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),1)) !*Vadj)
         SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),1)) !*Vadj) 
+# if defined (PLUME)
+        SMAX = MAX(SMAX,S1(I,2),S1m(I,1),S1_FRESHm(I,1),SPLM(I,1))
+        SMIN = MIN(SMIN,S1(I,2),S1m(I,1),S1_FRESHm(I,1),SPLM(I,1))
+# else
         SMAX = MAX(SMAX,S1(I,2),S1m(I,1),S1_FRESHm(I,1))
         SMIN = MIN(SMIN,S1(I,2),S1m(I,1),S1_FRESHm(I,1))
+# endif
 
         TEMP=0.5*((WWWS(I,2)+ABS(WWWS(I,2)))*S1_S(I,2))*(DTI/DTFA(I))/DZ(I,1)
         BETAIN(I,1)=(SMAX-S1_S(I,1))/(TEMP+1.E-10)
@@ -843,9 +862,13 @@ SUBROUTINE ADV_S
         DO I=1,M
            SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
            SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+           SMAX = MAX(SMAX,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K),SPLM(I,K))
+           SMIN = MIN(SMIN,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K),SPLM(I,K))
+# else
            SMAX = MAX(SMAX,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K))
            SMIN = MIN(SMIN,S1(I,K+1),S1(I,K-1),S1(I,K),S1_FRESH(I,K))
-
+# endif
            TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*S1_S(I,K+1)-  &
                 (WWWS(I,K)-ABS(WWWS(I,K)))*S1_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)
            BETAIN(I,K)=(SMAX-S1_S(I,K))/(TEMP+1.E-10)
@@ -865,9 +888,13 @@ SUBROUTINE ADV_S
      DO I=1,M
         SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
         SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
+# if defined (PLUME)
+        SMAX = MAX(SMAX,S1(I,K-1),S1(I,K),S1_FRESH(I,K),SPLM(I,K))
+        SMIN = MIN(SMIN,S1(I,K-1),S1(I,K),S1_FRESH(I,K),SPLM(I,K))
+# else
         SMAX = MAX(SMAX,S1(I,K-1),S1(I,K),S1_FRESH(I,K))
         SMIN = MIN(SMIN,S1(I,K-1),S1(I,K),S1_FRESH(I,K))
-
+# endif
         TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*S1_S(I,K+1)-  &
              (WWWS(I,K)-ABS(WWWS(I,K)))*S1_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)
         BETAIN(I,K)=(SMAX-S1_S(I,K))/(TEMP+1.E-10)

@@ -259,56 +259,59 @@ MODULE MOD_PLUME
 # endif
 	  
       IF(NUMPLM>0) THEN
-	    DO II = 1,NUMPLM
-             INODE       =   INODEPLM(II)
-             INS         =   KSIGPLM(II)
-             PTEMP       =   TPLMDIS(II)
-             PSALT       =   SPLMDIS(II)
-             SOURCE_VOL  =   QPLMDIS(II) 
-			 SOURCE_MOM   =    SOURCE_VOL/(PIPE_RADIUS)
+	DO II = 1,NUMPLM
+           INODE       =   INODEPLM(II)
+           INS         =   KSIGPLM(II)
+           PTEMP       =   TPLMDIS(II)
+           PSALT       =   SPLMDIS(II)
+           SOURCE_VOL  =   QPLMDIS(II) 
+	   SOURCE_MOM  =   SOURCE_VOL/(PIPE_RADIUS)
 # if defined (FABM)
-      IF (PRESENT(PTR)) PTRACER     = 	FABMPLMDIS(II,:)
+           IF (PRESENT(PTR)) THEN
+              PTRACER  =   FABMPLMDIS(II,:)
+           END IF
 # endif	  
-             DO  I = 1,M
-                IF (INODE.EQ.NGID(I)) THEN
-	                RUN_PLUME  = .TRUE.
-				    INODE     = I
-                 EXIT
-                END IF
-             END DO
-         IF (RUN_PLUME) THEN           
+           DO  I = 1,M
+               IF (INODE.EQ.NGID(I)) THEN
+	          RUN_PLUME  = .TRUE.
+                  INODE      = I
+                  EXIT
+               END IF
+           END DO
+         IF (RUN_PLUME) THEN 
+         ! not sure if this is necessary
+         RUN_PLUME = .FALSE.
 ! ---
 ! Calculate the buoyancy flux based on input salt and temperature
 ! ---
          PRESSURE = -GRAV_N(INODE)*1.025_SP*(ZZ(INODE,INS)*D(INODE))*0.1_SP 
-     ! H: I could not get this function work for scalar T and S, hence
-     !    passing the variables as vectors instead.
-        PTT      = PTEMP
-        PSS      = PSALT
 
-       SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
-        CASE(SW_DENS1)
-        CALL FOFONOFF_MILLARD(PSS,PTT,PRESSURE,0.0_SP,PRHO)
+         PTT      = PTEMP
+         PSS      = PSALT
 
-       CASE(SW_DENS2)
-       CALL DENS2G(PSS,PTT,PRHO)
+         SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
+          CASE(SW_DENS1)
+           CALL FOFONOFF_MILLARD(PSS,PTT,PRESSURE,0.0_SP,PRHO)
 
-       CASE(SW_DENS3)      
-       CALL JACKET_MCDOUGALL(PSS,PTT,PRESSURE,PRHO)                                                   
+          CASE(SW_DENS2)
+           CALL DENS2G(PSS,PTT,PRHO)
 
-       CASE DEFAULT
-       CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
+          CASE(SW_DENS3)      
+           CALL JACKET_MCDOUGALL(PSS,PTT,PRESSURE,PRHO)                                                   
+
+          CASE DEFAULT
+           CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
            & "   "//TRIM(SEA_WATER_DENSITY_FUNCTION) )
-       END SELECT
+         END SELECT
 
 ! --- 
 ! Estimate the buoyancy flux
 ! ---
      SOURCE_BUOY = GRAV_N(INODE)*(RHO1(INODE,INS)-PRHO(1))*SIZE(RHO1(INODE,:))&
            &/(SUM(RHO1(INODE,:))) * SOURCE_VOL
-     IF (SOURCE_BUOY.LT.0) THEN
-           CALL FATAL_ERROR("INVALID BUOYANCY FLUX, MOD_PLUME DOES NOT SUPPORT&
-           & SINKING PLUMES AT THE MOMENT.")
+     IF (SOURCE_MOM.LT.0) THEN
+           CALL FATAL_ERROR("INVALID MOMENTUM FLUX, MOD_PLUME DOES NOT SUPPORT&
+           & SINKING PLUMES (AT THE MOMENT).")
      END IF
 
 !===========================================================================
@@ -467,7 +470,7 @@ MODULE MOD_PLUME
 
          K = INS
       END IF
-      ! INIT_V = SOURCE_VOL ! Storing the source volume flux for later
+     ! INIT_V = SOURCE_VOL ! Storing the source volume flux for later
 
 ! ======================================================================================
 !                         And then finally: The plume model
@@ -576,6 +579,7 @@ MODULE MOD_PLUME
            radius      = SOURCE_VOL/SOURCE_MOM ! Plume radius
         END IF
         END DO
+        print *, 'utvanning: ', SOURCE_VOL/INIT_V
        END IF ! RUN_PLUME
        END DO ! II
       END IF ! NUMPLM>0
