@@ -223,7 +223,6 @@ MODULE MOD_PLUME
       REAL(SP), ALLOCATABLE                               ::             FABMPF(:,:), PTRACER(:)
       INTEGER,  ALLOCATABLE                               ::             TMP(:), RELEASENODES(:)
       REAL(SP), ALLOCATABLE                               ::            WEIGHT_TMP(:), WEIGHT(:)
-      LOGICAL                                             ::                           RUN_PLUME
       REAL(SP), DIMENSION(1:2)                            ::            PRHO, PRESSURE, PTT, PSS
    
       ! Diffusor stuff
@@ -241,7 +240,6 @@ MODULE MOD_PLUME
 
 !=================================================================================
 ! Initializing the code. The routine will only be run for the plume release node.
-       RUN_PLUME    =  .FALSE.
        PFLUX        =  ZERO
        VDIST        =  ZERO
        IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
@@ -271,16 +269,6 @@ MODULE MOD_PLUME
               PTRACER  =   FABMPLMDIS(II,:)
            END IF
 # endif	  
-           DO  I = 1,M
-               IF (INODE.EQ.NGID(I)) THEN
-	          RUN_PLUME  = .TRUE.
-                  INODE      = I
-                  EXIT
-               END IF
-           END DO
-         IF (RUN_PLUME) THEN 
-         ! not sure if this is necessary
-         RUN_PLUME = .FALSE.
 ! ---
 ! Calculate the buoyancy flux based on input salt and temperature
 ! ---
@@ -580,7 +568,6 @@ MODULE MOD_PLUME
         END IF
         END DO
         print *, 'utvanning: ', SOURCE_VOL/INIT_V
-       END IF ! RUN_PLUME
        END DO ! II
       END IF ! NUMPLM>0
   RETURN
