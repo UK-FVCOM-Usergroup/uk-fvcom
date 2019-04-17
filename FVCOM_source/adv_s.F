@@ -135,9 +135,10 @@ SUBROUTINE ADV_S
 
 # if defined (MPDATA)
   ! Adding offset to force FVCOM not to crash when salinities approach zero
-      OFFS = 1.0_SP
-      S1  = S1+OFFS
+      OFFS   = 1.0_SP
+      S1     = S1+OFFS
       SMEAN1 = SMEAN1 + OFFS
+      TPLM   = TPLM+OFFS
 # endif
 
   !
@@ -941,9 +942,10 @@ SUBROUTINE ADV_S
   ! End of smolarkiewicz upwind loop
   !--------------------------------------------------------------------------
 
-      S1 = S1 - OFFS
-      S1_SF = S1_SF - OFFS
+      S1     = S1 - OFFS
+      S1_SF  = S1_SF - OFFS
       SMEAN1 = SMEAN1 - OFFS
+      TPLM   = TPLM-OFFS
 #  endif
 
 

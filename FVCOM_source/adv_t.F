@@ -230,6 +230,7 @@ SUBROUTINE ADV_T
     ! Adding offset to avoid less-than-zero problems
       T1 = T1+OFFS
       TMEAN1 = TMEAN1+OFFS
+      TPLM = TPLM+OFFS
 # endif
 
   !
@@ -937,7 +938,7 @@ SUBROUTINE ADV_T
       T1 = T1-OFFS
       T1_SF = T1_SF-OFFS
       TMEAN1 = TMEAN1-OFFS
-     
+      TPLM = TPLM-OFFS
 #  endif
 
 
