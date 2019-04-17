@@ -231,13 +231,15 @@ MODULE MOD_PLUME
       REAL(SP) :: PSF, PTF, TOT_PLUMES
       REAL(SP), ALLOCATABLE                               :: PTRF(:)
 
+      ! MODEL ON OR OFF
+      LOGICAL                                             ::                           RUN_PLUME
       ! TODO: MOD_PLUME does, at the moment, not support multiple FABM variables, eventhough
       !       it likes to give that impression.
 
 !     Constants and ICs
       entcoef      = 0.07_SP  ! The exact value of this parameter is disputed
       PI           = 4.0_SP*ATAN(1.0_SP)
-
+      RUN_PLUME    = .TRUE.
 !=================================================================================
 ! Initializing the code. The routine will only be run for the plume release node.
        PFLUX        =  ZERO
@@ -258,12 +260,17 @@ MODULE MOD_PLUME
 	  
       IF(NUMPLM>0) THEN
 	DO II = 1,NUMPLM
-           INODE       =   INODEPLM(II)
-           INS         =   KSIGPLM(II)
-           PTEMP       =   TPLMDIS(II)
-           PSALT       =   SPLMDIS(II)
-           SOURCE_VOL  =   QPLMDIS(II) 
-	   SOURCE_MOM  =   SOURCE_VOL/(PIPE_RADIUS)
+           INODE        =   INODEPLM(II)
+           INS          =   KSIGPLM(II)
+           PTEMP        =   TPLMDIS(II)
+           PSALT        =   SPLMDIS(II)
+           SOURCE_VOL   =   QPLMDIS(II)
+           IF (SOURCE_VOL.GT.0) THEN
+              RUN_PLUME = .TRUE.
+           ELSE
+              RUN_PLUME = .FALSE.
+           END IF
+	   SOURCE_MOM   =   SOURCE_VOL/(PIPE_RADIUS)
 # if defined (FABM)
            IF (PRESENT(PTR)) THEN
               PTRACER  =   FABMPLMDIS(II,:)
@@ -272,6 +279,7 @@ MODULE MOD_PLUME
 ! ---
 ! Calculate the buoyancy flux based on input salt and temperature
 ! ---
+         IF (RUN_PLUME) THEN
          PRESSURE = -GRAV_N(INODE)*1.025_SP*(ZZ(INODE,INS)*D(INODE))*0.1_SP 
 
          PTT      = PTEMP
@@ -295,42 +303,40 @@ MODULE MOD_PLUME
 ! --- 
 ! Estimate the buoyancy flux
 ! ---
-     SOURCE_BUOY = GRAV_N(INODE)*(RHO1(INODE,INS)-PRHO(1))*SIZE(RHO1(INODE,:))&
-           &/(SUM(RHO1(INODE,:))) * SOURCE_VOL
-     IF (SOURCE_MOM.LT.0) THEN
-           CALL FATAL_ERROR("INVALID MOMENTUM FLUX, MOD_PLUME DOES NOT SUPPORT&
-           & SINKING PLUMES (AT THE MOMENT).")
-     END IF
+         SOURCE_BUOY = GRAV_N(INODE)*(RHO1(INODE,INS)-PRHO(1))*SIZE(RHO1(INODE,:))&
+            &/(SUM(RHO1(INODE,:))) * SOURCE_VOL
+         IF (SOURCE_MOM.LT.0) THEN
+            CALL FATAL_ERROR("INVALID MOMENTUM FLUX, MOD_PLUME DOES NOT SUPPORT&
+            & SINKING PLUMES (AT THE MOMENT).")
+         END IF
 
 !===========================================================================
 ! Buoyancy frequency, stolen from the gotm routine
 ! ----
-      DO K=2,KBM1
-         NN(K)       = -GRAV_N(INODE)*(RHO1(INODE,K-1)-RHO1(INODE,K))/(DZZ(INODE,K-1)*D(INODE))
-         IF (NN(K).LT.ZERO) THEN
-            NN(K)    = 0.0_SP
-         END IF
-         NN(K)       = SQRT(NN(K))
-      END DO
-      NN(1)          = 0.0_SP
-      NN(KB)         = 0.0_SP
-      PDEPTH         = DZZ(INODE,:)*D(INODE)
-
-
+         DO K=2,KBM1
+            NN(K)       = -GRAV_N(INODE)*(RHO1(INODE,K-1)-RHO1(INODE,K))/(DZZ(INODE,K-1)*D(INODE))
+            IF (NN(K).LT.ZERO) THEN
+               NN(K)    = 0.0_SP
+            END IF
+            NN(K)       = SQRT(NN(K))
+         END DO
+         NN(1)          = 0.0_SP
+         NN(KB)         = 0.0_SP
+         PDEPTH         = DZZ(INODE,:)*D(INODE)
 
 !     Integrate from the input sigma layer, activate it
-      K              = INS    ! INPUT sigma layer
-      VDIST(INODE,K) = 1
+         K              = INS    ! INPUT sigma layer
+         VDIST(INODE,K) = 1
 
 !     Interaction between plume and surroundings
-      IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
-         TEMPPF(K)   = SOURCE_VOL*PTEMP
-         SALTPF(K)   = SOURCE_VOL*PSALT
-      END IF
+         IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
+            TEMPPF(K)   = SOURCE_VOL*PTEMP
+            SALTPF(K)   = SOURCE_VOL*PSALT
+         END IF
 
-      INIT_V = SOURCE_VOL
+         INIT_V = SOURCE_VOL
 
-      IF (PLUME_DIFFUSOR_ON) THEN
+         IF (PLUME_DIFFUSOR_ON) THEN
 !===========================================================================
 ! Enhanced initial entrainment due to use of diffusors
 ! ----
@@ -434,13 +440,13 @@ MODULE MOD_PLUME
          
          ! The area of the big plume should be TOT_PLUMES times bigger than the small ones
          ! Hence the radius should be SQRT(TOT_PLUMES) times bigger
-         Rdiff                = SQRT(TOT_PLUMES)*DIFF_VOL/DIFF_MOM
+         Rdiff            = SQRT(TOT_PLUMES)*DIFF_VOL/DIFF_MOM
 
          ! Now, assume that these plumes coalesce and form a perfect "superplume". This is
          ! the new input for the plume model.
-         SOURCE_VOL          = (Rdiff**2)*DIFF_MOM**2/DIFF_VOL    ! VOLsource  = r**2*w
-         SOURCE_MOM          = Rdiff*(DIFF_MOM**2/DIFF_VOL)       ! MOMsource  = rw
-         SOURCE_BUOY         = SOURCE_VOL*DIFF_BUOY/DIFF_VOL      ! BUOYsource = r**2*w*g'
+         SOURCE_VOL       = (Rdiff**2)*DIFF_MOM**2/DIFF_VOL    ! VOLsource  = r**2*w
+         SOURCE_MOM       = Rdiff*(DIFF_MOM**2/DIFF_VOL)       ! MOMsource  = rw
+         SOURCE_BUOY      = SOURCE_VOL*DIFF_BUOY/DIFF_VOL      ! BUOYsource = r**2*w*g'
          
          ! Update the initial temperature-, salinity- and tracer-flux.
          IF ((PRESENT(PT)).AND.(PRESENT(PS))) THEN
@@ -522,6 +528,7 @@ MODULE MOD_PLUME
                  PT(RELEASENODES(I),K)         = (TEMPPF(K+1)/SOURCE_VOL)
                  PS(RELEASENODES(I),K)         = (SALTPF(K+1)/SOURCE_VOL)
               END IF
+
 # if defined (FABM)
               IF (PRESENT(PTR)) THEN
                  DO FAB = 1,IFABM
@@ -545,6 +552,7 @@ MODULE MOD_PLUME
            SALTPF(K)   = SALTPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*S1(INODE,K)
            TEMPPF(K)   = TEMPPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*T1(INODE,K)
         END IF
+
 # if defined (FABM)
         IF (PRESENT(PTR)) THEN
            DO FAB = 1,IFABM
@@ -560,14 +568,14 @@ MODULE MOD_PLUME
 
         ! We update the plume parameters if the plume is still rising
         SOURCE_MOM     = Vn**(0.25_SP) ! Momentum flux
-        SOURCE_VOL     = Wn     ! Volume flux
-        SOURCE_BUOY    = Fn     ! Buoyancy flux
+        SOURCE_VOL     = Wn            ! Volume flux
+        SOURCE_BUOY    = Fn            ! Buoyancy flux
         
         IF (.NOT.(ISNAN(SOURCE_MOM))) THEN
            radius      = SOURCE_VOL/SOURCE_MOM ! Plume radius
         END IF
         END DO
-        print *, 'utvanning: ', SOURCE_VOL/INIT_V
+        END IF ! RUN_PLUME
        END DO ! II
       END IF ! NUMPLM>0
   RETURN
