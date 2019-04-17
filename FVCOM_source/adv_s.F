@@ -138,7 +138,9 @@ SUBROUTINE ADV_S
       OFFS   = 1.0_SP
       S1     = S1+OFFS
       SMEAN1 = SMEAN1 + OFFS
+#   if defined (PLUME)
       TPLM   = TPLM+OFFS
+#   endif
 # endif
 
   !
@@ -945,7 +947,9 @@ SUBROUTINE ADV_S
       S1     = S1 - OFFS
       S1_SF  = S1_SF - OFFS
       SMEAN1 = SMEAN1 - OFFS
+#    if defined (PLUME)
       TPLM   = TPLM-OFFS
+#    endif
 #  endif
 
 
