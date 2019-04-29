@@ -204,7 +204,7 @@ MODULE MOD_PLUME
       USE EQS_OF_STATE
       USE ALL_VARS
       USE MOD_UTILS
-      USE MOD_PAR, ONLY: NGID
+      USE MOD_PAR, ONLY: NGID, HN_LST
 # if defined (FABM)
       USE MOD_FABM_DATA
 # endif
@@ -260,6 +260,8 @@ MODULE MOD_PLUME
 # endif
 
       IF(NUMPLM>0) THEN
+        print *, 'NUMPLM = ', NUMPLM
+        print *, 'INODEPLM = ', INODEPLM
 	DO II = 1,NUMPLM
            INODE        =   INODEPLM(II)
            INS          =   KSIGPLM(II)
@@ -277,7 +279,7 @@ MODULE MOD_PLUME
            IF (PRESENT(PTR)) THEN
               PTRACER   =   FABMPLMDIS(II,:)
            END IF
-# endif	  
+# endif
 
 ! =============================================================================
 !     End of initialization, the code will now run the plume part of the code
@@ -505,7 +507,11 @@ MODULE MOD_PLUME
                I = I+1
                inner: DO J = 1,NTSN(RELEASENODES(I))
                   O = NBSN(RELEASENODES(I),J)
-
+                  DO A = 1,SIZE(HN_LST)
+                     IF (O.EQ.HN_LST(A)) THEN
+                        CYCLE inner
+                     END IF
+                  END DO
                   ! To avoid storing the same node twice in the RELEASENODES list
                   DO A = 1,SIZE(RELEASENODES)
                      IF (RELEASENODES(A).EQ.O) THEN
