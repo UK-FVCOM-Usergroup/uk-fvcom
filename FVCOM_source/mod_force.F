@@ -37,7 +37,7 @@ MODULE MOD_FORCE
   USE MOD_SPHERICAL
   USE MOD_PAR
   USE MOD_INPUT
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
   USE MOD_HEATFLUX
 # endif
 # if defined (HEATING_SOLAR)
@@ -247,7 +247,7 @@ MODULE MOD_FORCE
   !  TYPE(NCVAR), POINTER :: HEAT_LTNT_N, HEAT_LTNT_P ! LATENT
   !  TYPE(NCVAR), POINTER :: HEAT_SNS_N, HEAT_SNS_P   ! SENSIBLE
   TYPE(NCVAR), POINTER :: HEAT_NET_N, HEAT_NET_P   ! NET HEAT FLUX
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) 
+# if defined (HEATING_CALCULATED)
   TYPE(NCVAR), POINTER :: T_AIR_N, T_AIR_P   
   TYPE(NCVAR), POINTER :: RH_AIR_N, RH_AIR_P   
   TYPE(NCVAR), POINTER :: PA_AIR_N, PA_AIR_P   
@@ -450,13 +450,13 @@ MODULE MOD_FORCE
 
   PUBLIC :: SETUP_FORCING
   PUBLIC :: UPDATE_GROUNDWATER
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
   PUBLIC :: UPDATE_HEAT
 # endif
   PUBLIC :: UPDATE_WIND
   PUBLIC :: UPDATE_WAVE
 
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
   PUBLIC :: UPDATE_HEAT_CALCULATED
 # endif
 # if defined (HEATING_SOLAR)
@@ -508,11 +508,11 @@ CONTAINS
 
     NULLIFY(GWATER_FILE)
 
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
     NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, HEAT_SWV_P,&
          & HEAT_SWV_N)
 # endif
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
 # if defined (OBSICE)
     NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, T_AIR_P, T_AIR_N,  &
          &  RH_AIR_P, RH_AIR_N, PA_AIR_P, PA_AIR_N, DLW_AIR_P,     &
@@ -599,13 +599,13 @@ CONTAINS
     IF(BIOLOGICAL_MODEL)CALL OBC_BIO
 # endif    
     CALL RIVER_DISCHARGE
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)    
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)    
     CALL SURFACE_HEATING
 # endif    
     CALL SURFACE_WINDSTRESS
     CALL SURFACE_PRECIPITATION
     CALL SURFACE_AIRPRESSURE
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
     CALL SURFACE_HEATING_CALCULATED
 # endif    
 # if defined (HEATING_SOLAR) 
@@ -5863,7 +5863,7 @@ CONTAINS
   END SUBROUTINE SET_FILE_INTERP_BILINEAR
   !================================================================
   !================================================================
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
   SUBROUTINE SURFACE_HEATING
     IMPLICIT NONE
     ! SOME NC POINTERS
@@ -6280,7 +6280,7 @@ CONTAINS
 # endif
   !================================================================
   !================================================================
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
   SUBROUTINE SURFACE_HEATING_CALCULATED
     USE MOD_HEATFLUX
     IMPLICIT NONE
@@ -12424,7 +12424,7 @@ CONTAINS
 # endif
   !==============================================================================|
   !==============================================================================|
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
   SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
@@ -12478,18 +12478,8 @@ CONTAINS
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
          HEAT_SWV(I)  = DSW_AIR(I)
 # endif
-# if defined (HEATING_CALCULATED_GL)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
-	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
-!         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
-         t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         ulw_airf=-StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
        END DO
 
        RETURN
@@ -12603,18 +12593,8 @@ CONTAINS
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
          HEAT_SWV(I)  = DSW_AIR(I)
 # endif
-# if defined (HEATING_CALCULATED_GL)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
-	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
-!         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
-         t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         ulw_airf=-StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
        END DO
 
     CASE(HEAT_IS_FVCOMGRID)

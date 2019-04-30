@@ -266,7 +266,7 @@ CONTAINS
     NC_NH_QP        = .False.
     NC_NH_RHS       = .False.
     NC_WIND_VEL     = .False.
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     NC_ATM_PRESS    = .False.
 # endif    
     NC_WIND_STRESS  = .False.
@@ -298,7 +298,7 @@ CONTAINS
     NCAV_NH_QP        = .False.
     NCAV_NH_RHS       = .False.
     NCAV_WIND_VEL     = .False.
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     NCAV_ATM_PRESS    = .False.  
 # endif    
     NCAV_WIND_STRESS  = .False.
@@ -1339,7 +1339,7 @@ CONTAINS
 
   SUBROUTINE OPEN_FORCING
     USE CONTROL
-#   if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#   if defined (HEATING_CALCULATED)
     USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON, HEATING_CALCULATE_KIND, HEATING_CALCULATE_FILE
 #   endif
 #   if defined (HEATING_SOLAR)
@@ -1404,7 +1404,7 @@ CONTAINS
     end if
 
     ! Check Heat file and open
-#   if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+#   if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
     if (HEATING_ON .and. HEATING_KIND /= CNSTNT) then
 
        ! TEST FILE NAME
@@ -1428,7 +1428,7 @@ CONTAINS
     end if
 #   endif    
 
-#   if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#   if defined (HEATING_CALCULATED)
     if (HEATING_CALCULATE_ON .and. HEATING_CALCULATE_KIND /= CNSTNT) then
 
        ! TEST FILE NAME
