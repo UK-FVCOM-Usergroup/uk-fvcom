@@ -6645,6 +6645,16 @@ CONTAINS
 #  endif
    DEALLOCATE(CORRG)
    
+   IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
+     ALLOCATE(RAIN(0:MT)) ; RAIN = 0.0_SP
+     ALLOCATE(CP40(0:MT)) ; CP40 = 0.0_SP
+     ALLOCATE(SIGH(0:MT)) ; SIGH = 0.0_SP
+     ALLOCATE(ZI40(0:MT)) ; ZI40 = 0.0_SP
+   END IF   
+   
+   IF(HEATING_FRESHWATER)THEN
+     ALLOCATE(USRCOARE(0:MT)) ; USRCOARE = 0.0_SP
+   END IF  
 !----------------------------REPORT--------------------------------------------!
    IF(MSR)WRITE(IPT,*)'!'
    IF(MSR)WRITE(IPT,*)'!            SETTING UP PRESCRIBED BOUNDARY CONDITIONS  '
@@ -11769,9 +11779,6 @@ CONTAINS
     PRECIP_EVP_P%curr_stkcnt = 0
     ! --------- end new ----------------------------------------------------------------
 
-
-
-
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_PRECIPITATION"
   END SUBROUTINE SURFACE_PRECIPITATION
   !==============================================================================|
@@ -13166,11 +13173,12 @@ CONTAINS
   !==============================================================================|
   !==============================================================================|
 # if defined (HEATING_CALCULATED)
-  SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET)
+  SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: HTIME
     REAL(SP), ALLOCATABLE :: HEAT_SWV(:), HEAT_NET(:)
+    REAL(SP), ALLOCATABLE :: HEAT_SENSIBLE(:), HEAT_LATENT(:), HEAT_RLN(:)
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS,I,J
     REAL(SP), POINTER :: VNP(:), VPP(:)
@@ -13188,6 +13196,15 @@ CONTAINS
 
     IF(.NOT. ALLOCATED(HEAT_NET)) CALL FATAL_ERROR &
          &("THE NET HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_SENSIBLE)) CALL FATAL_ERROR &
+         &("THE SENSIBLE HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_LATENT)) CALL FATAL_ERROR &
+         &("THE LATENT HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_RLN)) CALL FATAL_ERROR &
+         &("THE LONGWAVE HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
 
     IF(WIND_TYPE /= 'speed')CALL FATAL_ERROR("WIND_TYPE must be 'speed' for heat flux calculating")
        
@@ -13211,16 +13228,71 @@ CONTAINS
          END DO
          WDS = WDS/FLOAT(NTVE(I))
   
-# if defined (HEATING_CALCULATED)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
-         t1k=t1(i,1)+273.16_sp
-         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
+         IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+           
+	   IF(.NOT. HEATING_FRESHWATER)THEN		
+	     t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+	     USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
+           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+	   ZI40 = fmiss
+	   CP40 = 0.0_SP
+	   SIGH = 0.0_SP
+           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+
+	   IF(.NOT. HEATING_FRESHWATER)THEN		
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+             USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+!MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+!MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE
+	   CALL FATAL_ERROR("The value of COARE_VERSION should be 'COARE26Z' or 'COARE40VN'")
+	 END IF  
        END DO
 
        RETURN
@@ -13326,16 +13398,71 @@ CONTAINS
          END DO
          WDS = WDS/FLOAT(NTVE(I))
   
-# if defined (HEATING_CALCULATED)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
-         t1k=t1(i,1)+273.16_sp
-         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
+         IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+
+           IF(.NOT. HEATING_FRESHWATER)THEN
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+             USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
+           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+	   ZI40 = fmiss
+	   CP40 = 0.0_SP
+	   SIGH = 0.0_SP
+           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+
+           IF(.NOT. HEATING_FRESHWATER)THEN
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+	     USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+!MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+!MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE
+	   CALL FATAL_ERROR("The value of COARE_VERSION should be 'COARE26Z' or 'COARE40VN'")
+	 END IF  
        END DO
 
     CASE(HEAT_IS_FVCOMGRID)
@@ -13444,7 +13571,6 @@ CONTAINS
          UIS = UIS/FLOAT(NTVE(I))
 # endif
   
-# if defined (HEATING_CALCULATED)
 # if defined (OBSICE)
        IF(ICE_COV(I) > 0.5_SP) THEN
        	    	! freezing point
@@ -13483,8 +13609,11 @@ CONTAINS
             ! if temperature is below freezing, reset T to Tf
             !if (T(I,1) <= Tfreez) T(I,1) = Tfreez
        ELSE
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
+# endif
+         IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+
 	      
             t1k= t1(i,1) + 273.16_sp
             
@@ -13496,31 +13625,70 @@ CONTAINS
             HEAT_SWV(I) = DSW_AIR(I)
             ! if temperature is below freezing, reset T to Tf
             !if (T(I,1) <= Tfreez) T(I,1) = Tfreez         
+# if defined(OBS_ICE)
        END IF
-
-
-# else
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
-	      
-         t1k=t1(i,1)+273.16_sp
-         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         HEAT_SWV(I) = DSW_AIR(I)
 # endif
-# endif
-# if defined (HEATING_CALCULATED_GL)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
-	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
-!         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
-         t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+           IF(.NOT. HEATING_FRESHWATER)THEN	      
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I) = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+             USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         ulw_airf=-StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  =DLW_AIR(I)
+             HEAT_RLN(I)  =emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
+           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+	   ZI40 = fmiss
+	   CP40 = 0.0_SP
+	   SIGH = 0.0_SP
+           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+	      
+           IF(.NOT. HEATING_FRESHWATER)THEN	      
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I) = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+             USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+!MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+!MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  =DLW_AIR(I)
+             HEAT_RLN(I)  =emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE
+	   CALL FATAL_ERROR("The value of COARE_VERSION should be 'COARE26Z' or 'COARE40VN'")
+	 END IF  
        END DO
 
     CASE DEFAULT
@@ -13533,11 +13701,12 @@ CONTAINS
   !==============================================================================|
   !==============================================================================|
 # if defined (HEATING_SOLAR)
-  SUBROUTINE UPDATE_HEAT_SOLAR(NOW,HEAT_SWV,HEAT_NET)
+  SUBROUTINE UPDATE_HEAT_SOLAR(NOW,HEAT_SWV,HEAT_NET,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: HTIME
     REAL(SP), ALLOCATABLE :: HEAT_SWV(:), HEAT_NET(:)
+    REAL(SP), ALLOCATABLE :: HEAT_SENSIBLE(:), HEAT_LATENT(:), HEAT_RLN(:)
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS,I,J
     INTEGER :: JULDAY
@@ -13545,7 +13714,8 @@ CONTAINS
     REAL(SP) :: WDS,CLOUD_TMP,TDEW_TMP
     REAL(SP) :: TANUM,TWAT,TDIFF,LATIT,LONGI
     REAL(SP) :: SOLHR,CHEAT,CDMOM
-    REAL(SP) :: SURFLXC,Q0
+    !EJA - Add HS,HL,RLN to variable list
+    REAL(SP) :: SURFLXC,Q0,HS,HL,RLN
     REAL(SP) :: UZLZ0,UZLFL
     REAL(SP), DIMENSION(0:NT) :: WDSN
 
@@ -13557,6 +13727,15 @@ CONTAINS
 
     IF(.NOT. ALLOCATED(HEAT_NET)) CALL FATAL_ERROR &
          &("THE NET HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_SENSIBLE)) CALL FATAL_ERROR &
+         &("THE SENSIBLE HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_LATENT)) CALL FATAL_ERROR &
+         &("THE LATENT HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_RLN)) CALL FATAL_ERROR &
+         &("THE LONGWAVE HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
 
     IF(WIND_TYPE /= 'speed')CALL FATAL_ERROR("WIND_TYPE must be 'speed' for heat flux calculating")
        
@@ -13678,16 +13857,23 @@ CONTAINS
          TDEW_TMP  = TDEW(I)
   
          CALL UZL(WDS,ZM,TDIFF,CDMOM,CHEAT,UZLZ0,UZLFL)
-         CALL SOLAR(TANUM,TDEW_TMP,WDS,CLOUD_TMP,TWAT,CHEAT,CDMOM,LATIT,LONGI,JULDAY,MONTH_NOW,SOLHR,SURFLXC,Q0)
+         !EJA - add HS,HL,RLN to return variable list from SOLAR
+         CALL SOLAR(TANUM,TDEW_TMP,WDS,CLOUD_TMP,TWAT,CHEAT,CDMOM,LATIT,LONGI,JULDAY,MONTH_NOW,SOLHR,SURFLXC,Q0,HS,HL,RLN)
 
          HEAT_NET(I) = SURFLXC     
          HEAT_SWV(I)  = Q0
+         !EJA - add HS,HL,RLN
+         HEAT_SENSIBLE(I) = HS
+         HEAT_LATENT(I) = HL
+         HEAT_RLN(I) = RLN
   
        END DO
        
 #      if defined (MULTIPROCESSOR)
        !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+       !EJA  - add HS,HL,RLN
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
 #      endif
 
     CASE(HEAT_IS_FVCOMGRID)
@@ -13767,16 +13953,23 @@ CONTAINS
          CLOUD_TMP = CLOUD(I)
          TDEW_TMP  = TDEW(I)
          CALL UZL(WDS,ZM,TDIFF,CDMOM,CHEAT,UZLZ0,UZLFL)
-         CALL SOLAR(TANUM,TDEW_TMP,WDS,CLOUD_TMP,TWAT,CHEAT,CDMOM,LATIT,LONGI,JULDAY,MONTH_NOW,SOLHR,SURFLXC,Q0)
+         !EJA - add HS,HL,RLN to return variable list from SOLAR
+         CALL SOLAR(TANUM,TDEW_TMP,WDS,CLOUD_TMP,TWAT,CHEAT,CDMOM,LATIT,LONGI,JULDAY,MONTH_NOW,SOLHR,SURFLXC,Q0,HS,HL,RLN)
 
          HEAT_NET(I) = SURFLXC     
          HEAT_SWV(I)  = Q0
+         !EJA - add HS,HL,RLN
+         HEAT_SENSIBLE(I) = HS
+         HEAT_LATENT(I) = HL
+         HEAT_RLN(I) = RLN
 
        END DO
 
 #      if defined (MULTIPROCESSOR)
        !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+       !EJA  - add HS,HL,RLN
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
 #      endif
 
     CASE DEFAULT

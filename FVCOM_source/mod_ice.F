@@ -242,6 +242,13 @@ MODULE MOD_ICE
        allocate( fsalt  (ilo:ihi,jlo:jhi))   ;fsalt   =ZERO  ! salt flux to ocean (kg/m^2/s)
        allocate( fhnet  (ilo:ihi,jlo:jhi))   ;fhnet   =ZERO  ! net heat flux to ocean (W/m^2)
        allocate( fswthru  (ilo:ihi,jlo:jhi)) ;fswthru =ZERO   ! shortwave penetrating to ocean (W/m^2)
+       ! afm 20150513 for outputs of heat fluxes.
+       allocate( fsh(ilo:ihi,jlo:jhi))   ;fsh =ZERO    ! sensible heat flux at water surface (W/m^2)
+       allocate( flh(ilo:ihi,jlo:jhi))   ;flh =ZERO    ! latent heat flux at water surface (W/m^2)
+       allocate( flwup(ilo:ihi,jlo:jhi)) ;flwup =ZERO  ! outgoing longwave radiation at water surface (W/m^2)
+       allocate( flwtot(ilo:ihi,jlo:jhi)) ;flwtot =ZERO  ! net longwave radiation at water surface (W/m^2)
+! afm 20170125 - hflx
+       allocate( flwitot(ilo:ihi,jlo:jhi)) ;flwitot =ZERO  ! net longwave radiation at ice surface (W/m^2)
 
        ! diagnostic 
 
@@ -452,7 +459,7 @@ MODULE MOD_ICE
 !
 
   IMPLICIT NONE
-      integer :: i,j,icn,n2   ! local loop indices
+      integer :: i,j,k,icn,n2   ! local loop indices
       integer :: II,i1,I2,j1,j2   ! local loop indices
       real  ::   gsum, workx, worky
       REAL(SP), allocatable, dimension (:,:) :: rbuf
@@ -627,6 +634,9 @@ MODULE MOD_ICE
 
 !!=================================================================
       REAL(SP) :: SPRO,SPCP,ROSEA
+! afm 20171115 for heat flux breakdown consistency-- begin
+      REAL(SP) :: SPRO1(0:MT,jlo:jhi),ROSEA1(0:MT,jlo:jhi)
+! afm 20171115 for heat flux breakdown consistency-- end
       REAL(SP), allocatable, dimension (:,:) :: rbuf
       REAL (SP) :: Naice   ! 
 
@@ -644,21 +654,51 @@ MODULE MOD_ICE
 
       real (kind=dbl_kind) :: &
          TsfK     &! surface temperature (K)
-      ,  fsh      &! sensible heat flux  (W/m^2)
-      ,  flh      &! latent heat flux    (W/m^2)
-      ,  swabs    &! surface absorbed shortwave heat flux (W/m^2)
-      ,  flwup     ! long-wave upward heat flux  (W/m^2)
+! afm for heat flux outputs
+!      ,  fsh      &! sensible heat flux  (W/m^2)
+!      ,  flh      &! latent heat flux    (W/m^2)
+      ,  swabs    !&! surface absorbed shortwave heat flux (W/m^2)
+!      ,  flwup     ! long-wave upward heat flux  (W/m^2)
 !!====================================================================
      flag  =.false.
      SPCP  = 4.2174E3_SP
      ROSEA = 1.023E3_SP
      SPRO  = SPCP*ROSEA
 
+! afm 20171115 for heat flux breakdown consistency-- begin
+# if defined (HEATING_CALCULATED)
+     SPCP = 4.21734E3_SP
+     ROSEA = 1.023E3_SP
+     SPRO  = SPCP*ROSEA
+# endif
+# if defined (HEATING_CALCULATED_GL)
+     SPCP = 4.186E3_SP
+     ROSEA = 1.000E3_SP
+     SPRO  = SPCP*ROSEA
+# endif
+# if defined (HEATING_SOLAR)
+     SPCP = 4.186E3_SP
+     ROSEA1(:,1) = (-.0057_SP)*T1(:,1)*T1(:,1) + 0.0249_SP*T1(:,1) + 1000.0_SP
+     SPRO1  = SPCP*ROSEA1
+#endif
+! afm 20171115 for heat flux breakdown consistency-- end
+
 !  calculate the heat budget at the surface of ocean
 
 !!====================================================================
 !!====================================================================
-!!      if(.false.) then
+!      if(.false.) then
+! afm 20160622 & EJA 20160921 -- begin
+# if defined (HEATING_CALCULATED) || (HEATING_SOLAR) 
+      ! Use net heat flux (wtsurf) from COARE or SOLAR.
+      ! Import latent, sensible heat fluxes and net longwave radiation
+      ! for output purpose.
+      flh(:,jlo) = HLAT_WATTS(1:M)
+      fsh(:,jlo) = HSENS_WATTS(1:M)
+      flwtot(:,jlo) = LWRAD_WATTS(1:M)
+# else
+      ! Calculate net heat flux using CICE's algorithm. 
+      ! Overwrite wtsurf.
       call atmo_boundary_layer (1, 'ocn', sst, &
            dummy1, dummy2, dummy3, dummy4, delt,  delq)
       do j = jlo,jhi
@@ -670,11 +710,17 @@ MODULE MOD_ICE
          swabs = (c1i - albocn) * fsw(i,j)
 
          ! longwave radiative flux
-         flwup  = -stefan_boltzmann * TsfK**4
+         !flwup  = -stefan_boltzmann * TsfK**4
+         ! afm for heat flux outputs
+         flwup(i,j)  = -stefan_boltzmann * TsfK**4
+
 
          ! downward latent and sensible heat fluxes
-         flh = lhcoef(i,j) * delq(i,j)
-         fsh = shcoef(i,j) * delt(i,j)
+         !flh = lhcoef(i,j) * delq(i,j)
+         !fsh = shcoef(i,j) * delt(i,j)
+! afm for heat flux outputs
+         flh(i,j) = lhcoef(i,j) * delq(i,j)
+         fsh(i,j) = shcoef(i,j) * delt(i,j)
 
          WTSURF(I) = -(fsh + flh + flwup + flw(i,j)+swabs ) /SPRO 
          SWRAD(I)  =  (C1i-albocn)*SWRAD(I)
@@ -699,13 +745,37 @@ MODULE MOD_ICE
            WTSURF(I) =  WTSURF(I)*(c1i-aice(I,1)) &
                        -fhnet(I,J) /SPRO & 
                        -fswthru(i,j)/SPRO 
+! include wssurf correction due to 'fresh' here for salt water application.
         !  the short wave two parts
         !  first:  the open region
         !  second: penetrating through the ice to ocean
            SWRAD(I)  = SWRAD(I)*(c1i-aice(I,1))  -fswthru(i,j)/SPRO 
+
+# if defined (HEATING_CALCULATED) || defined (HEATING_SOLAR)
+! afm 20170125 - hflx
+! ------ begin
+flwitot(I,1) = flw(I,1)*emissivity + flwout(I,1)
+HSENS_WATTS(I) = fsens(I,1)*aice(I,1) + fsh(I,1)*(c1i-aice(i,jlo))
+HLAT_WATTS(I)  = flat(I,1)*aice(I,1) + flh(I,1)*(c1i-aice(i,jlo))
+LWRAD_WATTS(I) = flwitot(I,1)*aice(I,1) + flwtot(I,1)*(c1i-aice(i,jlo))
+! ------ end
+# endif
+
         end if
         enddo                   ! i
       enddo                     ! j
+
+# if defined (HEATING_CALCULATED) || defined (HEATING_SOLAR)
+! afm 20170125 - hflx
+! ------ begin                      ! j
+# if defined (MULTIPROCESSOR)
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,FLWITOT)
+# endif
+! ------ end
+# endif
+
+
 
       DO I=1,M 
          IF(T1(I,1) .LT. Tf(I,1)) THEN
@@ -731,6 +801,21 @@ MODULE MOD_ICE
        IF(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,WTSURF,SWRAD)
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,WTSURF,SWRAD)
 # endif
+
+! afm 20171115 for heat flux breakdown consistency-- begin
+# if defined (HEATING_SOLAR)
+      wtsurf_watts = -1.0_SP*wtsurf*SPRO1(:,1)
+      swrad_watts = -1.0_SP*swrad *SPRO1(:,1)
+# else
+      wtsurf_watts = -1.0_SP*wtsurf*SPRO
+      swrad_watts = -1.0_SP*swrad *SPRO
+# endif
+
+# if defined (MULTIPROCESSOR)
+       IF(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,1,MYID,NPROCS,WTSURF_WATTS,SWRAD_WATTS)
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,WTSURF_WATTS,SWRAD_WATTS)
+# endif
+!! afm 20171115 -- end
 
        DO I=1,M
         IF(ISICEN(i)==1) THEN

@@ -77,7 +77,9 @@
 
        ! in from atmosphere
 !      real (kind=dbl_kind), dimension (ilo:ihi,jlo:jhi)  :: &
-      real (kind=dbl_kind), dimension (:,:),allocatable,save :: &
+!      real (kind=dbl_kind), dimension (:,:),allocatable,save :: &
+! afm 20160513 for heat flux outputs
+      real (kind=dbl_kind), dimension (:,:),allocatable,save,target :: &
 
      &   zlvl       & ! atm level height (m)
      &,  uatm       & ! wind speed (m/s)
@@ -106,7 +108,9 @@
        ! out to atmosphere 
        ! note albedos are in ice_albedo.F, Tsfc in ice_state.F
 !      real (kind=dbl_kind), dimension (ilo:ihi,jlo:jhi)  :: &
-      real (kind=dbl_kind), dimension (:,:),allocatable,save :: &
+!      real (kind=dbl_kind), dimension (:,:),allocatable,save :: &
+! afm 20160513 for heat flux outputs
+      real (kind=dbl_kind), dimension (:,:),allocatable,save,target :: &
 
      &   fsens       &! sensible heat flux (W/m^2)
      &,  flat        &! latent heat flux   (W/m^2)
@@ -121,7 +125,16 @@
      &,  fresh      & ! fresh water flux to ocean (kg/m^2/s)
      &,  fsalt      & ! salt flux to ocean (kg/m^2/s)
      &,  fhnet      & ! net heat flux to ocean (W/m^2)
-     &,  fswthru      ! shortwave penetrating to ocean (W/m^2)
+     &,  fswthru    & ! shortwave penetrating to ocean (W/m^2)
+! afm 20160513 for heat flux outputs
+     &,  fsh        &  ! sensible heat flux to ocean (W/m^2)
+     &,  flh        &  ! latent heat flux to ocean (W/m^2)
+     &,  flwup      &  ! outgoing longwave rafiation from  ocean (W/m^2)
+     &,  flwtot     &   ! net longwave rafiation from ocean (W/m^2)
+! afm 20170125 - hflx 
+     &,  flwitot        ! net longwave rafiation from ice (W/m^2)
+
+
 
        ! diagnostic 
 

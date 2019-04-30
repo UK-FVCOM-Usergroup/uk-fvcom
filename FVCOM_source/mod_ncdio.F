@@ -4590,6 +4590,20 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WTSURF")
        WTSURF_watts = 0.0_SP
 
+#      if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+       allocate(HSENS_WATTS(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:HSENS")
+       HSENS_watts = 0.0_SP
+
+       allocate(HLAT_WATTS(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:HLAT")
+       HLAT_watts = 0.0_SP
+
+       allocate(LWRAD_WATTS(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:LWRAD")
+       LWRAD_watts = 0.0_SP
+#      endif
+
     END IF
 
 
@@ -4652,6 +4666,93 @@ CONTAINS
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
+
+#   if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+    !EJA edit to add Sensible, Latent, and Longwave radiation to output - 05/03/2016
+    ! HSENS
+    VAR  => NC_MAKE_AVAR(name='sensible_heat_flux',&
+         & values=HSENS_WATTS, DIM1= DIM_node, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Sensible Heat Flux')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='W m-2')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+!!$    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time lat lon')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='node')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! HLAT
+    VAR  => NC_MAKE_AVAR(name='latent_heat_flux',&
+         & values=HLAT_WATTS, DIM1= DIM_node, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Latent Heat Flux')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='W m-2')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+!!$    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time lat lon')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='node')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! LWRAD
+    VAR  => NC_MAKE_AVAR(name='long_wave',&
+         & values=LWRAD_WATTS, DIM1= DIM_node, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Long Wave Radiation')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='W m-2')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+!!$    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time lat lon')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='node')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+#   endif
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END SURFACE_HEATING_FILE_OBJECT"
 
@@ -6015,6 +6116,13 @@ CONTAINS
     REAL(SP),SAVE, POINTER :: AICE_P(:)
     REAL(SP),SAVE, POINTER :: VICE_P(:)
 
+#   if defined (HEATING_CALCULATED) || (HEATING_SOLAR)
+!   afm for heat flux output 20160513 & EJA 20160921 ---
+    REAL(SP),SAVE, POINTER :: FSH_P(:), FLH_P(:),  &
+                              FLWUP_P(:), FLW_P(:), TSFC_P(:)
+!-----------------------------------------
+#   endif
+
     character(len=100)    :: timestamp, temp, netcdf_convention
 
     integer :: NI,K,I,J
@@ -6085,6 +6193,170 @@ CONTAINS
     VAR  => ADD(VAR,ATT)    
 
     NCF  => ADD(NCF,VAR)
+
+
+#   if defined (HEATING_CALCULATED) || (HEATING_SOLAR)
+!   afm 20160513 & EJA 20160921 - For additional outputs of ice-related variables 
+!----------------------
+   ! ICE SURFACE TEMPERATURE
+    TSFC_P => TSFC(1:m,1)
+
+    VAR  => NC_MAKE_PVAR(name='tsfc',&
+         & values=TSFC_P, DIM1= DIM_node, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='ice surface temperature')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='ice_surface_temperature')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='deg C')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+!    ATT  => NC_MAKE_ATT(name='missing_value',values=0.0_SP)
+!    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+    
+    !Edit by EJA - add heat fluxes via ice model if "Surface Heating" NC is not turned on
+    IF (.not. NC_SURFACE_HEAT) THEN
+   ! SENSIBLE HEAT FLUX AT WATER SURFACE
+    FSH_P => FSH(1:m,1)
+
+    VAR  => NC_MAKE_PVAR(name='sensible_heat_flux',&
+         & values=FSH_P, DIM1= DIM_node, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Sensible Heat Flux')
+    VAR  => ADD(VAR,ATT)
+
+    !ATT  => NC_MAKE_ATT(name='standard_name',values='fsh')
+    !VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='W m-2')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='node')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+   ! LATENT HEAT FLUX AT WATER SURFACE
+    FLH_P => FLH(1:m,1)
+
+    VAR  => NC_MAKE_PVAR(name='latent_heat_flux',&
+         & values=FLH_P, DIM1= DIM_node, DIM2= DIM_time)
+    
+    ATT  => NC_MAKE_ATT(name='long_name',values='Latent Heat Flux')
+    VAR  => ADD(VAR,ATT)
+
+    !ATT  => NC_MAKE_ATT(name='standard_name',values='flh')
+    !VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='W m-2')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='node')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+   ! LONGWAVE RADIATION AT WATER SURFACE
+    FLW_P => FLWTOT(1:m,1)
+
+    VAR  => NC_MAKE_PVAR(name='long_wave',&
+         & values=FLW_P, DIM1= DIM_node, DIM2= DIM_time)
+    
+    ATT  => NC_MAKE_ATT(name='long_name',values='Long Wave Radiation')
+    VAR  => ADD(VAR,ATT)
+
+    !ATT  => NC_MAKE_ATT(name='standard_name',values='flwp')
+    !VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='W m-2')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='node')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+   ! INCOMING LONGWAVE RADIATION AT WATER SURFACE
+   ! FLW_P => FLW(1:m,1)
+
+   ! VAR  => NC_MAKE_PVAR(name='flw',&
+   !      & values=FLW_P, DIM1= DIM_node, DIM2= DIM_time)
+    
+   ! ATT  => NC_MAKE_ATT(name='long_name',values='incoming longwave radiation at water surface')
+   ! VAR  => ADD(VAR,ATT)
+
+   ! ATT  => NC_MAKE_ATT(name='standard_name',values='flw')
+   ! VAR  => ADD(VAR,ATT)
+
+   ! ATT  => NC_MAKE_ATT(name='units',values='W/m2')
+   ! VAR  => ADD(VAR,ATT)
+
+   ! ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+   ! VAR  => ADD(VAR,ATT)
+
+   ! ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+   ! VAR  => ADD(VAR,ATT)
+
+   ! ATT  => NC_MAKE_ATT(name='type',values='data')
+   ! VAR  => ADD(VAR,ATT)
+
+   ! NCF  => ADD(NCF,VAR)
+    END IF
+
+!----------------------
+#   endif
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END ICE_STATE0_FILE_OBJECT"
 
