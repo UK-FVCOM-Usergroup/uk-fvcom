@@ -88,6 +88,7 @@ mod_station_timeseries.o : mod_station_timeseries.F mod_types.o mod_clock.o mod_
 mod_sparse_timeseries.o : mod_sparse_timeseries.F mod_par_special.o mod_main.o mod_clock.o mod_nctools.o swmod1.o mod_main.o mod_set_time.o mod_utils.o mod_main.o mod_station_timeseries.o mod_main_wave.o mod_time.o mod_prec.o 
 mod_boundschk.o : mod_boundschk.F mod_main_wave.o mod_par_special.o mod_ncdio.o mod_wd.o mod_utils.o mod_main.o mod_prec.o mod_prec.o 
 mod_esmf_nesting.o : mod_esmf_nesting.F mod_main.o mod_types.o mod_main.o swmod1.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
+mod_ncdio_surface.o : mod_ncdio_surface.F mod_par_special.o mod_wd.o mod_force.o mod_clock.o mod_main.o mod_ice2d.o mod_ice.o mod_main.o mod_wave_current_interaction.o mod_main_wave.o swmod1.o swmod1.o mod_input.o mod_time.o mod_utils.o mod_nctools.o mod_prec.o mod_main.o mod_prec.o 
 mod_cstms_vars.o : mod_cstms_vars.F mod_types.o mod_prec.o mod_par_special.o mod_prec.o 
 mod_flocmod.o : mod_flocmod.F mod_main.o mod_main.o mod_scal.o mod_cstms_vars.o mod_types.o mod_prec.o mod_par_special.o mod_main.o mod_wave_current_interaction.o mod_prec.o 
 mod_sed_cstms.o : mod_sed_cstms.F mod_obcs.o mod_scal.o mod_newinp.o mod_utils.o mod_main.o mod_flocmod.o mod_cstms_vars.o mod_fluid_mud.o mod_wave_current_interaction.o mod_main.o mod_main.o mod_wd.o mod_types.o mod_prec.o mod_par_special.o mod_prec.o 
@@ -165,6 +166,8 @@ rho_pmean.o : rho_pmean.F mod_wd.o sinter.o mod_par_special.o mod_utils.o mod_ma
 calc_vort.o : calc_vort.F mod_main.o mod_prec.o 
 namelist.o : namelist.F mod_solar.o mod_heatflux.o mod_assim.o mod_enkf.o mod_rrk.o mod_pwp.o mod_non_hydro.o mod_dye.o mod_wqm.o mod_onedtide.o mod_balance_2d.o mod_semi_implicit.o mod_sparse_timeseries.o mod_station_timeseries.o mod_nesting.o mod_input.o mod_main.o mod_utils.o mod_prec.o
 nh_set_nesting.o : nh_set_nesting.F mod_obcs.o mod_non_hydro.o mod_nesting.o mod_prec.o 
+coare26z.o : coare26z.F mod_heatflux.o mod_prec.o mod_prec.o 
+coare40vn.o : coare40vn.F mod_heatflux.o mod_prec.o 
 mod_bio_3D.o : mod_bio_3D.F mod_prec.o mod_nctools.o mod_semi_implicit.o mod_spherical.o mod_wd.o mod_par_special.o mod_obcs.o mod_main.o mod_main.o mod_prec.o 
 mod_onedtide.o : mod_onedtide.F mod_main.o mod_utils.o mod_main.o mod_main.o mod_types.o mod_prec.o 
 ocpmix.o : ocpmix.F swmod2.o swmod1.o swmod1.o swmod1.o swmod1.o mod_prec.o 

@@ -103,7 +103,8 @@ MAIN  =	fvcom.F		genmap.F	tge.F		longshore_flow.F\
 	vdif_ts.F	vdif_ts_gom.F	fct_s.F		bcond_ts.F	\
 	adjust_ts.F	conv_over.F	visitsim.F	startup_type.F	\
 	edge_len.F	adcor.F		icing.F		rho_pmean.F	\
-	calc_vort.F	namelist.F	nh_set_nesting.F
+	calc_vort.F	namelist.F	nh_set_nesting.F		\
+	coare26z.F	coare40vn.F
 
 MAIN_W = ocpmix.F	ocpcre.F	ocpids.F	\
 	swanpre1.F	swanpre2.F	swanser.F	swanmain.F	\
