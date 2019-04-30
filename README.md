@@ -13,7 +13,7 @@ Users of FVCOM must [register first](http://fvcom.smast.umassd.edu/wp-login.php?
 Download
 --------
 
-Once registered, the official releases of FVCOM are available for download as tarballs from http://fvcom.smast.umassd.edu/download.
+Once registered, the official releases of FVCOM are available for download from http://fvcom.smast.umassd.edu/download.
 
 Support
 -------
