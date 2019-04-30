@@ -264,8 +264,8 @@ CONTAINS
 
           ! Start averaging data at Next_IO
           IF(NC_AVG%FTIME%NEXT_IO < IntTime) CALL ADD_AVERAGE
-!          write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO
-!          write(*,*) '             IntTime=',IntTime
+          write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO
+          write(*,*) '             IntTime=',IntTime
           
           ! When average interval is complete - write to file
           IF((NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL)  == IntTime)THEN

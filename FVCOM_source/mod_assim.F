@@ -3588,7 +3588,8 @@ in:  DO WHILE(.TRUE.)
        DO K=K1,KBM1
          IF(DA_TS(I) == 1)THEN
 !QXU         TG(I,K) = TG(I,K) + TCORR1(I,K)
-           TG(I,K) = TG(I,K) + TS_GALPHA*TCORR1(I,K)
+!           TG(I,K) = TG(I,K) + TS_GALPHA*TCORR1(I,K)
+           TG(I,K) = TG(I,K) + TS_OIGALPHA*TCORR1(I,K)
          END IF
        END DO
      END DO

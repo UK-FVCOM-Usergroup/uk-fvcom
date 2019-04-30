@@ -13176,6 +13176,7 @@ CONTAINS
          LATIT = LAT(I)
          LONGI = LON(I)
          IF(LONGI > 180.0) LONGI = 360.0 - LONGI
+         IF(LONGI < 0.0) LONGI = ABS(LONGI)
 #        endif
 
          TANUM = T_AIR(I)
