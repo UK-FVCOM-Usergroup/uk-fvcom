@@ -147,6 +147,7 @@ SUBROUTINE VDIF_TS(NCON1,F)
 !    WFTMP3 = 0      if SST warmer than threshold (WFTMP1) - change nothing
 !    WFTMP3 = 1      if SST colder than threshold (WFTMP1)
 !
+!    0.5*(WFTMP2-ABS(WFTMP2)) = 0                        if flux is warming in ROMS
 !    0.5*(WFTMP2+ABS(WFTMP2)) = 0                        if flux is warming
 !                             = WFSURF                   if flux is cooling 
 !

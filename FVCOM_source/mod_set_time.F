@@ -1419,7 +1419,7 @@ CONTAINS
 
        END IF
        
-    CASE('cycle')
+    CASE('cycles')
        
        IF(VARTYPE == 'integer')THEN
 
@@ -1434,7 +1434,7 @@ CONTAINS
     CASE DEFAULT
        
           CALL FATAL_ERROR("IDEAL_TIME_STRING2TIME: Unknown Time or Length of Time::",&
-               & TRIM(STRING), "Bad units, can be 'seconds' 'days' or 'cycle'")
+               & TRIM(STRING), "Bad units, can be 'seconds' 'days' or 'cycles'")
        
     END SELECT
     
