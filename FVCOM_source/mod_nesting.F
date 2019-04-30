@@ -3621,6 +3621,13 @@ END SUBROUTINE GENMAP_NESTING
           D%RNG(1)=1
           D%RNG(2)=NCNEST_BLOCKSIZE_WAVE
           
+       ELSE IF (NCNEST_ON_WAVE) THEN
+          NCF1%CONNECTED = .FALSE.
+          CALL NC_WRITE_FILE(NCF1)
+          NCF1%FTIME%NEXT_STKCNT=1
+          D%RNG(1)=1
+          D%RNG(2)=NCNEST_BLOCKSIZE_WAVE
+
        ELSE
           Call Set_File_Stack(NCF1,STARTTIME,IMDTI)
           NCF1%CONNECTED = .TRUE.
