@@ -132,9 +132,13 @@ MODULE MOD_GOTM
        NN(I,K) = -GRAV_N(I) * (RHO1(I,K-1)-RHO1(I,K))/(DZZ(I,K-1)*D(I))
      END DO
    END DO
-   !!Set BC's as GOTM Does
-   NN(:,1)  = NN(:,2)   
-   NN(:,KB) = NN(:,KBM1)
+   !!Set BC's as GOTM Does 
+!RJT I think GOTM sets these to zero rather than what is here
+!   NN(:,1)  = NN(:,2)   
+!   NN(:,KB) = NN(:,KBM1)
+
+   NN(:,1)  = 0.0_SP
+   NN(:,KB) = 0.0_SP
 
 !------------------Calculate Shear Frequency Squared (SS)----------------------!
 
@@ -181,8 +185,9 @@ MODULE MOD_GOTM
       u_taus=(wusurf_node**2+wvsurf_node**2)**(1./4.)
   
       !Set Surface Roughness Height Using Charnok Formula[m]
-!      z0s_gotm = charnok_val*u_taus**2/grav
-!      if(z0s_gotm < z0s_min) z0s_gotm = z0s_min
+!RJT the next two lines were commented out.
+      z0s_gotm = charnok_val*u_taus**2/grav_n(i)
+      if(z0s_gotm < z0s_min) z0s_gotm = z0s_min
       z0s_gotm = z0s_min
       
       !Set Bottom Roughness Height [m] and Friction Velocity [m/s] using GOTM Method 
