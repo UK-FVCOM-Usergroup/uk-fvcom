@@ -1330,8 +1330,6 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
            write(IPT,*) "! NESTING GRID MATCH ERROR:"
            write(IPT,*) "! Largest Cell Error:",maxval(E_max)
            write(IPT,*) "! Largest Node Error:",maxval(N_max)
- !           write(IPT,*) "! Global Element indices: EGID_X =",EID
-
         ELSE
            write(IPT,*) "! NESTING GRID MATCH IS EXACT!"
         end if
@@ -1811,12 +1809,14 @@ END SUBROUTINE GENMAP_NESTING
        CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
        VAR_S1=> VAR
 
+# if defined (NH)
        VAR => FIND_VAR(NESTING_FILE,"hyw",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN NESTING FILE OBJECT NO 'hyw' FOUND?")
        CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%HYW_BLK)
        CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
        VAR_HYW=> VAR
+# endif
 
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
@@ -2733,6 +2733,8 @@ END SUBROUTINE GENMAP_NESTING
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START CALC_HYW"
     
+    HYW = 0.0_SP
+    
     DO I=1, G%M
 
        DO J=1, NTVE(G%NLID(I))
@@ -3194,7 +3196,10 @@ END SUBROUTINE GENMAP_NESTING
     CALL NC_READ_VAR(VAR_V,STKRNG=NESTING_DATA%RNG)
     CALL NC_READ_VAR(VAR_T1,STKRNG=NESTING_DATA%RNG)
     CALL NC_READ_VAR(VAR_S1,STKRNG=NESTING_DATA%RNG)
+# if defined (NH)
     CALL NC_READ_VAR(VAR_HYW,STKRNG=NESTING_DATA%RNG)
+# endif
+
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
        DO IFABM = 1,IFABMadv
