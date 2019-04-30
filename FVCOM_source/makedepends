@@ -1,4 +1,4 @@
-mod_prec.o : mod_prec.F mod_prec.o 
+mod_prec.o : mod_prec.F
 sinter.o : sinter.F mod_prec.o mod_prec.o 
 mod_types.o : mod_types.F mod_prec.o mod_prec.o 
 mod_time.o : mod_time.F mod_prec.o mod_prec.o 
