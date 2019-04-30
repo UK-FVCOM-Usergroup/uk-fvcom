@@ -27,19 +27,10 @@
 !/===========================================================================/
 
 !==============================================================================!
-!  VERSION 4.0
+!  VERSION 4.3
 !==============================================================================!
 
 PROGRAM FVCOM
-
-! CODING STATUS: Beta release
-! Remaining Work:
-! Add variable, 1/ART, 1/ART2... etc
-! Fix bottom boundary condition for scalars
-! Add sediment 
-! Add assimilation modes
-! Test GOTM Interface
-!
 
   !================================================================================!
   !                                                                                !
