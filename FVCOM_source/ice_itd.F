@@ -135,8 +135,17 @@
       endif
 
       rncat = real(ncat, kind=dbl_kind)
+#  if defined (ICE_FRESHWATER)
+! ayumi 20151112 & EJA 20160920 - thickness categories for the Great Lakes
+! (5 categories)
+!       d1 = 1.0_dbl_kind / rncat
+!       d2 = 0.5_dbl_kind / rncat
+      d1 = 0.25_dbl_kind / rncat
+      d2 = 0.75_dbl_kind / rncat
+#  else
       d1 = 3.0_dbl_kind / rncat
       d2 = 0.5_dbl_kind / rncat
+#  endif
 
       !-----------------------------------------------------------------
       ! Choose category boundaries based on one of two formulas.

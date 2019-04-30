@@ -77,6 +77,9 @@
       ,  esno     &! energy of melt. of snow layer    (J/m^2)
       ,  tmass    &! total mass of ice and snow
       ,  aice_init ! concentration of ice at beginning of dt (for diagnostics)
+! - begin afm 20171113 for ice open boundary -------------
+ real (kind=dbl_kind),dimension(:),allocatable,save,TARGET ::  xflux_ice
+! - end afm 20171113 for ice open boundary -------------
 
       !-----------------------------------------------------------------
       ! state of the ice for each category

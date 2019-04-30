@@ -128,7 +128,8 @@
 #  endif
    END DO
 
-#   endif       !!ice_embedding  yding
+#  endif
+!!ice_embedding  yding
 
 # if defined(MULTIPROCESSOR)
   IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,WW)

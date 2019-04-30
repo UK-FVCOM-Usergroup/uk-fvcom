@@ -272,7 +272,12 @@
      &,  vi_diff          ! vi0new - vi_frzmlt 
 
       real (kind=dbl_kind), parameter :: &
+# if defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160921 hfrazilmin 5cm-->1cm.
+     &   hfrazilmin = 0.01_dbl_kind  ! min thickness of new frazil ice (m)
+# else
      &   hfrazilmin = 0.05_dbl_kind  ! min thickness of new frazil ice (m)
+# endif
 
       integer (kind=int_kind) :: &
      &   icells, jcells, kcells &! grid cell counters

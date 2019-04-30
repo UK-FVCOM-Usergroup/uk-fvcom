@@ -8037,11 +8037,15 @@ CONTAINS
 
        ! Surface Air Temperature DATA
        VAR => FIND_VAR(ICE_FILE,"SAT",FOUND)
-       VAR => FIND_VAR(ICE_FILE,"T2",FOUND)
+!       VAR => FIND_VAR(ICE_FILE,"T2",FOUND)
+! afm 20150930 & EJA 20160921
+       IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"air_temperature",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"T2",FOUND)
+
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            & "COULD NOT FIND VARIABLE 'T2' of 'SAT'")
+            & "COULD NOT FIND VARIABLE 'T2','air_temperature' or 'SAT'")
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
@@ -8072,11 +8076,13 @@ CONTAINS
 
        ! Specific Humidity DATA
        VAR => FIND_VAR(ICE_FILE,"SPQ",FOUND)
-       VAR => FIND_VAR(ICE_FILE,"Q2",FOUND)
+!       VAR => FIND_VAR(ICE_FILE,"Q2",FOUND)
+! afm 20160513 & EJA 20160921
+       IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"Q2",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            & "COULD NOT FIND VARIABLE 'Q2' of 'SPQ'")
+            & "COULD NOT FIND VARIABLE 'Q2' or 'SPQ'")
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
@@ -8170,6 +8176,11 @@ CONTAINS
 
        ! SHORT WAVE RADIATION DATA
        !IF(ASSOCIATED(ICE_FILE,HEAT_FILE)) THEN
+# if !defined (ICE_FRESHWATER)
+! afm 20151112 &  & EJA 20160921
+! commented out for Solar ----------
+! With SOLAR, use SOLAR-derived shortwave
+! Without SOLAR, use shortwave from forcing data  
        VAR => FIND_VAR(HEAT_FILE,"short_wave",FOUND)
        IF( FOUND ) THEN
           ! USE THE SAME MEMORY USED FOR OCEAN MODEL HEAT FLUX
@@ -8207,13 +8218,17 @@ CONTAINS
        END IF
 
 
+# endif
+
        ! Surface Air Temperature DATA
        VAR => FIND_VAR(ICE_FILE,"SAT",FOUND)
+! afm 20151112 & EJA 20160921
+       IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"air_temperature",FOUND)
        IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"T2",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            & "COULD NOT FIND VARIABLE 'T2' or 'SAT'")
+            & "COULD NOT FIND VARIABLE 'T2','air_temperature' or 'SAT'")
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ICE_SAT_N => reference_var(var)
@@ -8288,7 +8303,10 @@ CONTAINS
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
+! afm 20180717
+# if !defined (ICE_FRESHWATER)
     ice_swv_n%curr_stkcnt   = 0;ice_swv_p%curr_stkcnt   = 0
+# endif
     ice_sat_n%curr_stkcnt   = 0;ice_sat_p%curr_stkcnt   = 0
     ice_spq_n%curr_stkcnt   = 0;ice_spq_p%curr_stkcnt   = 0
     ice_cld_n%curr_stkcnt   = 0;ice_cld_p%curr_stkcnt   = 0
@@ -15687,6 +15705,10 @@ CONTAINS
        SAT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
        ! SHORT WAVE
+# if !defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160921 - commented out for solar
+! With SOLAR, use SOLAR-derived shortwave
+! Without SOLAR, use shortwave from forcing data
 !       CALL UPDATE_VAR_BRACKET(ICE_FILE,ICE_SWV_P,ICE_SWV_N,WTIME,STATUS,ICE_INTP_N)
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,ICE_SWV_P,ICE_SWV_N,WTIME,STATUS,ICE_INTP_N)
        IF (STATUS /= 0) THEN
@@ -15696,6 +15718,7 @@ CONTAINS
        CALL NC_POINT_VAR(ICE_SWV_N,VNP)
        CALL NC_POINT_VAR(ICE_SWV_P,VPP)   
        SWV = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+# endif
 
        ! THE SPECIFIC HUMIDITY
        CALL UPDATE_VAR_BRACKET(ICE_FILE,ICE_SPQ_P,ICE_SPQ_N,WTIME,STATUS,ICE_INTP_N)
@@ -15739,6 +15762,10 @@ CONTAINS
        SAT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
        ! SHORT WAVE
+# if !defined (ICE_FRESHWATER)
+! afm 20151001 commented out for solar
+! With SOLAR, use SOLAR-derived shortwave
+! Without SOLAR, use shortwave from forcing data
 !       CALL UPDATE_VAR_BRACKET(ICE_FILE,ICE_SWV_P,ICE_SWV_N,WTIME,STATUS)
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,ICE_SWV_P,ICE_SWV_N,WTIME,STATUS)
        IF (STATUS /= 0) THEN
@@ -15749,6 +15776,7 @@ CONTAINS
        CALL NC_POINT_VAR(ICE_SWV_P,VPP)   
        SWV = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
+# endif
 
        ! THE SPECIFIC HUMIDITY
        CALL UPDATE_VAR_BRACKET(ICE_FILE,ICE_SPQ_P,ICE_SPQ_N,WTIME,STATUS)
