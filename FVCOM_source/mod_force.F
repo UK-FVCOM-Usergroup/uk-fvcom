@@ -12805,9 +12805,7 @@ CONTAINS
 
          END DO
          UIS = UIS/FLOAT(NTVE(I))
-# endif
-  
-# if defined (OBSICE)
+
        IF(ICE_COV(I) > 0.5_SP) THEN
        	    	! freezing point
        	    	!!REFERENCE: UNESCO TECH. PAPERS IN THE MARINE SCIENCE NO. 28. 1978
@@ -12850,7 +12848,7 @@ CONTAINS
            CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
                 DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
 
-	      
+# if defined(OBSICE)	      
             t1k= t1(i,1) + 273.16_sp
             
             DHDT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*(T(I,1) - Tfreez)/(334000.0_SP*600.0_SP)	! Ice thickness by forming, To go into evaporation
@@ -12861,7 +12859,6 @@ CONTAINS
             HEAT_SWV(I) = DSW_AIR(I)
             ! if temperature is below freezing, reset T to Tf
             !if (T(I,1) <= Tfreez) T(I,1) = Tfreez         
-# if defined(OBS_ICE)
        END IF
 # endif
            IF(.NOT. HEATING_FRESHWATER)THEN	      
