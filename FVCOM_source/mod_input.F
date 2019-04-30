@@ -3968,7 +3968,7 @@ CONTAINS
 
 
   SUBROUTINE READ_COLDSTART_COORDS(GRIDUNIT,MGL,XG2,YG2)
-!    USE ALL_VARS   !Jadon Ge
+    USE ALL_VARS, ONLY : NVG
     IMPLICIT NONE
     INTEGER, INTENT(IN)    :: MGL
     INTEGER, INTENT(IN)    :: GRIDUNIT
@@ -3983,6 +3983,8 @@ CONTAINS
             EVY12,EVY13,EVY23,EVXY,VX12,VY12,VX23,VY23,VX31,VY31,&
 	    X1_DP,Y1_DP,X2_DP,Y2_DP,DTMP_DP
 #  endif
+    REAL(SP)               :: X_CW(3),Y_CW(3)
+    INTEGER                :: IS_CW
     !==============================================================================|
     
     ! DO NOT REWIND - SAVED LOCATION FROM READING CONNECTIVITY
@@ -4010,6 +4012,14 @@ CONTAINS
        write(ipt,*) "Read, ", I, "rows of data but mgl= ",mgl 
        CALL FATAL_ERROR('Number of rows of data in the grid file coordinates does not equal the stated number of nodes ?')
     END if
+    
+    IF(MSR)THEN
+      X_CW(1:3)=XG2(NVG(1,1:3))
+      Y_CW(1:3)=YG2(NVG(1,1:3))
+      CALL IS_TRI_CW(X_CW,Y_CW,IS_CW)
+      IF(IS_CW /= 1) CALL FATAL_ERROR('Three nodes on each triangular cell in file *_grd.dat should be identified', &
+                                      & 'counter-clockwise...')
+    END IF
 
       if(DBG_SET(dbg_log)) then
       WRITE(IPT,*)'!  Finished Reading coordinates from Grid File'
@@ -4606,4 +4616,39 @@ case default
 
   END SUBROUTINE HelpTxt
 
+  SUBROUTINE IS_TRI_CW(X, Y, IS_CW)
+
+  !===================================================
+  ! Subroutine to check if a triangle is clockwise.
+  ! Input  : x(3), the x-coordinate 
+  !          y(3), the y-coordinate
+  ! Output : is_cw, integer result. 1, clockwise
+  !                                -1, anti-clockwise
+  !                                 0, line
+  ! Siqi Li, SMAST.
+  ! 
+  !===================================================
+    implicit none
+    !
+    real(sp), intent(in) :: x(3), y(3)
+    integer, intent(out) :: is_cw
+    real(sp)             :: cross_prod
+    !
+    cross_prod=(x(2)-x(1))*(y(3)-y(1))-(y(2)-y(1))*(x(3)-x(1))
+    !
+    if (abs(cross_prod)<1e-6) then
+      is_cw=0
+!      print*, 'This is a line, rather than a triangle.'
+    else
+      if (cross_prod>0) then
+        is_cw=-1
+!        print*, 'This triangle is anti-clockwise.'
+      else
+        is_cw=1
+!        print*, 'This triangle is clockwise.'
+      end if
+    end if
+    !
+  END SUBROUTINE IS_TRI_CW
+ 
 END MODULE MOD_INPUT

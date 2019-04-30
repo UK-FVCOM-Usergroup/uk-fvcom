@@ -377,6 +377,27 @@ PROGRAM FVCOM
   !  coordinates are corrected. Many minor bugs are also corrected.                !
   !                                                                                !
   !  Enjoy!      C. Chen at SMAST/UMASSD at Dec. 8 2009.                           !
+  !                                                                                !
+  !  Note for the grid input file in the FVCOM:                                    !
+  !                                                                                !
+  !  Some users used their own Matlab to create the grid input "*_grd.dat". If     !
+  !  doing it, please check the way how nodes on each triangular cell are          !
+  !  identified in the code. In FVCOM (see chapter 3 of users' manual), on each    !
+  !  triangular cell, the three nodes are identified using integral numbers that   !
+  !  are counted clockwise from 1 to 3. When the FVCOM was coded, it was tested    !
+  !  using the grid that was created using the SMS software. Three nodes on each   !
+  !  triangular cell in the SMS-generated grid are identified counter-clockwise,   !
+  !  which are opposite to what are coded in FVCOM. For this reason, we coded the  !
+  !  program in FVCOM to covert the SMS-generated grid. We have checked most of the!
+  !  unstructured grid generation software, they all have the same definition as   !
+  !  SMS. If one uses his/her own Matlab program to generate grid with the same    !
+  !  definition of node number described in the users' manual, this conversion     !
+  !  should be unnecessary.                                                        !
+  !  We have added a program in FVCOM v4.3  or later to check the identification of!
+  !  node numbers on each triangular cell when the grid file is input. This program!
+  !  will stop the model run if the grid file does not meet the required format.   !
+  !                                                                                !
+  !                          C. Chen at SMAST/UMASSD at Apr. 23 2018.              !    
   !================================================================================!
 
   !==============================================================================!
