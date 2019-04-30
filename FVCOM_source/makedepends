@@ -164,7 +164,7 @@ adcor.o : adcor.F mod_semi_implicit.o mod_wd.o mod_northpole.o mod_spherical.o m
 icing.o : icing.F mod_time.o mod_main.o mod_force.o mod_utils.o mod_prec.o 
 rho_pmean.o : rho_pmean.F mod_wd.o sinter.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
 calc_vort.o : calc_vort.F mod_main.o mod_prec.o 
-namelist.o : namelist.F mod_solar.o mod_heatflux_gl.o mod_assim.o mod_enkf.o mod_rrk.o mod_pwp.o mod_non_hydro.o mod_fabm_3D.o mod_dye.o mod_wqm.o mod_onedtide.o mod_balance_2d.o mod_semi_implicit.o mod_sparse_timeseries.o mod_station_timeseries.o mod_nesting.o mod_input.o mod_main.o mod_utils.o mod_prec.o
+namelist.o : namelist.F mod_solar.o mod_heatflux_gl.o mod_assim.o mod_enkf.o mod_rrk.o mod_pwp.o mod_non_hydro.o mod_dye.o mod_wqm.o mod_onedtide.o mod_balance_2d.o mod_semi_implicit.o mod_sparse_timeseries.o mod_station_timeseries.o mod_nesting.o mod_input.o mod_main.o mod_utils.o mod_prec.o
 nh_set_nesting.o : nh_set_nesting.F mod_obcs.o mod_non_hydro.o mod_nesting.o mod_prec.o 
 mod_bio_3D.o : mod_bio_3D.F mod_prec.o mod_nctools.o mod_semi_implicit.o mod_spherical.o mod_wd.o mod_par_special.o mod_obcs.o mod_main.o mod_main.o mod_prec.o 
 mod_onedtide.o : mod_onedtide.F mod_main.o mod_utils.o mod_main.o mod_main.o mod_types.o mod_prec.o 
