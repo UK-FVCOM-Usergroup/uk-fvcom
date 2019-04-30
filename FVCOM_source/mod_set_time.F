@@ -248,6 +248,35 @@ CONTAINS
 
        END IF
 
+       IF (NCSF_ON) THEN
+       
+          CALL GET_FIRST_OUTPUT_TIME(TRIM(NCSF_FIRST_OUT),NEXT_TIME)
+          
+          CALL GET_OUTPUT_FILE_INTERVAL(TRIM(NCSF_OUT_INTERVAL),INTERVAL_TIME)
+
+          NEXTSTK = 0
+          PREVSTK = 0 
+          PREV_TIME = ZEROTIME
+          STKLEN = 0
+          STKMAX = NCSF_OUTPUT_STACK
+
+
+          IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) "! SURFACE NETCDF OUTPUT:"
+          CALL SET_OUTPUT_FILE_TIME(NC_SF,INTERVAL_TIME,NEXT_TIME&
+               &,NEXTSTK,PREV_TIME,PREVSTK,STKLEN,STKMAX)
+
+
+
+          if (STARTTIME > NEXT_TIME)&
+               & Call Fatal_Error("The time of the first surface file output &
+               &must be greater than or equal to the start time")
+          
+          if (ENDTIME < NEXT_TIME)&
+               & Call Fatal_Error("The time of the first surface file output &
+               &must be less than or equal to the end time")
+
+       END IF
+
        IF (RST_ON) THEN
        
  
@@ -652,6 +681,97 @@ CONTAINS
 
        END IF
 
+       IF (NCSF_ON) THEN
+          
+          CALL GET_OUTPUT_FILE_INTERVAL(TRIM(NCSF_OUT_INTERVAL),INTERVAL_TIME)
+
+          ! FIRST OUPUT TIME: Must open existing file and find out!
+          NCF => NEW_FILE()
+          NCF%FNAME=NC_SF%FNAME
+          
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+
+          ! GET THE CURRENT STACK LENGTH
+          stklen = NCF%FTIME%stk_len
+
+          ! GET THE TIME OF THE FIRST OUTPUT
+          IF (STKLEN .GT. 1) THEN
+
+             CALL UPDATE_FILE_BRACKET(NCF,StartTime,STATUS)
+             IF(status == 0) THEN
+                PREV_TIME = NCF%FTIME%PREV_IO
+                PREVSTK= NCF%FTIME%PREV_STKCNT
+                
+                ! SET THE NEXT OUTPUT
+                Nextstk = NCF%FTIME%NEXT_STKCNT 
+                NEXT_TIME = NCF%FTIME%NEXT_IO
+                
+             ELSE
+
+                ! THERE IS NO SAVED OUTPUT PAST THE RESART TIME
+                PREV_TIME = GET_FILE_TIME_NCF(NCF,stklen)
+                PREVSTK= STKLEN
+
+                Nextstk = stklen + 1
+                NEXT_TIME = PREV_TIME + INTERVAL_TIME
+
+                IF(StartTime > NEXT_TIME) call Fatal_error&
+                     &("COULD NOT FIND VALID BRACKET FOR START TIME IN THE DATA FILE",&
+                     & "Try comparing the time in the restart and the data file?")
+
+             END IF
+
+          ELSE IF(STKLEN .eq. 1) THEN
+             
+             PREV_TIME = GET_FILE_TIME_NCF(NCF,stklen)
+             IF (PREV_TIME <= StartTime) THEN
+                PREVSTK= STKLEN
+                
+                ! SET THE NEXT OUTPUR
+                Nextstk = stklen + 1
+                NEXT_TIME = PREV_TIME + INTERVAL_TIME
+             ELSE
+                NEXTSTK=STKLEN
+                NEXT_TIME= PREV_TIME
+                PREV_TIME= ZEROTIME
+             END IF
+
+          ELSE
+             ! IF THERE ARE NOT YET ANY TIMESTEPS IN THE FILE
+             PREV_TIME=ZEROTIME
+             PREVSTK=0
+             NEXTSTK=1
+             CALL GET_FIRST_OUTPUT_TIME(TRIM(NCSF_FIRST_OUT),NEXT_TIME)
+          END IF
+         
+          IF(NEXT_TIME < StartTime) THEN 
+             CALL PRINT_TIME(StartTime,IPT,"Start Time")
+             CALL PRINT_TIME(NEXT_TIME,IPT,"First SURFACE DATA OUTPUT")
+
+             CALL FATAL_ERROR&
+               & ("CAN NOT CONNECT TO EXISTING FILE - THERE IS A TIME GAP",&
+               "BETWEEN THE EXISTING OUTPUT AND THE START TIME?")
+
+          END IF
+
+          if (ENDTIME < NEXT_TIME)&
+               & Call Fatal_Error("The time of the first surface file output &
+               &must be less than or equal to the end time")
+
+          
+          ! SET THE STACK MAX
+          STKMAX = NCSF_OUTPUT_STACK
+
+          IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) "! SURFACE NETCDF OUTPUT:"
+          CALL SET_OUTPUT_FILE_TIME(NC_SF,INTERVAL_TIME,NEXT_TIME&
+               &,NEXTSTK,PREV_TIME,PREVSTK,STKLEN,STKMAX)
+          
+          ! FINISHED WITH FILE
+          CALL KILL_FILE(NCF)
+
+       END IF
+
        IF (RST_ON) THEN
        
           CALL GET_OUTPUT_FILE_INTERVAL(TRIM(RST_OUT_INTERVAL),INTERVAL_TIME)
@@ -942,6 +1062,35 @@ CONTAINS
 
        END IF
 
+       IF (NCSF_ON) THEN
+       
+          CALL GET_FIRST_OUTPUT_TIME(TRIM(NCSF_FIRST_OUT),NEXT_TIME)
+          
+          CALL GET_OUTPUT_FILE_INTERVAL(TRIM(NCSF_OUT_INTERVAL),INTERVAL_TIME)
+
+          NEXTSTK = 0
+          PREVSTK = 0 
+          PREV_TIME = ZEROTIME
+          STKLEN = 0
+          STKMAX = NCSF_OUTPUT_STACK
+
+
+          IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) "! SURFACE NETCDF OUTPUT:"
+          CALL SET_OUTPUT_FILE_TIME(NC_SF,INTERVAL_TIME,NEXT_TIME&
+               &,NEXTSTK,PREV_TIME,PREVSTK,STKLEN,STKMAX)
+
+
+
+          if (STARTTIME > NEXT_TIME)&
+               & Call Fatal_Error("The time of the first surface file output &
+               &must be greater than or equal to the start time")
+          
+          if (ENDTIME < NEXT_TIME)&
+               & Call Fatal_Error("The time of the first surface file output &
+               &must be less than or equal to the end time")
+
+       END IF
+
        IF (RST_ON) THEN
        
  
@@ -1015,6 +1164,21 @@ CONTAINS
        END IF
        IF(MOD((NEXT_TIME - StartTime),IMDTI) /= ZeroTime) THEN
           CALL FATAL_ERROR("NC_FIRST_OUT must be an integer number of int&
+               &ernal time steps from the StartTime!")
+       END IF       
+          
+
+    END IF
+
+    IF(NCSF_ON)THEN
+       INTERVAL_TIME = NC_SF%FTIME%INTERVAL
+       NEXT_TIME = NC_SF%FTIME%NEXT_IO
+       IF(MOD(INTERVAL_TIME,IMDTI) /= ZeroTime) THEN
+          CALL FATAL_ERROR("NCSF_OUT_INTERVAL must be an integer number of int&
+               &ernal time steps!")
+       END IF
+       IF(MOD((NEXT_TIME - StartTime),IMDTI) /= ZeroTime) THEN
+          CALL FATAL_ERROR("NCSF_FIRST_OUT must be an integer number of int&
                &ernal time steps from the StartTime!")
        END IF       
           

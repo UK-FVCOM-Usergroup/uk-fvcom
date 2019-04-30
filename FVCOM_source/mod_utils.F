@@ -40,6 +40,7 @@ module mod_utils
    INTEGER, PARAMETER ::        WAIT_CODE =3603
    INTEGER ::                   RESTART_CODE
    INTEGER ::                   NC_CODE 
+   INTEGER ::                   NCSF_CODE 
    INTEGER ::                   NCAV_CODE 
    INTEGER ::                   INIT_CODE
    INTEGER ::                   NESTING_CODE 
