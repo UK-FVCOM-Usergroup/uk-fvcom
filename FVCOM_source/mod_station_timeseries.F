@@ -13,7 +13,7 @@ MODULE MOD_STATION_TIMESERIES
   LOGICAL OUT_VELOCITY_3D
   LOGICAL OUT_VELOCITY_2D
   LOGICAL OUT_WIND_VELOCITY
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
   LOGICAL OUT_ATM_PRESSURE
 # endif  
   LOGICAL OUT_SALT_TEMP
@@ -34,7 +34,7 @@ MODULE MOD_STATION_TIMESERIES
        & OUT_VELOCITY_3D,                  &
        & OUT_VELOCITY_2D,                  &
        & OUT_WIND_VELOCITY,                &
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
        & OUT_ATM_PRESSURE,                 &
 # endif  
        & OUT_SALT_TEMP,                    &
@@ -133,7 +133,7 @@ MODULE MOD_STATION_TIMESERIES
    OUT_VELOCITY_3D           = .False.
    OUT_VELOCITY_2D           = .False.
    OUT_WIND_VELOCITY         = .False.
-#  if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#  if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
    OUT_ATM_PRESSURE          = .False.
 #  endif   
    OUT_SALT_TEMP             = .False.
@@ -446,7 +446,7 @@ MODULE MOD_STATION_TIMESERIES
        deallocate(ftemp)
      END IF 
 
-#    if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#    if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
      IF(OUT_ATM_PRESSURE)THEN 
        allocate(ftemp(m))
        ftemp =pa_air(1:m)
@@ -790,7 +790,7 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,vvwind_s_vid,"coordinates","time station")
     end if
 
-#   if defined (AIR_PRESSURE) || (HEATING_CALCULATED) ||(HEATING_CALCULATED_GL) 
+#   if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     if(OUT_ATM_PRESSURE)then
      ierr = nf90_def_var(nc_ofid,"atm_pressure",nf90_float,dynm2ds,atmpres_s_vid)
      ierr = nf90_put_att(nc_ofid,atmpres_s_vid,"long_name","Sea level pressure")

@@ -79,7 +79,7 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	enkf_ncdio.F	mod_enkf_obs.F	mod_enkfassim.F mod_assim.F	\
 	mod_nesting.F	mod_visit.F     mod_plbc.F mod_dam.F		\
 	mod_station_timeseries.F	mod_sparse_timeseries.F 	\
-	mod_boundschk.F mod_heatflux_gl.F	mod_esmf_nesting.F	\
+	mod_boundschk.F mod_esmf_nesting.F	\
 	mod_cstms_vars.F	mod_flocmod.F	mod_sed_cstms.F		\
 	mod_fluid_mud.F 
 
