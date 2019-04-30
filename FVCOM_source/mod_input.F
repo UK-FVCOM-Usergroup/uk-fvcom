@@ -39,6 +39,7 @@ MODULE MOD_INPUT
   TYPE(NCFILE), POINTER ::NC_AVG
   TYPE(NCFILE), POINTER ::NC_RST
   TYPE(NCFILE), POINTER ::NC_START
+  TYPE(NCFILE), POINTER ::NC_SF
 
 CONTAINS
 
@@ -282,6 +283,33 @@ CONTAINS
 #if defined (FABM)
     NC_FABM         = .False.
 #endif
+    
+    ! OUTPUT VARIABLES DEFAULT TO OFF
+
+    !--Parameters in NameList NML_NETCDF_SURFACE
+    NCSF_ON = .False.
+    NCSF_FIRST_OUT = 'Date to start NETCDF OUTPUT: Format the same as START_DATE'
+    NCSF_OUT_INTERVAL = "A length of time: 'seconds= ','days= ', or 'cycles= '"
+    NCSF_OUTPUT_STACK = 0
+    NCSF_SUBDOMAIN_FILES= "FVCOM"
+    NCSF_GRID_METRICS = .False.
+    NCSF_FILE_DATE    = .False.   
+    NCSF_VELOCITY     = .False.
+    NCSF_SALT_TEMP    = .False.
+    NCSF_TURBULENCE   = .False.
+    NCSF_WIND_VEL     = .False.
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
+    NCSF_ATM_PRESS    = .False.
+# endif    
+    NCSF_WIND_STRESS  = .False.
+# if defined (WAVE_CURRENT_INTERACTION)
+    NCSF_WAVE_PARA    = .False.
+# endif
+# if defined (ICE)
+    NCSF_ICE          = .False.
+# endif
+    NCSF_EVAP_PRECIP  = .False.
+    NCSF_SURFACE_HEAT = .False.
     
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
@@ -556,6 +584,7 @@ CONTAINS
     write(UNIT=IPT,NML=NML_INTEGRATION)
     write(UNIT=IPT,NML=NML_RESTART)
     write(UNIT=IPT,NML=NML_NETCDF)
+    write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
     write(UNIT=IPT,NML=NML_NETCDF_AV)
     write(UNIT=IPT,NML=NML_SURFACE_FORCING)
     write(UNIT=IPT,NML=NML_PHYSICS)
@@ -683,6 +712,21 @@ CONTAINS
 
     if(DBG_SET(dbg_scl)) &
          & write(UNIT=IPT,NML=NML_NETCDF)
+
+    ! Read Netcdf Output Settings
+    READ(UNIT=NMLUNIT, NML=NML_NETCDF_SURFACE,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
+       Call Fatal_Error("Can Not Read NameList NML_NETCDF_SURFACE from file: "//trim(FNAME))
+    end if
+
+    REWIND(NMLUNIT)
+
+    if(DBG_SET(dbg_scl)) &
+         & write(IPT,*) "Read_Name_List:"
+
+    if(DBG_SET(dbg_scl)) &
+         & write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
 
     ! Read Netcdf Average Output Settings
     READ(UNIT=NMLUNIT, NML=NML_NETCDF_AV,IOSTAT=ios)
@@ -1015,6 +1059,7 @@ CONTAINS
     NULLIFY(NC_AVG)
     NULLIFY(NC_RST)
     NULLIFY(NC_START)
+    NULLIFY(NC_SF)
   END SUBROUTINE NULLIFY_FILE_POINTERS
 !=============================================================  
   SUBROUTINE INCRIMENT_FNAME(FNAME)
@@ -1135,7 +1180,22 @@ CONTAINS
     END IF
        
 
-    IF(NCAV_ON) then
+     IF(NCSF_ON) then
+       ! DATA FILE
+       NCSF_FILE_NAME = trim(casename)//"_surface_0001.nc"
+       pathnfile= trim(OUTPUT_DIR)//TRIM(NCSF_FILE_NAME)
+       
+       CALL SEARCH_FOR_LAST_MATCHING_NAME(PATHNFILE)
+       NCF => NEW_FILE()
+       NCF%FNAME=trim(pathnfile)
+       NCF%writable = .true.
+       NC_SF => NCF
+       FILEHEAD => ADD(FILEHEAD,NCF)
+
+    END IF
+       
+
+   IF(NCAV_ON) then
        ! DATA FILE
        NCAV_FILE_NAME = trim(casename)//"_avg_0001.nc"
        pathnfile= trim(OUTPUT_DIR)//TRIM(NCAV_FILE_NAME)
@@ -1317,7 +1377,24 @@ CONTAINS
 
     END IF
     
-    IF(NCAV_ON) THEN
+     IF(NCSF_ON) THEN
+       NCSF_FILE_NAME = trim(casename)//"_surface_0001.nc"
+       pathnfile = trim(OUTPUT_DIR)//trim(NCSF_FILE_NAME)
+       CALL NC_INIT(NCF,pathnfile)
+       if(msr) then
+          CALL NC_CREATE(NCF)
+          CALL NC_CLOSE(NCF)
+       else
+          NCF%writable = .true.
+       end if
+
+       NC_SF => NCF
+
+       FILEHEAD => ADD(FILEHEAD,NCF)
+
+    END IF
+    
+   IF(NCAV_ON) THEN
        NCAV_FILE_NAME = trim(casename)//"_avg_0001.nc"
        pathnfile = trim(OUTPUT_DIR)//trim(NCAV_FILE_NAME)
        CALL NC_INIT(NCF,pathnfile)
