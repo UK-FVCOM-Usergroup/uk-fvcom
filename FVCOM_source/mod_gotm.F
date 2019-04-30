@@ -113,8 +113,8 @@ MODULE MOD_GOTM
    DOUBLE PRECISION          :: NN1d(0:KBM1),SS1d(0:KBM1)
 !--Parameters------------------------------------------------
    REAL(SP), PARAMETER       :: KAPPA  = .4          !!Von Karman's Constant
-   REAL(SP), PARAMETER       :: CHARNOK_VAL = 1400.  !!Charnok Constant 
-   REAL(SP), PARAMETER       :: z0s_min = .00        !!Minimum Surface Roughness 
+   REAL(DP), PARAMETER       :: CHARNOK_VAL = 1400.  !!Charnok Constant 
+   REAL(DP), PARAMETER       :: z0s_min = .00        !!Minimum Surface Roughness 
    INTEGER , PARAMETER       :: MaxItz0b = 10
 
 !------------------------------------------------------------

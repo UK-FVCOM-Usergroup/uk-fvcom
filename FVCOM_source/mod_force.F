@@ -139,7 +139,7 @@ MODULE MOD_FORCE
 # endif
      ! ADD MORE HERE!
   END TYPE A_RIVER_FILE
-  TYPE(A_RIVER_FILE), ALLOCATABLE :: RIVER_FORCING(:)
+  TYPE(A_RIVER_FILE), ALLOCATABLE,PUBLIC :: RIVER_FORCING(:)
 
 
 
@@ -3825,7 +3825,8 @@ CONTAINS
     SELECT CASE(TRIM(ATT%CHR(1)))
        !=================================
        ! TIME SERIES OBC TEMPERATURE NUDGING DATA
-    CASE("FVCOM TIME SERIES OBC TS FILE")
+    CASE("FVCOM TIME SERIES OBC TS FILE", & 
+        & "FVCOM nesting TIME SERIES FILE")
        !==================================         
 
        OBC_T_TYPE = OBC_T_SIGMA

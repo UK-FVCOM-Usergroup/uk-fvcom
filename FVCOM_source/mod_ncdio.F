@@ -6833,7 +6833,7 @@ CONTAINS
   END DO
 
     if(nsed>1)then
-      VAR  => NC_MAKE_AVAR(name='todal_ssc', &
+      VAR  => NC_MAKE_AVAR(name='total_ssc', &
           & values=csed, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
 
       ATT  => NC_MAKE_ATT(name='long_name',values=TRIM('Total Suspended Sed &
