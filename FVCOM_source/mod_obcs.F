@@ -112,7 +112,12 @@ MODULE MOD_OBCS
   REAL(SP), ALLOCATABLE :: XFLUX_OBCN(:)
   REAL(SP), ALLOCATABLE :: UARD_OBCN(:)
   REAL(SP), ALLOCATABLE :: XFLUX_OBC(:,:)
-
+# if defined (ICE)
+! - begin afm 20171113 for ice open boundary -------------
+  REAL(SP), ALLOCATABLE :: UIARD_OBCN(:)
+  REAL(SP), ALLOCATABLE :: XFLUX_ICE_OBC(:)
+! - end afm 20171113 for ice open boundary -------------
+# endif
 
 CONTAINS
   !==========================================================================|
@@ -138,6 +143,12 @@ CONTAINS
     ALLOCATE(XFLUX_OBCN(IOBCN+1))    ;XFLUX_OBCN = ZERO
     ALLOCATE(UARD_OBCN(IOBCN))     ;UARD_OBCN  = ZERO  ! changed dimensions from IOBCN+1 RJT 2015
     ALLOCATE(XFLUX_OBC(IOBCN+1,KBM1));XFLUX_OBC  = ZERO
+#   if defined (ICE)
+! - begin afm 20171113 for ice open boundary -------------
+    ALLOCATE(UIARD_OBCN(IOBCN+1))     ;UIARD_OBCN  = ZERO
+    ALLOCATE(XFLUX_ICE_OBC(IOBCN+1))     ;XFLUX_ICE_OBC  = ZERO
+! - end afm 20171113 for ice open boundary -------------
+#   endif
 
     ALLOCATE(TEMP_OBC(IOBCN,KBM1))   ;TEMP_OBC   = ZERO
     ALLOCATE(SALT_OBC(IOBCN,KBM1))   ;SALT_OBC   = ZERO

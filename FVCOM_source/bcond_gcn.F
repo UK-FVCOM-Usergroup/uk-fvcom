@@ -53,6 +53,11 @@
    USE MOD_PAR
    USE MOD_WD
    USE MOD_BULK
+#  if defined (ICE)
+!  hhu ice bc 2/8/2017
+   use ice_state  !hhu
+!  hhu
+#  endif
 
 #  if defined (WATER_QUALITY)
    USE MOD_WQM
@@ -499,8 +504,34 @@
 
 
 !==============================================================================|
-   CASE(4) !Blank                                                              !
+   CASE(4)                                                                     !
 !==============================================================================|
+# if defined (ICE)
+! hhu ice bc 2/8/2017
+!=Sea ice open boundary by Haoguo Hu=== hhu                                                    !
+! additional bc fix - afm 4/17/17
+! additional bc fix using Ice flux (UIARC_OBCN) - afm 11/13/17
+         DO I=1,IOBCN
+             I1 = I_OBC_N(I)
+             I2 = NEXT_OBC(I)
+!             IF(UARD_OBCN(I) > 0.0_SP) THEN       ! IF THE FLOW IS OUT OF THE DOMAIN
+             UIARD_OBCN(I) = -XFLUX_ICE_OBC(I)  ! ICE FLUX at open boudary cells
+             IF(UIARD_OBCN(I) > 0.0_SP) THEN       ! IF THE FLOW IS OUT OF THE DOMAIN
+                vicen(i1,:,:)= vicen(i2,:,:)
+                aicen(i1,:,:)= aicen(i2,:,:)
+                eicen(i1,:,:)= eicen(i2,:,:)
+                esnon(i1,:,:)= esnon(i2,:,:)
+                Tsfc(i1,:)= Tsfc(i2,:)
+                aice0(i1,:)= aice0(i2,:)
+                aice(i1,:)= aice(i2,:)
+                vice(i1,:)= vice(i2,:)
+                eice(i1,:)= eice(i2,:)
+                esno(i1,:)= esno(i2,:)
+            ENDIF
+          ENDDO
+!!==End sea ice open boundary=====
+!==============================================================================|
+# endif
 
 !==============================================================================|
    CASE(5) !!SOLID BOUNDARY CONDITIONS ON U AND V                              !

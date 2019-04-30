@@ -276,6 +276,9 @@ CONTAINS
     NC_EVAP_PRECIP  = .False.
     NC_SURFACE_HEAT = .False.
     NC_GROUNDWATER  = .False.
+# if defined (ICE)
+    NC_ICE          = .False.
+# endif
     NC_VORTICITY    = .False.
     NC_WQM          = .False.
     NC_BIO          = .False.

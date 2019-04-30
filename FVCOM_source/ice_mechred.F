@@ -89,8 +89,15 @@
       ,  Hstar = c25             &! determines mean thickness of ridged ice (m)
                                   ! (krdg_redist = 0)
                                   ! Flato & Hibler (1995) have Hstar = 100
+# if defined (ICE_FRESHWATER)
+! afm 20160613 & EJA 20160921 -  best value suggested from the sensitivity study 
+! from mu_rdg=0.5-4
+      ,  mu_rdg = c2i             &! gives e-folding scale of ridged ice (m^.5)
+                                  ! (krdg_redist = 1)
+# else
       ,  mu_rdg = c4i             &! gives e-folding scale of ridged ice (m^.5)
                                   ! (krdg_redist = 1)
+# endif
       ,  Pstar = 2.75e4_dbl_kind &! constant in Hibler strength formula
                                   ! (kstrength = 0)
       ,  Cstar = c20              ! constant in Hibler strength formula
