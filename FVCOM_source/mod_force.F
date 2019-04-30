@@ -12266,7 +12266,7 @@ CONTAINS
 
   END SUBROUTINE UPDATE_GROUNDWATER
   !==============================================================================|
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
   SUBROUTINE UPDATE_HEAT(NOW,HEAT_SWV,HEAT_NET)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
