@@ -271,8 +271,10 @@ CONTAINS
     NC_ATM_PRESS    = .False.
 # endif    
     NC_WIND_STRESS  = .False.
-    NC_WAVE_PARA    = .False.  !Jadon
-    NC_WAVE_STRESS  = .False.  !Jadon
+# if defined (WAVE_CURRENT_INTERACTION)
+    NC_WAVE_PARA    = .False. 
+    NC_WAVE_STRESS  = .False. 
+# endif
     NC_EVAP_PRECIP  = .False.
     NC_SURFACE_HEAT = .False.
     NC_GROUNDWATER  = .False.
