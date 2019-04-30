@@ -599,7 +599,7 @@ SUBROUTINE ADV_S
   ! - Performance...
   ! - Find a better way to solve the precipitation-conundrum?
 
-  !   S. H
+  !   S. Hu
   !   Using smolarkiewicz, P. K; A fully multidimensional positive definite advection
   !   transport algorithm with small implicit diffusion, Journal of Computational
   !   Physics, 54, 325-362, 1984
@@ -1019,7 +1019,7 @@ SUBROUTINE ADV_S
 #    if defined (WET_DRY)
      END IF
 #    endif
-      END DO  !! SIGMA LOOP
+  END DO  !! SIGMA LOOP
 
   !
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
