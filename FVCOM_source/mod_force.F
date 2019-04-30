@@ -1062,7 +1062,7 @@ CONTAINS
     END SELECT
     !==================================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -1775,15 +1775,6 @@ CONTAINS
        TIDE_FORCING_TYPE = TIDE_FORCING_TIMESERIES
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
-    ! Need initialization. Otherwise, random values are asigned
-    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
-    ! This problem reported with Intel15.0.3. 
-    tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0
-    ! --------- end new --------------------------------------------
-
        ! NOT MUCH ELSE TO REPORT SINCE WE DON'T LOAD ANY DATA NOW
 
        !=====================================
@@ -1796,6 +1787,12 @@ CONTAINS
             &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
+
+    ! afm 20151112 & EJA 20160921
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END TIDAL_ELEVATION"
 
@@ -2253,16 +2250,10 @@ CONTAINS
        CALL NC_CONNECT_PVAR(RIVER_FORCING(I)%SALT_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 
-       ! ============= New : 2016, April ===================
-       ! Initialize some variables 
-       ! Similar to the hints by Qi and afm 20160216
+       ! afm 20160516 & EJA 20160921
        RIVER_FORCING(I)%FLUX_N%curr_stkcnt = 0; RIVER_FORCING(I)%FLUX_P%curr_stkcnt = 0
        RIVER_FORCING(I)%TEMP_N%curr_stkcnt = 0; RIVER_FORCING(I)%TEMP_P%curr_stkcnt = 0
        RIVER_FORCING(I)%SALT_N%curr_stkcnt = 0; RIVER_FORCING(I)%SALT_P%curr_stkcnt = 0 
-       ! ==================== end new ======================================
-
-
-
 
 # if defined (WATER_QUALITY)
        ! GET THE WATER QUALITY VARIABLE
@@ -2377,13 +2368,8 @@ CONTAINS
        RIVER_FORCING(I)%WQM8_P => reference_var(var)
        CALL NC_CONNECT_PVAR(RIVER_FORCING(I)%WQM8_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
-       
-      ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
-      ! Initialize some variables 
-      ! afm 20150914
-      ! Need initialization. Otherwise, random values are asigned
-      ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
-      ! This problem reported with Intel15.0.3. 
+
+       ! afm 20160516 & EJA 20160921
        river_forcing(i)%wqm1_n%curr_stkcnt = 0; river_forcing(i)%wqm1_p%curr_stkcnt = 0
        river_forcing(i)%wqm2_n%curr_stkcnt = 0; river_forcing(i)%wqm2_p%curr_stkcnt = 0
        river_forcing(i)%wqm3_n%curr_stkcnt = 0; river_forcing(i)%wqm3_p%curr_stkcnt = 0
@@ -2392,7 +2378,6 @@ CONTAINS
        river_forcing(i)%wqm6_n%curr_stkcnt = 0; river_forcing(i)%wqm6_p%curr_stkcnt = 0
        river_forcing(i)%wqm7_n%curr_stkcnt = 0; river_forcing(i)%wqm7_p%curr_stkcnt = 0
        river_forcing(i)%wqm8_n%curr_stkcnt = 0; river_forcing(i)%wqm8_p%curr_stkcnt = 0
-      ! ----------------------------------------------------------------------------------
 
        
 # endif
@@ -2618,7 +2603,7 @@ CONTAINS
        ENDIF
 
 
-       ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+       ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
        ! Initialize some variables 
        ! afm 20160216
        ! Need initialization. Otherwise, random values are asigned
@@ -3090,7 +3075,7 @@ CONTAINS
        ENDIF
 
 
-       ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+       ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
        ! Initialize some variables 
        ! afm 20160216
        ! Need initialization. Otherwise, random values are asigned
@@ -4097,17 +4082,13 @@ CONTAINS
             & TRIM(ATT%CHR(1)))
     END SELECT
 
-
-    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_TEMPERATURE"
-
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3.     
     OBC_T_N%curr_stkcnt = 0; OBC_T_P%curr_stkcnt = 0
-    ! ---------- end new ---------------------------------------
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_TEMPERATURE"
 
   END SUBROUTINE OBC_TEMPERATURE
   !================================================================
@@ -4304,15 +4285,12 @@ CONTAINS
             &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+
+    ! afm 20150914 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
     OBC_S_N%curr_stkcnt = 0; OBC_S_P%curr_stkcnt = 0
-    ! -------- end new ---------------------------------------------
-
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_SALINITY"
 
@@ -4732,7 +4710,7 @@ CONTAINS
     END SELECT
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -4747,9 +4725,6 @@ CONTAINS
     OBC_W_P7%curr_stkcnt = 0; OBC_W_N7%curr_stkcnt = 0
     OBC_W_P8%curr_stkcnt = 0; OBC_W_N8%curr_stkcnt = 0
     ! -------- end new ----------------------------------------------------------------
-
-
-
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_WQM"
 
@@ -5587,7 +5562,7 @@ CONTAINS
     END SELECT
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -6595,9 +6570,7 @@ CONTAINS
     END SELECT
     !==================================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
@@ -6605,7 +6578,6 @@ CONTAINS
     heat_net_p%curr_stkcnt=0
     heat_swv_n%curr_stkcnt=0
     heat_swv_p%curr_stkcnt=0
-    ! -------- end new ----------------------------------------------
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING"
   END SUBROUTINE SURFACE_HEATING
@@ -7288,9 +7260,7 @@ CONTAINS
     END SELECT
     !==================================================================
 
- 
-    ! ========== New: Karsten Lettmann, 2016, march from Qi =============
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
@@ -7303,8 +7273,6 @@ CONTAINS
     ice_cov_n%curr_stkcnt   = 0;ice_cov_p%curr_stkcnt   = 0
     ice_tik_n%curr_stkcnt   = 0;ice_tik_p%curr_stkcnt   = 0
 # endif
-    ! =========== end New ================================================
-
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING_CALCULATED"
   END SUBROUTINE SURFACE_HEATING_CALCULATED
@@ -7731,15 +7699,13 @@ CONTAINS
     END SELECT
     !==================================================================
 
-    ! ========== New: Karsten Lettmann, 2016, march from Qi =============
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
     t_air_n%curr_stkcnt = 0;t_air_p%curr_stkcnt = 0
     tdew_n%curr_stkcnt  = 0;tdew_p%curr_stkcnt  = 0
     ccov_n%curr_stkcnt  = 0;ccov_p%curr_stkcnt  = 0
-    ! ====================== end new ===========================
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING_SOLAR"
   END SUBROUTINE SURFACE_HEATING_SOLAR
@@ -8308,10 +8274,7 @@ CONTAINS
     END SELECT
     !==================================================================
 
-
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
@@ -8319,7 +8282,6 @@ CONTAINS
     ice_sat_n%curr_stkcnt   = 0;ice_sat_p%curr_stkcnt   = 0
     ice_spq_n%curr_stkcnt   = 0;ice_spq_p%curr_stkcnt   = 0
     ice_cld_n%curr_stkcnt   = 0;ice_cld_p%curr_stkcnt   = 0
-    ! --------- end new --------------------------------------------
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END ICE MODEL FORCING"
   END SUBROUTINE ICE_MODEL_FORCING
@@ -8785,7 +8747,7 @@ CONTAINS
     !==================================================================
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -9348,15 +9310,12 @@ CONTAINS
     END SELECT
 !==============================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
     winds_strx_n%curr_stkcnt = 0; winds_strx_p%curr_stkcnt = 0
     winds_stry_n%curr_stkcnt = 0; winds_stry_p%curr_stkcnt = 0
-    ! -------- end new ---------------------------------------------
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_WINDSTRESS"
   END SUBROUTINE SURFACE_WINDSTRESS
@@ -10156,7 +10115,7 @@ CONTAINS
        NULLIFY(STORAGE_INT)
 # endif
 
-      ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+      ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
       ! Initialize some variables 
       ! afm 20150914
       ! Need initialization. Otherwise, random values are asigned
@@ -11371,7 +11330,7 @@ CONTAINS
     END SELECT
 !==============================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -11796,7 +11755,7 @@ CONTAINS
 !=====================================================================
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -16621,7 +16580,7 @@ CONTAINS
     END SELECT
 !==============================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi -------------------------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
