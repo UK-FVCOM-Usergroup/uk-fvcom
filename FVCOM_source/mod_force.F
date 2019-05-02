@@ -1985,6 +1985,11 @@ CONTAINS
        ! MAKE THE LOCAL AND GLOBAL INDEX
 
           IF (NLID(PLUMES(I)%LOCATION) .GT. 0) THEN
+             IF(NDE_ID(NLID(PLUMES(I)%LOCATION))==1) THEN !! INTERNAL BOUNDARY NODE
+                 PRINT*, 'THE RELEASE NODE IS A INTERNAL BOUDNARY NODE FOR CURRENT PARTITIONING,'
+                 PRINT*, ' PLEASE CHANGE THE NUMBER OF PROCESSERS'
+                 CALL PSTOP                                             
+             END IF
              rcnt = rcnt + 1
              INODEPLM(rcnt)       = NLID(PLUMES(I)%LOCATION)
              KSIGPLM(rcnt)        = PLUMES(I)%SIGLAYER
