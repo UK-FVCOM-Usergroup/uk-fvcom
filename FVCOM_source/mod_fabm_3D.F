@@ -284,6 +284,12 @@ MODULE MOD_FABM_3D
        DISABLE_TRANSPORT(IFABM) = model%state_variables(IFABM)%properties%get_logical('disable_transport',default=.false.)
     END DO
 
+! Added by Håvard 2019
+# if defined (PLUME_CALCULATED)
+   ALLOCATE(FABMPLM(0:MT,KB,size(model%state_variables)));            FABMPLM    = ZERO
+   ALLOCATE(FPLM_TMP(0:MT,KB));                                       FPLM_TMP   = ZERO ! Ps. Stupid to store it, it is here for ease of development purposes.
+# endif
+
 ! link model variable to dummy ERSEM1 variable. 
 !   NAME_ ='O2_o'
 !      DO IFABM=1,SIZE(model%state_variables)
@@ -1671,7 +1677,7 @@ END SUBROUTINE FABM_MIXING
   DO I=1,M
        DO K=1,KBM1
   !             FABM_FRESH(JJ,K)=FABMDIS(J,K,IFABM)
-               XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM) - FLXPLM(I,K)*VDISTPLM(I,K)*FABMPLM(I,K,IFABM)
+               XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM) - FLXPLM(I,K)*FABMPLM(I,K,IFABM)
          END DO
      END DO
 # endif
@@ -2009,7 +2015,7 @@ END SUBROUTINE FABM_MIXING
 # if defined(PLUME_CALCULATED)
    DO I=1,M
          DO K=1,KBM1
-              XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM) - FLXPLM(I,K)*VDISTPLM(I,K)*FABMPLM(I,K,IFABM)
+              XFLUX(I,K,IFABM)=XFLUX(I,K,IFABM) - FLXPLM(I,K)*FABMPLM(I,K,IFABM)
          END DO
    END DO
 # endif

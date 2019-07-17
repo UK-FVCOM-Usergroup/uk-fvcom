@@ -230,9 +230,9 @@ SUBROUTINE ADV_T
     ! Adding offset to avoid less-than-zero problems
       T1 = T1+OFFS
       TMEAN1 = TMEAN1+OFFS
-#   if defined (PLUME)
+# if defined (PLUME)
       TPLM = TPLM+OFFS
-#   endif
+# endif
 # endif
 
   !
@@ -564,7 +564,8 @@ SUBROUTINE ADV_T
              ((1.0_SP+SIGN(1.0_SP,UN))*T12_B+(1.0_SP-SIGN(1.0_SP,UN))*T12_A)*0.5_SP+FXX+FYY
 #       endif
 #       else
-        EXFLUX=-UN*DTIJ(I,K)*((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP
+        EXFLUX=-UN*DTIJ(I,K)* &
+            ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP
         EXFLUX=(1.0_SP-IFCETA)*EXFLUX+IFCETA*(-UN1*DTIJ1(I,K)*((1.0_SP+SIGN(1.0_SP,UN1))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN1))*FIJ1)*0.5_SP)+FXX+FYY
 #       endif
 
@@ -698,7 +699,7 @@ SUBROUTINE ADV_T
 # if defined(PLUME_CALCULATED)
    DO I=1,M
          DO K=1,KBM1
-             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*VDISTPLM(I,K)*TPLM(I,K)  
+             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*TPLM(I,K)  
          END DO
    END DO
 # endif
@@ -772,14 +773,14 @@ SUBROUTINE ADV_T
            ELSE
               TMAX = MAXVAL(T1(NBSN(I,1:NTSN(I)),K))
               TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
-
 # if defined (PLUME)
               TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
               TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K),TPLM(I,K))
+
 # else
               TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
               TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
-# endif
+# endif()
            END IF
 
            ! Added by Akvaplan 2018 to avoid single precision-crash
@@ -942,9 +943,9 @@ SUBROUTINE ADV_T
       T1 = T1-OFFS
       T1_SF = T1_SF-OFFS
       TMEAN1 = TMEAN1-OFFS
-#  if defined(PLUME)
+# if defined (PLUME)
       TPLM = TPLM-OFFS
-#  endif
+# endif
 #  endif
 
 
@@ -1100,7 +1101,7 @@ SUBROUTINE ADV_T
 # if defined(PLUME_CALCULATED)
    DO I=1,M
          DO K=1,KBM1
-             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*VDISTPLM(I,K)*TPLM(I,K) 
+             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*TPLM(I,K) 
          END DO
    END DO
 # endif

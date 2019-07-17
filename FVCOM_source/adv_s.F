@@ -650,7 +650,7 @@ SUBROUTINE ADV_S
 # if defined(PLUME_CALCULATED)
    DO I=1,M
          DO K=1,KBM1
-             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*VDISTPLM(I,K)*SPLM(I,K)  
+             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*SPLM(I,K)  
          END DO
    END DO
 # endif
@@ -1103,7 +1103,7 @@ SUBROUTINE ADV_S
 # if defined(PLUME_CALCULATED)
    DO I=1,M
          DO K=1,KBM1
-             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*VDISTPLM(I,K)*SPLM(I,K)  
+             XFLUX(I,K)=XFLUX(I,K) - FLXPLM(I,K)*SPLM(I,K)  
          END DO
    END DO
 # endif

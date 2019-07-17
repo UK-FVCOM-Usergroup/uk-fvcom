@@ -59,9 +59,9 @@
 #  if defined (SEDIMENT)
    USE MOD_SED
 #  endif
-# if defined (PLUME_CALCULATED)
-  USE MOD_PLUME
-# endif
+!# if defined (PLUME_CALCULATED)
+!  USE MOD_PLUME
+!# endif
 
 #  if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
    USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON
@@ -91,7 +91,7 @@
 
    REAL(SP),POINTER :: eta_lcl(:), eta_gbl(:) ,elfgeo_gbl(:),elfgeo_lcl(:)
 
-   INTEGER  I,J,K,I1,I2,J1,J2,II,L1,L2,IERR
+   INTEGER  I,J,K,I1,I2,J1,J2,II,L1,L2,IERR,PLM
    INTEGER  cdx,ndx,K_RK
 
 
@@ -525,20 +525,7 @@
 
 !-----Plume Dischage----------------------------
 !  Added by Qin  05/03/2019
-# if defined(PLUME)
-      IF(NUMPLM_GL .GT. 0)  THEN
-        CALL UPDATE_PLUMES(IntTime,QPLMDIS,TEMP=TPLMDIS,SALT=SPLMDIS)  
-# if defined(FABM)
-        CALL UPDATE_PLUMES(IntTime,QPLMDIS,FABMR=FABMPLMDIS) 
-# endif           
-# if defined(PLUME_CALCULATED)
-      CALL UPDATE_PLUMES_CALCULATED(FLXPLM,VDISTPLM,PT=TPLM,PS=SPLM)
-# if defined(FABM)
-       IF (FABM_MODEL) CALL UPDATE_PLUMES_CALCULATED(FLXPLM,VDISTPLM,PTR=FABMPLM)
-# endif 
-# endif 
-      END IF
-# endif   
+!  Removed by Håvard and moved to internal_step.F 19/07/2019
 !----------------------------------      
 
 

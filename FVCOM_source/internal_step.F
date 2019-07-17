@@ -42,6 +42,10 @@ SUBROUTINE INTERNAL_STEP
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
+# if defined (PLUME)
+  USE MOD_PLUME
+  USE MOD_FORCE
+# endif
 # if defined (BALANCE_2D)
   USE MOD_BALANCE_2D
 # endif
@@ -109,6 +113,10 @@ SUBROUTINE INTERNAL_STEP
   REAL(SP) :: SPDAYS
 # endif
   integer :: i1,i2
+
+# if defined (PLUME_CALCULATED)
+  INTEGER :: PLM, IERR
+# endif
 !------------------------------------------------------------------------------|
 
   if(dbg_set(dbg_sbr)) write(ipt,*)&
@@ -357,6 +365,19 @@ SUBROUTINE INTERNAL_STEP
   !----ADJUST CONSISTENCY BETWEEN 3-D VELOCITY AND VERT-AVERAGED VELOCITIES------!
 #   if !defined (ONE_D_MODEL)
     CALL ADJUST2D3D(1)
+#   endif
+
+  ! ---- RUN THE PLUME MODEL ----------------------------------------------------!
+#   if defined (PLUME_CALCULATED)
+      IF (NUMPLM_GL .GT. 0) THEN
+         CALL UPDATE_PLUMES(IntTime,QPLMDIS,TEMP=TPLMDIS,SALT=SPLMDIS)
+#    if defined(FABM)
+         IF (FABM_MODEL) CALL UPDATE_PLUMES(IntTime,QPLMDIS,FABMR=FABMPLMDIS)                               
+
+#    endif  
+         CALL UPDATE_PLUMES_CALCULATED ! I assumed that this procedure updated the
+                                       ! plume variables, but that seems simplistic
+      END IF
 #   endif
 
   !----SPECIFY THE SOLID BOUNDARY CONDITIONS OF U&V INTERNAL MODES---------------!

@@ -1838,8 +1838,9 @@ CONTAINS
   ! READ PLUME PARAMETER, added by Qin 04/03/2019; modified by Qin 14/03/2019
 # if defined (PLUME)    
   SUBROUTINE PLUME_DISCHARGE 
+    USE MOD_PAR
 # if defined (FABM)
-  USE MOD_FABM_DATA
+    USE MOD_FABM_DATA
 # endif
     IMPLICIT NONE
     INTEGER :: I, J,K, fcnt,rcnt,status, nfiles,nrs,IOS,NS
@@ -1901,9 +1902,13 @@ CONTAINS
 
     ! CHECK TO MAKE SURE THE LOCATION IS VALID AND ADD NAMES TO
     ! COMMENT STRING
+
+    ! This code was tweaked by Håvard to force the plume data to be stored to MSR
     nfiles = 0
     NUMPLM = 0
-    DO  I =1,plume_number 
+    DO  I = 1,plume_number 
+
+! Her må vi trikse litt for å sikre at utløpet havner i MSR prosessoren
 
        ! CHECK THE INFLOW LOCATION OF EACH PLUME
        ! COUNT THE NUMBER THAT BELONG TO EACH PROCESSOR
@@ -1925,8 +1930,15 @@ CONTAINS
                   & "YOU SPECIFIED SIGMA LAYER: "//chr)
           END IF
 
+!Håvard removed this 17.07.2019
+! ===============================================================================
        ! COUNT THE NUMBER OF PLUMES OWNED BY THIS PROC
-          IF (NLID(PLUMES(I)%LOCATION) .GT. 0) NUMPLM = NUMPLM + 1
+          ! ---> Tror ikke denne er nødvendig for vår modell
+       !   IF (NLID(PLUMES(I)%LOCATION) .GT. 0) NUMPLM = NUMPLM + 1
+! ===============================================================================
+       IF (MSR) THEN
+          NUMPLM = PLUME_NUMBER
+       END IF
 
        ! COUNT THE NUMBER OF FILES
        NCF => FIND_FILE(FILEHEAD,TRIM(PLUMES(I)%FILE),FOUND)
@@ -1984,17 +1996,13 @@ CONTAINS
        ! to this processor
        ! MAKE THE LOCAL AND GLOBAL INDEX
 
-          IF (NLID(PLUMES(I)%LOCATION) .GT. 0) THEN
-             IF(NDE_ID(NLID(PLUMES(I)%LOCATION))==1) THEN !! INTERNAL BOUNDARY NODE
-                 PRINT*, 'THE RELEASE NODE IS A INTERNAL BOUDNARY NODE FOR CURRENT PARTITIONING,'
-                 PRINT*, ' PLEASE CHANGE THE NUMBER OF PROCESSERS'
-                 CALL PSTOP                                             
-             END IF
-             rcnt = rcnt + 1
-             INODEPLM(rcnt)       = NLID(PLUMES(I)%LOCATION)
-             KSIGPLM(rcnt)        = PLUMES(I)%SIGLAYER
-             MINE = .TRUE.
-          END IF
+       ! Her tror jeg at vi må tvinge master processor til å jobbe for oss
+       IF ((MSR).AND.(PLUMES(I)%LOCATION.GT.0)) THEN !(NLID(PLUMES(I)%LOCATION) .GT. 0) THEN
+          rcnt = rcnt + 1
+          INODEPLM(rcnt)       = PLUMES(I)%LOCATION
+          KSIGPLM(rcnt)        = PLUMES(I)%SIGLAYER
+          MINE = .TRUE.
+       END IF
 
 
        ! NOW PUT THE PLUMES IN THE PLUME_FORCING TYPE
@@ -2013,7 +2021,6 @@ CONTAINS
           PLUME_FORCING(FCNT)%PLUMES_IN_FILE=DIM%DIM
           ALLOCATE(PLUME_FORCING(FCNT)%PLM_FILE2LOC(DIM%DIM))
           PLUME_FORCING(FCNT)%PLM_FILE2LOC = 0
-
        END IF
 
        ! FIGURE OUT WHICH PLUME IT IS WHICH FILE AND SET THE INDEX 
