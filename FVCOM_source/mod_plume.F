@@ -246,7 +246,7 @@ MODULE MOD_PLUME
 !     Constants and ICs
       entcoef      = 0.07_SP  ! The exact value of this parameter is disputed
       PI           = 4.0_SP*ATAN(1.0_SP)
-      RUN_PLUME    = .TRUE.   ! This should be false, or?
+      RUN_PLUME    = .TRUE.
 
 !===================================================================================
 !                                Physical variables
@@ -259,10 +259,8 @@ MODULE MOD_PLUME
             ALLOCATE(PT, SOURCE = T1)
          END IF
       ELSE IF (PAR) THEN
-         IF (MSR) THEN
-            ALLOCATE(PS(0:MGL,KB), stat=ierr);       PS = 0.0_SP
-            ALLOCATE(PT(0:MGL,KB), stat=ierr);       PT = 0.0_SP
-         END IF
+         ALLOCATE(PS(0:MGL,KB), stat=ierr);       PS = 0.0_SP
+         ALLOCATE(PT(0:MGL,KB), stat=ierr);       PT = 0.0_SP
          CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,S1,PS)
          CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,T1,PT)
       END IF
@@ -270,24 +268,21 @@ MODULE MOD_PLUME
 
 ! FABM stuff
 # if defined (FABM)
-      IFABM = SIZE(FABM_ALL,3)
-      IF (MSR) THEN
+      IF (FABM_MODEL) THEN
+         IFABM = SIZE(FABM_ALL,3)
          ALLOCATE(FABMPF(KB,IFABM));       FABMPF  = ZERO
          ALLOCATE(PTRACER(IFABM));         PTRACER = ZERO
-      END IF
-
 # if defined (MULTIPROCESSOR)
-      IF (SERIAL) THEN
-         IF (MSR) THEN ! In serial mode, you will always use the master node?
-            ALLOCATE(PTR, SOURCE = FABM_ALL)
+         IF (SERIAL) THEN
+            IF (MSR) THEN       ! In serial mode, you will always use the master node?
+               ALLOCATE(PTR, SOURCE = FABM_ALL)
+            END IF
+         ELSE IF (PAR) THEN
+            ALLOCATE(PTR(0:MGL,KB,IFABM));   PTR     = ZERO
+            CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,FABM_ALL,PTR)
          END IF
-      ELSE IF (PAR) THEN
-         IF (MSR) THEN
-            ALLOCATE(PTR(0:MGL,KB,IFABM),stat=ierr);   PTR     = ZERO
-         END IF
-         CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,FABM_ALL,PTR)
-      END IF
 # endif
+      END IF
 # endif
 
 ! General stuff we need when we use the model - feels bad to do this so often
@@ -307,16 +302,14 @@ MODULE MOD_PLUME
 
       ELSE IF (PAR) THEN
        ! Make room for the variables
-         IF (MSR) THEN
-            ALLOCATE(ART1_G(0:MGL),stat=ierr);              ART1_G    = ZERO
-            ALLOCATE(GRAV_GN(0:MGL),stat=ierr);             GRAV_GN   = ZERO
-            ALLOCATE(ZZ_G(0:MGL,KB),stat=ierr);             ZZ_G      = ZERO
-            ALLOCATE(D_G(0:MGL),stat=ierr);                 D_G       = ZERO
-            ALLOCATE(DZZ_G(0:MGL,KB),stat=ierr);            DZZ_G     = ZERO
-            ALLOCATE(NBSN_G(0:MGL,SIZE(NBSN,2)),stat=ierr); NBSN_G    = ZERO
-            ALLOCATE(NTSN_G(0:MGL),stat=ierr);              NTSN_G    = ZERO
-            ALLOCATE(RHO1_G(0:MGL,KB),stat=ierr);           RHO1_G    = ZERO  
-         END IF
+         ALLOCATE(ART1_G(0:MGL),stat=ierr);              ART1_G    = ZERO
+         ALLOCATE(GRAV_GN(0:MGL),stat=ierr);             GRAV_GN   = ZERO
+         ALLOCATE(ZZ_G(0:MGL,KB),stat=ierr);             ZZ_G      = ZERO
+         ALLOCATE(D_G(0:MGL),stat=ierr);                 D_G       = ZERO
+         ALLOCATE(DZZ_G(0:MGL,KB),stat=ierr);            DZZ_G     = ZERO
+         ALLOCATE(NBSN_G(0:MGL,SIZE(NBSN,2)),stat=ierr); NBSN_G    = ZERO
+         ALLOCATE(NTSN_G(0:MGL),stat=ierr);              NTSN_G    = ZERO
+         ALLOCATE(RHO1_G(0:MGL,KB),stat=ierr);           RHO1_G    = ZERO  
 
        ! Physical variables
          CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,GRAV_N,GRAV_GN)
@@ -332,7 +325,7 @@ MODULE MOD_PLUME
          CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,ART1,ART1_G)
          CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,NTSN,NTSN_G)
 
-         ALLOCATE(NBSNg(SIZE(NBSN,1),SIZE(NBSN,2)));        NBSNg     = ZERO
+         ALLOCATE(NBSNg(SIZE(NBSN,1),SIZE(NBSN,2)));     NBSNg     = ZERO
          DO I = 1,M
             NBSNg(I,:) = NGID_X(NBSN(I,:))
          END DO
@@ -340,9 +333,7 @@ MODULE MOD_PLUME
          DEALLOCATE(NBSNg)
       END IF
 # endif
-      IF (MSR) THEN
-         ALLOCATE(PFLUX_G(0:MGL,KB),stat=ierr);             PFLUX_G   = ZERO
-      END IF
+      ALLOCATE(PFLUX_G(0:MGL,KB),stat=ierr);             PFLUX_G   = ZERO
 
 !   Not sure how else to find the global number of plumes...
 ! =================================================================
@@ -363,7 +354,9 @@ MODULE MOD_PLUME
        SOURCE_MOM   =   SOURCE_VOL/(PIPE_RADIUS)
 
 # if defined (FABM)
-       PTRACER      =   FABMPLMDIS(II,:)
+       IF (FABM_MODEL) THEN
+          PTRACER      =   FABMPLMDIS(II,:)
+       END IF
 # endif
 
 ! =============================================================================
@@ -376,16 +369,11 @@ MODULE MOD_PLUME
 ! --> Kjør noen tester for å se at den der faktisk funker som tiltenkt...
 ! ---
           PRESSURE = -GRAV_GN(INODE)*1.025_SP*(ZZ_G(INODE,INS)*D_G(INODE))*0.1_SP+PA_AIR(1) 
-          write(*,*) 'intra sigma: ', ZZ_G(INODE,INS)
-          write(*,*) 'plume salinity: ', PSALT
-          write(*,*) 'plume temperature: ', PTEMP
-          write(*,*) 'air pressure: ', PA_AIR(1)
-          write(*,*) 'pressure: ', PRESSURE
 
 ! Temporarilly store the initial plume temperature and salinity as vectors so
 ! that we can use the sea water density functions to estimate the plume density.
-          PTT      = PT(INODE,INS)!PTEMP
-          PSS      = 100!PSALT
+          PTT      = PTEMP
+          PSS      = PSALT
 
           SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
           CASE(SW_DENS1)
@@ -410,8 +398,7 @@ MODULE MOD_PLUME
              CALL FATAL_ERROR("INVALID MOMENTUM FLUX, MOD_PLUME DOES ",&
              &"NOT SUPPORT SINKING PLUMES (AT THE MOMENT).")
           END IF
-          write(*,*) 'PRHO', PRHO
-          write(*,*) 'RHO1_G', RHO1_G(INODE,INS)
+
 !===========================================================================
 ! Buoyancy frequency, stolen from the gotm routine
 ! ----
@@ -434,9 +421,11 @@ MODULE MOD_PLUME
           SALTPF(K)      = SOURCE_VOL*PSALT
 
 # if defined (FABM)
-          DO FAB = 1,IFABM
-             FABMPF(INS,FAB)   = SOURCE_VOL*PTRACER(FAB)
-          END DO
+          IF (FABM_MODEL) THEN
+             DO FAB = 1,IFABM
+                FABMPF(INS,FAB)   = SOURCE_VOL*PTRACER(FAB)
+             END DO
+          END IF
 # endif
 
           INIT_V = SOURCE_VOL
@@ -480,10 +469,12 @@ MODULE MOD_PLUME
              PSF    = DIFF_VOL*PSALT
 
 # if defined (FABM)
-             ALLOCATE(PTRF(IFABM));    PTRF = ZERO
-             DO FAB = 1,IFABM
-                PTRF(FAB)   = DIFF_VOL*PTRACER(FAB)
-             END DO
+             IF (FABM_MODEL) THEN
+                ALLOCATE(PTRF(IFABM));    PTRF = ZERO
+                DO FAB = 1,IFABM
+                   PTRF(FAB)   = DIFF_VOL*PTRACER(FAB)
+                END DO
+             END IF
 # endif
 
          ! Idea: Integrate these equations until they merge
@@ -508,9 +499,11 @@ MODULE MOD_PLUME
                 PTF         = PTF  + 2.0_SP*(entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP)*PT(INODE,K)
 
 # if defined (FABM)
-                DO FAB = 1,IFABM
-                   PTRF(FAB)  = PTRF(FAB) + 2.0_SP*(entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP)*PTR(INODE,K,FAB)
-                END DO
+                IF (FABM_MODEL) THEN
+                   DO FAB = 1,IFABM
+                      PTRF(FAB)  = PTRF(FAB) + 2.0_SP*(entcoef*DIFF_MOM*PDEPTH(K)/10.0_SP)*PTR(INODE,K,FAB)
+                   END DO
+                END IF
 # endif
                
                 PFLUX_G(INODE,INS) = PFLUX_G(INODE,INS) - 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)/10.0_SP
@@ -529,9 +522,11 @@ MODULE MOD_PLUME
              PSALT    = PSF/DIFF_VOL
 
 # if defined (FABM)
-             DO FAB = 1,IFABM
-                PTRACER(FAB)  = PTRF(FAB)/DIFF_VOL
-             END DO
+             IF (FABM_MODEL) THEN
+                DO FAB = 1,IFABM
+                   PTRACER(FAB)  = PTRF(FAB)/DIFF_VOL
+                END DO
+             END IF
 # endif
          
          ! The area of the big plume should be TOT_PLUMES times bigger than the small ones
@@ -549,9 +544,11 @@ MODULE MOD_PLUME
              SALTPF(INS)   = SOURCE_VOL*PSALT
          
 # if defined (FABM)
-             DO FAB = 1,IFABM
-                FABMPF(INS,FAB)   = SOURCE_VOL*PTRACER(FAB)
-             END DO
+             IF (FABM_MODEL) THEN
+                DO FAB = 1,IFABM
+                   FABMPF(INS,FAB)   = SOURCE_VOL*PTRACER(FAB)
+                END DO
+             END IF
 # endif
 
              K = INS
@@ -622,9 +619,11 @@ MODULE MOD_PLUME
                    PS(RELEASENODES(I),K)      =  (SALTPF(K+1)/SOURCE_VOL)
 
 # if defined (FABM)
-                   DO FAB = 1,IFABM
-                      PTR(RELEASENODES(I),K,FAB) = (FABMPF(K+1,FAB)/SOURCE_VOL)
-                   END DO
+                   IF (FABM_MODEL) THEN
+                      DO FAB = 1,IFABM
+                         PTR(RELEASENODES(I),K,FAB) = (FABMPF(K+1,FAB)/SOURCE_VOL)
+                      END DO
+                   END IF
 # endif
 
                 END DO
@@ -642,9 +641,11 @@ MODULE MOD_PLUME
              TEMPPF(K)   = TEMPPF(K+1) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*PT(INODE,K)
 
 # if defined (FABM)
-             DO FAB = 1,IFABM
-                FABMPF(K,FAB)   = FABMPF(K+1,FAB) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*PTR(INODE,K,FAB)
-             END DO
+             IF (FABM_MODEL) THEN
+                DO FAB = 1,IFABM
+                   FABMPF(K,FAB)   = FABMPF(K+1,FAB) + 2.0_SP*entcoef*SOURCE_MOM*PDEPTH(K)*PTR(INODE,K,FAB)
+                END DO
+             END IF
 # endif
 
            ! Distribute the flux over the nodes influenced by the plume at every sigma layer
@@ -677,8 +678,10 @@ MODULE MOD_PLUME
           END DO            ! THE "CORE" PLUME MODEL
        END IF               ! RUN_PLUME
       END DO                ! II
-      write(*,*) 'Number of releasenodes: ', SIZE(RELEASENODES)
-      write(*,*) 'Initial sigma layer: ', INS, ' Final sl:', K
+      IF (RUN_PLUME) THEN
+         write(*,*) 'Number of releasenodes: ', SIZE(RELEASENODES)
+         write(*,*) 'Initial sigma layer: ', INS, ' Final sl:', K
+      END IF
       END IF                ! NUMPLM>0 (seems superfluous?)
       END IF ! MSR
 
@@ -689,17 +692,19 @@ MODULE MOD_PLUME
 
     ! Tracer part
 # if defined (FABM)
-      DO FAB = 1,IFABM
-         IF (MSR) THEN
-            ALLOCATE(PTR_TMP(0:MGL,KB))
-            PTR_TMP(:,:) = PTR(:,:,FAB)
-         END IF
-         CALL ADEAL(MYID,MSRID,NPROCS,NXMAP,PTR_TMP,FPLM_TMP)
-         FABMPLM(:,:,FAB) = FPLM_TMP(:,:)
-         IF (MSR) THEN
-            DEALLOCATE(PTR_TMP)
-         END IF
-      END DO
+      IF (FABM_MODEL) THEN
+         DO FAB = 1,IFABM
+            IF (MSR) THEN
+               ALLOCATE(PTR_TMP(0:MGL,KB))
+               PTR_TMP(:,:) = PTR(:,:,FAB)
+            END IF
+            CALL ADEAL(MYID,MSRID,NPROCS,NXMAP,PTR_TMP,FPLM_TMP)
+            FABMPLM(:,:,FAB) = FPLM_TMP(:,:)
+            IF (MSR) THEN
+               DEALLOCATE(PTR_TMP)
+            END IF
+         END DO
+      END IF
 # endif
 
   RETURN
