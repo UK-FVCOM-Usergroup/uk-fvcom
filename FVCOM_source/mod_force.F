@@ -1902,14 +1902,9 @@ CONTAINS
 
     ! CHECK TO MAKE SURE THE LOCATION IS VALID AND ADD NAMES TO
     ! COMMENT STRING
-
-    ! This code was tweaked by Håvard to force the plume data to be stored to MSR
     nfiles = 0
     NUMPLM = 0
     DO  I = 1,plume_number 
-
-! Her må vi trikse litt for å sikre at utløpet havner i MSR prosessoren
-
        ! CHECK THE INFLOW LOCATION OF EACH PLUME
        ! COUNT THE NUMBER THAT BELONG TO EACH PROCESSOR
           IF(PLUMES(i)%LOCATION > MGL .or. PLUMES(i)%LOCATION < 1)THEN
@@ -1930,10 +1925,9 @@ CONTAINS
                   & "YOU SPECIFIED SIGMA LAYER: "//chr)
           END IF
 
-!Håvard removed this 17.07.2019
 ! ===============================================================================
-       ! COUNT THE NUMBER OF PLUMES OWNED BY THIS PROC
-          ! ---> Tror ikke denne er nødvendig for vår modell
+! Irrelevant, we want it to be owned by the MSR proc   
+    ! COUNT THE NUMBER OF PLUMES OWNED BY THIS PROC
        !   IF (NLID(PLUMES(I)%LOCATION) .GT. 0) NUMPLM = NUMPLM + 1
 ! ===============================================================================
        IF (MSR) THEN
@@ -1989,14 +1983,13 @@ CONTAINS
 
     FCNT = 0
     RCNT = 0
-    DO  I =1,plume_number 
+    DO  I = 1,plume_number 
        ! SET MINE TO FALSE
        MINE = .false. 
        ! Mine is set true if this plume name belongs
        ! to this processor
        ! MAKE THE LOCAL AND GLOBAL INDEX
 
-       ! Her tror jeg at vi må tvinge master processor til å jobbe for oss
        IF ((MSR).AND.(PLUMES(I)%LOCATION.GT.0)) THEN !(NLID(PLUMES(I)%LOCATION) .GT. 0) THEN
           rcnt = rcnt + 1
           INODEPLM(rcnt)       = PLUMES(I)%LOCATION

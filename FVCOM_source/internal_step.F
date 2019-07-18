@@ -375,8 +375,7 @@ SUBROUTINE INTERNAL_STEP
          IF (FABM_MODEL) CALL UPDATE_PLUMES(IntTime,QPLMDIS,FABMR=FABMPLMDIS)                               
 
 #    endif  
-         CALL UPDATE_PLUMES_CALCULATED ! I assumed that this procedure updated the
-                                       ! plume variables, but that seems simplistic
+         CALL UPDATE_PLUMES_CALCULATED
       END IF
 #   endif
 
