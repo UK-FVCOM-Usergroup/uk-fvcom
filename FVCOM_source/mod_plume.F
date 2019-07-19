@@ -202,6 +202,7 @@ MODULE MOD_PLUME
       USE EQS_OF_STATE
       USE ALL_VARS
       USE MOD_UTILS
+      USE MOD_PLUME_GRID
 # if defined (MULTIPROCESSOR)
       USE MOD_PAR
 # endif
@@ -211,11 +212,8 @@ MODULE MOD_PLUME
       IMPLICIT NONE
       REAL(SP)                                ::  SOURCE_MOM, SOURCE_VOL, SOURCE_BUOY
       REAL(SP)                                ::           PLUME_AREA,DST,PTEMP,PSALT
-      REAL(SP), ALLOCATABLE                   ::          GRAV_GN(:),D_G(:),ART1_G(:)
-      INTEGER,  ALLOCATABLE                   ::     NTSN_G(:),NBSN_G(:,:),NBSNg(:,:)
-      REAL(SP), ALLOCATABLE                   ::               PFLUX_G(:,:),ZZ_G(:,:)
-      REAL(SP), ALLOCATABLE                   ::               DZZ_G(:,:),RHO1_G(:,:)
-      REAL(SP), ALLOCATABLE                   ::                      PS(:,:),PT(:,:)
+      REAL(SP), ALLOCATABLE                   ::                         PFLUX_G(:,:)
+      REAL(SP), ALLOCATABLE                   ::          RHO1_G(:,:),PS(:,:),PT(:,:)
       INTEGER                                 ::              A,B,C,INS,INODE,K,I,J,O
       INTEGER                                 ::                       II,JJ,NEWROUND
       REAL(SP)                                ::  INIT_V,entcoef,AREA,radius,Wn,Vn,Fn
@@ -276,7 +274,7 @@ MODULE MOD_PLUME
          IF (SERIAL) THEN
             IF (MSR) THEN       ! In serial mode, you will always use the master node?
                ALLOCATE(PTR, SOURCE = FABM_ALL)
-            END IF
+           END IF
          ELSE IF (PAR) THEN
             ALLOCATE(PTR(0:MGL,KB,IFABM));   PTR     = ZERO
             CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,FABM_ALL,PTR)
@@ -285,58 +283,20 @@ MODULE MOD_PLUME
       END IF
 # endif
 
-! General stuff we need when we use the model - feels bad to do this so often
 ! =================================================================================
+
 # if defined (MULTIPROCESSOR)
       IF (SERIAL) THEN
-         IF (MSR) THEN
-            ALLOCATE(ART1_G,  SOURCE = ART1)
-            ALLOCATE(GRAV_GN, SOURCE = GRAV_N)
-            ALLOCATE(ZZ_G,    SOURCE = ZZ)
-            ALLOCATE(D_G,     SOURCE = D)
-            ALLOCATE(DZZ_G,   SOURCE = DZZ)
-            ALLOCATE(RHO1_G,  SOURCE = RHO1)
-            ALLOCATE(NBSN_G,  SOURCE = NBSN)
-            ALLOCATE(NTSN_G,  SOURCE = NTSN)
-         END IF
-
+         ALLOCATE(RHO1_G, SOURCE = RHO1)
       ELSE IF (PAR) THEN
-       ! Make room for the variables
-         ALLOCATE(ART1_G(0:MGL),stat=ierr);              ART1_G    = ZERO
-         ALLOCATE(GRAV_GN(0:MGL),stat=ierr);             GRAV_GN   = ZERO
-         ALLOCATE(ZZ_G(0:MGL,KB),stat=ierr);             ZZ_G      = ZERO
-         ALLOCATE(D_G(0:MGL),stat=ierr);                 D_G       = ZERO
-         ALLOCATE(DZZ_G(0:MGL,KB),stat=ierr);            DZZ_G     = ZERO
-         ALLOCATE(NBSN_G(0:MGL,SIZE(NBSN,2)),stat=ierr); NBSN_G    = ZERO
-         ALLOCATE(NTSN_G(0:MGL),stat=ierr);              NTSN_G    = ZERO
          ALLOCATE(RHO1_G(0:MGL,KB),stat=ierr);           RHO1_G    = ZERO  
-
-       ! Physical variables
-         CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,GRAV_N,GRAV_GN)
          CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,RHO1,RHO1_G)
-         
-       ! Some grid stuff
-       ! Depth/sigma layer information
-         CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,ZZ,ZZ_G)
-         CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,D,D_G)
-         CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,DZZ,DZZ_G)
-
-       ! Grid IDs and connectivity
-         CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,ART1,ART1_G)
-         CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,NTSN,NTSN_G)
-
-         ALLOCATE(NBSNg(SIZE(NBSN,1),SIZE(NBSN,2)));     NBSNg     = ZERO
-         DO I = 1,M
-            NBSNg(I,:) = NGID_X(NBSN(I,:))
-         END DO
-         CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,NBSNg,NBSN_G)
-         DEALLOCATE(NBSNg)
       END IF
 # endif
       ALLOCATE(PFLUX_G(0:MGL,KB),stat=ierr);             PFLUX_G   = ZERO
 
-!   Not sure how else to find the global number of plumes...
-! =================================================================
+! ============================================================================            
+
     IF (MSR) THEN
     IF(NUMPLM_GL>0) THEN
     DO II = 1,NUMPLM_GL
@@ -351,13 +311,15 @@ MODULE MOD_PLUME
        ELSE
           RUN_PLUME = .FALSE.
        END IF
-       SOURCE_MOM   =   SOURCE_VOL/(PIPE_RADIUS)
+
+       SOURCE_MOM   =   SOURCE_VOL/(PIPE_RADIUS) 
 
 # if defined (FABM)
        IF (FABM_MODEL) THEN
           PTRACER      =   FABMPLMDIS(II,:)
-       END IF
+       END IF 
 # endif
+
 
 ! =============================================================================
 !     End of initialization, the code will now run the plume part of the code
@@ -429,7 +391,6 @@ MODULE MOD_PLUME
 # endif
 
           INIT_V = SOURCE_VOL
-          
           IF (PLUME_DIFFUSOR_ON) THEN
 ! ===========================================================================
 !             Enhanced initial entrainment due to use of diffusors
@@ -661,9 +622,11 @@ MODULE MOD_PLUME
            !     Vn=-1
            !  END IF
              
-           ! Prøver å ikke legge begrensning på utgangs
-             TMParea = PI*(Wn/Vn**0.25_SP)
-             IF((Fn.GT.0).AND.((TMParea/2.5_SP).gt.PLUME_AREA)) THEN
+           ! If the plume buoyancy is negative, and the plume expands fast, then the plume is about to stop.
+           ! This part is hardcoded and ugly (perhaps a 20% increase over 1m rising is normal for plumes >5m?)
+           ! so it should be improved.
+             TMParea = PI*(Wn/Vn**0.25_SP)**2.0_SP
+             IF((Fn.LT.0).AND.((TMParea/1.2_SP).GT.PLUME_AREA)) THEN
                  VN=-1
              END IF
 
@@ -679,8 +642,6 @@ MODULE MOD_PLUME
        END IF               ! RUN_PLUME
       END DO                ! II
       IF (RUN_PLUME) THEN
-         write(*,*) 'Number of releasenodes: ', SIZE(RELEASENODES)
-         write(*,*) 'Initial sigma layer: ', INS, ' Final sl:', K
       END IF
       END IF                ! NUMPLM>0 (seems superfluous?)
       END IF ! MSR

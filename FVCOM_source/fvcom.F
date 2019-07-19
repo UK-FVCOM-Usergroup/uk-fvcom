@@ -474,9 +474,15 @@ PROGRAM FVCOM
 # if defined (PLUME_CALCULATED)
   USE MOD_PLUME
 # endif
+
 ! Added by researchers at Akvaplan-niva 2018, idealized tests give promising results.
 # if defined (TVD)
   USE MOD_TVD
+# endif
+
+! Added by Akvaplan-niva 2019, still under development - but we use it in projects
+# if defined (PLUME_CALCULATED)
+  USE MOD_PLUME_GRID
 # endif
 
 # if defined (NH)
@@ -628,10 +634,18 @@ PROGRAM FVCOM
    IF(SEDIMENT_MODEL) &
   &  CALL SETUP_SED(SEDIMENT_MODEL_FILE,IOBCN,IOBCN_GL,N_SED,N_SED_MAX,SED_NAMES)
 #  endif
-
-   !SETUP TVD ADVECTION
+  !=============================================================================!
+  ! SETUP TVD ADVECTION                                                         !
+  !=============================================================================!
 # if defined (TVD)
    CALL SETUP_TVD
+# endif
+
+  !=============================================================================!
+  ! SETUP THE PLUME MODEL (IN DEVELOPMENT)                                      !
+  !=============================================================================!  
+# if defined (PLUME_CALCULATED)
+  CALL SETUP_PLUME_GRID
 # endif
 
 !JQI  !==============================================================================!
