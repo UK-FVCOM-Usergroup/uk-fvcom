@@ -221,7 +221,8 @@ MODULE MOD_PLUME
       INTEGER,  ALLOCATABLE                   ::              TMP(:), RELEASENODES(:)
       REAL(SP), ALLOCATABLE                   ::             WEIGHT_TMP(:), WEIGHT(:)
       REAL(SP), DIMENSION(1:2)                ::             PRHO, PRESSURE, PTT, PSS
-      REAL(SP)                                ::                              TMParea
+      REAL(SP)                                ::                 diff_rad, radius_new
+
 # if defined (MULTIPROCESSOR)
       INTEGER                                 ::                                 IERR
 # endif
@@ -625,9 +626,22 @@ MODULE MOD_PLUME
            ! If the plume buoyancy is negative, and the plume expands fast, then the plume is about to stop.
            ! This part is hardcoded and ugly (perhaps a 20% increase over 1m rising is normal for plumes >5m?)
            ! so it should be improved.
-             TMParea = PI*(Wn/Vn**0.25_SP)**2.0_SP
-             IF((Fn.LT.0).AND.((TMParea/1.2_SP).GT.PLUME_AREA)) THEN
-                 VN=-1
+           !  TMParea = PI*(Wn/Vn**0.25_SP)**2.0_SP
+           !  IF((Fn.LT.0).AND.((TMParea/1.2_SP).GT.PLUME_AREA)) THEN
+           !      VN=-1
+           !  END IF
+
+           ! Kill the plume if the rise-angle is too flat. Say that 15 degrees is sufficient to kill the plume?
+             radius_new     = Wn/Vn**0.25_SP
+             !write(*,*) 'radius_new', radius_new
+             !write(*,*) 'radius ', radius
+             
+             diff_rad       = radius_new-radius
+             
+             IF ((Fn.LT.O).AND.(diff_rad.GT.PDEPTH(K)*TAN(2.0_SP*PI*15/360))) THEN
+                Vn = -1
+                write(*,*) 'Killed'
+                write(*,*) 'Sigma level', K
              END IF
 
            ! We update the plume parameters if the plume is still rising
