@@ -640,8 +640,7 @@ MODULE MOD_PLUME
              
              IF ((Fn.LT.O).AND.(diff_rad.GT.PDEPTH(K)*TAN(2.0_SP*PI*15/360))) THEN
                 Vn = -1
-                write(*,*) 'Killed'
-                write(*,*) 'Sigma level', K
+                write(*,*) 'diff_rad = ', diff_rad
              END IF
 
            ! We update the plume parameters if the plume is still rising
