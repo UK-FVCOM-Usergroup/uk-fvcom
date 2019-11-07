@@ -2020,7 +2020,7 @@ CONTAINS
        DO J = 1, NFILES
           ! IN THIS FILE FIND THE NAME
           if (ASSOCIATED(NCF,PLUME_FORCING(J)%NCF)) THEN
-             K=SEARCH_NAME(NCF,PLUMES(I)%NAME)
+             K=SEARCH_NAME(NCF,PLUMES(I)%NAME,'plumes','plume_names')
 
              ! THIS IS MY PLUME SO SET THE INDEX
              IF (MINE) PLUME_FORCING(J)%PLM_FILE2LOC(K)=RCNT
@@ -2672,7 +2672,7 @@ CONTAINS
        DO J = 1, NFILES
           ! IN THIS FILE FIND THE NAME
           IF (associated(NCF,RIVER_FORCING(J)%NCF)) THEN
-             K=SEARCH_NAME(NCF,Rivers(I)%NAME)
+             K=SEARCH_NAME(NCF,Rivers(I)%NAME,'rivers','river_names')
 
              ! THIS IS MY RIVER SO SET THE INDEX
              IF (MINE) RIVER_FORCING(J)%RIV_FILE2LOC(K)=RCNT
@@ -3728,13 +3728,14 @@ CONTAINS
   END SUBROUTINE RIVER_DISCHARGE
   !================================================================
   !================================================================
-  FUNCTION SEARCH_NAME(NCF,NAME) RESULT(RES)
+  FUNCTION SEARCH_NAME(NCF,NAME,INPUT_TYPE,INPUT_NAMES) RESULT(RES)
     ! OUTPUT is the TYPE we are trying to set
-    ! Input is the River type we are searching from
+    ! Input is the River or Plume type we are searching from
     IMPLICIT NONE
     INTEGER :: RES
     TYPE(NCFILE), POINTER :: NCF
     CHARACTER(LEN=*) :: NAME
+    CHARACTER(LEN=*) :: INPUT_TYPE, INPUT_NAMES
 
     INTEGER :: I, rvrs_in_file,strlen,status
     TYPE(NCDIM), POINTER :: DIM
@@ -3750,17 +3751,13 @@ CONTAINS
     END IF
 
 
-    ! FIND THE RIVER NAME IN THE FILE
-    DIM => FIND_DIM(NCF,'rivers',FOUND)
-#if defined (PLUME)
-    DIM => FIND_DIM(NCF,'plumes',FOUND)   ! added by Qin, test 
-#endif
+    ! FIND THE RIVER NAME IN THE FILE     !!! Needs redesign, sloppy coding.
+    DIM => FIND_DIM(NCF,INPUT_TYPE,FOUND)
+
     rvrs_in_file = DIM%DIM
 
-    VAR => FIND_VAR(NCF,'river_names',found)
-#if defined (PLUME)
-    VAR => FIND_VAR(NCF,'plume_names',found)  ! added by Qin, test 
-#endif
+    VAR => FIND_VAR(NCF,INPUT_NAMES,found)
+ 
     ! ATTEMPT TO ONLY READ NAMES LIST ONCE
     IF(.NOT. ASSOCIATED(VAR%VEC_CHR)) THEN
 
