@@ -183,11 +183,6 @@ MODULE MOD_FORCE
      TYPE(TIME) :: PUMP_PERIOD  
      INTEGER, ALLOCATABLE :: PUMP_FILE2LOC(:)
      TYPE(NCVAR), POINTER :: FLUX_N, FLUX_P
-     
-
-# if defined (FABM)
-     TYPE (TYPE_NCVAR_POINTER),DIMENSION(:),ALLOCATABLE :: FABM_N,FABM_P
-# endif
      ! ADD MORE HERE!
   END TYPE A_PUMP_FILE
   TYPE(A_PUMP_FILE), ALLOCATABLE,PUBLIC :: PUMP_FORCING(:)
@@ -2337,7 +2332,6 @@ CONTAINS
 ! READ PUMP PARAMETER, added by Qin 28/01/2020
 # if defined (PUMP)    
   SUBROUTINE PUMP_INTAKE
-    USE MOD_PAR
     IMPLICIT NONE
     INTEGER :: I, J,K, fcnt,rcnt,status, nfiles,nrs,IOS,NS
     TYPE(A_PUMP_FILE) DUMMY
@@ -2346,17 +2340,14 @@ CONTAINS
     TYPE(NCVAR), POINTER :: VAR
     TYPE(NCVAR), POINTER :: DUM_P
 
-    REAL(SP), POINTER :: STORAGE_VEC(:),STORAGE_ARR(:,:)
+    REAL(SP), POINTER :: STORAGE_VEC(:)
     LOGICAL :: FOUND, MINE
     CHARACTER(LEN=7) :: chr
     character(len=20), allocatable :: dist_strings(:)
-    
-	REAL(SP) :: MYDIST(KBM1)
 
-   
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "START PUMP_INTAKE"
 
-    NULLIFY(STORAGE_ARR)
+    NULLIFY(STORAGE_VEC)
 
     ! TRANSLATE TO THE OLD NAME FOR TOTAL NUMBER OF PLUMES
     NUMPUMP_GL = PUMP_NUMBER
@@ -2407,15 +2398,10 @@ CONTAINS
                   & "YOU SPECIFIED NODE NUMBER: "//chr)
           END IF
 
-     
-! ===============================================================================
-       ! Irrelevant, we want it to be owned by the MSR proc    
+      
        ! COUNT THE NUMBER OF PUMPS OWNED BY THIS PROC
-       !   IF (NLID(PUMPS(I)%LOCATION) .GT. 0) NUMPUMP = NUMPUMP + 1
-! ===============================================================================
-       IF (MSR) THEN
-          NUMPUMP = PUMP_NUMBER
-       END IF
+            IF (NLID(PUMPS(I)%LOCATION) .GT. 0) NUMPUMP = NUMPUMP + 1
+
 
        ! COUNT THE NUMBER OF FILES
        NCF => FIND_FILE(FILEHEAD,TRIM(PUMPS(I)%FILE),FOUND)
@@ -2441,7 +2427,7 @@ CONTAINS
     DO I =1,NFILES
        NULLIFY(PUMP_FORCING(I)%NCF)
        NULLIFY(PUMP_FORCING(I)%FLUX_N)
-    
+       NULLIFY(PUMP_FORCING(I)%FLUX_P)   
     END DO
 
 
@@ -2459,13 +2445,13 @@ CONTAINS
        ! to this processor
        ! MAKE THE LOCAL AND GLOBAL INDEX
 
-       IF ((MSR).AND.(PUMPS(I)%LOCATION.GT.0)) THEN !(NLID(PLUMES(I)%LOCATION) .GT. 0) THEN
+       IF (NLID(PUMPS(I)%LOCATION) .GT. 0) THEN
           rcnt = rcnt + 1
-          INODEPUMP(rcnt)       = PUMPS(I)%LOCATION
+          INODEPUMP(rcnt)       =  NLID(PUMPS(I)%LOCATION)
           MINE = .TRUE.
        END IF
 	   
-      ! MAKE VQDIST
+      ! MAKE PVDIST
        IF(MINE) THEN
           IF(any(PUMPS(I)%DISTRIBUTION(1:KBM1)<0.0_SP)) CALL FATAL_ERROR&
                &("You are not permitted to set the pump vertical distrobution value less than zero!",&
@@ -2496,10 +2482,10 @@ CONTAINS
        ! FIGURE OUT WHICH PLUME IT IS WHICH FILE AND SET THE INDEX 
        DO J = 1, NFILES
           ! IN THIS FILE FIND THE NAME
-          if (ASSOCIATED(NCF,PUMP_FORCING(J)%NCF)) THEN
+          IF (ASSOCIATED(NCF,PUMP_FORCING(J)%NCF)) THEN
              K=SEARCH_NAME(NCF,PUMPS(I)%NAME,'pumps','pump_names')
 
-             ! THIS IS MY PLUME SO SET THE INDEX
+             ! THIS IS MY PUMP SO SET THE INDEX
              IF (MINE) PUMP_FORCING(J)%PUMP_FILE2LOC(K)=RCNT
 
           END IF

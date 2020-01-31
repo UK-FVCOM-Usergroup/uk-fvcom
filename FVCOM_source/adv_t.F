@@ -704,8 +704,18 @@ SUBROUTINE ADV_T
    END DO
 # endif
 # endif
-  ! We remove the offset at the end of the smolarkiewicz loop
 
+!--  For Pump outflux ------------------------------------
+# if defined(PUMP)
+    IF(NUMPUMP >=1) THEN
+           DO J=1,NUMPUMP
+              JJ=INODEPUMP(J)
+              DO K=1,KBM1
+                 XFLUX(JJ,K)=XFLUX(JJ,K) - QPUMP(J)*PVDIST(J,K)*T1(JJ,K)
+              END DO
+           END DO
+    END IF
+# endif
   !------------------------------------------------------------------------------
   
   ! The horizontal term of advection is neglected here

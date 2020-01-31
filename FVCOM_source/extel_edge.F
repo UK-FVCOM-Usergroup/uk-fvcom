@@ -195,10 +195,12 @@
 !---------ADJUST FLUX FOR PUMP INTAKE--------------------------------!
 ! added by Qin, 28/01/2020, should not be so complicated. 
 # if defined(PUMP)
-   DO J=1,NUMPUMP
+   IF(NUMPUMP >= 1) THEN 
+     DO J=1,NUMPUMP
          JJ=INODEPUMP(J)
          XFLUX(JJ)=XFLUX(JJ)-QPUMP(J)
-   END DO
+     END DO
+   END IF
 # endif
 !----------PERFORM UPDATE ON ELF-----------------------------------------------!
 
