@@ -590,15 +590,15 @@ MODULE MOD_DYE
    ENDDO
 
 ! Initialize variables of MPDATA
-   !DYE_S=0._SP
-   !DYE_SF=0._SP
-   !WWWS=0._SP
-   !WWWSF=0._SP
-   !DTWWWS=0._SP
-   !ZZZFLUX=0._SP
-   !BETA=0._SP
-   !BETAIN=0._SP
-   !BETAOUT=0._SP
+   DYE_S=0._SP
+   DYE_SF=0._SP
+   WWWS=0._SP
+   WWWSF=0._SP
+   DTWWWS=0._SP
+   ZZZFLUX=0._SP
+   BETA=0._SP
+   BETAIN=0._SP
+   BETAOUT=0._SP
 
 !!   first loop for vertical upwind
 !!   flux including horizontal and vertical upwind

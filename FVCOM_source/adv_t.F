@@ -46,13 +46,8 @@ SUBROUTINE ADV_T
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
-
 # if defined (THIN_DAM)
   USE MOD_DAM,only : kdam,N_DAM_MATCH,IS_DAM
-# endif
-
-# if defined (TVD)
-  USE MOD_TVD
 # endif
 
   IMPLICIT NONE
@@ -67,13 +62,6 @@ SUBROUTINE ADV_T
   REAL(SP) :: FACT,FM1
   INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,K,JTMP,JJ,II
   REAL(SP) :: T1MIN, T1MAX, T2MIN, T2MAX
-
-# if defined (TVD)
-  REAL(SP), DIMENSION(1:M)             :: dstA,dstB
-  REAL(SP), DIMENSION(1:NCV)           :: XUA,XUB,YUA,YUB
-  REAL(SP) :: LX,LY,minA,minB,T_upstreamA,T_upstreamB,A_limiter
-  REAL(SP) :: B_limiter,T12_A,T12_B,smoothrA,smoothrB
-# endif
 
 !!$#  if defined (SPHERICAL)
 !!$  REAL(DP) TY,TXPI,TYPI
@@ -91,17 +79,17 @@ SUBROUTINE ADV_T
 #  endif
 #  if defined (MPDATA)
   REAL(SP) :: TMIN,TMAX,XXXX
-  REAL(SP), DIMENSION(0:MT,KB)     :: T1_S      !! temporary temperature in modified upwind
-  REAL(SP), DIMENSION(0:MT,KB)     :: T1_SF     !! temporary temperature in modified upwind
+  REAL(SP), DIMENSION(0:MT,KB)     :: T1_S    !! temporary salinity in modified upwind
+  REAL(SP), DIMENSION(0:MT,KB)     :: T1_SF   !! temporary salinity in modified upwind
   REAL(SP), DIMENSION(0:MT,KB)     :: WWWS     
   REAL(SP), DIMENSION(0:MT,KB)     :: WWWSF   
   REAL(SP), DIMENSION(0:MT)        :: DTWWWS  
-  REAL(SP), DIMENSION(0:MT,KB)     :: ZZZFLUX   !! temporary total flux in corrected part
-  REAL(SP), DIMENSION(0:MT,KB)     :: BETA      !! temporary beta coefficient in corrected part
-  REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN    !! temporary beta coefficient in corrected part
-  REAL(SP), DIMENSION(0:MT,KB)     :: BETAOUT   !! temporary beta coefficient in corrected part
-  REAL(SP), DIMENSION(0:MT,KB)     :: T1_FRESH  !! for source term which also bring mass volume
-  REAL(SP), DIMENSION(0:MT,KB)     :: OFFS      !! Offset to temperature field to avoid values less than zero.
+  REAL(SP), DIMENSION(0:MT,KB)     :: ZZZFLUX !! temporary total flux in corrected part
+  REAL(SP), DIMENSION(0:MT,KB)     :: BETA    !! temporary beta coefficient in corrected part
+  REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
+  REAL(SP), DIMENSION(0:MT,KB)     :: BETAOUT !! temporary beta coefficient in corrected part
+  REAL(SP), DIMENSION(0:MT,KB)     :: T1_FRESH    !! for source term which also bring mass volume
+
   INTEGER ITERA, NTERA
 #  endif
 
@@ -130,14 +118,9 @@ SUBROUTINE ADV_T
           & TRIM(HORIZONTAL_MIXING_TYPE) )
   END SELECT
 
-# if defined (MPDATA)
-  OFFS = 5.0_SP
-# endif
-
   !
   !--Initialize Fluxes-----------------------------------------------------------!
   !
-
   XFLUX     = 0.0_SP
   XFLUX_ADV = 0.0_SP
 
@@ -178,10 +161,6 @@ SUBROUTINE ADV_T
   !--Add the Shortwave Radiation Body Force--------------------------------------!
   !
   RF = 0.0_sp
-  ! ----
-  ! Merk: Dette stammer fra mod_heatflux, ikke fra cmake! Dermed må denne tas med
-  ! i MPDATA!
-  ! ----
   IF(HEATING_ON) THEN
      SELECT CASE(HEATING_TYPE)
      CASE('body')
@@ -217,20 +196,10 @@ SUBROUTINE ADV_T
      END SELECT
   END IF
 
-! ---
-! Dette gjøres altså _ikke_ i MPDATA!
-! ---
-
 !--ADJUST VOLUME'S HEAT CONTENT FOR EVAPORATION AND PRECIPITATION ------------------!
   IF (PRECIPITATION_ON) THEN
      RF(:,1)=RF(:,1)+ROFVROS*(QEVAP+QPREC)*T1(:,1)
   END IF
-
-# if defined (MPDATA)
-    ! Adding offset to avoid less-than-zero problems
-      T1 = T1+OFFS
-      TMEAN1 = TMEAN1+OFFS
-# endif
 
   !
   !--Calculate the Advection and Horizontal Diffusion Terms----------------------!
@@ -248,7 +217,7 @@ SUBROUTINE ADV_T
 	 
 #    if defined (WET_DRY)
 !J. Ge for tracer advection
-         IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+         IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
            IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
             FFD=0.5_SP*(T1(I,K)+T1(I2,K)-TMEAN1(I,K)-TMEAN1(I2,K))
             FF1=0.5_SP*(T1(I,K)+T1(I2,K))
@@ -296,7 +265,7 @@ SUBROUTINE ADV_T
 !J. Ge for tracer advection
 #    else	 
 !J. Ge for tracer advection	 
-       IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+       IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
          FFD=0.5_SP*(T1(I1,K)+T1(I2,K)-TMEAN1(I1,K)-TMEAN1(I2,K))
          FF1=0.5_SP*(T1(I1,K)+T1(I2,K))
        ELSE
@@ -373,7 +342,7 @@ SUBROUTINE ADV_T
              I1=NBSN(N_DAM_MATCH(I,NX+1),J)
              I2=NBSN(N_DAM_MATCH(I,NX+1),J+1)
 !J. Ge for tracer advection
-             IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+             IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
                FFD=0.5_SP*(T1(I1,K)+T1(I2,K)-TMEAN1(I1,K)-TMEAN1(I2,K))
                FF1=0.5_SP*(T1(I1,K)+T1(I2,K))
              ELSE
@@ -476,9 +445,8 @@ SUBROUTINE ADV_T
 !!$        FIJ1=T1(IA,K)+DXA*PTPX(IA)+DYA*PTPY(IA)
 !!$        FIJ2=T1(IB,K)+DXB*PTPX(IB)+DYB*PTPY(IB)
 
-# if !defined (TVD)
 !J. Ge for tracer advection
-        IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+        IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
           FIJ1=T1(IA,K)+DLTXNCVE(I,1)*PTPX(IA)+DLTYNCVE(I,1)*PTPY(IA)
           FIJ2=T1(IB,K)+DLTXNCVE(I,2)*PTPX(IB)+DLTYNCVE(I,2)*PTPY(IB)
         ELSE
@@ -504,37 +472,6 @@ SUBROUTINE ADV_T
         IF(FIJ1 > T1MAX) FIJ1=T1MAX
         IF(FIJ2 < T2MIN) FIJ2=T2MIN
         IF(FIJ2 > T2MAX) FIJ2=T2MAX
-# else
-! ------------------------------------------------------------------------------------------ !
-!                                 Drawing the TVD scheme
-! ------------------------------------------------------------------------------------------ !
-!     If A is upstream of B
-       T_upstreamA=T1(Anear_node(I),K)+PTPX(Anear_node(I))*XUAdist(I)+PTPY(Anear_node(I))*YUAdist(I)
-       T_upstreamB=T1(Bnear_node(I),K)+PTPX(Bnear_node(I))*XUBdist(I)+PTPY(Bnear_node(I))*YUBdist(I)                
-
-!    The smoothness-parameter
-       IF (T1(IA,K).EQ.T1(IB,K)) THEN
-          smoothrA    = 0.0_SP
-          smoothrB    = 0.0_SP
-         ELSE
-!     T_upstreamA is the "far upstream node", T1(IA,K) is upstream of T1(IB,K)
-          smoothrA    = (T1(IA,K)-T_upstreamA)/(T1(IB,K)-T1(IA,K))
-          smoothrB    = (T1(IB,K)-T_upstreamB)/(T1(IA,K)-T1(IB,K))
-       END IF
-
-!     The Flux-limiter 
-!      (superbee)
-       A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
-       B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
-
-!     (minmod)
-!      A_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrA))
-!      B_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrB))
-
-!      Calculating the salinity in-between IA and IB
-       T12_A     = T1(IA,K)+0.5_SP*A_LIMITER*(T1(IB,K)-T1(IA,K))
-       T12_B     = T1(IB,K)+0.5_SP*B_LIMITER*(T1(IA,K)-T1(IB,K))
-# endif
 
         UN=UVN(I,K)
 #       if defined (SEMI_IMPLICIT)
@@ -553,13 +490,8 @@ SUBROUTINE ADV_T
         FYY= DTIJ(I,K)*TYY*DLTXE(I)
 
 #       if !defined (SEMI_IMPLICIT)
-#       if !defined (TVD)
         EXFLUX=-UN*DTIJ(I,K)* &
              ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP+FXX+FYY
-#       else
-        EXFLUX = -UN*DTIJ(I,K)* &
-             ((1.0_SP+SIGN(1.0_SP,UN))*T12_B+(1.0_SP-SIGN(1.0_SP,UN))*T12_A)*0.5_SP+FXX+FYY
-#       endif
 #       else
         EXFLUX=-UN*DTIJ(I,K)* &
             ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP
@@ -650,7 +582,7 @@ SUBROUTINE ADV_T
   !   Using smolarkiewicz, P. K; A fully multidimensional positive definite advection
   !   transport algorithm with small implicit diffusion, Journal of Computational
   !   Physics, 54, 325-362, 1984
-  !--------------------------------------------------------------------------------
+  !-----------------------------------------------------------------
 
   !-----combine all the horizontal flux first-----------------------------------
 
@@ -662,10 +594,10 @@ SUBROUTINE ADV_T
         IF(NUMQBC >= 1) THEN
            DO J=1,NUMQBC
               JJ=INODEQ(J)
-              STPOINT=TDIS(J)+OFFS(1,1)
+              STPOINT=TDIS(J)  
               DO K=1,KBM1
               !   STPOINT    = T1(JJ,K)
-                 T1_FRESH(JJ,K)=TDIS(J)+OFFS(1,1)            ! for gauge guess in the following
+                 T1_FRESH(JJ,K)=TDIS(J)            ! for gauge guess in the following
                  XFLUX(JJ,K)= XFLUX(JJ,K)-QDIS(J)*VQDIST(J,K)*STPOINT     !/DZ(JJ,K)
               END DO
            END DO
@@ -675,12 +607,12 @@ SUBROUTINE ADV_T
            DO J=1,NUMQBC
               J1=N_ICELLQ(J,1)
               J2=N_ICELLQ(J,2)
-              STPOINT=TDIS(J)+OFFS(1,1) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+              STPOINT=TDIS(J) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
               DO K=1,KBM1
               !   STPOINT1 = T1(J1,K)
               !   STPOINT2 = T1(J2,K)
-                 T1_FRESH(J1,K)=TDIS(J)+OFFS(1,1)
-                 T1_FRESH(J2,K)=TDIS(J)+OFFS(1,1)
+                 T1_FRESH(J1,K)=TDIS(J)
+                 T1_FRESH(J2,K)=TDIS(J)
                  XFLUX(J1,K)=XFLUX(J1,K)-  &
                       QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT    !1     !/DZ1(J1,K)
                  XFLUX(J2,K)=XFLUX(J2,K)-  &      
@@ -690,9 +622,6 @@ SUBROUTINE ADV_T
         END IF
      END IF
   END IF
-
-  ! We remove the offset at the end of the smolarkiewicz loop
-
   !------------------------------------------------------------------------------
 
   ! The horizontal term of advection is neglected here
@@ -754,18 +683,7 @@ SUBROUTINE ADV_T
               TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            END IF
 
-           ! Added by Akvaplan 2018 to avoid single precision-crash
-         IF((ABS(XXXX).LT.ABS(TMAX-T1(I,K))).AND.(XXXX.LT.0.0_SP)) THEN
-            T1_SF(I,K) = T1(I,K)-XXXX
-         ELSE IF((ABS(XXXX).LT.ABS(TMIN-T1(I,K))).AND.(XXXX.GT.0.0_SP)) THEN 
-            T1_SF(I,K) = T1(I,K)-XXXX
-         ELSE IF(XXXX.EQ.0) THEN
-            T1_SF(I,K) = T1(I,K)
-         ELSE
-            BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (TMAX-T1(I,K))/(ABS(XXXX)+1.E-10) &                               
-                 +0.5*(1.-SIGN(1._SP,-XXXX)) * (T1(I,K)-TMIN)/(ABS(XXXX)+1.E-10)                                     
-            T1_SF(I,K)=T1(I,K)-MIN(1._SP,BETA(I,K))*XXXX
-         END IF
+
 
            ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
            XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+T1(I,K)-T1(I,K)*DT(I)/DTFA(I) 
@@ -798,7 +716,7 @@ SUBROUTINE ADV_T
            TEMP=ABS(WWWSF(I,K))-DTI*(WWWSF(I,K))*(WWWSF(I,K))/DZ(I,K)/DTWWWS(I)
            WWWS(I,K)=TEMP*(T1_S(I,K-1)-T1_S(I,K))/(ABS(T1_S(I,K-1))+ABS(T1_S(I,K))+1.E-14)
 
-           IF(TEMP < 0.0_SP .OR. T1_S(I,K) == 0.0_SP)THEN
+           IF(TEMP < 0.0_SP .OR. T1_S(I,K) == 0.0_SP)THEN 
               WWWS(I,K)=0. 
            END IF
         END DO
@@ -830,7 +748,7 @@ SUBROUTINE ADV_T
            TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
            TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
-           
+
            TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*T1_S(I,K+1)-  &
                 (WWWS(I,K)-ABS(WWWS(I,K)))*T1_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)
            BETAIN(I,K)=(TMAX-T1_S(I,K))/(TEMP+1.E-10)
@@ -887,7 +805,7 @@ SUBROUTINE ADV_T
                       +(WWWS(I,K)+ABS(WWWS(I,K)))*T1_S(I,K)
               END IF
               TEMP = 0.5_SP*TEMP
-              T1_SF(I,K)=(T1_S(I,K)-TEMP*(DTI/DTFA(I))/DZ(I,K))
+              T1_SF(I,K)=(T1_S(I,K)-TEMP*(DTI/DTFA(I))/DZ(I,K)) 
 #      if defined (WET_DRY)
            END IF
 #      endif
@@ -897,10 +815,6 @@ SUBROUTINE ADV_T
   !--------------------------------------------------------------------------
   ! End of smolarkiewicz upwind loop
   !--------------------------------------------------------------------------
-      T1 = T1-OFFS
-      T1_SF = T1_SF-OFFS
-      TMEAN1 = TMEAN1-OFFS
-     
 #  endif
 
 
@@ -949,7 +863,7 @@ SUBROUTINE ADV_T
 #          if !defined (NH) && !defined (LIMITER_VER_ADV)
 
 !J. Ge for tracer advection
-           IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+           IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
              IF(K == 1) THEN
               TEMP=-WTS(I,K+1)*(T1(I,K)*DZ(I,K+1)+T1(I,K+1)*DZ(I,K))/   &
                    (DZ(I,K)+DZ(I,K+1))
@@ -983,6 +897,7 @@ SUBROUTINE ADV_T
              ENDIF
            ENDIF
 !J. Ge for tracer advection
+
 #          endif
 
            IF(ISONB(I) == 2) THEN
@@ -1062,7 +977,7 @@ SUBROUTINE ADV_T
   ELSEIF(GROUNDWATER_ON) THEN
      DO I=1,M
  !J. Ge for tracer advection
-        IF(BACKWARD_ADVECTION.eqv..FALSE.)THEN
+        IF(BACKWARD_ADVECTION .eqv. .FALSE.)THEN
           XFLUX(I,KBM1)=XFLUX(I,KBM1)-BFWDIS(I)*T1(I,KBM1)
         ELSE
           IF(BACKWARD_STEP==1)THEN
@@ -1074,6 +989,7 @@ SUBROUTINE ADV_T
 !J. Ge for tracer advection
      END DO
   END IF
+
 
   !
   !--Update Temperature----------------------------------------------------------!
@@ -1147,6 +1063,9 @@ SUBROUTINE ADV_T
      END DO
   END DO
 # endif
+
+
+
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: adv_t"
 
 END SUBROUTINE ADV_T

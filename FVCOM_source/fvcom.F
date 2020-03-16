@@ -471,11 +471,6 @@ PROGRAM FVCOM
   USE MOD_ICE
 # endif
 
-! Added by researchers at Akvaplan-niva 2018, idealized tests give promising results.
-# if defined (TVD)
-  USE MOD_TVD
-# endif
-
 # if defined (NH)
   USE NON_HYDRO
 # endif
@@ -626,10 +621,6 @@ PROGRAM FVCOM
   &  CALL SETUP_SED(SEDIMENT_MODEL_FILE,IOBCN,IOBCN_GL,N_SED,N_SED_MAX,SED_NAMES)
 #  endif
 
-   !SETUP TVD ADVECTION
-# if defined (TVD)
-   CALL SETUP_TVD
-# endif
 
 !JQI  !==============================================================================!
 !JQI  !  SETUP THE MODEL FORCING                                                     !
