@@ -594,17 +594,18 @@ SUBROUTINE FABM_UPDATE
        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_MIXING'
        PRINT_STATE = .FALSE.
      END IF
-     IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
-            CALL SET_VAR(intTime,FABM_ALL=FABM_F)
-     END IF
-
-# if defined (MULTIPROCESSOR)
-     IF(PAR)CALL FABM_EXCHANGE(FABM_F)
-# endif
 
      ! Process open boundaries (and depending on RIVER_TS_SETTING, also rivers)
      CALL FABM_BCOND  ! This operates on FABM_F
 
+     ! Nesting procedure should go after BCOND treatments shouldn't it?  At least that is how it es elsewhere
+     IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
+            CALL SET_VAR(intTime,FABM_ALL=FABM_F)
+     END IF
+# if defined (MULTIPROCESSOR)
+     IF(PAR)CALL FABM_EXCHANGE(FABM_F)
+# endif
+! end of moved block for NESTING... I don't know if the FABM_exchange should have needed to remain before call to BCOND
      ! Check validity of state variables and "correct" (typicalyl: clip) where needed.
      ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
      IF (FABM_DEBUG) THEN
