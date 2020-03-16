@@ -1527,11 +1527,16 @@ SUBROUTINE INTERNAL_STEP
 !==================================================================================!
 !    ADJUST TEMPERATURE AND SALINITY AT RIVER MOUTHS
 !==================================================================================!
-#   if !defined (MPDATA)
-  IF( RIVER_TS_SETTING == 'calculated')THEN
-     CALL ADJUST_TS
-  END IF
-#   endif   
+
+! REMOVED BY HAAVARD 2020
+! This routine tries to overwrite cold ocean tiles with hot river
+! temperatures. Not suitable for norwegian waters, and it is difficult to see
+! why it should be the right treatment elsewhere either.
+!#   if !defined (MPDATA)
+!  IF( RIVER_TS_SETTING == 'calculated')THEN
+!     CALL ADJUST_TS
+!  END IF
+!#   endif   
   
 #   if defined (FABM)
   IF (FABM_MODEL) CALL FABM_UPDATE_SALINITY

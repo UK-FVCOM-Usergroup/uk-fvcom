@@ -1353,6 +1353,7 @@ END SUBROUTINE FABM_MIXING
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAOUT !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: FABM_FRESH    !! for source term which also bring mass volume
+  REAL(SP)                         :: OFFS    !! offset for close-to-zero variables
   INTEGER ITERA, NTERA
 #  endif
    REAL(SP) :: FABM_MEAN
@@ -1397,6 +1398,13 @@ END SUBROUTINE FABM_MIXING
       CALL FATAL_ERROR("LIMITER_VER_ADV OPTION NOT IMPLEMENTED IN FABM_ADV")
 #   endif
 # endif
+
+# if defined (MPDATA)
+  ! Add offset to force FVCOM not to crash when tracers are close to zero
+  OFFS = 5.0_SP
+  FABM_ALL = FABM_ALL + OFFS
+# endif
+
 
   !
   !--Initialize Fluxes-----------------------------------------------------------!
@@ -1644,9 +1652,9 @@ END SUBROUTINE FABM_MIXING
         IF(NUMQBC > 0) THEN
            DO J=1,NUMQBC
               JJ=INODEQ(J)
-              STPOINT=FABMDIS(J,IFABM)
+              STPOINT=FABMDIS(J,IFABM)+OFFS
               DO K=1,KBM1
-                 FABM_FRESH(JJ,K)=FABMDIS(J,IFABM)
+                 FABM_FRESH(JJ,K)=FABMDIS(J,IFABM)+OFFS
                  XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
               END DO
            END DO
@@ -1656,10 +1664,10 @@ END SUBROUTINE FABM_MIXING
            DO J=1,NUMQBC
               J1=N_ICELLQ(J,1)
               J2=N_ICELLQ(J,2)
-              STPOINT=FABMDIS(J,IFABM)!!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+              STPOINT=FABMDIS(J,IFABM)+OFFS!!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
               DO K=1,KBM1
-                 FABM_FRESH(J1,K)=FABMDIS(J,IFABM)
-                 FABM_FRESH(J2,K)=FABMDIS(J,IFABM)
+                 FABM_FRESH(J1,K)=FABMDIS(J,IFABM)+OFFS
+                 FABM_FRESH(J2,K)=FABMDIS(J,IFABM)+OFFS
                  XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-  &
                       QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
                  XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-  &
@@ -1901,6 +1909,11 @@ END SUBROUTINE FABM_MIXING
   !--------------------------------------------------------------------------
   ! End of smolarkiewicz upwind loop
   !--------------------------------------------------------------------------
+
+  ! REMOVE OFFSET @HES2020
+  FABM_ALL = FABM_ALL-1
+  FABM_MEAN = FABM_MEAN-1
+
 #  endif
 
 
@@ -1973,7 +1986,7 @@ END SUBROUTINE FABM_MIXING
 #    if defined (WET_DRY)
      END IF
 #    endif
-  END DO  !! SIGMA LOOP
+  END DO  !! SIGMA LOOP "
 
   !
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!

@@ -45,7 +45,7 @@
 
    IF (DBG_SET(DBG_SBR)) WRITE(IPT,*) "Start: adjust_ts"
    
-   IF(NUMQBC > 0)THEN   
+!   IF(NUMQBC > 0)THEN   
 
 !     IF(RIVER_INFLOW_LOCATION == 'node')THEN
 !       DO K=1,KBM1
@@ -148,29 +148,36 @@
 !       END DO	 
 !     END IF
    
-     DO I=1,NUMQBC
-       IF(RIVER_INFLOW_LOCATION == 'node')THEN
-         J = INODEQ(I)
-         DO K=1,KBM1
-           T1(J,K) = MAX(T1(J,K),TDIS(I))
-           S1(J,K) = MAX(S1(J,K),SDIS(I))
-        END DO
-       ELSE IF(RIVER_INFLOW_LOCATION == 'edge')THEN
-         J1 = N_ICELLQ(I,1)
-         J2 = N_ICELLQ(I,2)
-         DO K=1,KBM1
-           T1(J1,K) = MAX(T1(J1,K),TDIS(I))
-           T1(J2,K) = MAX(T1(J2,K),TDIS(I))
-           S1(J1,K) = MAX(S1(J1,K),SDIS(I))
-           S1(J2,K) = MAX(S1(J2,K),SDIS(I))
-         END DO
-       END IF
-     END DO
+!     DO I=1,NUMQBC
+! -----------------------------------------------------------------------------------------
+! This version created more problems than it solved. By forcing the maximum
+! salinity/temperature at the ocean-river interface, the influence of the river
+! (especially for temperatures) will be independent of the volume flux when the river
+! water is warmer than the ocean.
 
-     CALL N2E3D(T1,T)
-     CALL N2E3D(S1,S)
 
-   END IF
+!       IF(RIVER_INFLOW_LOCATION == 'node')THEN
+!         J = INODEQ(I)
+!         DO K=1,KBM1
+!           T1(J,K) = MAX(T1(J,K),TDIS(I))
+!           S1(J,K) = MAX(S1(J,K),SDIS(I))
+!        END DO
+!       ELSE IF(RIVER_INFLOW_LOCATION == 'edge')THEN
+!         J1 = N_ICELLQ(I,1)
+!         J2 = N_ICELLQ(I,2)
+!         DO K=1,KBM1
+!           T1(J1,K) = MAX(T1(J1,K),TDIS(I))
+!           T1(J2,K) = MAX(T1(J2,K),TDIS(I))
+!           S1(J1,K) = MAX(S1(J1,K),SDIS(I))
+!           S1(J2,K) = MAX(S1(J2,K),SDIS(I))
+!         END DO
+!       END IF
+!     END DO
+!
+!     CALL N2E3D(T1,T)
+!     CALL N2E3D(S1,S)
+!
+!   END IF
 
   IF (DBG_SET(DBG_SBR)) WRITE(IPT,*) "End: adjust_ts"
  
