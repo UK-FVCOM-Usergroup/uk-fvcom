@@ -46,6 +46,9 @@ SUBROUTINE INTERNAL_STEP
   USE MOD_PLUME
   USE MOD_FORCE
 # endif
+# if defined (PUMP)
+  USE MOD_FORCE
+# endif
 # if defined (BALANCE_2D)
   USE MOD_BALANCE_2D
 # endif
@@ -379,6 +382,13 @@ SUBROUTINE INTERNAL_STEP
       END IF
 #   endif
 
+ !-------PUMP FORCING------------------------------------------------------------!
+
+#  if defined (PUMP)
+    IF (NUMPUMP_GL .GT. 0) THEN
+         CALL UPDATE_PUMPS(IntTime,QPUMP)  
+    END  IF
+#  endif
   !----SPECIFY THE SOLID BOUNDARY CONDITIONS OF U&V INTERNAL MODES---------------!
 #   if defined (GCN)
     CALL BCOND_GCN(5,0)

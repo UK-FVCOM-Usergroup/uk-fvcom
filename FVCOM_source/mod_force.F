@@ -81,7 +81,7 @@ MODULE MOD_FORCE
 
 # if defined (FABM)
   TYPE TYPE_NCVAR_POINTER
-     TYPE(NCVAR), POINTER :: p => NULL()
+  TYPE(NCVAR), POINTER :: p => NULL()
   END TYPE
 # endif
 
@@ -171,6 +171,21 @@ MODULE MOD_FORCE
      ! ADD MORE HERE!
   END TYPE A_PLUME_FILE
   TYPE(A_PLUME_FILE), ALLOCATABLE,PUBLIC :: PLUME_FORCING(:)
+# endif
+
+# if defined (PUMP)
+  ! =================================================================
+  ! PUMP FORCING VARIABLES FOR UPDATE ANE SETUP, added by Qin 28/01/2020
+  CHARACTER(LEN=Char_max_attlen), PUBLIC,ALLOCATABLE :: PUMP_FORCING_COMMENTS(:)
+  TYPE A_PUMP_FILE
+     TYPE(NCFILE), POINTER :: NCF
+     INTEGER PUMPS_IN_FILE     
+     TYPE(TIME) :: PUMP_PERIOD  
+     INTEGER, ALLOCATABLE :: PUMP_FILE2LOC(:)
+     TYPE(NCVAR), POINTER :: FLUX_N, FLUX_P
+     ! ADD MORE HERE!
+  END TYPE A_PUMP_FILE
+  TYPE(A_PUMP_FILE), ALLOCATABLE,PUBLIC :: PUMP_FORCING(:)
 # endif
 
   ! =================================================================
@@ -556,6 +571,11 @@ MODULE MOD_FORCE
 # if defined (PLUME)
   PUBLIC :: UPDATE_PLUMES
 # endif  
+
+# if defined (PUMP)
+  PUBLIC :: UPDATE_PUMPS
+# endif 
+
 # if defined (WATER_QUALITY)
   PUBLIC :: UPDATE_OBC_WQM
 # endif  
@@ -596,7 +616,7 @@ CONTAINS
 # endif
 # if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
 # if defined (OBSICE)
-    NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, T_AIR_P, T_AIR_N,  &
+    NULLIFY(HEAT_FILE, HEAT_INTP_N, HEAT_INTP_C, T_AIR_P, T_AIR_N,  &
          &  RH_AIR_P, RH_AIR_N, PA_AIR_P, PA_AIR_N, DLW_AIR_P,     &
 	 &  DLW_AIR_N, DSW_AIR_P, DSW_AIR_N, ICE_COV_P, ICE_COV_N, & 
 	 &  ICE_TIK_P, ICE_TIK_N)
@@ -704,6 +724,10 @@ CONTAINS
 
 # if defined (PLUME) 
     CALL  PLUME_DISCHARGE	
+# endif 
+
+# if defined (PUMP) 
+    CALL  PUMP_INTAKE
 # endif 
 	
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)    
@@ -2301,6 +2325,317 @@ CONTAINS
 		 
   END SUBROUTINE CHECK_PLUME_FILE
 # endif
+
+!================================================================
+!           PUMP STUFF
+!================================================================
+! READ PUMP PARAMETER, added by Qin 28/01/2020
+# if defined (PUMP)    
+  SUBROUTINE PUMP_INTAKE
+    IMPLICIT NONE
+    INTEGER :: I, J,K, fcnt,rcnt,status, nfiles,nrs,IOS,NS
+    TYPE(A_PUMP_FILE) DUMMY
+    TYPE(NCFILE),POINTER :: NCF
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    TYPE(NCVAR), POINTER :: DUM_P
+
+    REAL(SP), POINTER :: STORAGE_VEC(:)
+    LOGICAL :: FOUND, MINE
+    CHARACTER(LEN=7) :: chr
+    character(len=20), allocatable :: dist_strings(:)
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START PUMP_INTAKE"
+
+    NULLIFY(STORAGE_VEC)
+
+    ! TRANSLATE TO THE OLD NAME FOR TOTAL NUMBER OF PLUMES
+    NUMPUMP_GL = PUMP_NUMBER
+
+    IF (PUMP_NUMBER == 0 ) THEN
+       NUMPUMP = 0
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! THERE ARE NO PUMPS IN THIS MODEL"
+       ALLOCATE(PUMP_FORCING_COMMENTS(1))
+       PUMP_FORCING_COMMENTS(1) = "THERE ARE NO PUMPS IN THIS MODEL"
+       RETURN
+    END IF
+
+
+    IF (DBG_SET(DBG_SBRIO))THEN
+       WRITE(IPT,*) "Total Number Of Pumps = ", PUMP_NUMBER 
+       WRITE(IPT,*)"============================="
+       DO I =1,PUMP_NUMBER  
+          write(IPT,*) "Pump Number:",I 
+          WRITE(IPT,*) "Pump File ="//TRIM(PUMPS(i)%FILE)
+          WRITE(IPT,*) "Pump Name ="//trim(PUMPS(i)%NAME)
+          WRITE(IPT,*) "Pump Location    = ",PUMPS(i)%LOCATION
+          WRITE(IPT,*) "Pump Distribution =",PUMPS(i)%distribution(1:KBM1)
+          WRITE(IPT,*)"============================="
+       END DO
+    END IF
+
+    ALLOCATE(PUMP_FORCING_COMMENTS(PUMP_NUMBER + 2))
+    WRITE(CHR,'(I7)')PUMP_NUMBER
+    PUMP_FORCING_COMMENTS(1) = "THERE ARE "//TRIM(adjustl(CHR))//" PUMPS IN THIS MODEL."
+    PUMP_FORCING_COMMENTS(2) = "THE FOLLOWING PUMP NAMES ARE USED:"
+    DO I =1,PUMP_NUMBER
+       PUMP_FORCING_COMMENTS(2+I) = TRIM(PUMPS(i)%NAME)
+    END DO
+
+
+    ! CHECK TO MAKE SURE THE LOCATION IS VALID AND ADD NAMES TO
+    ! COMMENT STRING
+    nfiles = 0
+    NUMPUMP = 0
+    DO  I = 1,PUMP_NUMBER 
+       ! CHECK THE INFLOW LOCATION OF EACH PUMP
+       ! COUNT THE NUMBER THAT BELONG TO EACH PROCESSOR
+          IF(PUMPS(i)%LOCATION > MGL .or. PUMPS(i)%LOCATION < 1)THEN
+             write(chr,'(I7)') PUMPS(i)%LOCATION
+             CALL FATAL_ERROR ("PUMP_INTAKE: FOR THE PUMP NAMED: "&
+                  &//trim(PUMPS(i)%NAME),"THE PUMP GRID LOCATION IN&
+                  & THE NAME LIST IS NOT IN THE GLOBAL DOMAIN",&
+                  & "YOU SPECIFIED NODE NUMBER: "//chr)
+          END IF
+
+      
+       ! COUNT THE NUMBER OF PUMPS OWNED BY THIS PROC
+            IF (NLID(PUMPS(I)%LOCATION) .GT. 0) NUMPUMP = NUMPUMP + 1
+
+
+       ! COUNT THE NUMBER OF FILES
+       NCF => FIND_FILE(FILEHEAD,TRIM(PUMPS(I)%FILE),FOUND)
+       IF (.NOT.FOUND) CALL FATAL_ERROR &
+            & ("PUMP_INTAKE: COULD NOT FIND PUMP FILE OBJECT NAMED: &
+            &"//TRIM(PUMPS(I)%FILE))
+       
+       IF(.NOT. associated(NCF%FTIME)) CALL FATAL_ERROR&
+            &("PUMP FILE DID NOT LOAD PROPERLY",& 
+            & "File name:"//trim(NCF%FNAME),&
+            &"Please check the time format!")
+
+       IF (NCF%FTIME%PREV_STKCNT /= 999) THEN
+          NFILES = NFILES +1
+          NCF%FTIME%PREV_STKCNT = 999
+       END IF
+
+    END DO
+
+
+    ! ALLOCATE THE SPACE FOR THE PUMP FILES AND NULLIFY POINTERS
+    ALLOCATE(PUMP_FORCING(NFILES))
+    DO I =1,NFILES
+       NULLIFY(PUMP_FORCING(I)%NCF)
+       NULLIFY(PUMP_FORCING(I)%FLUX_N)
+       NULLIFY(PUMP_FORCING(I)%FLUX_P)   
+    END DO
+
+
+    ! ALLOCATE THE SPACE FOR THE PUMP DATA
+    ALLOCATE(INODEPUMP(NUMPUMP))
+    ALLOCATE(QPUMP(NUMPUMP));               QPUMP      =  0.0_SP
+    ALLOCATE(PVDIST(NUMPUMP,KBM1));         PVDIST = 0.0_SP
+
+    FCNT = 0
+    RCNT = 0
+    DO  I = 1,PUMP_NUMBER 
+       ! SET MINE TO FALSE
+       MINE = .false. 
+       ! Mine is set true if this plume name belongs
+       ! to this processor
+       ! MAKE THE LOCAL AND GLOBAL INDEX
+
+       IF (NLID(PUMPS(I)%LOCATION) .GT. 0) THEN
+          rcnt = rcnt + 1
+          INODEPUMP(rcnt)       =  NLID(PUMPS(I)%LOCATION)
+          MINE = .TRUE.
+       END IF
+	   
+      ! MAKE PVDIST
+       IF(MINE) THEN
+          IF(any(PUMPS(I)%DISTRIBUTION(1:KBM1)<0.0_SP)) CALL FATAL_ERROR&
+               &("You are not permitted to set the pump vertical distrobution value less than zero!",&
+               & "This usually indicates a mistake in the name list - not enough layers specifed" )
+           PVDIST(RCNT,1:kbm1)=PUMPS(I)%DISTRIBUTION(1:KBM1)
+        END IF
+!--------------------------------------------------------------------
+
+       
+       ! NOW PUT THE PLUMES IN THE PLUME_FORCING TYPE
+       NCF => FIND_FILE(FILEHEAD,TRIM(PUMPS(I)%FILE),FOUND)
+
+       IF (NCF%FTIME%PREV_STKCNT == 999) THEN
+          FCNT = FCNT + 1
+          PUMP_FORCING(FCNT)%NCF => NCF
+          NCF%FTIME%PREV_STKCNT = 0
+
+          DIM => FIND_DIM(NCF,'pumps',FOUND)
+          IF(.not.FOUND) CALL FATAL_ERROR &
+               & ("COULD NOT FIND DIMENSION 'pumps'",&
+               & "In the file: "//trim(NCF%FNAME) )
+
+          PUMP_FORCING(FCNT)%PUMPS_IN_FILE=DIM%DIM
+          ALLOCATE(PUMP_FORCING(FCNT)%PUMP_FILE2LOC(DIM%DIM))
+          PUMP_FORCING(FCNT)%PUMP_FILE2LOC = 0
+       END IF
+
+       ! FIGURE OUT WHICH PLUME IT IS WHICH FILE AND SET THE INDEX 
+       DO J = 1, NFILES
+          ! IN THIS FILE FIND THE NAME
+          IF (ASSOCIATED(NCF,PUMP_FORCING(J)%NCF)) THEN
+             K=SEARCH_NAME(NCF,PUMPS(I)%NAME,'pumps','pump_names')
+
+             ! THIS IS MY PUMP SO SET THE INDEX
+             IF (MINE) PUMP_FORCING(J)%PUMP_FILE2LOC(K)=RCNT
+
+          END IF
+       END DO
+
+
+    END DO
+
+    IF (FCNT /= NFILES) CALL FATAL_ERROR&
+         ("PUMP_INTAKE: WE LOST A PUMP FILE IN THE MIDDLE OF NOWHERE!")
+
+    IF (RCNT /= NUMPUMP) CALL FATAL_ERROR&
+         ("PUMP_INTAKE: WE LOST A PUMP IN THE MIDDLE OF NOWHERE!")
+
+
+    DO I = 1, NFILES
+
+       NCF => PUMP_FORCING(I)%NCF
+
+       DIM => FIND_DIM(NCF,'pumps',FOUND)
+
+       nrs = DIM%dim
+
+       ! GET THE FLUX VARIABLE
+       VAR => FIND_VAR(NCF,'pump_flux',FOUND)
+
+       ALLOCATE(STORAGE_VEC(nrs), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PUMP_INTAKE")
+       PUMP_FORCING(I)%FLUX_N => reference_var(var)
+       CALL NC_CONNECT_PVAR(PUMP_FORCING(I)%FLUX_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       ALLOCATE(STORAGE_VEC(nrs), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN PUMP_INTAKE")
+       PUMP_FORCING(I)%FLUX_P => reference_var(var)
+       CALL NC_CONNECT_PVAR(PUMP_FORCING(I)%FLUX_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+    END DO
+
+    IF(DBG_SET(DBG_LOG)) THEN
+       WRITE(IPT,*)"!"
+       WRITE(IPT,*)"!  PUMP FORCING ON"
+       WRITE(IPT,*)'!  GLOBAL NUMBER OF PUMPS :',PUMP_NUMBER
+       WRITE(IPT,*)'!  NUMBER OF PUMP FILES   :', nfiles
+    END IF
+
+    IF(DBG_SET(DBG_SCL)) THEN
+       WRITE(IPT,*)"/////////=============================///////////"
+       WRITE(IPT,*)"   PRINTING PUMP FORCING DETAILS"
+
+       WRITE(IPT,*)"  LOCAL NUMBER OF PUMP  : ", NUMPUMP
+
+       WRITE(IPT,*)"============================="       
+       DO I = 1,nfiles
+          WRITE(IPT,*)" FILE NAME: "//TRIM(PUMP_FORCING(I)%NCF%FNAME)
+          WRITE(IPT,*)" NUMBER IN FILE=",PUMP_FORCING(I)%PUMPS_IN_FILE
+          WRITE(IPT,*)" PUMP_FILE2LOC = ",PUMP_FORCING(I)%PUMP_FILE2LOC
+          WRITE(IPT,*)"============================="
+       END DO
+
+       WRITE(IPT,*)"/////////=============================///////////"
+    END IF
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END PUMP_INTAKE"
+
+
+  END SUBROUTINE PUMP_INTAKE
+
+
+  !================================================================
+  !================================================================  
+  SUBROUTINE CHECK_PUMP_FILE(NCF)
+    ! CALL FATAL_ERROR IF THERE IS ANYTHING WRONG WITH THE FILE
+    IMPLICIT NONE
+    TYPE(NCFILE), POINTER ::NCF
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+
+    TYPE(TIME) :: fSTART, fEND
+    INTEGER :: NTIMES,NS
+    LOGICAL FOUND
+
+    IF(.NOT. ASSOCIATED(NCF)) CALL FATAL_ERROR &
+         & ("THE PUMP FILE OBJECT PASSED TO 'check_pump_file' IS NOT ASSOCIATED")
+
+    ! CHECK DIMENSIONS
+    DIM => FIND_DIM(NCF,'time',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PUMP FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'time' DIMENSION")
+
+    nTIMES = DIM%dim
+
+    DIM => FIND_DIM(NCF,'namelen',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PUMP FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'namelen' DIMENSION")
+
+    DIM => FIND_DIM(NCF,'pumps',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PUMP FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'pumps' DIMENSION")
+
+    ! CHECK VARIABLES AND THEIR ATTS
+    IF(.NOT. ASSOCIATED(NCF%FTIME)) CALL FATAL_ERROR &
+         & ('THE PUMP FILE '//TRIM(NCF%FNAME),&
+         'DOES NOT HAVE A RECONGIZED TIME VARIABLE')
+
+ 
+       ! CHECK START AND END TIME FOR THE FILE:
+       FSTART = GET_FILE_TIME(NCF,1)
+       IF(FSTART > StartTIME) THEN
+          CALL PRINT_REAL_TIME(StartTime,IPT,"Model Start")
+          CALL PRINT_REAL_TIME(FSTART,IPT,"Pump Data Start")
+          CALL FATAL_ERROR &
+               & ("Date of the first pump data point must be less than or equal to the model start date:",&
+               & "The Pump File: "//TRIM(NCF%FNAME)//'; has a bad start date.')
+       END IF
+       
+       FEND = GET_FILE_TIME(NCF,NTIMES)
+       IF(FEND < EndTime) THEN
+          CALL PRINT_REAL_TIME(EndTime,IPT,"Model End")
+          CALL PRINT_REAL_TIME(FEND,IPT,"Pump Data End")
+          
+          CALL FATAL_ERROR &
+               & ("Date of the last pump data point must be greater than or equal to the model end date:",&
+               & "The Pump File: "//TRIM(NCF%FNAME)//'; has a bad end date.')
+       END IF
+
+
+    VAR => FIND_VAR(NCF,'pump_names',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PUMP FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'pump_names' VARIABLE")
+    ! HAS NO ATTRIBUTES
+
+    VAR => FIND_VAR(NCF,'pump_flux',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PUMP FILE:"//TRIM(NCF%FNAME),"IS MISSING THE 'pump_flux' VARIABLE")
+
+    ATT => FIND_ATT(VAR,'units',FOUND)
+    IF(.NOT. FOUND)  CALL FATAL_ERROR &
+         & ("THE PUMP FILE:"//TRIM(NCF%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "IS MISSING THE ATTRIBUTE 'units'")
+
+    IF(TRIM(ATT%CHR(1)) /= "m^3s^-1")CALL FATAL_ERROR &
+         & ("THE  PUMP FILE:"//TRIM(NCF%FNAME),"THE VARIABLE: "&
+         &//TRIM(VAR%VARNAME), "THE ATTRIBUTE 'units' IS INCORRECT: EXPE&
+         &CTING 'm^3s^-1'")	 
+  END SUBROUTINE CHECK_PUMP_FILE
+# endif
   !================================================================
   !================================================================
 
@@ -3730,7 +4065,7 @@ CONTAINS
   !================================================================
   FUNCTION SEARCH_NAME(NCF,NAME,INPUT_TYPE,INPUT_NAMES) RESULT(RES)
     ! OUTPUT is the TYPE we are trying to set
-    ! Input is the River type we are searching from
+    ! Input is the River or Plume type we are searching from
     IMPLICIT NONE
     INTEGER :: RES
     TYPE(NCFILE), POINTER :: NCF
@@ -3750,14 +4085,13 @@ CONTAINS
        CALL PRINT_FILE(NCF)
     END IF
 
-
-    ! FIND THE RIVER NAME IN THE FILE
+    ! FIND THE RIVER NAME IN THE FILE 
     DIM => FIND_DIM(NCF,INPUT_TYPE,FOUND)
 
     rvrs_in_file = DIM%DIM
 
     VAR => FIND_VAR(NCF,INPUT_NAMES,found)
-
+ 
     ! ATTEMPT TO ONLY READ NAMES LIST ONCE
     IF(.NOT. ASSOCIATED(VAR%VEC_CHR)) THEN
 
@@ -7802,8 +8136,8 @@ CONTAINS
     dlw_air_n%curr_stkcnt = 0;dlw_air_p%curr_stkcnt = 0
     dsw_air_n%curr_stkcnt = 0;dsw_air_p%curr_stkcnt = 0
 # if defined (OBSICE)
-    ice_cov_n%curr_stkcnt   = 0;ice_cov_p%curr_stkcnt   = 0
-    ice_tik_n%curr_stkcnt   = 0;ice_tik_p%curr_stkcnt   = 0
+    ice_cov_n%curr_stkcnt = 0;ice_cov_p%curr_stkcnt = 0
+    ice_tik_n%curr_stkcnt = 0;ice_tik_p%curr_stkcnt = 0
 # endif
     ! =========== end New ================================================
 
@@ -13461,6 +13795,7 @@ CONTAINS
 
   END SUBROUTINE UPDATE_RIVERS
 
+!===================================================================================|
 # if defined (PLUME)
   !==============================================================================|
   ! UPDATE PLUMES FROM NAMELIST, added by Qin 05/03/2019
@@ -13690,6 +14025,74 @@ CONTAINS
     END DO ! FOR EACH FILE
 
   END SUBROUTINE UPDATE_PLUMES
+# endif
+
+  !==============================================================================|
+  ! UPDATE PUMPS FROM NAMELIST, added by Qin 28/01/2020
+  !==============================================================================|
+# if defined (PUMP)
+  SUBROUTINE UPDATE_PUMPS(NOW,FLUX)
+
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    REAL(SP), ALLOCATABLE :: FLUX(:)
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+
+    REAL(SP), ALLOCATABLE :: CURRENT(:)
+    TYPE(TIME) :: PUMPTIME
+
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR), POINTER :: VAR_N
+    TYPE(NCVAR), POINTER :: VAR_P
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS, I, J, NRSF,IND,NS
+
+    IF(.NOT. ALLOCATED(FLUX)) CALL FATAL_ERROR &
+         &("THE PUMP FLUX VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    DO I = 1, SIZE(PUMP_FORCING) ! (NUMBER OF FILES)
+
+       PUMPTIME = NOW
+       
+       NCF => PUMP_FORCING(I)%NCF
+       FTM => NCF%FTIME
+
+       NRSF = PUMP_FORCING(I)%PUMPS_IN_FILE
+
+       ! PUMP FLUX
+       VAR_N => PUMP_FORCING(I)%FLUX_N
+       VAR_P => PUMP_FORCING(I)%FLUX_P
+       CALL UPDATE_VAR_BRACKET(NCF,VAR_P,VAR_N,PUMPTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPDATE PUMP_FILE TIME BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       ALLOCATE(CURRENT(NRSF))
+
+       CALL NC_POINT_VAR(VAR_N,VNP)
+       CALL NC_POINT_VAR(VAR_P,VPP)
+
+       !====================================================
+       ! Linear interpolation between time points
+       !CURRENT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       !
+       ! OR
+       !
+       ! Nearest time sets the value
+       CURRENT = VNP
+       if (FTM%PREV_WGHT .gt. 0.5_sp) CURRENT = VPP
+       !====================================================
+
+       DO J =1,NRSF
+          IND = PUMP_FORCING(I)%PUMP_FILE2LOC(J)
+          IF(IND /= 0) FLUX(IND) = CURRENT(J)
+       END DO
+
+       DEALLOCATE(CURRENT)
+          
+    END DO ! FOR EACH FILE
+
+  END SUBROUTINE UPDATE_PUMPS
 # endif
 
   !==============================================================================|
@@ -13953,9 +14356,13 @@ CONTAINS
     REAL(SP) :: HSB,HLB,TAU,USR,DTER
     REAL(SP), DIMENSION(0:NT) :: WDSN
     REAL(SP) :: t1k,ulw_airf          ! ejw 8/16/2006
+    REAL(SP) :: Tfreez
 # if defined (OBSICE)
     REAL(SP), DIMENSION(0:NT) :: UISN
-    REAL(SP) :: ustarice, fbot, fice, UIS, Tfreez
+    REAL(SP) :: ustarice, fbot, fice, UIS, Tfreez, rhos 
+    REAL(SP) :: SH_obsice, ESA_obsice, ESS_obsice, ULW_obsice, LH_obsice
+!   first step initialized the ice variables
+    TSO(:)    = 0.0_SP
 # endif
 
     IF(.NOT. ALLOCATED(HEAT_SWV)) CALL FATAL_ERROR &
@@ -14234,16 +14641,18 @@ CONTAINS
          UIS = 0.0_SP
          DO J=1,NTVE(I)
            UIS = UIS + UISN(NBVE(I,J))
-
          END DO
          UIS = UIS/FLOAT(NTVE(I))
 # endif
   
 # if defined (HEATING_CALCULATED)
 # if defined (OBSICE)
-       IF(ICE_COV(I) > 0.5_SP) THEN
-       	    	! freezing point
-       	    	!!REFERENCE: UNESCO TECH. PAPERS IN THE MARINE SCIENCE NO. 28. 1978
+!     first step initialized the ice variables
+	! use ice_constants
+			
+!       IF(ICE_COV(I) > 0.5_SP) THEN
+       		!! freezing point
+       	    	!! REFERENCE: UNESCO TECH. PAPERS IN THE MARINE SCIENCE NO. 28. 1978
 		!! ANNEX 6 FREEZING POINT OF SEAWATER F.J. MILLERO PP.29-35.
 		!! ----------------------------------------------------------
 		!! UNITS:
@@ -14261,36 +14670,60 @@ CONTAINS
 		!! Translated to object pascal by:
 		!!   Dr. Jan Schulz, 20. May 2008, www.code10.info
 		!!TF = (-0.0575_SP + 0.001710523_SP * Sqrt (Abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1) - 0.000753_SP * P(I,1);
-	    Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1)	! sea water freezing point
-            ustarice = sqrt(0.002_SP * UIS**2)   !dragcoef = 0.002, 
+	Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1) - 0.00753_SP	! sea water freezing point
+
+       IF(ICE_COV(I) > 0.5_SP) THEN    
+            ustarice = sqrt(dragcoef * UIS**2)    
             ! rhow=1028.1 sea water density at Temp= Press=0, rhow = 1026.0 fresh water
             ! cw = 3993.0 [J kg^-1 K^-1] heat capacity of seawater , ch = 0.006
             ! cw = 4187.0 fress water
-            ! L = 330000.0 [J K^-1], latent heat of fusion for seawater 
-            ! L = 334000.0 freshwater
-            fbot = 1026.0_SP * 4187.0_SP * 0.006_SP * ustarice * (T(I,1) + Tfreez)  
+
+            fbot = rhow * hcfw * tstan * ustarice * (T(I,1)-Tfreez)  
             HEAT_NET(I) = -fbot
             HEAT_SWV(I) = 0.0_SP
-            fice = 2.0_SP * (Tfreez - T_AIR(I))/ICE_TIK(I)   	!kice = 2.0 (thermal conductivity)
-            FMELT(I) = (fbot -fice)				!HEAT FLUX FOR MELTING
-            DHDT_MELT(I) = FMELT(I)/(1000.0_SP*334000.0_SP)  	!thickness variation by melting, To go into precipitation
+            ! fice = 2.0_SP * (Tfreez - T_AIR(I))/ICE_TIK(I)   	!kice = 2.0 (thermal conductivity)
+            ! FMELT(I) = (fbot -fice)
+            FMELT(I) = fbot				!HEAT FLUX FOR MELTING
+            DHDT_MELT(I) = FMELT(I)/(1000.0_SP*lhffw)  	!thickness variation by melting, To go into precipitation
             DHDT_FREEZ(I) = 0.0_SP
             ! if temperature is below freezing, reset T to Tf
             !if (T(I,1) <= Tfreez) T(I,1) = Tfreez
+            !!!! Surface melting:
+            IF (T_AIR(I) > 2.5_SP) THEN
+               rhos = 500.0_SP
+            ELSEIF ( (T_AIR(I) > -13.0_SP) .AND. (T_AIR(I) <= 2.5_SP) ) THEN
+                rhos = 500_SP*(1.0_SP - 0.951_SP*EXP(-1.4_SP*(5.0_SP - T_AIR(I))**(-1.15_SP) - 0.008_SP*UIS**1.7_SP))
+            ELSEIF (T_AIR(I) <= -13.0_SP) THEN
+                rhos = 500 * (1.0_SP - 0.904_SP * EXP(-0.008_SP * UIS**1.7_SP))
+            END IF
+            !SH = rhoa*ca*cmom*UIS*(T_AIR(I) + TSO(I))  !Sensible heat
+            SH_obsice = rho_air * cp_air * cmomH * UIS * ((T_AIR(I) + 273.16_SP) - (TSO(I) + 273.16_SP))
+            ESA_obsice = lh_coef1 * EXP(lh_coef2 * T_AIR(I) / (T_AIR(I) + lh_coef3))
+            ESS_obsice = lh_coef1 * EXP(lh_coef2 * TSO(I) / (TSO(I) + lh_coef3))  
+            LH_obsice =  lh_coef4*rho_air*Lvap*cmomE*UIS*(RH_AIR(I)*ESA_obsice - ESS_obsice)/PA_AIR(I)
+            ULW_obsice = -emmiss * StefBo * (TSO(I) + 273.16_SP)**4
+                
+            TSN(I) = TSO(I) + (2.0_SP * DTI)/(rhos * cp_ice * h_snow) * ((1.0_SP - albedo_obs) * DSW_AIR(I) + DLW_AIR(I) + SH_obsice + LH_obsice + ULW_obsice)
+            IF (TSN(I) > 0.0_SP) THEN  !Melting if temp warmer than freezing.
+               DHDT_MELT(I) =  DHDT_MELT(I) + (0.5_SP * cp_ice * h_snow * TSN(I)) / (lhffw * DTI)
+               TSN(I) = 0.0_SP
+            END IF
+            TSO(I) = TSN(I)
        ELSE
          CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
               DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
 	      
             t1k= t1(i,1) + 273.16_sp
             
-            DHDT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*(T(I,1) - Tfreez)/(334000.0_SP*600.0_SP)	! Ice thickness by forming, To go into evaporation
+            DHDT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*(T(I,1) - Tfreez)/(lhffw*600.0_SP)	! Ice thickness by forming, To go into evaporation
             HEAT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*1026.0_SP*(T(I,1) - Tfreez)/(3600.0_SP)	! Heat flux for ice forming, delta_time is 1.0 hour
             DHDT_MELT(I) = 0.0_SP
             ulw_airf = -emmiss * StefBo * t1k * t1k * t1k * t1k
-            HEAT_NET(I) = DLW_AIR(I) + DSW_AIR(I) + HSB+HLB + ulw_airf + HEAT_FREEZ(I)        ! ejw 8/16/2006 based on ROMS
+            HEAT_NET(I) = DLW_AIR(I) + DSW_AIR(I) + HSB + HLB + ulw_airf + HEAT_FREEZ(I)        ! ejw 8/16/2006 based on ROMS
             HEAT_SWV(I) = DSW_AIR(I)
             ! if temperature is below freezing, reset T to Tf
-            !if (T(I,1) <= Tfreez) T(I,1) = Tfreez         
+            ! Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1) - 0.00753_SP	! sea water freezing point
+            if (T(I,1) <= Tfreez) T(I,1) = Tfreez     
        END IF
 
 
@@ -14302,6 +14735,10 @@ CONTAINS
          ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
          HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
          HEAT_SWV(I) = DSW_AIR(I)
+         
+         ! if temperature is below freezing, reset T to Tf
+         Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1) - 0.00753_SP	! sea water freezing point
+         if (T(I,1) <= Tfreez) T(I,1) = Tfreez 
 # endif
 # endif
 # if defined (HEATING_CALCULATED_GL)
@@ -14309,10 +14746,10 @@ CONTAINS
               DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
 	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
 !         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
-         t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+         t1k = t1(i,1) - DTER + 273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+         ulw_airf = -StefBo*t1k*t1k*t1k*t1k
          HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
          HEAT_SWV(I)  = DSW_AIR(I)
 # endif

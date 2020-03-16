@@ -435,6 +435,18 @@ CONTAINS
     PLUME_GRID_LOCATION = -1
     PLUME_SIGMA_LAYER   = -1
 # endif	
+
+# if defined (PUMP)
+    !--Paramers in NameList NML_PUMP_TYPE, added by Qin, 28/01/2020
+    PUMP_NUMBER          =  -1
+    PUMP_INFO_FILE       = "filename"
+
+    !--Parameters in NML_PUMP in PUMP_INFO_FILE (PumpNamelist.nml)
+    PUMP_NAME = "Pumper Name in netcdf data file"
+    PUMP_FILE  = trim(casename)//"_pump.nc"
+    PUMP_GRID_LOCATION = -1
+    PUMP_VERTICAL_DISTRIBUTION  = -1
+# endif	
 	
     !--Parameters in NameList NML_OPEN_BOUNDARY
     OBC_ON = .FALSE.
@@ -581,6 +593,11 @@ CONTAINS
     write(UNIT=IPT,NML=NML_PLUME_TYPE)
     write(UNIT=IPT,NML=NML_PLUME)
 # endif
+# if defined (PUMP)
+    write(UNIT=IPT,NML=NML_PUMP_TYPE)
+    write(UNIT=IPT,NML=NML_PUMP)
+# endif
+
     write(UNIT=IPT,NML=NML_OPEN_BOUNDARY_CONTROL)
     write(UNIT=IPT,NML=NML_GRID_COORDINATES)
     write(UNIT=IPT,NML=NML_GROUNDWATER)
@@ -883,6 +900,69 @@ CONTAINS
     REWIND(NMLUNIT)
 # endif
 	
+# if defined (PUMP)
+! Read pump settings, added by Qin, 28/01/2020
+    READ(UNIT=NMLUNIT, NML=NML_PUMP_TYPE,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_PUMP_TYPE)
+       Call Fatal_Error("Can Not Read NameList NML_PUMP_TYPE from file: "//trim(FNAME))
+    end if
+
+    if(DBG_SET(dbg_scl)) &
+         & write(IPT,*) "Read_Name_List:"
+
+    if(DBG_SET(dbg_scl)) &
+         & write(UNIT=IPT,NML=NML_PUMP_TYPE)
+
+    IF(PUMP_NUMBER > 0) THEN
+         !!  use the specified river file information
+          PUMPNMLUNIT=800
+          pathnfile = trim(INPUT_DIR)//trim(PUMP_INFO_FILE)
+          Call FOPEN(PUMPNMLUNIT,trim(pathnfile),'cfr')
+
+       ALLOCATE(PUMPS(PUMP_NUMBER))
+
+       ! Read River Namelists...
+       ios = 0
+       i = 0
+       DO 
+          READ(UNIT=PUMPNMLUNIT, NML=NML_PUMP,IOSTAT=ios)
+
+          if (IOS /= 0 ) exit
+          I = I +1
+          if  (I > PUMP_NUMBER) exit ! To prevent sigsev...
+    
+          PUMPS(i)%NAME=PUMP_NAME
+          PUMPS(i)%FILE=PUMP_FILE
+          PUMPS(i)%LOCATION=PUMP_GRID_LOCATION
+          PUMPS(i)%DISTRIBUTION=PUMP_VERTICAL_DISTRIBUTION
+       END DO
+
+       IF(I .NE. PUMP_NUMBER) THEN
+          if(DBG_SET(dbg_log))  then
+             write(ipt,*)"Bad Pump data in the Name List!"
+             write(ipt,*)"Specified number of pumps:",PUMP_NUMBER
+             write(ipt,*)"But Found",I, "; Valid pump name list objects.(Printing Last)"
+             write(UNIT=IPT,NML=NML_PUMP)
+          end if
+          
+          CALL FATAL_ERROR('PLEASE REPAIR THE NAME LIST SO IT IS CONSISTANT... see above')
+       END IF
+       
+    ELSE IF (PUMP_NUMBER .eq. 0) THEN
+       
+       READ(UNIT=NMLUNIT, NML=NML_PUMP,IOSTAT=ios)
+       !THERE SHOULD BE NO PUMP NAME LISTS
+       if (IOS == 0 ) CALL FATAL_ERROR &
+            & ('THERE ARE ONE OR MORE PUMP NAME LISTS, BUT PUMP TYPE SPECIFIED ZERO PUMPS?')
+       
+    ELSE
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_PUMP_TYPE)
+       CALL FATAL_ERROR("YOU CAN'T HAVE A NEGATIVE NUMBER OF PUMPS!")
+    END IF
+
+    REWIND(NMLUNIT)
+# endif
 	
 
     ! Read Open Boundary Control Settings
@@ -1730,7 +1810,33 @@ CONTAINS
 
     end do
 # endif
+
+# if defined (PUMP)	
+    !Check PUMP files and open, added by Qin 28/01/2020
     
+    do i =1, PUMP_NUMBER
+
+       ! TEST FILE NAME
+       charnum = index (PUMPS(i)%FILE,".nc",back)
+       if (charnum /= len_trim(PUMPS(i)%FILE)-2)&
+            & CALL WARNING("PUMP FILE does not end in .nc", &
+            & trim(PUMPS(i)%FILE))
+       
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(PUMPS(i)%FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+       
+       ! OPEN THE FILE AND LOAD METADATA IF NOT ALREADY DONE
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+
+    end do
+# endif    
+	
+	
     !Check OBC files and open:
 
 # if !defined (EQUI_TIDE)

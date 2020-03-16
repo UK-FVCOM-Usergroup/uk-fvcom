@@ -1109,6 +1109,18 @@ SUBROUTINE ADV_S
 # endif
 # endif
 
+!--  For Pump outflux ------------------------------------
+# if defined(PUMP)
+    IF(NUMPUMP >=1) THEN
+           DO J=1,NUMPUMP
+              JJ=INODEPUMP(J)
+              DO K=1,KBM1
+                 XFLUX(JJ,K)=XFLUX(JJ,K) - QPUMP(J)*PVDIST(J,K)*S1(JJ,K)
+              END DO
+           END DO
+    END IF
+# endif
+
 !---------------------------------------------------------------------
 ! Her slutter if !defined (MPDATA). Litt rart at det ikke skjer et hakk lenger ned?
 # endif

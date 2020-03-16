@@ -39,6 +39,9 @@ MODULE LIMS
    INTEGER MGL                !!GLOBAL NUMBER OF NODES
    INTEGER NUMQBC_GL          !!GLOBAL NUMBER OF FRESHWATER INFLOW NODES (RIVERS)
    INTEGER NUMPLM_GL          !!GLOBAL NUMBER OF PLUME INFLOW NODES (PLUMEMODEL)
+# if defined(PUMP)
+   INTEGER NUMPUMP_GL          !!GLOBAL NUMBER OF PUMPS NODES 
+# endif  
    INTEGER NOBCLSF_GL         !!GLOBAL NUMBER OF LONGSHORE FLOW ADJUSTED OPEN BOUNDARY NODES
    INTEGER NDRFT_GL           !!GLOBAL NUMBER OF LAGRANGIAN TRACKING PARTICLES 
 
@@ -46,6 +49,9 @@ MODULE LIMS
    INTEGER M                  !!LOCAL NUMBER OF NODES
    INTEGER NUMQBC             !!LOCAL NUMBER OF FRESHWATER INFLOW NODES
    INTEGER NUMPLM             !!LOCAL NUMBER OF PLUME INFLOW NODES (PLUMEMODEL)
+# if defined(PUMP)
+   INTEGER NUMPUMP            !!LOCAL NUMBER OF PUMPS NODES 
+# endif 
    INTEGER NOBCLSF            !!LOCAL NUMBER OF LONGSHORE FLOW ADJUSTED OPEN BOUNDARY NODES
    INTEGER NDRFT              !!LOCAL NUMBER OF LAGRANGIAN TRACKING PARTICLES
    INTEGER NISBCE_1           !!LOCAL NUMBER OF ELEMENTS WITH ISBCE = 1
@@ -640,10 +646,8 @@ MODULE CONTROL
        CHARACTER(LEN=RIVER_CHAR_LEN) DISTRIBUTION
 # endif
     end type RIVER
+	type(RIVER), Allocatable, DIMENSION(:) :: RIVERS
 	
-	
-
-    type(RIVER), Allocatable, DIMENSION(:) :: RIVERS
 # if defined(PLUME)	
     !   FOR EXTERNAL PLUME MODEL INPUT FROM NAMELIST, ADDED BY QIN 04/03/2019	
     !--Parameters in NameList NML_PLUME_TYPE
@@ -685,6 +689,47 @@ MODULE CONTROL
     type(PLUMETYPE), Allocatable, DIMENSION(:) :: PLUMES
 
 # endif
+    
+# if defined(PUMP)	
+    !   FOR EXTERNAL PUMP INPUT FROM NAMELIST, ADDED BY QIN 28/02/2020	
+    !--Parameters in NameList NML_PUMP_TYPE
+    INTEGER PUMP_NUMBER ! THE NUMBER OF PUMPS
+    CHARACTER(LEN=80) PUMP_INFO_FILE ! PUMP INFORMATION FILE
+ 
+    NAMELIST /NML_PUMP_TYPE/               &
+         & PUMP_NUMBER,                    &
+         & PUMP_INFO_FILE                 
+    
+
+    !--Parameters in NameList NML_PUMP
+    INTEGER, PARAMETER :: PUMP_CHAR_LEN=200
+    CHARACTER(LEN=80) PUMP_NAME
+    CHARACTER(LEN=80) PUMP_FILE
+    INTEGER     PUMP_GRID_LOCATION
+    REAL(SP) :: PUMP_VERTICAL_DISTRIBUTION(MAX_LAYERS)
+
+
+    NAMELIST /NML_PUMP/                    &
+         & PUMP_NAME,                      &
+         & PUMP_FILE,                      &
+         & PUMP_GRID_LOCATION,             &       
+         & PUMP_VERTICAL_DISTRIBUTION                    
+
+    
+    ! THIS TYPE PROVIDES INTERMEDIATE STORAGE FOR PUMP INFO UNTILL
+    ! THE PUMP FORCING IS SET UP IN MOD_FORCE
+    type PUMPTYPE
+       CHARACTER(LEN=80) NAME
+       CHARACTER(LEN=80) FILE
+       INTEGER     LOCATION
+       REAL(SP) :: DISTRIBUTION(MAX_LAYERS)
+    end type PUMPTYPE
+
+
+    type(PUMPTYPE), Allocatable, DIMENSION(:) :: PUMPS
+
+# endif
+
     !--Parameters in NameList NML_OPEN_BOUNDARY
     LOGICAL OBC_ON
     CHARACTER(LEN=80) OBC_NODE_LIST_FILE
@@ -1110,6 +1155,9 @@ MODULE CONTROL
 
    INTEGER            :: RIVERNMLUNIT
    INTEGER            :: PLUMENMLUNIT
+# if defined(PUMP)
+   INTEGER            :: PUMPNMLUNIT
+# endif   
 
 # if defined (PLBC) 
    INTEGER, PARAMETER :: INTCELL1 =46
@@ -1430,6 +1478,15 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: FPLM_TMP(:,:)     !!TEMPORARY PLUME STORAGE (SHOULD NOT BE HERE, STORE IT IN THE MODULE)!!!
 # endif                   
 # endif
+
+
+   ! PUMP STUFF
+# if defined (PUMP)
+   INTEGER,  ALLOCATABLE,TARGET :: INODEPUMP(:)       !!LOCAL PUMP NODES
+   REAL(SP), ALLOCATABLE,TARGET :: PVDIST(:,:)        !!PUMP VERTICAL DISTRIBUTION
+   REAL(SP), ALLOCATABLE,TARGET :: QPUMP(:)           !!PUMP FLUX AT CURRENT TIME                   
+# endif
+   
    
    ! SURFACE MET STUFF
    REAL(SP), ALLOCATABLE,TARGET :: UUWIND(:)        !!SURFACE X-WIND 
@@ -1481,7 +1538,7 @@ MODULE ALL_VARS
 
 !----------------boundary conditions: meteo conditions-----------------!
 # if defined (ICE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || (HEATING_SOLAR)
-   REAL(SP), ALLOCATABLE,TARGET  :: T_AIR(:)         !!BULK AIR TEMPERATURE( deg C ) AT HEIGHT ?(m)
+   REAL(SP), ALLOCATABLE,TARGET  :: T_AIR(:)         !!BULK AIR TEMPERATURE( deg C ) AT HEIGHT 2(m)
 # endif
 # if defined (ICE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
    REAL(SP), ALLOCATABLE,TARGET  :: RH_AIR(:)        !!RELATIVE HUMIDITY
@@ -1495,9 +1552,38 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET  :: DHDT_MELT(:)      !!ICE MELTING (THIKNESS VAR) m/s
    REAL(SP), ALLOCATABLE,TARGET  :: DHDT_FREEZ(:)     !!ICE FREEZING (THIKNESS VAR) m/s
    REAL(SP), ALLOCATABLE,TARGET  :: HEAT_FREEZ(:)     !!HEAT FLUX FOR ICING 
-   REAL(SP), PARAMETER :: DRAGW = 0.0055_SP*1022._SP  !!drag coefficient for water on ice *rhow (kg/m^3)
-   REAL(SP), PARAMETER :: COSW = 0.9063_SP  !cos(ocean turning angle) !turning angle = 25.
-   REAL(SP), PARAMETER :: SINW = 0.4226_SP  !sin(ocean turning angle) !turning angle = 25.
+   REAL(SP), ALLOCATABLE,TARGET  :: TSO(:)     	      !!TEMPERATURE SURFACE OLD
+   REAL(SP), ALLOCATABLE,TARGET  :: TSN(:)     	      !!TEMPERATURE SURFACE NEW 
+   REAL(SP), PARAMETER :: COSW 		= 0.9063_SP  		! cos(ocean turning angle) !turning angle = 25.
+   REAL(SP), PARAMETER :: SINW 		= 0.4226_SP  		! sin(ocean turning angle) !turning angle = 25.   
+   REAL(SP), PARAMETER :: cp_ice 	= 2106.0_SP         	! specific heat of fresh ice and snow (J/kg/K) 
+   REAL(SP), PARAMETER :: h_snow 	= 0.2_SP		! snow thichness  
+   REAL(SP), PARAMETER :: rhow   	= 1026.0_SP   		! density of seawater (kg/m^3)
+   REAL(SP), PARAMETER :: DRAGW 	= 0.0055_SP*rhow  	! drag coefficient for water on ice *rhow (kg/m^3)
+   REAL(SP), PARAMETER :: hcsw		= 3993.0_SP		! heat capacity of sea water (J kg^-1 K^-1)
+   REAL(SP), PARAMETER :: hcfw		= 4187.0_SP		! heat capacity of fresh water (J kg^-1 K^-1)
+   REAL(SP), PARAMETER :: tstan		= 0.0057_SP		! turbulant Stanton number
+   REAL(SP), PARAMETER :: dragcoef 	= 0.002_SP		! drag coefficient
+   REAL(SP), PARAMETER :: c1i 		= 0.0_SP		! zero initial	
+   REAL(SP), PARAMETER :: lhffw		= 334000.0_SP		! latent heat of fusion for fresh water (J K^-1)	
+   REAL(SP), PARAMETER :: cp_air    	= 1005.0_SP		! specific heat of air (J/kg/K)
+   REAL(SP), PARAMETER :: rho_air   	= 1.25_SP	      	! ambient air density (kg/m^3)
+   REAL(SP), PARAMETER :: cmomE		= 0.0013_SP		! transfer (momentum) coefficient  Ce Bulk tranfer coefficient; Table 2 in Isemer et al. (1989)
+   REAL(SP), PARAMETER :: cmomH		= 0.94_SP*cmomE		! transfer (sensible) coefficient Ch = 0.94 Ce; Table 2 in Isemer et al. (1989); (Maykut, 1986)
+   REAL(SP), PARAMETER :: lh_coef1	= 6.112_SP		! coef1
+   REAL(SP), PARAMETER :: lh_coef2	= 17.67_SP		! coef2
+   REAL(SP), PARAMETER :: lh_coef3	= 243.5_SP		! coef3
+   REAL(SP), PARAMETER :: lh_coef4	= 0.622_SP		! coef4
+   REAL(SP), PARAMETER :: Lvap      	= 2502000.0_SP		! latent heat, vaporization freshwater (J/kg)
+   REAL(SP), PARAMETER :: albedo_obs	= 0.8_SP		! Maximum albedo for snow (NERSC Technical report No. 304, A multi-category sea-ice model)
+   
+   !LH =  0.622*rhoa*Lvap*Cbulk*UIS*(RH_AIR(I)*ESA - ESS)/PA_AIR(I)  !Latent heat. Check unit of air pressure. See Tonboe_DMI.pdf for constants
+             ! rhow=1028.1 sea water density at Temp= Press=0, rhow = 1026.0 fresh water
+            ! cw = 3993.0 [J kg^-1 K^-1] heat capacity of seawater , ch = 0.006
+            ! cw = 4187.0 fress water
+            ! L = 330000.0 [J K^-1], latent heat of fusion for seawater 
+            ! L = 334000.0 freshwater
+
 # endif
 # if defined (ICE)
    REAL(SP), ALLOCATABLE,TARGET  :: QA_AIR(:)        !!SPECIFIC HUMIDITY  (KG/KG)
@@ -1522,7 +1608,7 @@ MODULE ALL_VARS
 #   endif
 
 # endif
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || (PLUME) || (PLUME_CALCULATED) 
    REAL(SP), ALLOCATABLE,TARGET  :: PA_AIR(:)        !!SURFACE PRESSURE
 # endif
 # if defined (ICE) || (HEATING_SOLAR)
@@ -2040,7 +2126,9 @@ CONTAINS
    ALLOCATE(DHDT_MELT(0:MT))      !!ICE MELTING (THIKNESS) M/S
    ALLOCATE(DHDT_FREEZ(0:MT))      !!ICE FORMING (THIKNESS) M/S
    ALLOCATE(HEAT_FREEZ(0:MT))      !!HEAT FLUX FOR ICING
-   MEMCNT =  MT*6*NDB + MEMCNT
+   ALLOCATE(TSO(0:MT))		;TSO = Zero      		!!HEAT FLUX FOR ICING
+   ALLOCATE(TSN(0:MT))      		!!HEAT FLUX FOR ICING
+   MEMCNT =  MT*8*NDB + MEMCNT
 # endif
 # if defined (ICE)
    ALLOCATE(QA_AIR(0:MT))        !!SPECIFIC HUMIDITY

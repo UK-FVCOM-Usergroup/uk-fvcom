@@ -230,6 +230,22 @@
 # endif
 # endif
 
+!---------------PUMP  FLUX----------------------
+!Added by Qin 28/01/2020
+# if defined(PUMP)
+    IF(NUMPUMP >= 1) THEN
+        DO J=1,NUMPUMP
+           JJ=INODEPUMP(J)
+           DO K=1,KBM1
+             XFLUX(JJ,K)=XFLUX(JJ,K)-QPUMP(J)*PVDIST(J,K)    !/DZ(JJ,K)
+           END DO
+        END DO
+	END IF
+
+# endif
+
+
+
 #  if defined (MEAN_FLOW)
    IF (nmfcell > 0) THEN
      DO I = 1, nmfcell
