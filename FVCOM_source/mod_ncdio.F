@@ -3625,10 +3625,14 @@ CONTAINS
        allocate(WTS(MGL,KB),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WTS")
        WTS = 0.0_SP
-
+! RJT for FABM OFFLINE but should be useful for the other offline submodels
        ALLOCATE(UARD_OBCN(IOBCN),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UARD_OBCN")
        UARD_OBCN = 0.0_SP
+! RJT 03/2020 for FABM OFFLINE but should be useful for the other offline submodels
+       ALLOCATE(DTFA(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:DTFA")
+       DTFA = 0.0_SP
     END IF
 
 
@@ -3799,7 +3803,7 @@ CONTAINS
 
     NCF  => ADD(NCF,VAR)
 
-    ! UARD_OBCN
+    ! UARD_OBCN RJT FOR FABM OFFLINE BUT SHOULD BE USED MORE WIDERLY
     VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
          & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
 
@@ -3817,6 +3821,23 @@ CONTAINS
 
     NCF  => ADD(NCF,VAR)
 
+    ! DTFA RJT 03/2020
+    VAR  => NC_MAKE_AVAR(name='DTFA',&
+         & values=DTFA, DIM1= DIM_node, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Adjusted depth for mass conservation') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
 
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END VELOCITY_FILE_OBJECT"

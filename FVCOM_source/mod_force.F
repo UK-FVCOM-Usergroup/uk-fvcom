@@ -401,10 +401,11 @@ MODULE MOD_FORCE
 # if defined (WET_DRY)
   TYPE(NCVAR), POINTER :: FABM_WN_N, FABM_WN_P ! WET NODES
   TYPE(NCVAR), POINTER :: FABM_WC_N, FABM_WC_P ! WET CELLS
-  TYPE(NCVAR), POINTER :: SEDIMENTS_WN_N, SEDIMENTS_WN_P ! WET NODES
-  TYPE(NCVAR), POINTER :: SEDIMENTS_WC_N, SEDIMENTS_WC_P ! WET CELLS
+!  TYPE(NCVAR), POINTER :: SEDIMENTS_WN_N, SEDIMENTS_WN_P ! WET NODES   WHAT ARE THESE DOING HERE?? RJT 03/2020
+!  TYPE(NCVAR), POINTER :: SEDIMENTS_WC_N, SEDIMENTS_WC_P ! WET CELLS   WHAT ARE THESE DOING HERE?? RJT 03/2020
 # endif
   TYPE(NCVAR), POINTER :: FABM_UA_N, FABM_UA_P ! UARD_OBCN
+  TYPE(NCVAR), POINTER :: FABM_DTFA_N, FABM_DTFA_P ! DTFA
 
 # endif
 
@@ -658,6 +659,7 @@ CONTAINS
          & FABM_WN_N,    FABM_WN_P,     &
          & FABM_WC_N,    FABM_WC_P,     &
 # endif
+         & FABM_DTFA_N,    FABM_DTFA_P, &
          & FABM_UA_N,    FABM_UA_P      )
 # endif
 
@@ -9717,6 +9719,30 @@ CONTAINS
        CALL NC_CONNECT_PVAR(FABM_UA_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 
+       ! DTFA OF OFFLINE DTFA
+       VAR => FIND_VAR(FABM_FILE,"DTFA",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(FABM_FILE,"DTFA",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN OFFLINE FABM HYDRAULIC FORCING FILE OBJECT",&
+            & "FILE NAME: "//TRIM(OFFLINE_FABM_FILE),&
+            & "COULD NOT FIND VARIABLE 'DTFA' or 'dtfa'")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_DTFA_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(IOBCN), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_DTFA_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       FABM_DTFA_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(IOBCN), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN OFFLINE FABM FORCING")
+       CALL NC_CONNECT_PVAR(FABM_DTFA_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OFFLINE_FABM_FORCING"
   END SUBROUTINE OFFLINE_FABM_FORCING
@@ -14175,14 +14201,14 @@ CONTAINS
   !==============================================================================|
   SUBROUTINE UPDATE_OFFLINE_FABM_FORCING(NOW,offlineb_u,  offlineb_v, offlineb_w&
                                         &,offlineb_s1,offlineb_t1, offlineb_el,offlineb_kh&
-                                        &,offlineb_wn, offlineb_wc, offlineb_uard_obcn)
+                                        &,offlineb_wn, offlineb_wc, offlineb_uard_obcn,offlineb_dtfa)
 
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: WTIME
     REAL(SP), ALLOCATABLE  :: offlineb_u(:,:),offlineb_v(:,:),offlineb_w(:,:),offlineb_s1(:,:)
     REAL(SP), ALLOCATABLE  :: offlineb_el(:), offlineb_kh(:,:),offlineb_t1(:,:)
-    REAL(SP), ALLOCATABLE  :: offlineb_uard_obcn(:)
+    REAL(SP), ALLOCATABLE  :: offlineb_uard_obcn(:),offlineb_uard_dfta(:)
     INTEGER , ALLOCATABLE  :: offlineb_wn(:), offlineb_wc(:)
 
     REAL(SP), POINTER :: VNP(:), VPP(:)
@@ -14212,6 +14238,8 @@ CONTAINS
          &("THE offlineb_wc VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
     IF(.NOT. ALLOCATED(offlineb_uard_obcn)) CALL FATAL_ERROR &
          &("THE offlineb_uard_obcn VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(offlineb_dtfa)) CALL FATAL_ERROR &
+         &("THE offlineb_dtfa VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
 
 !===================================================
 
@@ -14329,6 +14357,15 @@ CONTAINS
     CALL NC_POINT_VAR(FABM_UA_P,VPP)   
     offlineb_uard_obcn = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
+    ! THE DTFA
+    CALL UPDATE_VAR_BRACKET(FABM_FILE,FABM_DTFA_P,FABM_DTFA_N,WTIME,STATUS)
+    IF (STATUS /= 0) THEN
+      CALL FATAL_ERROR("COULD NOT UPATE FABM_DTFA BRACKET: BOUNDS EXCEEDED?")
+    end if
+
+    CALL NC_POINT_VAR(FABM_DTFA_N,VNP)
+    CALL NC_POINT_VAR(FABM_DTFA_P,VPP)   
+    offlineb_dtfa = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
   END SUBROUTINE UPDATE_OFFLINE_FABM_FORCING
 # endif
 

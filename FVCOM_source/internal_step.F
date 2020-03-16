@@ -153,10 +153,11 @@ SUBROUTINE INTERNAL_STEP
     iswetct = iswetc
 # endif
     D = H + EL
-    DT = D
-    DTFA = D
+    DTFA = OFFLINEB_DTFA
+!    DT = D       ! These two lines should be at the end of this OFFLINE BLOCK. We need to update last time D and DTFA later otherwise we affect OFFLINE advection RJT 03/2020
+!    DTFA = D
     CALL N2E2D(D,D1)
-    CALL N2E2D(DT,DT1)
+    CALL N2E2D(DT,DT1)  ! DT should have been read in the restart file so we don't need to worry about it here... 
 
   IF(.NOT.BAROTROPIC)THEN
    SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
@@ -224,9 +225,16 @@ SUBROUTINE INTERNAL_STEP
      CALL FATAL_ERROR("YOU CAN'T RUN FABM OFFLINE WITHOUT A FABM_MODEL")
   ENDIF
 
+  !
+  !----SHIFT SEA SURFACE ELEVATION AND DEPTH TO CURRENT TIME LEVEL---------------!
+  ! RJT 03/2020
+    DT = D
+    DTFA = D
+
   RETURN
 
 # endif
+
 !----END IF OFFLINE FABM
 !----loop end for offline FABM
 
