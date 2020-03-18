@@ -14207,7 +14207,7 @@ CONTAINS
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: WTIME
     REAL(SP), ALLOCATABLE  :: offlineb_u(:,:),offlineb_v(:,:),offlineb_w(:,:),offlineb_s1(:,:)
-    REAL(SP), ALLOCATABLE  :: offlineb_el(:), offlineb_kh(:,:),offlineb_t1(:,:)
+    REAL(SP), ALLOCATABLE  :: offlineb_el(:), offlineb_kh(:,:),offlineb_t1(:,:), offlineb_dtfa(:,:)
     REAL(SP), ALLOCATABLE  :: offlineb_uard_obcn(:),offlineb_uard_dfta(:)
     INTEGER , ALLOCATABLE  :: offlineb_wn(:), offlineb_wc(:)
 
@@ -14363,9 +14363,9 @@ CONTAINS
       CALL FATAL_ERROR("COULD NOT UPATE FABM_DTFA BRACKET: BOUNDS EXCEEDED?")
     end if
 
-    CALL NC_POINT_VAR(FABM_DTFA_N,VNP)
-    CALL NC_POINT_VAR(FABM_DTFA_P,VPP)   
-    offlineb_dtfa = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+    CALL NC_POINT_VAR(FABM_DTFA_N,VNP_ARR)
+    CALL NC_POINT_VAR(FABM_DTFA_P,VPP_ARR)
+    offlineb_dtfa = FTM%NEXT_WGHT * VNP_ARR + FTM%PREV_WGHT * VPP_ARR
   END SUBROUTINE UPDATE_OFFLINE_FABM_FORCING
 # endif
 
