@@ -14208,7 +14208,7 @@ CONTAINS
     TYPE(TIME)             :: WTIME
     REAL(SP), ALLOCATABLE  :: offlineb_u(:,:),offlineb_v(:,:),offlineb_w(:,:),offlineb_s1(:,:)
     REAL(SP), ALLOCATABLE  :: offlineb_el(:), offlineb_kh(:,:),offlineb_t1(:,:)
-    REAL(SP), ALLOCATABLE  :: offlineb_uard_obcn(:),offlineb_uard_dfta(:)
+    REAL(SP), ALLOCATABLE  :: offlineb_uard_obcn(:),offlineb_uard_dtfa(:)
     INTEGER , ALLOCATABLE  :: offlineb_wn(:), offlineb_wc(:)
 
     REAL(SP), POINTER :: VNP(:), VPP(:)
