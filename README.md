@@ -18,7 +18,7 @@ Once registered, the official releases of FVCOM are available for download from 
 Support
 -------
 
-The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is a wiki available at https://wiki.fvcom.pml.ac.uk.
+The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is another (user written) wiki available at https://wiki.fvcom.pml.ac.uk.
 
 FABM-ERSEM
 ----------
