@@ -5,6 +5,9 @@ The main FVCOM website is http://fvcom.smast.umassd.edu/fvcom.
 
 This repository is for the UK FVCOM Users' code development.
 
+Current version has been updated to include the official 4.3 version from http://code.fvcom.org/medm/fvcom43
+
+
 Register
 --------
 
