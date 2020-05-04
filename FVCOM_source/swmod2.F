@@ -100,6 +100,8 @@
    REAL, SAVE    :: KM01
    REAL, SAVE    :: SIGM_10
    REAL, SAVE    :: SIGM01
+! !$OMP THREADPRIVATE(ACTOT, EDRKTOT, EKTOT, ETOT1, ETOT2, ETOT4,
+! !$OMP&              KM_WAM, KM01, SIGM_10, SIGM01)
 !
 !     SIGPOW : contains powers of relative frequencies
 !              second dimension indicates power of sigma
