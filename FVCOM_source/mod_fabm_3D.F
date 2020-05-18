@@ -1911,8 +1911,8 @@ END SUBROUTINE FABM_MIXING
   !--------------------------------------------------------------------------
 
   ! REMOVE OFFSET @HES2020
-  FABM_ALL = FABM_ALL-1
-  FABM_MEAN = FABM_MEAN-1
+  FABM_ALL  = FABM_ALL-OFFS
+  FABM_MEAN = FABM_MEAN-OFFS
 
 #  endif
 
