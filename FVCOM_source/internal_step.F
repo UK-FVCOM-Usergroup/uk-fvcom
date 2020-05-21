@@ -148,9 +148,9 @@ SUBROUTINE INTERNAL_STEP
     UARD_OBCN = OFFLINEB_UARD_OBCN ! this doesn't need broadcasting
 # if defined (WET_DRY)
     iswetn = INT(OFFLINEB_WN)
-    iswetnt = iswetn
+!    iswetnt = iswetn these are populated when reading restart file
     iswetc = INT(OFFLINEB_WC)
-    iswetct = iswetc
+!    iswetct = iswetc these are populated when reading restart file
 # endif
     D = H + EL
     DTFA = OFFLINEB_DTFA
@@ -230,6 +230,10 @@ SUBROUTINE INTERNAL_STEP
   ! RJT 03/2020
     DT = D
     DTFA = D
+  ! ---- SHIFT wet-dry mask 
+  ! RJT 05/2020
+    iswetnt = iswetn
+    iswetct = iswetc
 
   RETURN
 
