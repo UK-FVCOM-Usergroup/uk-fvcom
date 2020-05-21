@@ -145,7 +145,9 @@ SUBROUTINE INTERNAL_STEP
     T1  = OFFLINEB_T1
     KH  = OFFLINEB_KH
     EL  = OFFLINEB_EL
-    UARD_OBCN = OFFLINEB_UARD_OBCN ! this doesn't need broadcasting
+    IF (OBC_ON) THEN
+	UARD_OBCN = OFFLINEB_UARD_OBCN ! this doesn't need broadcasting
+    END IF
 # if defined (WET_DRY)
     iswetn = INT(OFFLINEB_WN)
 !    iswetnt = iswetn these are populated when reading restart file

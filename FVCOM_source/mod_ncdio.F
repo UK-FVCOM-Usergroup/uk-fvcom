@@ -3589,6 +3589,7 @@ CONTAINS
   END FUNCTION VELOCITY_FILE_OBJECT
 !=============================================================  
   FUNCTION OFFLINE_FILE_OBJECT() RESULT(NCF)
+
     USE MOD_OBCS, ONLY: UARD_OBCN
     USE BCS, ONLY: IOBCN
     IMPLICIT NONE
@@ -3626,9 +3627,11 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WTS")
        WTS = 0.0_SP
 ! RJT for FABM OFFLINE but should be useful for the other offline submodels
-       ALLOCATE(UARD_OBCN(IOBCN),stat=status)
-       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UARD_OBCN")
-       UARD_OBCN = 0.0_SP
+       IF (OBC_ON) THEN
+          ALLOCATE(UARD_OBCN(IOBCN),stat=status)
+          IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UARD_OBCN")
+          UARD_OBCN = 0.0_SP
+       END IF
 ! RJT 03/2020 for FABM OFFLINE but should be useful for the other offline submodels
        ALLOCATE(DTFA(MGL),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:DTFA")
@@ -3804,23 +3807,24 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! UARD_OBCN RJT FOR FABM OFFLINE BUT SHOULD BE USED MORE WIDERLY
-    VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
-         & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
+    IF (OBC_ON) THEN
+      VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
+           & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Normal Velocity at boundaries') 
-    VAR  => ADD(VAR,ATT)
+      ATT  => NC_MAKE_ATT(name='long_name',values='Normal Velocity at boundaries') 
+      VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
-    VAR  => ADD(VAR,ATT)
+      ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
+      VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
-    VAR  => ADD(VAR,ATT)
+      ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+      VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
-    VAR  => ADD(VAR,ATT)
+      ATT  => NC_MAKE_ATT(name='type',values='data') 
+      VAR  => ADD(VAR,ATT)
 
-    NCF  => ADD(NCF,VAR)
-
+      NCF  => ADD(NCF,VAR)
+    END IF
     ! DTFA RJT 03/2020
     VAR  => NC_MAKE_AVAR(name='DTFA',&
          & values=DTFA, DIM1= DIM_node, DIM2 = DIM_time)

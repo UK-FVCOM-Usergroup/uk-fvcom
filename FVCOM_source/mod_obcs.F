@@ -171,7 +171,9 @@ CONTAINS
 #   endif
 #   if defined (OFFLINE_FABM)
 ! allocate offline_UARD_OBCN here 
-    ALLOCATE(OFFLINEB_UARD_OBCN(IOBCN))     ;OFFLINEB_UARD_OBCN  = ZERO ! I don't know why it needed to be IOBCN+1
+    IF (OBC_ON) THEN
+       ALLOCATE(OFFLINEB_UARD_OBCN(IOBCN))     ;OFFLINEB_UARD_OBCN  = ZERO ! I don't know why it needed to be IOBCN+1
+    END IF
 #   endif
 
     IF(TYPE_TSOBC == 4)THEN
