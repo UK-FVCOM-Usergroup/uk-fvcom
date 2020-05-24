@@ -140,7 +140,7 @@ CONTAINS
 !  FVCOM VERSION                                                               !
 !==============================================================================!
 
-   FVCOM_VERSION     = 'FVCOM_3.0'
+   FVCOM_VERSION     = 'FVCOM_4.0, Akvaplan branch'
    FVCOM_WEBSITE     = 'http://fvcom.smast.umassd.edu, http://codfish.smast.umassd.edu'
    INSTITUTION       = 'School for Marine Science and Technology'
 
