@@ -128,7 +128,7 @@ SUBROUTINE INTERNAL_STEP
   IF (FABM_MODEL)  THEN
   !----SPECIFY THE SURFACE FORCING OF INTERNAL MODES-----------------------------!
 # if defined (GCN)
-    CALL BCOND_GCN(8)
+    CALL BCOND_GCN(8) ! READS Surface forcing and offline file
 #   else
     CALL BCOND_GCY(8)
 # endif
@@ -231,7 +231,7 @@ SUBROUTINE INTERNAL_STEP
   !----SHIFT SEA SURFACE ELEVATION AND DEPTH TO CURRENT TIME LEVEL---------------!
   ! RJT 03/2020
     DT = D
-    DTFA = D
+!    DTFA = D We are reading this from offline file so we don't need to overwrite it 
   ! ---- SHIFT wet-dry mask 
   ! RJT 05/2020
     iswetnt = iswetn

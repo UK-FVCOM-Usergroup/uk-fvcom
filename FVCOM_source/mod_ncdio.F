@@ -5561,7 +5561,7 @@ CONTAINS
 
     NCF  => ADD(NCF,VAR)
 
-    ! WET CELLS AT LAST EXT STEP
+    ! WET CELLS AT LAST INT STEP
     VAR  => NC_MAKE_AVAR(name='wet_cells_prev_int',&
          & values=ISWETCT, DIM1= DIM_nele, DIM2= DIM_time)
 

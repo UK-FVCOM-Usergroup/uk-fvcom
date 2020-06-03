@@ -9745,6 +9745,28 @@ CONTAINS
        NULLIFY(STORAGE_VEC)
 
 
+      ! ---------- new: 2020 , june, R torres
+      ! Initialize some variables 
+      ! Need initialization. Otherwise, random values are asigned
+      ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+      ! This problem reported with Intel15.0.3. 
+      FABM_U_P%CURR_STKCNT = 0; FABM_U_N%CURR_STKCNT = 0
+      FABM_V_P%CURR_STKCNT = 0; FABM_V_N%CURR_STKCNT = 0
+      FABM_W_P%CURR_STKCNT = 0; FABM_W_N%CURR_STKCNT = 0
+      FABM_S1_P%CURR_STKCNT = 0; FABM_S1_N%CURR_STKCNT = 0
+      FABM_EL_P%CURR_STKCNT = 0; FABM_EL_N%CURR_STKCNT = 0
+      FABM_KH_P%CURR_STKCNT = 0; FABM_KH_N%CURR_STKCNT = 0
+      FABM_DTFA_P%CURR_STKCNT = 0; FABM_DTFA_N%CURR_STKCNT = 0
+      IF (OBC_ON) THEN 
+      FABM_UA_P%CURR_STKCNT = 0; FABM_UA_N%CURR_STKCNT = 0
+      ENDIF
+#  if defined (WET_DRY)
+      FABM_WN_P%CURR_STKCNT = 0; FABM_WN_N%CURR_STKCNT = 0
+      FABM_WC_P%CURR_STKCNT = 0; FABM_WC_N%CURR_STKCNT = 0
+# endif
+      ! -------------- end new ----------------------------------------------------------
+
+
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OFFLINE_FABM_FORCING"
   END SUBROUTINE OFFLINE_FABM_FORCING
 
