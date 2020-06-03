@@ -234,10 +234,20 @@ SUBROUTINE INTERNAL_STEP
   ! RJT 03/2020
     DT = D
 !    DTFA = D We are reading this from offline file so we don't need to overwrite it 
-  ! ---- SHIFT wet-dry mask 
+  ! ---- SHIFT current values wet-dry mask 
   ! RJT 05/2020
     iswetnt = iswetn
     iswetct = iswetc
+! No idea if the latter is needed... RJT 06/2020 
+# if defined(MULTIPROCESSOR)
+  IF(PAR)THEN
+    CALL AEXCHANGE(NC,MYID,NPROCS,DT)
+# if defined (WET_DRY)
+    CALL AEXCHANGE(NC,MYID,NPROCS,iswetnt)
+    CALL AEXCHANGE(EC,MYID,NPROCS,iswetct)
+# endif
+  END IF
+# endif
 
   RETURN
 
