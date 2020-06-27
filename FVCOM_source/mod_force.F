@@ -6272,7 +6272,7 @@ CONTAINS
     REAL(SP) :: TEMP
 
     CHARACTER(LEN=80)  :: ISTR
-    ISTR = "./"//TRIM(INPUT_DIR)//"/"//trim(casename)
+    ISTR = "./"//TRIM(INPUT_DIR)//"/"//CORIOLIS_FILE
   
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "START SURFACE_HEATING_CALCULATED"
 
@@ -6289,7 +6289,7 @@ CONTAINS
 !--------------READ IN LATITUDE------------------------------------------------!
 
    ALLOCATE(CORRG(0:MGL))  ; CORRG = 0.0_SP
-   CALL FOPEN(CORIOLISUNIT, TRIM(ISTR)//'_cor.dat',"cfr")
+   CALL FOPEN(CORIOLISUNIT, TRIM(ISTR), "cfr")
    REWIND(CORIOLISUNIT)
    READ(CORIOLISUNIT,*)
    DO I=1,MGL
@@ -6980,7 +6980,7 @@ CONTAINS
     INTEGER :: cc_start,yy_start
 
     CHARACTER(LEN=80)  :: ISTR
-    ISTR = "./"//TRIM(INPUT_DIR)//"/"//trim(casename)
+    ISTR = "./"//TRIM(INPUT_DIR)//"/"//CORIOLIS_FILE
   
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "START SURFACE_HEATING_SOLAR"
 
@@ -6997,7 +6997,7 @@ CONTAINS
 !--------------READ IN LATITUDE------------------------------------------------!
 
    ALLOCATE(CORRG(0:MGL))  ; CORRG = 0.0_SP
-   CALL FOPEN(CORIOLISUNIT, TRIM(ISTR)//'_cor.dat',"cfr")
+   CALL FOPEN(CORIOLISUNIT, TRIM(ISTR), "cfr")
    REWIND(CORIOLISUNIT)
    READ(CORIOLISUNIT,*)
    DO I=1,MGL
