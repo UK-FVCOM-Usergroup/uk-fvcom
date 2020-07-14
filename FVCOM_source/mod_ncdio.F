@@ -7021,7 +7021,7 @@ CONTAINS
 
      IOPROC_ALLOCATED = .true.
 
-     ALLOCATE(FABM_ALL(MGL,KB,size(model%state_variables)),STAT=STATUS)
+     ALLOCATE(FABM_ALL(MGL,KB,size(model%interior_state_variables)),STAT=STATUS)
      IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL")
      FABM_ALL = 0.0_SP
 
@@ -7038,13 +7038,13 @@ CONTAINS
   ! ALLOCATE THE NEW FILE OBJECT
    NCF => NEW_FILE()
 
-   DO II=1,size(model%state_variables)
+   DO II=1,size(model%interior_state_variables)
    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
    ! SHOULD HAVE THE SAME NAME A THOSE USED ON THE OTHER PROCESSORS!
-     IF (model%state_variables(II)%output/=output_none.or.ISET==3) THEN
+     IF (model%interior_state_variables(II)%output/=output_none.or.ISET==3) THEN
        pdata => FABM_ALL(1:M,1:KB,II)
-       VAR => ADD_FABM_VARIABLE(model%state_variables(II),pdata=pdata)
+       VAR => ADD_FABM_VARIABLE(model%interior_state_variables(II),pdata=pdata)
        NCF  => ADD(NCF,VAR)
      END IF
    END DO

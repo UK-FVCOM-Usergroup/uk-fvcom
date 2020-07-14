@@ -1521,9 +1521,9 @@ END SUBROUTINE GENMAP_NESTING
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
           ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,IFABMadv),stat=status) !RJT restricting nesting actions to advectable variables only
-!          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,size(model%state_variables)),stat=status)
+!          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,size(model%interior_state_variables)),stat=status)
           if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_NEST")
-!          ALLOCATE(FABM_ALL_BLK(0:G%MT,KB,NESTING_BLOCKSIZE,size(model%state_variables)),stat=status)
+!          ALLOCATE(FABM_ALL_BLK(0:G%MT,KB,NESTING_BLOCKSIZE,size(model%interior_state_variables)),stat=status)
 !          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_BLK")
        END IF
 # endif
@@ -1822,10 +1822,10 @@ END SUBROUTINE GENMAP_NESTING
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
        DO IFABM = 1,IFABMadv
-!         WRITE (6,*) 'Index ', IFABM,IFABMadv_idx(IFABM), 'Name ',TRIM(model%state_variables(IFABMadv_idx(IFABM))%name)
-         VAR => FIND_VAR(NESTING_FILE,TRIM(model%state_variables(IFABMadv_idx(IFABM))%name),FOUND) ! RJT looping only through advectable variables
+!         WRITE (6,*) 'Index ', IFABM,IFABMadv_idx(IFABM), 'Name ',TRIM(model%interior_state_variables(IFABMadv_idx(IFABM))%name)
+         VAR => FIND_VAR(NESTING_FILE,TRIM(model%interior_state_variables(IFABMadv_idx(IFABM))%name),FOUND) ! RJT looping only through advectable variables
          IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO "// &
-            & TRIM(model%state_variables(IFABMadv_idx(IFABM))%name)//"  FOUND?")
+            & TRIM(model%interior_state_variables(IFABMadv_idx(IFABM))%name)//"  FOUND?")
 !         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM))
 !         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
          CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)
@@ -2136,9 +2136,9 @@ END SUBROUTINE GENMAP_NESTING
 #   if defined (FABM)
    DO II=1,IFABMadv
        pdata3 => D%FABM_ALL_BLK(1:,:,:,II)
-       VAR => ADD_FABM_VARIABLE(model%state_variables(IFABMadv_idx(II)),pdata3=pdata3)
+       VAR => ADD_FABM_VARIABLE(model%interior_state_variables(IFABMadv_idx(II)),pdata3=pdata3)
        NCF  => ADD(NCF,VAR)
-   write(ipt,*) "Done adding variable ,",trim(model%state_variables(II)%name)
+   write(ipt,*) "Done adding variable ,",trim(model%interior_state_variables(II)%name)
    END DO
 #   endif
 
@@ -2708,7 +2708,7 @@ END SUBROUTINE GENMAP_NESTING
     D%S1_BLK(:,:,D%IDX) = S1(G%NLID(:),:)
     D%T1_BLK(:,:,D%IDX) = T1(G%NLID(:),:)
 # if defined (FABM)
-   DO II=1,IFABMadv ! RJT only for advectable variables size(model%state_variables)
+   DO II=1,IFABMadv ! RJT only for advectable variables size(model%interior_state_variables)
     D%FABM_ALL_BLK(:,:,D%IDX,II)=FABM_ALL(G%NLID(:),1:KB,IFABMadv_idx(II))
    END DO
 # endif
@@ -2796,7 +2796,7 @@ END SUBROUTINE GENMAP_NESTING
     D%HYW_BLK=  -99.0_SP
     D%TIME_BLK =  zerotime
 # if defined (FABM)
-   DO II=1,IFABMadv !size(model%state_variables)
+   DO II=1,IFABMadv !size(model%interior_state_variables)
     D%FABM_ALL_BLK=-99.0_SP
    END DO
 # endif
@@ -3015,7 +3015,7 @@ END SUBROUTINE GENMAP_NESTING
 # if defined (FABM)
     ELSEIF(PRESENT(FABM_ALL)) THEN
     IF(FABM_NESTING_ON) THEN
-    DO IFABM = 1,IFABMadv !size(model%state_variables) 
+    DO IFABM = 1,IFABMadv !size(model%interior_state_variables) 
        FABM_ALL_NEST(:,:,IFABM) =   NESTING_DATA%FABM_ALL_BLK(:,:,PREV,IFABM) * PREV_W +&
                 &  NESTING_DATA%FABM_ALL_BLK(:,:,NEXT,IFABM) * NEXT_W
 
@@ -3204,9 +3204,9 @@ END SUBROUTINE GENMAP_NESTING
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
        DO IFABM = 1,IFABMadv
-         VAR => FIND_VAR(NESTING_FILE,TRIM(model%state_variables(IFABMadv_idx(IFABM))%name),FOUND)! RJT looping only through advectable variables
+         VAR => FIND_VAR(NESTING_FILE,TRIM(model%interior_state_variables(IFABMadv_idx(IFABM))%name),FOUND)! RJT looping only through advectable variables
          IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO "// &
-            & TRIM(model%state_variables(IFABMadv_idx(IFABM))%name)//"  FOUND?")
+            & TRIM(model%interior_state_variables(IFABMadv_idx(IFABM))%name)//"  FOUND?")
 !         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM))
 !         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
          CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)

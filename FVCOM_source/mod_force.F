@@ -2052,8 +2052,8 @@ CONTAINS
        NULLIFY(RIVER_FORCING(I)%BIO20_P)
 # endif         
 # if defined (FABM)
-       ALLOCATE(RIVER_FORCING(I)%FABM_N(size(model%state_variables)))
-       ALLOCATE(RIVER_FORCING(I)%FABM_P(size(model%state_variables)))
+       ALLOCATE(RIVER_FORCING(I)%FABM_N(size(model%interior_state_variables)))
+       ALLOCATE(RIVER_FORCING(I)%FABM_P(size(model%interior_state_variables)))
 # endif
     END DO
 
@@ -2077,7 +2077,7 @@ CONTAINS
     END IF
 # endif
 # if defined (FABM)
-    ALLOCATE(FABMDIS(NUMQBC,size(model%state_variables))); FABMDIS  = 0.0_SP
+    ALLOCATE(FABMDIS(NUMQBC,size(model%interior_state_variables))); FABMDIS  = 0.0_SP
 # endif
     ALLOCATE(TDIS(NUMQBC));         TDIS   = 0.0_SP
     ALLOCATE(SDIS(NUMQBC));         SDIS   = 0.0_SP
@@ -3154,9 +3154,9 @@ CONTAINS
 
        IF(FABM_MODEL)THEN
 
-         DO IFABM=1,size(model%state_variables)
+         DO IFABM=1,size(model%interior_state_variables)
          ! GET THE BIOLOGICAL CONCENTRATION FOR CURRENT PELAGIC STATE VARIABLE
-           VAR => FIND_VAR(NCF,TRIM(model%state_variables(IFABM)%name),FOUND)
+           VAR => FIND_VAR(NCF,TRIM(model%interior_state_variables(IFABM)%name),FOUND)
            IF(FOUND) THEN
              ALLOCATE(STORAGE_VEC(nrs), stat = status)
              IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN RIVER_DISCHARGE")
@@ -5623,7 +5623,7 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "START OBC_FABM"
 
     ! Initialize field with variable-specific nudging flags (NB must be done even if .not. FABM_OBC_PRESCRIBED!)
-    ALLOCATE(FABM_OBC_PRESCRIBED(size(model%state_variables)))
+    ALLOCATE(FABM_OBC_PRESCRIBED(size(model%interior_state_variables)))
     FABM_OBC_PRESCRIBED=.FALSE.
 
     IF (.NOT. OBC_FABM_NUDGING) THEN
@@ -5753,10 +5753,10 @@ CONTAINS
             & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
             &"THE MODEL RUN ENDS AFTER THE FABM TIME SERIES")
 
-       ALLOCATE(OBC_FABM_N(size(model%state_variables)))
-       ALLOCATE(OBC_FABM_P(size(model%state_variables)))
-       DO IFABM=1,size(model%state_variables)
-       VAR => FIND_VAR(OBC_F_FILE,model%state_variables(IFABM)%name,FOUND)
+       ALLOCATE(OBC_FABM_N(size(model%interior_state_variables)))
+       ALLOCATE(OBC_FABM_P(size(model%interior_state_variables)))
+       DO IFABM=1,size(model%interior_state_variables)
+       VAR => FIND_VAR(OBC_F_FILE,model%interior_state_variables(IFABM)%name,FOUND)
        IF(FOUND) THEN
           ! TODO: report which variables have OBC
           FABM_OBC_PRESCRIBED(IFABM)=.TRUE.
@@ -5764,13 +5764,13 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_FABM_FILE),&
-            &"COULD NOT FIND "//trim(model%state_variables(IFABM)%name)//" VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND "//trim(model%interior_state_variables(IFABM)%name)//" VARIABLE'S ATTRIBUTE 'units'")
 
-!       if(TRIM(ATT%CHR(1)) .NE. TRIM(model%state_variables(IFABM)%units))  &
+!       if(TRIM(ATT%CHR(1)) .NE. TRIM(model%interior_state_variables(IFABM)%units))  &
 !            & CALL FATAL_ERROR &
 !            & ("IN OPEN BOUNDARY CONDITION FABM NUDGING FILE OBJECT",&
-!            &//trim(model%state_variables(IFABM)%name)//" VARIABLE ATTRIBUTE 'units' SHOULD BE " ,&
-!            &//TRIM(model%state_variables(IFABM)%units))
+!            &//trim(model%interior_state_variables(IFABM)%name)//" VARIABLE ATTRIBUTE 'units' SHOULD BE " ,&
+!            &//TRIM(model%interior_state_variables(IFABM)%units))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -12929,7 +12929,7 @@ CONTAINS
 # if defined (FABM)
        IF(PRESENT(FABMR)) THEN
 
-       DO IFABM=1,size(model%state_variables)
+       DO IFABM=1,size(model%interior_state_variables)
 
           IF(ASSOCIATED(RIVER_FORCING(I)%FABM_N(IFABM)%P))THEN
              ! River data for this variable is available in the current river file
@@ -12963,7 +12963,7 @@ CONTAINS
 
              DEALLOCATE(CURRENT)
 ! If variable is not present, decide whether it gets diluted or not
-          ELSE IF ( model%state_variables(IFABM)%no_river_dilution) THEN 
+          ELSE IF ( model%interior_state_variables(IFABM)%no_river_dilution) THEN 
 !           ELSE
              IF(RIVER_TS_SETTING == 'calculated') THEN
                IF(NUMQBC > 0) THEN
@@ -15667,7 +15667,7 @@ CONTAINS
 
        FTM => OBC_F_FILE%FTIME
 
-       DO IFABM=1,size(model%state_variables)
+       DO IFABM=1,size(model%interior_state_variables)
           IF (ASSOCIATED(OBC_FABM_P(IFABM)%P)) THEN
              ! Boundary data for this state variable are available
              CALL UPDATE_VAR_BRACKET(OBC_F_FILE,OBC_FABM_P(IFABM)%P,OBC_FABM_N(IFABM)%P,NOW,STATUS)
