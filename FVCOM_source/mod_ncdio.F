@@ -7002,7 +7002,6 @@ CONTAINS
 # if defined (FABM)
   FUNCTION FABM_FILE_OBJECT(iset) RESULT(NCF)
    USE MOD_FABM_DATA
-   USE fabm, ONLY: fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
    USE fabm_types, ONLY: output_none
    IMPLICIT NONE
 
@@ -7069,14 +7068,14 @@ CONTAINS
       ! Normal output, not restart, so include diagnostics.
       DO II=1,size(model%diagnostic_variables)
         IF (model%diagnostic_variables(II)%save) THEN
-          VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),pdata=fabm_get_bulk_diagnostic_data(model,II))
+          VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),pdata=model%get_interior_diagnostic_data(II))
           NCF  => ADD(NCF,VAR)
         END IF
       END DO
 
       DO II=1,size(model%horizontal_diagnostic_variables)
         IF (model%horizontal_diagnostic_variables(II)%save) THEN
-          VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=fabm_get_horizontal_diagnostic_data(model,II))
+          VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=model%get_horizontal_diagnostic_data(II))
           NCF  => ADD(NCF,VAR)
         END IF
       END DO
