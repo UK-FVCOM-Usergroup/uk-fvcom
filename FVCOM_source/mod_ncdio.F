@@ -7066,9 +7066,9 @@ CONTAINS
 
    IF (ISET/=3.AND.FABM_DIAG_OUT) THEN
       ! Normal output, not restart, so include diagnostics.
-      DO II=1,size(model%diagnostic_variables)
-        IF (model%diagnostic_variables(II)%save) THEN
-          VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),pdata=model%get_interior_diagnostic_data(II))
+      DO II=1,size(model%interior_diagnostic_variables)
+        IF (model%interior_diagnostic_variables(II)%save) THEN
+          VAR => ADD_FABM_VARIABLE(model%interior_diagnostic_variables(II),pdata=model%get_interior_diagnostic_data(II))
           NCF  => ADD(NCF,VAR)
         END IF
       END DO
