@@ -3,7 +3,7 @@ MODULE MOD_FABM_3D
 
   USE fabm
   USE fabm_config
-  USE fabm_types, only: domain_bottom, attribute_length, get_safe_name
+  USE fabm_types, only: domain_bottom, attribute_length, get_safe_name, type_interior_standard_variable
   USE fabm_driver, only: type_base_driver, driver
 
   USE MOD_FABM_DATA
@@ -94,8 +94,8 @@ MODULE MOD_FABM_3D
   end type
 
   TYPE TYPE_FABM_INPUT
-     TYPE (type_horizontal_variable_id) :: FABM_ID_HZ
-     TYPE (type_interior_variable_id)   :: FABM_ID
+     TYPE (type_fabm_horizontal_variable_id) :: FABM_ID_HZ
+     TYPE (type_fabm_interior_variable_id)   :: FABM_ID
      CHARACTER(LEN=160)                 :: PATH
      LOGICAL                            :: TWOD=.TRUE.
      REAL(SP), ALLOCATABLE              :: DATA_HZ(:)
@@ -167,7 +167,7 @@ MODULE MOD_FABM_3D
     INTEGER :: IFABM,II
 !RJT for fix ERSEM variable
    CHARACTER(LEN=256) :: NAME_
-!    TYPE(type_interior_variable_id) :: ID
+!    TYPE(type_fabm_interior_variable_id) :: ID
 !RJT
 
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_ALLOCATE"
