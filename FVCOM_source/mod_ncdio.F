@@ -7099,8 +7099,8 @@ CONTAINS
 
   FUNCTION ADD_FABM_VARIABLE(variable,pdata,pdata_hz,pdata3) result(VAR)
      USE fabm 
-     class (type_external_variable),intent(in) :: variable
-   
+     class (type_fabm_variable),intent(in) :: variable
+
      REAL(SP), POINTER, OPTIONAL :: pdata3(:,:,:)
      REAL(SP), POINTER, OPTIONAL :: pdata(:,:)
      REAL(SP), POINTER, OPTIONAL :: pdata_hz(:)
