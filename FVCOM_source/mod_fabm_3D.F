@@ -3,7 +3,7 @@ MODULE MOD_FABM_3D
 
   USE fabm
   USE fabm_config
-  USE fabm_types, only: domain_bottom, attribute_length, get_safe_name, type_interior_standard_variable
+  USE fabm_types, only: domain_bottom, attribute_length, get_safe_name, type_universal_standard_variable
   USE fabm_driver, only: type_base_driver, driver
 
   USE MOD_FABM_DATA
@@ -75,10 +75,12 @@ MODULE MOD_FABM_3D
          & FABM_DEBUG, &
          & FABM_DIAG_OUT
 
-  TYPE (type_interior_standard_variable),PARAMETER :: mass_concentration_of_solute &
-     = type_interior_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
-  TYPE (type_interior_standard_variable),PARAMETER :: volume_fraction_of_particulates &
-     = type_interior_standard_variable(name='volume_fraction_of_particulates',units='-', aggregate_variable=.true.)
+  TYPE (type_universal_standard_variable),PARAMETER :: mass_concentration_of_solute &
+     = type_universal_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
+  TYPE (type_universal_standard_variable),PARAMETER :: volume_fraction_of_particulates &
+     = type_universal_standard_variable(name='volume_fraction_of_particulates',units='-', aggregate_variable=.true.)
+  TYPE (type_universal_standard_variable),PARAMETER :: mass_concentration_of_silt &
+     = type_universal_standard_variable(name='mass_concentration_of_silt', aggregate_variable=.true.)
 
   REAL(SP), POINTER :: FABM_SALT_DENSITY(:,:)
   REAL(SP), POINTER :: FABM_BOTTOM_THICKNESS(:)
@@ -159,7 +161,7 @@ MODULE MOD_FABM_3D
    SUBROUTINE FABM_FVCOM_INITIALIZE()
       ALLOCATE(type_fvcom_driver::driver)
       model => fabm_create_model()
-      IF (USE_FABM_SALINITY) CALL model%require_data(mass_concentration_of_solute)
+      IF (USE_FABM_SALINITY) CALL model%require_data(mass_concentration_of_solute%in_interior())
       IF (USE_FABM_BOTTOM_THICKNESS) CALL model%require_data(volume_fraction_of_particulates%at_bottom())
    END SUBROUTINE FABM_FVCOM_INITIALIZE
 
@@ -217,9 +219,9 @@ MODULE MOD_FABM_3D
        call model%link_interior_data(fabm_standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:)) 
     END IF
 
-    IF (model%variable_needs_values(type_interior_standard_variable(name='mass_concentration_of_silt'))) THEN
+    IF (model%variable_needs_values(mass_concentration_of_silt%in_interior())) THEN
        ALLOCATE(SPM_FABM(0:MT,KB))
-       call model%link_interior_data(type_interior_standard_variable(name='mass_concentration_of_silt'),SPM_FABM(1:M,:))
+       call model%link_interior_data(mass_concentration_of_silt%in_interior(),SPM_FABM(1:M,:))
     END IF
 
 !    IF (model%variable_needs_values(type_interior_standard_variable(name='absorption_of_silt'))) THEN
@@ -327,11 +329,11 @@ MODULE MOD_FABM_3D
     CALL model%start()
 
     IF (USE_FABM_SALINITY) THEN
-       FABM_SALT_DENSITY => model%get_data(model%get_interior_variable_id(mass_concentration_of_solute))
+       FABM_SALT_DENSITY => model%get_data(model%get_interior_variable_id(mass_concentration_of_solute%in_interior()))
        IF (.NOT.ASSOCIATED(FABM_SALT_DENSITY)) CALL FATAL_ERROR("BUG: FABM failed to created mass_concentration_of_solute variable.")
     END IF
     IF (USE_FABM_BOTTOM_THICKNESS) THEN
-       FABM_BOTTOM_THICKNESS => model%get_data(model%get_horizontal_variable_id('volume_fraction_of_particulates_at_bottom'))
+       FABM_BOTTOM_THICKNESS => model%get_data(model%get_horizontal_variable_id(volume_fraction_of_particulates%at_bottom()))
        IF (.NOT.ASSOCIATED(FABM_BOTTOM_THICKNESS)) CALL FATAL_ERROR("BUG: FABM failed to created volume_fraction_of_particulates variable.")
        ALLOCATE(FABM_OLD_BOTTOM_THICKNESS(1:M))
        FABM_OLD_BOTTOM_THICKNESS = 0
