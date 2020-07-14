@@ -4017,8 +4017,7 @@ CONTAINS
       X_CW(1:3)=XG2(NVG(1,1:3))
       Y_CW(1:3)=YG2(NVG(1,1:3))
       CALL IS_TRI_CW(X_CW,Y_CW,IS_CW)
-      IF(IS_CW /= 1) CALL FATAL_ERROR('Three nodes on each triangular cell in file *_grd.dat should be identified', &
-                                      & 'counter-clockwise...')
+      IF(IS_CW /= 1) CALL FATAL_ERROR('Nodes on a cell in *_grd.dat file are either clockwise, or triangle is so small that it appears as a line. Nodes must be specified counter-clockwise.')
     END IF
 
       if(DBG_SET(dbg_log)) then
@@ -4636,7 +4635,7 @@ case default
     !
     cross_prod=(x(2)-x(1))*(y(3)-y(1))-(y(2)-y(1))*(x(3)-x(1))
     !
-    if (abs(cross_prod)<1e-6) then
+    if (abs(cross_prod)<1e-8) then
       is_cw=0
 !      print*, 'This is a line, rather than a triangle.'
     else
