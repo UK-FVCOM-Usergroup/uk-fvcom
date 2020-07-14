@@ -8,7 +8,7 @@ MODULE MOD_FABM_DATA
 
   PRIVATE
 
-  TYPE (type_model), PUBLIC :: model
+  CLASS (type_fabm_model), POINTER, PUBLIC :: model
 
   REAL(SP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_ALL(:,:,:)    ! 3D FABM state variables
   REAL(SP), ALLOCATABLE, PUBLIC, TARGET ::  FABM_ALL_BT(:,:)   ! 2D FABM bottom-attached state variables

@@ -1,11 +1,10 @@
 MODULE MOD_FABM_3D
 # if defined(FABM)
 
-  USE fabm, fabm_initialize_interior_state => fabm_initialize_state
+  USE fabm
   USE fabm_config
   USE fabm_types, only: domain_bottom, attribute_length, get_safe_name
   USE fabm_driver, only: type_base_driver, driver
-  USE fabm_standard_variables
 
   USE MOD_FABM_DATA
   USE ALL_VARS
@@ -76,10 +75,10 @@ MODULE MOD_FABM_3D
          & FABM_DEBUG, &
          & FABM_DIAG_OUT
 
-  TYPE (type_bulk_standard_variable),PARAMETER :: mass_concentration_of_solute &
-     = type_bulk_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
-  TYPE (type_bulk_standard_variable),PARAMETER :: volume_fraction_of_particulates &
-     = type_bulk_standard_variable(name='volume_fraction_of_particulates',units='-', aggregate_variable=.true.)
+  TYPE (type_interior_standard_variable),PARAMETER :: mass_concentration_of_solute &
+     = type_interior_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
+  TYPE (type_interior_standard_variable),PARAMETER :: volume_fraction_of_particulates &
+     = type_interior_standard_variable(name='volume_fraction_of_particulates',units='-', aggregate_variable=.true.)
 
   REAL(SP), POINTER :: FABM_SALT_DENSITY(:,:)
   REAL(SP), POINTER :: FABM_BOTTOM_THICKNESS(:)
@@ -96,7 +95,7 @@ MODULE MOD_FABM_3D
 
   TYPE TYPE_FABM_INPUT
      TYPE (type_horizontal_variable_id) :: FABM_ID_HZ
-     TYPE (type_bulk_variable_id)   :: FABM_ID
+     TYPE (type_interior_variable_id)   :: FABM_ID
      CHARACTER(LEN=160)                 :: PATH
      LOGICAL                            :: TWOD=.TRUE.
      REAL(SP), ALLOCATABLE              :: DATA_HZ(:)
@@ -159,17 +158,16 @@ MODULE MOD_FABM_3D
 
    SUBROUTINE FABM_FVCOM_INITIALIZE()
       ALLOCATE(type_fvcom_driver::driver)
-      CALL fabm_create_model_from_yaml_file(model,do_not_initialize=.true.)
+      model => fabm_create_model()
       IF (USE_FABM_SALINITY) CALL model%require_data(mass_concentration_of_solute)
-      IF (USE_FABM_BOTTOM_THICKNESS) CALL model%require_data(volume_fraction_of_particulates,domain=domain_bottom)
-      CALL fabm_initialize(model)
+      IF (USE_FABM_BOTTOM_THICKNESS) CALL model%require_data(volume_fraction_of_particulates%at_bottom())
    END SUBROUTINE FABM_FVCOM_INITIALIZE
 
    SUBROUTINE FABM_ALLOCATE()
     INTEGER :: IFABM,II
 !RJT for fix ERSEM variable
    CHARACTER(LEN=256) :: NAME_
-!    TYPE(type_bulk_variable_id) :: ID
+!    TYPE(type_interior_variable_id) :: ID
 !RJT
 
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_ALLOCATE"
@@ -180,30 +178,29 @@ MODULE MOD_FABM_3D
     call CONFIGURE_OUTPUT
 
     ! Tell FABM about the extents of the spatial domain.
-    call fabm_set_domain(model,M,KB)
-    call model%set_surface_index(1)
-    call model%set_bottom_index(KBM1)
+    call model%set_domain(M,KB)
+    call model%set_domain_stop(M,KBM1)
 
 # if defined(WET_DRY)
     ! Provide FABM with pointer to the real mask.
-      call fabm_set_mask(model,ISWETN(1:M))
+      call model%set_mask(ISWETN(1:M))
 # else
-      call fabm_set_mask(model,MASK_NONE)
+      call model%set_mask(MASK_NONE)
 # endif
 
     ! Send environmental data to FABM
     ! NB the idea is to send *any* fields that are already available in FVCOM, and of potential use to biogeochemical models.
     ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
-    call model%link_interior_data(standard_variables%temperature,T1(1:M,:))
+    call model%link_interior_data(fabm_standard_variables%temperature,T1(1:M,:))
 !    call model%link_interior_data(spm1_from_host_model,fvcom_model_name(1:M,:)) ! FOR NEW SPM variables defined in ERSEM/src/shared.F90
 
 
-    call model%link_interior_data(standard_variables%practical_salinity,S1(1:M,:))
-    call model%link_horizontal_data(standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
-    call model%link_horizontal_data(standard_variables%longitude,LON(1:M))
-    call model%link_horizontal_data(standard_variables%latitude,LAT(1:M))
-    call model%link_horizontal_data(standard_variables%bottom_depth,D(1:M))
-    call model%link_horizontal_data(standard_variables%bottom_depth_below_geoid,H(1:M))
+    call model%link_interior_data(fabm_standard_variables%practical_salinity,S1(1:M,:))
+    call model%link_horizontal_data(fabm_standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
+    call model%link_horizontal_data(fabm_standard_variables%longitude,LON(1:M))
+    call model%link_horizontal_data(fabm_standard_variables%latitude,LAT(1:M))
+    call model%link_horizontal_data(fabm_standard_variables%bottom_depth,D(1:M))
+    call model%link_horizontal_data(fabm_standard_variables%bottom_depth_below_geoid,H(1:M))
 
     ! Allocate arrays for derived environmental variables that will be computed from FVCOM fields.
 # if defined (SEDIMENT)
@@ -215,83 +212,83 @@ MODULE MOD_FABM_3D
     ! The commented code would only work if SPM was part of the
     ! standard_variable list. We are taking a shortcut here by using ESS as the
     ! hook, which is not a standard variable
-    IF (model%variable_needs_values(standard_variables%mass_concentration_of_suspended_matter)) THEN
+    IF (model%variable_needs_values(fabm_standard_variables%mass_concentration_of_suspended_matter)) THEN
        ALLOCATE(SPM_FABM_g(0:MT,KB))
-       call model%link_interior_data(standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:)) 
+       call model%link_interior_data(fabm_standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:)) 
     END IF
 
-    IF (model%variable_needs_values(type_bulk_standard_variable(name='mass_concentration_of_silt'))) THEN
+    IF (model%variable_needs_values(type_interior_standard_variable(name='mass_concentration_of_silt'))) THEN
        ALLOCATE(SPM_FABM(0:MT,KB))
-       call model%link_interior_data(type_bulk_standard_variable(name='mass_concentration_of_silt'),SPM_FABM(1:M,:))
+       call model%link_interior_data(type_interior_standard_variable(name='mass_concentration_of_silt'),SPM_FABM(1:M,:))
     END IF
 
-!    IF (model%variable_needs_values(type_bulk_standard_variable(name='absorption_of_silt'))) THEN
+!    IF (model%variable_needs_values(type_interior_standard_variable(name='absorption_of_silt'))) THEN
 !       ALLOCATE(SPM_ABS_FABM(0:MT,KB))
-!       call model%link_interior_data(type_bulk_standard_variable(name='absorption_of_silt'),SPM_ABS_FABM(1:M,:))
+!       call model%link_interior_data(type_interior_standard_variable(name='absorption_of_silt'),SPM_ABS_FABM(1:M,:))
 !    END IF
 
-!    IF (model%variable_needs_values(type_bulk_standard_variable(name='backscatter_of_silt'))) THEN
+!    IF (model%variable_needs_values(type_interior_standard_variable(name='backscatter_of_silt'))) THEN
 !       ALLOCATE(SPM_BB_FABM(0:MT,KB))
-!       call model%link_interior_data(type_bulk_standard_variable(name='backscatter_of_silt'),SPM_BB_FABM(1:M,:))
+!       call model%link_interior_data(type_interior_standard_variable(name='backscatter_of_silt'),SPM_BB_FABM(1:M,:))
 !    END IF
 
 ! RJT June_2016
     ENDIF ! Check sediment model is active
 # endif
     ! Cell thickness in m (from D and DZ)
-    IF (model%variable_needs_values(standard_variables%cell_thickness)) THEN
+    IF (model%variable_needs_values(fabm_standard_variables%cell_thickness)) THEN
        ALLOCATE(CELL_THICKNESS(0:MT,KB))
-       call model%link_interior_data(standard_variables%cell_thickness,CELL_THICKNESS(1:M,:))
+       call model%link_interior_data(fabm_standard_variables%cell_thickness,CELL_THICKNESS(1:M,:))
     END IF
 
     ! Density in kg m-3 (from RHO1)
-    IF (model%variable_needs_values(standard_variables%density)) THEN
+    IF (model%variable_needs_values(fabm_standard_variables%density)) THEN
        ALLOCATE(DENSITY(0:MT,KB))
-       call model%link_interior_data(standard_variables%density,DENSITY(1:M,:))
+       call model%link_interior_data(fabm_standard_variables%density,DENSITY(1:M,:))
     END IF
 
     ! Cell center depth in m (from D and ZZ)
-    IF (model%variable_needs_values(standard_variables%depth)) THEN
+    IF (model%variable_needs_values(fabm_standard_variables%depth)) THEN
        ALLOCATE(DEPTH(0:MT,KB))
-       call model%link_interior_data(standard_variables%depth,DEPTH(1:M,:))
+       call model%link_interior_data(fabm_standard_variables%depth,DEPTH(1:M,:))
     END IF
 
     ! Pressure in dbar (from gravity, depth and reference density)
-    IF (model%variable_needs_values(standard_variables%pressure)) THEN
+    IF (model%variable_needs_values(fabm_standard_variables%pressure)) THEN
        ALLOCATE(PRESSURE(0:MT,KB))
-       call model%link_interior_data(standard_variables%pressure,PRESSURE(1:M,:))
+       call model%link_interior_data(fabm_standard_variables%pressure,PRESSURE(1:M,:))
     END IF
 
     ! Wind speed in m s-1 (from UUWIND, VVWIND)
-    IF (model%variable_needs_values(standard_variables%wind_speed)) THEN
+    IF (model%variable_needs_values(fabm_standard_variables%wind_speed)) THEN
        ALLOCATE(WIND_SPEED(0:MT))
-       call model%link_horizontal_data(standard_variables%wind_speed,WIND_SPEED(1:M))
+       call model%link_horizontal_data(fabm_standard_variables%wind_speed,WIND_SPEED(1:M))
     END IF
 
     ! Bottom stress in Pa (from square of bottom shear velocity TAUBM_N)
-    IF (model%variable_needs_values(standard_variables%bottom_stress)) THEN
+    IF (model%variable_needs_values(fabm_standard_variables%bottom_stress)) THEN
        ALLOCATE(BOTTOM_STRESS(0:MT))
-       call model%link_horizontal_data(standard_variables%bottom_stress,BOTTOM_STRESS(1:M))
+       call model%link_horizontal_data(fabm_standard_variables%bottom_stress,BOTTOM_STRESS(1:M))
     END IF
 
-    COMPUTE_DAYS_SINCE_YEAR_START = model%variable_needs_values(standard_variables%number_of_days_since_start_of_the_year)
-    IF (COMPUTE_DAYS_SINCE_YEAR_START) call model%link_scalar(standard_variables%number_of_days_since_start_of_the_year,DAYS_SINCE_YEAR_START)
+    COMPUTE_DAYS_SINCE_YEAR_START = model%variable_needs_values(fabm_standard_variables%number_of_days_since_start_of_the_year)
+    IF (COMPUTE_DAYS_SINCE_YEAR_START) call model%link_scalar(fabm_standard_variables%number_of_days_since_start_of_the_year,DAYS_SINCE_YEAR_START)
 
-    ALLOCATE(FABM_ALL(0:MT,KB,size(model%state_variables)));         FABM_ALL    =  0.001_SP
+    ALLOCATE(FABM_ALL(0:MT,KB,size(model%interior_state_variables)));         FABM_ALL    =  0.001_SP
     ALLOCATE(FABM_ALL_BT(0:MT,size(model%bottom_state_variables)));  FABM_ALL_BT =  0.001_SP
     ALLOCATE(FABM_ALL_SF(0:MT,size(model%surface_state_variables))); FABM_ALL_SF =  0.001_SP
-    ALLOCATE(FABM_F(0:MT,KB,size(model%state_variables)));           FABM_F       =  0.001_SP
-!    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%state_variables)));        FABM_MEAN    =  0.001_SP
+    ALLOCATE(FABM_F(0:MT,KB,size(model%interior_state_variables)));           FABM_F       =  0.001_SP
+!    ALLOCATE(FABM_MEAN(0:MT,KB,size(model%interior_state_variables)));        FABM_MEAN    =  0.001_SP
     ALLOCATE(FABM_TOTALS(size(model%conserved_quantities)));         FABM_TOTALS = 0
-    ALLOCATE(DISABLE_TRANSPORT(size(model%state_variables)))
-    DO IFABM=1,SIZE(model%state_variables)
-       DISABLE_TRANSPORT(IFABM) = model%state_variables(IFABM)%properties%get_logical('disable_transport',default=.false.)
+    ALLOCATE(DISABLE_TRANSPORT(size(model%interior_state_variables)))
+    DO IFABM=1,SIZE(model%interior_state_variables)
+       DISABLE_TRANSPORT(IFABM) = model%interior_state_variables(IFABM)%properties%get_logical('disable_transport',default=.false.)
     END DO
-    IFABMadv = size(model%state_variables) - COUNT(DISABLE_TRANSPORT) ! get the number of advecting variables 
-! Build map of advectable variables in model%state_variables    
+    IFABMadv = size(model%interior_state_variables) - COUNT(DISABLE_TRANSPORT) ! get the number of advecting variables 
+! Build map of advectable variables in model%interior_state_variables    
     ALLOCATE(IFABMadv_idx(IFABMadv))
     II = 1
-    DO IFABM=1,SIZE(model%state_variables)
+    DO IFABM=1,SIZE(model%interior_state_variables)
        IF (.not. DISABLE_TRANSPORT(IFABM)) THEN
           IFABMadv_idx(II)=IFABM
           II=II+1
@@ -299,9 +296,9 @@ MODULE MOD_FABM_3D
     END DO
 ! link model variable to dummy ERSEM1 variable. 
 !   NAME_ ='O2_o'
-!      DO IFABM=1,SIZE(model%state_variables)
-!       write(ipt,*) "FABM state_variable ", TRIM(model%state_variables(IFABM)%name)
-!         IF (TRIM(model%state_variables(IFABM)%name)==TRIM(NAME_)) then
+!      DO IFABM=1,SIZE(model%interior_state_variables)
+!       write(ipt,*) "FABM state_variable ", TRIM(model%interior_state_variables(IFABM)%name)
+!         IF (TRIM(model%interior_state_variables(IFABM)%name)==TRIM(NAME_)) then
 !       ALLOCATE(ERSEM1(0:MT,KB))
 !       ERSEM1 = 350.0_SP
 !       ERSEMid = IFABM
@@ -314,7 +311,7 @@ MODULE MOD_FABM_3D
 
 
     ! Provide FABM with pointers to state variable data.
-    DO IFABM=1,size(model%state_variables)
+    DO IFABM=1,size(model%interior_state_variables)
       CALL model%link_interior_state_data(IFABM,FABM_ALL(1:M,:,IFABM))
     END DO
     DO IFABM=1,size(model%bottom_state_variables)
@@ -327,10 +324,10 @@ MODULE MOD_FABM_3D
     CALL INITIALIZE_FABM_INPUTS()
 
     ! Make sure FABM has all required data
-    CALL fabm_check_ready(model)
+    CALL model%start()
 
     IF (USE_FABM_SALINITY) THEN
-       FABM_SALT_DENSITY => model%get_data(model%get_bulk_variable_id(mass_concentration_of_solute))
+       FABM_SALT_DENSITY => model%get_data(model%get_interior_variable_id(mass_concentration_of_solute))
        IF (.NOT.ASSOCIATED(FABM_SALT_DENSITY)) CALL FATAL_ERROR("BUG: FABM failed to created mass_concentration_of_solute variable.")
     END IF
     IF (USE_FABM_BOTTOM_THICKNESS) THEN
@@ -340,9 +337,9 @@ MODULE MOD_FABM_3D
        FABM_OLD_BOTTOM_THICKNESS = 0
     END IF
 
-    ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%state_variables))) ; XFLUX_OBCB  =  0.0_SP
-    ALLOCATE(PFABMPXB(MT,size(model%state_variables)))        ; PFABMPXB    = ZERO
-    ALLOCATE(PFABMPYB(MT,size(model%state_variables)))        ; PFABMPYB    = ZERO
+    ALLOCATE(XFLUX_OBCB(0:MT,KB,size(model%interior_state_variables))) ; XFLUX_OBCB  =  0.0_SP
+    ALLOCATE(PFABMPXB(MT,size(model%interior_state_variables)))        ; PFABMPXB    = ZERO
+    ALLOCATE(PFABMPYB(MT,size(model%interior_state_variables)))        ; PFABMPYB    = ZERO
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_ALLOCATE"
    END SUBROUTINE
 
@@ -477,20 +474,20 @@ MODULE MOD_FABM_3D
       CALL PREPARE_ENVIRONMENT
 
       ! Provide FABM with pointer to the dummy mask ("nothing masked") to include dry points in initialization.
-      call fabm_set_mask(model,MASK_NONE)
+      call model%set_mask(MASK_NONE)
 
       ! Allow FABM to perform its default initialization.
-      CALL fabm_initialize_surface_state(model,1,M)
-      CALL fabm_initialize_bottom_state (model,1,M)
+      CALL model%initialize_surface_state(1,M)
+      CALL model%initialize_bottom_state (1,M)
       DO K=1,KBM1
-        CALL fabm_initialize_interior_state(model,1,M,K)
+        CALL model%initialize_interior_state(1,M,K)
       END DO
 
 # if defined(WET_DRY)
     ! Provide FABM with pointer to the real mask.
-      call fabm_set_mask(model,ISWETN(1:M))
+      call model%set_mask(ISWETN(1:M))
 # else
-      call fabm_set_mask(model,MASK_NONE)
+      call model%set_mask(MASK_NONE)
 # endif
       IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE" 
 
@@ -501,7 +498,7 @@ MODULE MOD_FABM_3D
       IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_DIAGNOSTICS" 
 
       ! Provide FABM with pointer to the dummy mask ("nothing masked") to ensure even diagnostics on dry points have a value.
-      call fabm_set_mask(model,MASK_NONE)
+      call model%set_mask(MASK_NONE)
 
       ! Initialize all diagnostics (but skip time integration)
       CALL FABM_SOURCES(DTI,UPDATE=.FALSE.)
@@ -509,9 +506,9 @@ MODULE MOD_FABM_3D
 
 # if defined(WET_DRY)
     ! Provide FABM with pointer to the real mask.
-      call fabm_set_mask(model,ISWETN(1:M))
+      call model%set_mask(ISWETN(1:M))
 # else
-      call fabm_set_mask(model,MASK_NONE)
+      call model%set_mask(MASK_NONE)
 # endif
 
       ! Compute initial value of conserved quantity integrals
@@ -563,12 +560,12 @@ SUBROUTINE FABM_UPDATE
 
      ! Redirect FABM to forecast pelagic state FABM_F to ensure that any further FABM calls (check_state, check_conservation)
      ! operate on the right data.
-     DO IFABM=1,size(model%state_variables)
+     DO IFABM=1,size(model%interior_state_variables)
        CALL model%link_interior_state_data(IFABM,FABM_F(1:M,:,IFABM))
      END DO
 
 #   if defined (MULTIPROCESSOR)
-     DO IFABM=1,size(model%state_variables)
+     DO IFABM=1,size(model%interior_state_variables)
         IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
      END DO
 #   endif
@@ -618,7 +615,7 @@ SUBROUTINE FABM_UPDATE
      END IF
 
 # if !defined (ONE_D_MODEL)
-  DO IFABM=1,size(model%state_variables)
+  DO IFABM=1,size(model%interior_state_variables)
       IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
         FABM_ALL(:,:,IFABM) = FABM_F(:,:,IFABM)      ! Update to new time level skipping non-advective variables
       END IF
@@ -628,7 +625,7 @@ SUBROUTINE FABM_UPDATE
 !     FABM_ALL(:,:,ERSEMid) = ERSEM1
 
      ! Redirect FABM to new pelagic state FABM_ALL to ensure that any future FABM calls operate on the right data.
-     DO IFABM=1,size(model%state_variables)
+     DO IFABM=1,size(model%interior_state_variables)
        CALL model%link_interior_state_data(IFABM,FABM_ALL(1:M,:,IFABM))
      END DO
 
@@ -742,27 +739,27 @@ FUNCTION CHECK_STATE(REPAIR_STATE) RESULT(VALID_STATE)
       INTEGER :: K
 
       ! Provide FABM with pointer to the dummy mask ("nothing masked") to include dry regions when checking/overriding state.
-      call fabm_set_mask(model,MASK_NONE)
+      call model%set_mask(MASK_NONE)
 
       ! Check state variable values. On return, VALID_STATE will be .TRUE. if the state has been found valid, .FALSE. if not.
       ! If REPAIR_STATE is .TRUE., this routine will automatically clip invalid values to the nearest valid value.
       ! In that case, the state will be valid after return even if VALID_STATE = .FALSE. [which is then indicative of
       ! clipping having occured)
-      CALL fabm_check_surface_state(model,1,M,REPAIR_STATE,VALID_STATE)
+      CALL model%check_surface_state(1,M,REPAIR_STATE,VALID_STATE)
       if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
-      CALL fabm_check_bottom_state(model,1,M,REPAIR_STATE,VALID_STATE)
+      CALL model%check_bottom_state(1,M,REPAIR_STATE,VALID_STATE)
       if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
       DO K=1,KBM1
-         CALL fabm_check_state(model,1,M,K,REPAIR_STATE,VALID_STATE)
+         CALL model%check_interior_state(1,M,K,REPAIR_STATE,VALID_STATE)
          if (.NOT.(VALID_STATE.OR.REPAIR_STATE)) RETURN
       END DO
 
 
 # if defined(WET_DRY)
     ! Provide FABM with pointer to the real mask.
-      call fabm_set_mask(model,ISWETN(1:M))
+      call model%set_mask(ISWETN(1:M))
 # else
-      call fabm_set_mask(model,MASK_NONE)
+      call model%set_mask(MASK_NONE)
 # endif
 
 END FUNCTION CHECK_STATE
@@ -777,7 +774,7 @@ SUBROUTINE CHECK_CONSERVATION()
      REAL(DP), ALLOCATABLE :: WEIGHTS(:)
 
      ! Provide FABM with pointer to the dummy mask ("nothing masked") to include dry regions when computing conserved quantity totals.
-     call fabm_set_mask(model,MASK_NONE)
+     call model%set_mask(MASK_NONE)
 
      ALLOCATE(WEIGHTS(1:M))
      WEIGHTS = ART1(1:M)
@@ -795,21 +792,21 @@ SUBROUTINE CHECK_CONSERVATION()
 
      TOTALS_LOC = 0
      DO K=1,KBM1
-        CALL fabm_get_conserved_quantities(model,1,M,K,LOCAL)
+        CALL model%get_interior_conserved_quantities(1,M,K,LOCAL)
         DO IFABM=1,SIZE(model%conserved_quantities)
            TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(DBLE(LOCAL(1:M,IFABM)*DZ(1:M,K)*D(1:M))*WEIGHTS)
         END DO
      END DO
-     CALL fabm_get_horizontal_conserved_quantities(model,1,M,LOCAL)
+     CALL model%get_horizontal_conserved_quantities(1,M,LOCAL)
      DO IFABM=1,SIZE(model%conserved_quantities)
         TOTALS_LOC(IFABM) = TOTALS_LOC(IFABM) + SUM(LOCAL(1:M,IFABM)*WEIGHTS)
      END DO
 
 # if defined(WET_DRY)
     ! Provide FABM with pointer to the real mask.
-      call fabm_set_mask(model,ISWETN(1:M))
+      call model%set_mask(ISWETN(1:M))
 # else
-      call fabm_set_mask(model,MASK_NONE)
+      call model%set_mask(MASK_NONE)
 # endif
 
 
@@ -831,7 +828,7 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
      REAL(SP), INTENT(IN) :: DELTA_T
      LOGICAL,  INTENT(IN) :: UPDATE
      INTEGER  :: I, K, IFABM
-     REAL(SP), DIMENSION(M,size(model%state_variables))         :: SMS_PEL,FLUX_SF,FLUX_BT
+     REAL(SP), DIMENSION(M,size(model%interior_state_variables))         :: SMS_PEL,FLUX_SF,FLUX_BT
      REAL(SP), DIMENSION(M,size(model%bottom_state_variables))  :: SMS_BT
      REAL(SP), DIMENSION(M,size(model%surface_state_variables)) :: SMS_SF
      REAL(SP), DIMENSION(M)                                     :: DUMMY
@@ -842,20 +839,12 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
 # if defined (WET_DRY)
 ! make the mask more restricted RJT
 !      WHERE(D < 1.0_SP) MASK_SAFE=0
-!     call fabm_set_mask(model,MASK_SAFE(1:M))
-     call fabm_set_mask(model,ISWETN(1:M))
+!     call model%set_mask(MASK_SAFE(1:M))
+     call model%set_mask(ISWETN(1:M))
 !     MASK_SAFE = 1 ! restore to no mask
 # endif
      ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
-     DO K=1,KBM1
-        CALL fabm_get_light_extinction(model,1,M,K,DUMMY)
-     END DO
-
-     ! Allow light models in FABM to update.
-     ! NB this is the only operation in FABM that operates over K - everything else operates over I.
-     DO I=1,M
-        CALL fabm_get_light(model,1,KBM1,I)
-     END DO
+     CALL model%prepare_inputs()
 
      FLUX_SF = 0.
      FLUX_BT = 0.
@@ -864,24 +853,24 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
 
      ! Get sources-sinks for interface-attached state variables, and cross-interface
      ! fluxes (air-sea gas exchange, sedimentation, pelagic-benthic diffusion flux)
-     call fabm_do_surface(model,1,M,FLUX_SF,SMS_SF)
-     call fabm_do_bottom (model,1,M,FLUX_BT,SMS_BT)
+     call model%get_surface_sources(1,M,FLUX_SF,SMS_SF)
+     call model%get_bottom_sources (1,M,FLUX_BT,SMS_BT)
 
      ! Integrate sources-sinks for the pelagic
      DO K=1,KBM1
         ! Retrieve sources-sinks for current layer K.
         SMS_PEL = 0
-        call fabm_do(model,1,M,K,SMS_PEL)
+        call model%get_interior_sources(1,M,K,SMS_PEL)
 
         IF (K==1) THEN
            ! Top-most layer: include surface flux of pelagic state variables.
-           DO IFABM=1,size(model%state_variables)
+           DO IFABM=1,size(model%interior_state_variables)
               SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_SF(1:M,IFABM)/(DZ(1:M,K)*D(1:M))
            END DO
         END IF
         IF (K==KBM1) THEN
            ! Bottom-most layer: include bottom flux of pelagic state variables.
-           DO IFABM=1,size(model%state_variables)
+           DO IFABM=1,size(model%interior_state_variables)
               SMS_PEL(1:M,IFABM) = SMS_PEL(1:M,IFABM) + FLUX_BT(1:M,IFABM)/(DZ(1:M,KBM1)*D(1:M))
            END DO
         END IF
@@ -896,6 +885,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
         FABM_ALL_BT(1:M,:) = FABM_ALL_BT(1:M,:) + DELTA_T*SMS_BT
      END IF
 
+     CALL model%finalize_outputs()
+
 END SUBROUTINE FABM_SOURCES
 
 !==========================================================================
@@ -905,7 +896,7 @@ END SUBROUTINE FABM_SOURCES
      REAL(SP), INTENT(IN) :: DELTA_T
      INTEGER :: I,K,IFABM
      INTEGER  :: mcyc,ncyc
-     REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
+     REAL(SP), DIMENSION(M,KBM1,size(model%interior_state_variables)) :: w_ct
      REAL(SP), DIMENSION(KBM1) :: C,DX,W
      REAL(SP) :: eps,DTmax,DTdep
      REAL(SP),PARAMETER ::SETTLE_CFL = 1.0_SP
@@ -913,7 +904,7 @@ END SUBROUTINE FABM_SOURCES
 
      ! Get vertical velocities at layer centers
      DO K=1,KBM1
-        CALL fabm_get_vertical_movement(model,1,M,K,w_ct(:,K,:))
+        CALL model%get_vertical_movement(1,M,K,w_ct(:,K,:))
      END DO
 
   eps = epsilon(eps)
@@ -924,7 +915,7 @@ END SUBROUTINE FABM_SOURCES
        IF(ISWETN(I) == 1) THEN
 #  endif
   !Loop over FABM variables       
-         DO IFABM=1,SIZE(model%state_variables)
+         DO IFABM=1,SIZE(model%interior_state_variables)
 
           !setup 1D concentration and grid arrays
           C(1:kbm1) = FABM_ALL(I,1:KBM1,IFABM)
@@ -1017,16 +1008,16 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
      REAL(SP), INTENT(IN) :: DELTA_T
      INTEGER :: I,K,IFABM
-     REAL(SP), DIMENSION(M,KBM1,size(model%state_variables)) :: w_ct
-     REAL(SP), DIMENSION(KBM1-1,size(model%state_variables)) :: w_if, flux_if
-     REAL(SP), DIMENSION(KBM1,  size(model%state_variables)) :: flux_ct
+     REAL(SP), DIMENSION(M,KBM1,size(model%interior_state_variables)) :: w_ct
+     REAL(SP), DIMENSION(KBM1-1,size(model%interior_state_variables)) :: w_if, flux_if
+     REAL(SP), DIMENSION(KBM1,  size(model%interior_state_variables)) :: flux_ct
      REAL(SP), PARAMETER :: max_courant = 0.99_SP
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_VERTICAL_MOVEMENT :"
 
      ! Get vertical velocities at layer centers
      DO K=1,KBM1
-        CALL fabm_get_vertical_movement(model,1,M,K,w_ct(:,K,:))
+        CALL model%get_vertical_movement(1,M,K,w_ct(:,K,:))
      END DO
 
      DO I=1,M
@@ -1038,7 +1029,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
          w_if(1:KBM1-1,:) = (w_ct(I,1:KBM1-1,:)+w_ct(I,2:KBM1,:))/2
 !         write (*,*) 'Vertical velocities    ',maxval(w_if(1:KBM1-1,:)),minval(w_if(1:KBM1-1,:))         
          ! Convert velocities in m s-1 to mass fluxes (e.g., mol m-2 s-1) - both at interfaces between layers.
-         DO IFABM=1,SIZE(model%state_variables)
+         DO IFABM=1,SIZE(model%interior_state_variables)
             DO K=1,KBM1-1
                IF (w_if(K,IFABM)<0) THEN
                   ! Downward - use concentration from same level (velocity is defined on bottom interface)
@@ -1056,7 +1047,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
          flux_ct(KBM1,    :) =                     - flux_if(KBM1-1,  :)
 
          ! Convert mass fluxes (m-2) into source terms (m-3) by dividing by layer height
-         DO IFABM=1,SIZE(model%state_variables)
+         DO IFABM=1,SIZE(model%interior_state_variables)
             FABM_ALL(I,1:KBM1,IFABM) = FABM_ALL(I,1:KBM1,IFABM) + DELTA_T*flux_ct(1:KBM1,IFABM)/DZ(I,1:KBM1)/D(I)
          END DO
 #  if defined (WET_DRY)
@@ -1069,7 +1060,7 @@ END SUBROUTINE FABM_VERTICAL_MOVEMENT
 SUBROUTINE FABM_EXCHANGE(F)
      USE MOD_PAR
 
-     REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables)) :: F
+     REAL(SP), DIMENSION(0:MT,KB,size(model%interior_state_variables)) :: F
 #if defined (MULTIPROCESSOR)
      INTEGER :: IFABM
      REAL(SP),ALLOCATABLE :: F_T(:,:)
@@ -1077,7 +1068,7 @@ SUBROUTINE FABM_EXCHANGE(F)
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_EXCHANGE :"
 
      ALLOCATE(F_T(0:MT,KB))
-     DO IFABM=1,size(model%state_variables)
+     DO IFABM=1,size(model%interior_state_variables)
         F_T(:,:)  = F(:,:,IFABM)
         CALL AEXCHANGE(NC,MYID,NPROCS,F_T)
         F(:,:,IFABM)  = F_T(:,:)  
@@ -1108,7 +1099,7 @@ SUBROUTINE FABM_EXCHANGE(F)
   IMPLICIT NONE
   INTEGER :: I,K,J,KI,IFABM
   REAL(DP) :: TMP,TMP1,TMP2,TMP3,FKH,UMOLPR
-  REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables)) :: F
+  REAL(SP), DIMENSION(0:MT,KB,size(model%interior_state_variables)) :: F
   REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF
   REAL(DP), DIMENSION(M)        :: KHBOTTOM
 
@@ -1148,7 +1139,7 @@ SUBROUTINE FABM_EXCHANGE(F)
      END DO
   END DO
 
-  DO IFABM=1,size(model%state_variables)
+  DO IFABM=1,size(model%interior_state_variables)
       IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
 
   !------------------------------------------------------------------------------!
@@ -1452,10 +1443,10 @@ END SUBROUTINE FABM_MIXING
   !
   !--Calculate the Advection and Horizontal Diffusion Terms----------------------!
   !
- !DO IFABM=1,size(model%state_variables)
+ !DO IFABM=1,size(model%interior_state_variables)
  ! Inverse FABM_ALL and FABM_MEAN matrices
   I=1
-  DO IFABM=1,size(model%state_variables)
+  DO IFABM=1,size(model%interior_state_variables)
      IF( .not. DISABLE_TRANSPORT(IFABM) ) then
        FABM_VEC(I,:,:) = FABM_ALL(:,:,IFABM) ! populate matrix with variables that require advection
        DO K=1,KBM1
@@ -1589,7 +1580,7 @@ END SUBROUTINE FABM_MIXING
 
 
   END DO !!SIGMA LOOP
- !END DO !to size(model%state_variables)
+ !END DO !to size(model%interior_state_variables)
 
   !
   !-Accumulate Fluxes at Boundary Nodes
@@ -1605,7 +1596,7 @@ END SUBROUTINE FABM_MIXING
  END DO
 # endif
 
- !DO IFABM=1,size(model%state_variables)
+ !DO IFABM=1,size(model%interior_state_variables)
   DO K=1,KBM1
      IF(IOBCN > 0) THEN
         DO I=1,IOBCN
@@ -1859,7 +1850,7 @@ END SUBROUTINE FABM_MIXING
   ! End of smolarkiewicz upwind loop
   !--------------------------------------------------------------------------
 
-  END DO  ! end of DO IFABM=1,size(model%state_variables)
+  END DO  ! end of DO IFABM=1,size(model%interior_state_variables)
 
 #  endif
 
@@ -1870,7 +1861,7 @@ END SUBROUTINE FABM_MIXING
     XFLUX = 0.0_SP
 # endif
 
-  !DO IFABM=1,size(model%state_variables)
+  !DO IFABM=1,size(model%interior_state_variables)
 
   !--------------------------------------------------------------------
   !   The central difference scheme in vertical advection
@@ -2009,10 +2000,10 @@ END SUBROUTINE FABM_MIXING
 
 # endif
 
-  !END DO !do IFABM=1,size(model%state_variables)
+  !END DO !do IFABM=1,size(model%interior_state_variables)
 ! Untranspose FABM_F
   I = 1
-  DO IFABM=1,size(model%state_variables)
+  DO IFABM=1,size(model%interior_state_variables)
      IF( .not. DISABLE_TRANSPORT(IFABM) ) then
        FABM_F(:,:,IFABM) = FABM_Fadv(I,:,:) ! populate FABM_F with advecting variables
        I = I+1
@@ -2056,7 +2047,7 @@ END SUBROUTINE FABM_ADV
 # endif
 
   IMPLICIT NONE
-  REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables))  :: XFLUX,XFLUX_ADV 
+  REAL(SP), DIMENSION(0:MT,KB,size(model%interior_state_variables))  :: XFLUX,XFLUX_ADV 
   REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY  
   REAL(SP), DIMENSION(M)           :: PFPX,PFPY,PFPXD,PFPYD,VISCOFF
   REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ 
@@ -2161,7 +2152,7 @@ END SUBROUTINE FABM_ADV
   !--Calculate the Advection and Horizontal Diffusion Terms----------------------!
   !
 
- DO IFABM=1,size(model%state_variables)
+ DO IFABM=1,size(model%interior_state_variables)
   DO K=1,KBM1
      PFPX  = 0.0_SP
      PFPY  = 0.0_SP
@@ -2333,18 +2324,18 @@ END SUBROUTINE FABM_ADV
 
 
   END DO !!SIGMA LOOP
- END DO !to size(model%state_variables)
+ END DO !to size(model%interior_state_variables)
 
   !
   !-Accumulate Fluxes at Boundary Nodes
   !
 # if defined (MULTIPROCESSOR)
- DO IFABM=1,size(model%state_variables)
+ DO IFABM=1,size(model%interior_state_variables)
   IF(PAR)CALL NODE_MATCH(0,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,XFLUX(:,:,IFABM),XFLUX_ADV(:,:,IFABM))
  END DO
 # endif
 
- DO IFABM=1,size(model%state_variables)
+ DO IFABM=1,size(model%interior_state_variables)
   DO K=1,KBM1
      IF(IOBCN > 0) THEN
         DO I=1,IOBCN
@@ -2355,7 +2346,7 @@ END SUBROUTINE FABM_ADV
   END DO
  END DO
 
- DO IFABM=1,size(model%state_variables)
+ DO IFABM=1,size(model%interior_state_variables)
 
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
   !
@@ -2742,7 +2733,7 @@ END SUBROUTINE FABM_ADV
 
 # endif
 
-  END DO !do IFABM=1,size(model%state_variables)
+  END DO !do IFABM=1,size(model%interior_state_variables)
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_ADV"
 
@@ -2806,7 +2797,7 @@ END SUBROUTINE FABM_ADV
          DO I=1,NUMQBC
            J11=INODEQ(I)
            DO K=1,KBM1
-             DO IFABM=1,size(model%state_variables)
+             DO IFABM=1,size(model%interior_state_variables)
                FABM_F(J11,K,IFABM) = FABMDIS(I,IFABM)
              END DO
            END DO
@@ -2816,7 +2807,7 @@ END SUBROUTINE FABM_ADV
            J11=N_ICELLQ(I,1)
            J22=N_ICELLQ(I,2)
            DO K=1,KBM1
-             DO IFABM=1,size(model%state_variables)
+             DO IFABM=1,size(model%interior_state_variables)
                FABM_F(J11,K,IFABM)=FABMDIS(I,IFABM)
                FABM_F(J22,K,IFABM)=FABMDIS(I,IFABM)
              END DO
@@ -2835,7 +2826,7 @@ END SUBROUTINE FABM_ADV
 ! Variables presence is a function of variable presence in NETCDF file
 ! different handling is only needed when tracers come into the domain
      RAMP_BIO = TANH(FLOAT(IINT)/FLOAT(IRAMP+1))
-     DO IFABM=1,size(model%state_variables)
+     DO IFABM=1,size(model%interior_state_variables)
        DO I=1,IOBCN
          J=I_OBC_N(I)
          IF(UARD_OBCN(I) > 0.0_SP) THEN
@@ -2931,7 +2922,7 @@ END SUBROUTINE FABM_ADV
            END IF
          END IF
        END DO
-     END DO !!OUTER LOOP OVER FABM VARIABLES IFABM=1,size(model%state_variables)
+     END DO !!OUTER LOOP OVER FABM VARIABLES IFABM=1,size(model%interior_state_variables)
 
    END IF
 
@@ -2989,12 +2980,12 @@ END SUBROUTINE FABM_ADV
       END IF
 
 
-       DO IFABM=1,size(model%state_variables)
-         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_F(I,K,IFABM)
+       DO IFABM=1,size(model%interior_state_variables)
+         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%interior_state_variables(IFABM)%name),FABM_F(I,K,IFABM)
        END DO
  
-       DO IFABM=1,size(model%state_variables)
-         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_ALL(I,K,IFABM)
+       DO IFABM=1,size(model%interior_state_variables)
+         WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%interior_state_variables(IFABM)%name),FABM_ALL(I,K,IFABM)
        END DO
      
        DO IFABM=1,size(model%bottom_state_variables)
@@ -3042,7 +3033,7 @@ SUBROUTINE FCT_FABM
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: fct_FABM"
 
-  fabm: DO IFABM=1,size(model%state_variables)
+  fabm: DO IFABM=1,size(model%interior_state_variables)
    nodes: DO I=1,M
 
      ! SKIP OPEN BOUNDARY NODES
@@ -3145,9 +3136,9 @@ SUBROUTINE INITIALIZE_FABM_INPUTS()
 
       ALLOCATE(FABM_INPUT)
       FABM_INPUT%FABM_ID_HZ = model%get_horizontal_variable_id(VARIABLE_NAME)
-      IF (.NOT.fabm_is_variable_used(FABM_INPUT%FABM_ID_HZ))THEN
-         FABM_INPUT%FABM_ID = model%get_bulk_variable_id(VARIABLE_NAME)
-         IF (.NOT.fabm_is_variable_used(FABM_INPUT%FABM_ID))THEN
+      IF (.NOT. model%is_variable_used(FABM_INPUT%FABM_ID_HZ))THEN
+         FABM_INPUT%FABM_ID = model%get_interior_variable_id(VARIABLE_NAME)
+         IF (.NOT. model%is_variable_used(FABM_INPUT%FABM_ID))THEN
             CALL FATAL_ERROR &
                & ("VARIABLE "//TRIM(VARIABLE_NAME)//" REFERENCED IN "//TRIM(nmlpath)//" NOT FOUND IN FABM MODEL")
          ELSE
@@ -3246,7 +3237,7 @@ SUBROUTINE INITIALIZE_FABM_INPUTS()
 
          ALLOCATE(FABM_INPUT%DATA(0:MT,KB))
          FABM_INPUT%DATA = 0.0_SP
-         CALL model%link_bulk_data(FABM_INPUT%FABM_ID,FABM_INPUT%DATA(1:M,1:KB),source=data_source_user)
+         CALL model%link_interior_data(FABM_INPUT%FABM_ID,FABM_INPUT%DATA(1:M,1:KB),source=data_source_user)
       ENDIF
 
       ! Prepend to list of inputs
@@ -3313,10 +3304,10 @@ SUBROUTINE CONFIGURE_OUTPUT()
    IF (.not.ASSOCIATED(node)) CALL FATAL_ERROR('No configuration information found in '//PATH//'.')
 
    ! Disable output for all variables by default
-   model%state_variables(:)%output = output_none
+   model%interior_state_variables(:)%output = output_none
    model%bottom_state_variables(:)%output = output_none
    model%surface_state_variables(:)%output = output_none
-   model%diagnostic_variables(:)%save = .false.
+   model%interior_diagnostic_variables(:)%save = .false.
    model%horizontal_diagnostic_variables(:)%save = .false.
 
    SELECT TYPE (node)
@@ -3368,10 +3359,10 @@ CONTAINS
       IF (.NOT.IN_OUTPUT) OUTPUT_FLAG = output_none
 
       FOUND = .FALSE.
-      DO IFABM=1,SIZE(model%state_variables)
-         IF (model%state_variables(IFABM)%name(1:ISTOP)==NAME_) then
-            model%state_variables(IFABM)%output = OUTPUT_FLAG
-!            WRITE (IPT,*) '- '//TRIM(model%state_variables(IFABM)%name)//' =',IN_OUTPUT
+      DO IFABM=1,SIZE(model%interior_state_variables)
+         IF (model%interior_state_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%interior_state_variables(IFABM)%output = OUTPUT_FLAG
+!            WRITE (IPT,*) '- '//TRIM(model%interior_state_variables(IFABM)%name)//' =',IN_OUTPUT
             FOUND = .TRUE.
          END IF
       END DO
@@ -3389,10 +3380,10 @@ CONTAINS
             FOUND = .TRUE.
          END IF
       END DO
-      DO IFABM=1,SIZE(model%diagnostic_variables)
-         IF (model%diagnostic_variables(IFABM)%output/=output_none .and. model%diagnostic_variables(IFABM)%name(1:ISTOP)==NAME_) then
-            model%diagnostic_variables(IFABM)%save = IN_OUTPUT
-!            WRITE (IPT,*) '- '//TRIM(model%diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
+      DO IFABM=1,SIZE(model%interior_diagnostic_variables)
+         IF (model%interior_diagnostic_variables(IFABM)%output/=output_none .and. model%interior_diagnostic_variables(IFABM)%name(1:ISTOP)==NAME_) then
+            model%interior_diagnostic_variables(IFABM)%save = IN_OUTPUT
+!            WRITE (IPT,*) '- '//TRIM(model%interior_diagnostic_variables(IFABM)%name)//' =',IN_OUTPUT
             FOUND = .TRUE.
          END IF
       END DO
