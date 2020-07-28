@@ -754,7 +754,20 @@ SUBROUTINE ADV_T
               TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            END IF
 
-           ! Added by Akvaplan 2018 to avoid single precision-crash
+         ! Added by Akvaplan 2018 to avoid single precision-crash
+         ! -> Updated 2020 after tip from Ricardo Torres (PML)
+         ! ----
+         
+         ! Total (horizontal + vertical) flux to the CV
+         ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
+
+         ! Updated temperature without the limiter minus the current temperature
+         XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+T1(I,K)-T1(I,K)*DT(I)/DTFA(I) 
+
+         ! For clarity: Can be rewritten
+         ! XXXX = T1(I,K) - (T1(I,K)-ZZZFLUX(I,K))*DT(I)/DTFA(I) 
+
+         ! The trick that prevents single precision-crash
          IF((ABS(XXXX).LT.ABS(TMAX-T1(I,K))).AND.(XXXX.LT.0.0_SP)) THEN
             T1_SF(I,K) = T1(I,K)-XXXX
          ELSE IF((ABS(XXXX).LT.ABS(TMIN-T1(I,K))).AND.(XXXX.GT.0.0_SP)) THEN 
@@ -766,14 +779,6 @@ SUBROUTINE ADV_T
                  +0.5*(1.-SIGN(1._SP,-XXXX)) * (T1(I,K)-TMIN)/(ABS(XXXX)+1.E-10)                                     
             T1_SF(I,K)=T1(I,K)-MIN(1._SP,BETA(I,K))*XXXX
          END IF
-
-           ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
-           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+T1(I,K)-T1(I,K)*DT(I)/DTFA(I) 
-
-           BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (TMAX-T1(I,K))/(ABS(XXXX)+1.E-10) &
-                +0.5*(1.-SIGN(1._SP,-XXXX)) * (T1(I,K)-TMIN)/(ABS(XXXX)+1.E-10)
-
-           T1_SF(I,K)=T1(I,K)-MIN(1.,BETA(I,K))*XXXX
 
 #    if defined (WET_DRY)
         END IF
