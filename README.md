@@ -22,6 +22,12 @@ Support
 -------
 
 The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is another (user written) wiki available at https://wiki.fvcom.pml.ac.uk.
+The examples bundled with the official FVCOM release can be found in this gitlab 
+```bash 
+git clone git@gitlab.ecosystem-modelling.pml.ac.uk:fvcom/fvcom-examples.git ./fvcom-examples
+```
+
+
 
 FABM-ERSEM
 ----------
