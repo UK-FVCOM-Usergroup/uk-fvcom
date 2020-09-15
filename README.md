@@ -3,7 +3,8 @@ FVCOM
 
 The main FVCOM website is http://fvcom.smast.umassd.edu/fvcom.
 
-This repository is for the UK FVCOM Users' code development.
+This repository is for the UK FVCOM Users' code development and includes some changes with respect to the official v4.3 release contributed by a variety of partners. 
+See the commit history for a flavour of those updates. 
 
 Register
 --------
@@ -23,7 +24,7 @@ The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. 
 FABM-ERSEM
 ----------
 
-The main FABM website is http://fabm.sourceforge.net.
+The main FABM website is https://github.com/fabm-model/fabm/. While this branch has been updated to work with FABM v1 it has not been tested in a realistic application. Consider this branch a beta version. 
 
 The ERSEM biogeochemical model can be requested from the Shelf Seas Biogeochemistry website: http://www.shelfseasmodelling.org.
 
