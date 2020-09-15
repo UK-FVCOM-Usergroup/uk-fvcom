@@ -23,7 +23,7 @@ The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. 
 FABM-ERSEM
 ----------
 
-The main FABM website is http://fabm.sourceforge.net.
+The main FABM website is https://github.com/fabm-model/fabm. This FVCOM branch requires FABM version v0.96 (https://github.com/fabm-model/fabm/tree/v0.96.0). Version v1 of FABM is being introduced in FVCOM in branch FABMv1-v4.3.  
 
 The ERSEM biogeochemical model can be requested from the Shelf Seas Biogeochemistry website: http://www.shelfseasmodelling.org.
 
