@@ -31,6 +31,15 @@ FABM-ERSEM
 
 The ERSEM biogeochemical model can be requested from the Shelf Seas Biogeochemistry website: http://www.shelfseasmodelling.org.
 
+## Todo list:
+
+- [x] Remove vectorised advection from FABM coupler 
+- [ ] Enable combined nesting and OBC approach
+- [ ] Look at river_dilution behaviour (non conservation when non dilution is active)
+- [ ] Enable interaction between sediments and spectrally resolved light
+- [ ] Remove any hard coded links between sediments and FABM that are domain specific
+- [ ] Identify and solve offline conservation issues on first time step. 
+
 ## Fixes Log:
 
 21/09/2020 e7eceb0e621b3eb565737027f6991d2a4959342c Remove option for vectorised advection in FABM coupler as we have not seen performance benefits yet. If it needs bringing back with newer chips it can be rescued from FABM-ERSEM_v4.3 branch. 
