@@ -595,6 +595,9 @@ SUBROUTINE FABM_UPDATE
        PRINT_STATE = .FALSE.
      END IF
 
+# if defined (MULTIPROCESSOR)
+     IF(PAR)CALL FABM_EXCHANGE(FABM_F)
+# endif
      ! Process open boundaries (and depending on RIVER_TS_SETTING, also rivers)
      CALL FABM_BCOND  ! This operates on FABM_F
 
