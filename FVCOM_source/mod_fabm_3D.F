@@ -582,7 +582,7 @@ SUBROUTINE FABM_UPDATE
 
      ! Vertical mixing
 # if !defined (ONE_D_MODEL)
-! We need to remove non advecting/miixing variables from FABM_ALL for this case RJT
+! We need to remove non advecting/mixing variables from FABM_ALL for this case RJT
      CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
 # else
 ! We need to remove non advecting/miixing variables from FABM_ALL for this case RJT
@@ -594,6 +594,10 @@ SUBROUTINE FABM_UPDATE
        PRINT_STATE = .FALSE.
      END IF
 
+! FABM_exchange needs to remain before call to BCOND
+# if defined (MULTIPROCESSOR)
+     IF(PAR)CALL FABM_EXCHANGE(FABM_F)
+# endif
      ! Process open boundaries (and depending on RIVER_TS_SETTING, also rivers)
      CALL FABM_BCOND  ! This operates on FABM_F
 
@@ -604,7 +608,7 @@ SUBROUTINE FABM_UPDATE
 # if defined (MULTIPROCESSOR)
      IF(PAR)CALL FABM_EXCHANGE(FABM_F)
 # endif
-! end of moved block for NESTING... I don't know if the FABM_exchange should have needed to remain before call to BCOND
+! end of moved block for NESTING... I don't know if the FABM_exchange should have needed to remain before call to BCOND or if we need it here?
      ! Check validity of state variables and "correct" (typicalyl: clip) where needed.
      ! This may be needed because some of the logic in FABM_BCOND is not monotonicity-preserving.
      IF (FABM_DEBUG) THEN
