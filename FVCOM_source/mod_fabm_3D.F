@@ -1765,6 +1765,7 @@ END SUBROUTINE FABM_MIXING
 # endif
            END IF
 
+           ! In case of single precision MPDATA crash: Add the changes already implemented to temperature and salinity.
 
            ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
            XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_ALL(I,K,IFABM)-FABM_ALL(I,K,IFABM)*DT(I)/DTFA(I) 
