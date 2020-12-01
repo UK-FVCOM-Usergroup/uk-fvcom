@@ -1,23 +1,23 @@
 !/===========================================================================/
-! Copyright (c) 2007, The University of Massachusetts Dartmouth 
-! Produced at the School of Marine Science & Technology 
+! Copyright (c) 2007, The University of Massachusetts Dartmouth
+! Produced at the School of Marine Science & Technology
 ! Marine Ecosystem Dynamics Modeling group
 ! All rights reserved.
 !
-! FVCOM has been developed by the joint UMASSD-WHOI research team. For 
+! FVCOM has been developed by the joint UMASSD-WHOI research team. For
 ! details of authorship and attribution of credit please see the FVCOM
 ! technical manual or contact the MEDM group.
 !
-! 
-! This file is part of FVCOM. For details, see http://fvcom.smast.umassd.edu 
-! The full copyright notice is contained in the file COPYRIGHT located in the 
+!
+! This file is part of FVCOM. For details, see http://fvcom.smast.umassd.edu
+! The full copyright notice is contained in the file COPYRIGHT located in the
 ! root directory of the FVCOM code. This original header must be maintained
 ! in all distributed versions.
 !
-! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 ! AND ANY EXPRESS OR  IMPLIED WARRANTIES, INCLUDING,  BUT NOT  LIMITED TO,
 ! THE IMPLIED WARRANTIES OF MERCHANTABILITY AND  FITNESS FOR A PARTICULAR
-! PURPOSE ARE DISCLAIMED.  
+! PURPOSE ARE DISCLAIMED.
 !
 !/---------------------------------------------------------------------------/
 ! CVS VERSION INFORMATION
@@ -53,7 +53,7 @@ Module Mod_Nesting
 # if defined (FABM)
       REAL(SP), POINTER :: FABM_ALL_TMP(:,:,:) => NULL()
 ! I think we also need a 4D FABM variable for NCNEST
-      REAL(SP), POINTER :: FABM_ALL_BLK(:,:,:,:)  => NULL()     
+      REAL(SP), POINTER :: FABM_ALL_BLK(:,:,:,:)  => NULL()
 # endif
   END TYPE NEST_DATA
 
@@ -85,7 +85,7 @@ Module Mod_Nesting
   ! Used in NESTING CODE
   ! This memory holds the data for each variable at the current time.
   ! This is where the data that is updated is stored in arrays which
-  ! are the size of the nesting boundary, and indexed to the FVCOM domain. 
+  ! are the size of the nesting boundary, and indexed to the FVCOM domain.
   REAL(SP), ALLOCATABLE :: UA_NEST(:),VA_NEST(:),EL_NEST(:)
   REAL(SP), ALLOCATABLE :: U_NEST(:,:),V_NEST(:,:)
   REAL(SP), ALLOCATABLE :: S1_NEST(:,:),T1_NEST(:,:)
@@ -94,7 +94,7 @@ Module Mod_Nesting
   REAL(SP), ALLOCATABLE :: U_NEST_L(:,:),V_NEST_L(:,:)
   REAL(SP), ALLOCATABLE :: S1_NEST_L(:,:),T1_NEST_L(:,:)
   REAL(SP), ALLOCATABLE :: HYW_NEST_L(:,:)
-  
+
   REAL(SP), ALLOCATABLE, TARGET :: ZZ_L(:,:),ZZ1_L(:,:),H_L(:),H1_L(:)
 
   REAL(SP), ALLOCATABLE :: WCELL_NEST(:),WNODE_NEST(:)
@@ -107,7 +107,7 @@ Module Mod_Nesting
   REAL(SP), ALLOCATABLE :: HSC1_NEST(:),TPEAK_NEST(:),DIRDEG1_NEST(:)
   REAL(SP), ALLOCATABLE :: AC2_NEST(:,:,:)
 # endif
-  ! 
+  !
   TYPE(NCVAR), POINTER :: VAR_UA => NULL()
   TYPE(NCVAR), POINTER :: VAR_VA => NULL()
   TYPE(NCVAR), POINTER :: VAR_EL => NULL()
@@ -143,7 +143,7 @@ Module Mod_Nesting
   TYPE(GRID), POINTER :: NCNEST_GRIDS_WAVE(:) => NULL()
   TYPE(NEST_DATA_WAVE), POINTER :: NCNEST_DATA_WAVE(:) => NULL()
 # endif
-  
+
   LOGICAL, PRIVATE :: NEED_INIT_NEST = .TRUE.
 
   TYPE(TIME) :: INTERVAL_TIME_NCNEST, TIME_INTERVAL
@@ -153,11 +153,11 @@ Module Mod_Nesting
 
   !--Parameters in NameList NML_NESTING
   !TYPE OF NESTING:
-  !  1:  DIRECT NESTING     -- The input is the direct NCNEST output of 
+  !  1:  DIRECT NESTING     -- The input is the direct NCNEST output of
   !                            large domain FVCOM model
   !  2:  INDIRECT NESTING   -- Same as 1, but the input file is the subtidal
   !                            values from the NCNEST output of large domain
-  !                            FVCOM model plus the Forman tidal analysis 
+  !                            FVCOM model plus the Forman tidal analysis
   !                            elevations and velocities
   !  3:  RELAXATION NESTING -- The nesting with a relaxation method (an example
   !                            is to get nesting data from HYCOM)
@@ -168,7 +168,7 @@ Module Mod_Nesting
 # if defined (FABM)
   LOGICAL FABM_NESTING_ON
 !  LOGICAL FABM_NCNEST_ON
-# endif 
+# endif
 
   NAMELIST /NML_NESTING/     &
        & NESTING_ON,         &
@@ -192,7 +192,7 @@ Module Mod_Nesting
        & NCNEST_BLOCKSIZE,  &
        & NCNEST_NODE_FILES, &
        & NCNEST_OUT_INTERVAL
-  
+
 # if defined (WAVE_CURRENT_INTERACTION)
   !--Parameters in NameList NML_NESTING_WAVE
   LOGICAL NESTING_ON_WAVE                   !!TRUE IF OUTPUT RESART FILES
@@ -219,7 +219,7 @@ Module Mod_Nesting
        & NCNEST_BLOCKSIZE_WAVE,  &
        & NCNEST_NODE_FILES_WAVE, &
        & NCNEST_OUT_INTERVAL_WAVE
-# endif  
+# endif
 
   INTEGER :: KB_L
   INTEGER :: KBM1_L
@@ -273,8 +273,8 @@ CONTAINS
     RETURN
   END SUBROUTINE NAME_LIST_INITIALIZE_NEST
   !==============================================================================!
-  !  
-  !==============================================================================!  
+  !
+  !==============================================================================!
   SUBROUTINE NAME_LIST_PRINT_NEST
     USE CONTROL
 
@@ -316,7 +316,7 @@ CONTAINS
     !READ NAME LIST FILE
 
     !READ NESTING FLAG
-    READ(UNIT=NMLUNIT, NML=NML_NESTING,IOSTAT=ios)  
+    READ(UNIT=NMLUNIT, NML=NML_NESTING,IOSTAT=ios)
     IF(ios /= 0)THEN
        IF(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_NESTING)
        CALL FATAL_ERROR("Can Not Read NameList NML_NESTING from file: "//trim(FNAME))
@@ -331,7 +331,7 @@ CONTAINS
     REWIND(NMLUNIT)
 
     !READ NESTING FLAG
-    READ(UNIT=NMLUNIT, NML=NML_NCNEST,IOSTAT=ios)  
+    READ(UNIT=NMLUNIT, NML=NML_NCNEST,IOSTAT=ios)
     IF(ios /= 0)THEN
        IF(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_NCNEST)
        CALL FATAL_ERROR("Can Not Read NameList NML_NCNEST from file: "//trim(FNAME))
@@ -348,7 +348,7 @@ CONTAINS
     REWIND(NMLUNIT)
 
     !READ NESTING FLAG
-    READ(UNIT=NMLUNIT, NML=NML_NESTING_WAVE,IOSTAT=ios)  
+    READ(UNIT=NMLUNIT, NML=NML_NESTING_WAVE,IOSTAT=ios)
     IF(ios /= 0)THEN
        IF(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_NESTING_WAVE)
        CALL FATAL_ERROR("Can Not Read NameList NML_NESTING_WAVE from file: "//trim(FNAME))
@@ -363,7 +363,7 @@ CONTAINS
     REWIND(NMLUNIT)
 
     !READ NESTING FLAG
-    READ(UNIT=NMLUNIT, NML=NML_NCNEST_WAVE,IOSTAT=ios)  
+    READ(UNIT=NMLUNIT, NML=NML_NCNEST_WAVE,IOSTAT=ios)
     IF(ios /= 0)THEN
        IF(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_NCNEST_WAVE)
        CALL FATAL_ERROR("Can Not Read NameList NML_NCNEST_WAVE from file: "//trim(FNAME))
@@ -418,7 +418,7 @@ CONTAINS
          "NESTING_BLOCKSIZE /= NESTING_BLOCKSIZE_WAVE", &
          "Please use NESTING_BLOCKSIZE == NESTING_BLOCKSIZE_WAVE for this case.")
 
-#   endif	    
+#   endif
 
     END IF
 
@@ -437,13 +437,13 @@ CONTAINS
        INTERVAL_TIME_NCNEST_WAVE = INTERVAL_TIME_NCNEST
 #   else
        CALL GET_OUTPUT_FILE_INTERVAL(TRIM(NCNEST_OUT_INTERVAL_WAVE),INTERVAL_TIME_NCNEST_WAVE)
-#   endif	    
+#   endif
     END IF
 #   endif
     CLOSE(NMLUNIT)
 
     if(DBG_SET(dbg_sbr)) &
-         & write(IPT,*) "Subroutine Ends: name_list_read_nest;"    
+         & write(IPT,*) "Subroutine Ends: name_list_read_nest;"
 
   END SUBROUTINE NAME_LIST_READ_NEST
 
@@ -461,18 +461,18 @@ CONTAINS
        if (charnum /= len_trim(NESTING_FILE_NAME)-2)&
             & CALL WARNING("Nesting File does not end in .nc", &
             & trim(NESTING_FILE_NAME))
-       
+
        ! INITIALIZE TYPE TO HOLD FILE METADATA
        pathnfile= trim(INPUT_DIR)//trim(NESTING_FILE_NAME)
        CALL  NC_INIT(NCF,pathnfile)
-       
+
        ! OPEN THE FILE AND LOAD METADATA
        if(.not. NCF%OPEN) then
           Call NC_OPEN(NCF)
           CALL NC_LOAD(NCF)
           FILEHEAD => ADD(FILEHEAD,NCF)
        end if
-       
+
     END IF
 
   END SUBROUTINE OPEN_NESTING_FILE
@@ -492,45 +492,45 @@ CONTAINS
        if (charnum /= len_trim(NESTING_FILE_NAME_WAVE)-2)&
             & CALL WARNING("Nesting File of Wave does not end in .nc", &
             & trim(NESTING_FILE_NAME_WAVE))
-       
+
        ! INITIALIZE TYPE TO HOLD FILE METADATA
        pathnfile= trim(INPUT_DIR)//trim(NESTING_FILE_NAME_WAVE)
        CALL  NC_INIT(NCF1,pathnfile)
-       
+
        ! OPEN THE FILE AND LOAD METADATA
        if(.not. NCF1%OPEN) then
           Call NC_OPEN(NCF1)
           CALL NC_LOAD(NCF1)
           FILEHEAD => ADD(FILEHEAD,NCF1)
        end if
-       
+
     END IF
 
   END SUBROUTINE OPEN_NESTING_FILE_WAVE
 # endif
 
 # if defined (MULTIPROCESSOR)
-  
+
   SUBROUTINE SETUP_NEST_DOMAIN
     IMPLICIT NONE
-    
+
     LOGICAL :: FOUND
     ! NESTING VARIABLES
     TYPE(GRID), POINTER :: GLOBAL_NG
     character(len=160) :: pathnfile
-    
+
     ! NCNEST VARIABLES
     INTEGER :: STATUS,I
     INTEGER, POINTER :: NID(:)
-    
+
     if(DBG_SET(dbg_sbr))  write(IPT,*) "START Setup_nest_domain"
-    
+
     if(DBG_SET(dbg_log))  write(IPT,*) "! "
-    
+
    if (dbg_set(dbg_LOG)) write(IPT,*) "!           SETTING UP NESTING IO"
 
     IF(NESTING_ON) THEN
-       
+
        NESTING_FILE => FIND_FILE(FILEHEAD,NESTING_FILE_NAME,FOUND)
        IF(.NOT. FOUND) CALL FATAL_ERROR&
             &("SETUP_NEST_DOMAIN: CAN NOT FIND NESTING FILE IN OBJECT LIST",&
@@ -539,17 +539,17 @@ CONTAINS
 
        ALLOCATE(GLOBAL_NG,STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE GLOBAL_NG!")
-       
+
        ! READ THE GLOBAL NESTING GRID INTO A TEMPORARY CONTAINER
        IF(.NOT. IOPROC) CALL LOAD_GRID_TYPE(NESTING_FILE,GLOBAL_NG)
-       
+
        KB_L = GLOBAL_NG%KB
 !
 !       IF(GLOBAL_NG%KB /= KB) CALL FATAL_ERROR&
 !            &("Be not ashamed of mistakes and thus make them crimes.")
 !       ! YOUR NESTING FILE DOES NOT HAVE THE SAME NUMBER OF LEVELS AS
 !       ! YOUR MODEL
-       
+
        KBM1_L = GLOBAL_NG%KBM1
 !
 !       IF(GLOBAL_NG%KBM1 /= KBM1) CALL FATAL_ERROR&
@@ -559,13 +559,13 @@ CONTAINS
 
        ALLOCATE(NESTING_GRID,STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE NESTING_GRID!")
-       
+
        ! DECOMPOSE THE GLOBAL NESTING GRID TO THE LOCAL MAP
        CALL GENMAP_NESTING(GLOBAL_NG, NESTING_GRID )
-       
+
        ! DUMP THE GLOBAL DATA
        CALL KILL_GRID(GLOBAL_NG)
-       
+
        if(DBG_SET(dbg_log)) write(IPT,*) "! SET NESTING SUBDOMAIN"
        if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: MGL =",NESTING_GRID%MGL
        if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: NGL =",NESTING_GRID%NGL
@@ -575,17 +575,17 @@ CONTAINS
        ALLOCATE(H1_L(0:NESTING_GRID%NT));         H1_L  = 0.0_SP
        ALLOCATE(ZZ_L(0:NESTING_GRID%MT,KBM1_L));  ZZ_L  = 0.0_SP
        ALLOCATE(ZZ1_L(0:NESTING_GRID%NT,KBM1_L)); ZZ1_L = 0.0_SP
-       
+
        H_L   = NESTING_GRID%H
        H1_L  = NESTING_GRID%H1
        ZZ_L  = NESTING_GRID%ZZ
        ZZ1_L = NESTING_GRID%ZZ1
-       
+
     END IF
-    
+
 #   if defined (WAVE_CURRENT_INTERACTION)
     IF(NESTING_ON_WAVE) THEN
-       
+
        NESTING_FILE_WAVE => FIND_FILE(FILEHEAD,NESTING_FILE_NAME_WAVE,FOUND)
        IF(.NOT. FOUND) CALL FATAL_ERROR&
             &("SETUP_NEST_DOMAIN_WAVE: CAN NOT FIND WAVE NESTING FILE IN OBJECT LIST",&
@@ -594,15 +594,15 @@ CONTAINS
 
        ALLOCATE(GLOBAL_NG,STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE GLOBAL_NG!")
-       
+
        ! READ THE GLOBAL NESTING GRID INTO A TEMPORARY CONTAINER
        IF(.NOT. IOPROC) CALL LOAD_GRID_TYPE(NESTING_FILE_WAVE,GLOBAL_NG)
-       
+
 !       IF(GLOBAL_NG%KB /= KB) CALL FATAL_ERROR&
 !            &("Be not ashamed of mistakes and thus make them crimes.")
 !       ! YOUR NESTING FILE DOES NOT HAVE THE SAME NUMBER OF LEVELS AS
 !       ! YOUR MODEL
-       
+
 !       IF(GLOBAL_NG%KBM1 /= KBM1) CALL FATAL_ERROR&
 !            &("He who will not economize will have to agonize.")
 !       ! YOUR NESTING FILE DOES NOT HAVE THE SAME NUMBER OF LAYERS AS
@@ -610,38 +610,38 @@ CONTAINS
 
        ALLOCATE(NESTING_GRID_WAVE,STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE NESTING_GRID_WAVE!")
-       
+
        ! DECOMPOSE THE GLOBAL NESTING GRID TO THE LOCAL MAP
        CALL GENMAP_NESTING(GLOBAL_NG, NESTING_GRID_WAVE )
-       
+
        ! DUMP THE GLOBAL DATA
        CALL KILL_GRID(GLOBAL_NG)
-       
+
        if(DBG_SET(dbg_log)) write(IPT,*) "! SET WAVE NESTING SUBDOMAIN"
        if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: MGL =",NESTING_GRID_WAVE%MGL
        if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: NGL =",NESTING_GRID_WAVE%NGL
 
     END IF
-#   endif    
-    
-    
+#   endif
+
+
     IF (NCNEST_ON) THEN
-       
+
        CALL SPLIT_STRING(NCNEST_NODE_FILES,",",NCNEST_FNAMES)
        NCNEST_NUM = SIZE(NCNEST_FNAMES)
-       
+
        ALLOCATE(NCNEST_GRIDS(NCNEST_NUM),STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE NCNEST_GRIDS!")
-       
+
        if(DBG_SET(dbg_log))  write(IPT,*) "! READING NCNEST FILES:",NCNEST_NUM
-       
+
        DO I = 1, NCNEST_NUM
-          
+
           if(DBG_SET(dbg_log))  write(IPT,*) "! READING NCNEST FILE:"//TRIM(NCNEST_FNAMES(I))
-          
+
           ! NID IS ALLOCATED AND DEALLOCATED INTERNALLY!
           CALL LOAD_NESTING_NODE_FILE(NCNEST_FNAMES(I),NID)
-          
+
           CALL GENMAP_NCNEST(NID,NCNEST_GRIDS(I))
 
           if(DBG_SET(dbg_log))  write(IPT,*) "! SET NCNEST DOMAIN:"
@@ -649,28 +649,28 @@ CONTAINS
           if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: NGL =",NCNEST_GRIDS(I)%NGL
 
        END DO
-       
+
 
     END IF
-    
+
 #   if defined (WAVE_CURRENT_INTERACTION)
     IF (NCNEST_ON_WAVE) THEN
-       
+
        CALL SPLIT_STRING(NCNEST_NODE_FILES_WAVE,",",NCNEST_FNAMES_WAVE)
        NCNEST_NUM_WAVE = SIZE(NCNEST_FNAMES_WAVE)
-       
+
        ALLOCATE(NCNEST_GRIDS_WAVE(NCNEST_NUM_WAVE),STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE NCNEST_GRIDS_WAVE!")
-       
+
        if(DBG_SET(dbg_log))  write(IPT,*) "! READING WAVE NCNEST FILES:",NCNEST_NUM_WAVE
-       
+
        DO I = 1, NCNEST_NUM_WAVE
-          
+
           if(DBG_SET(dbg_log))  write(IPT,*) "! READING WAVE NCNEST FILE:"//TRIM(NCNEST_FNAMES_WAVE(I))
-          
+
           ! NID IS ALLOCATED AND DEALLOCATED INTERNALLY!
           CALL LOAD_NESTING_NODE_FILE(NCNEST_FNAMES_WAVE(I),NID)
-          
+
           CALL GENMAP_NCNEST(NID,NCNEST_GRIDS_WAVE(I))
 
           if(DBG_SET(dbg_log))  write(IPT,*) "! SET WAVE NCNEST DOMAIN:"
@@ -678,11 +678,11 @@ CONTAINS
           if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: NGL =",NCNEST_GRIDS_WAVE(I)%NGL
 
        END DO
-       
+
 
     END IF
-#   endif    
-    
+#   endif
+
     IF(.NOT. IOPROC)THEN
        CALL ALLOC_NEST ! TEST FOR NCNEST,NESTING INSIDE...
        CALL SETUP_NEST ! SETUP THE GRID FILE AND DATA IO FOR NESTING
@@ -695,10 +695,10 @@ CONTAINS
 
     if(DBG_SET(dbg_sbr))  write(IPT,*) "END Setup_nest_domain"
   END SUBROUTINE SETUP_NEST_DOMAIN
-  
+
   !============================================================================!
-  !   
-  !============================================================================!   
+  !
+  !============================================================================!
   SUBROUTINE LOAD_NESTING_NODE_FILE(FNAME,nodes)
     USE CONTROL
     IMPLICIT NONE
@@ -749,7 +749,7 @@ CONTAINS
                &'FORMAT: NEST# SUBDOMAIN# LARGEDOMAIN# (ALL INTEGERS)')
 
        END DO
-       
+
        ALLOCATE(nodes(nnode))
 
        I = 0
@@ -764,7 +764,7 @@ CONTAINS
 
 
           nodes(i) = N2
-         
+
 
        END DO
 
@@ -792,17 +792,17 @@ CONTAINS
     END IF
 
     ! BROADCAST TO OTHER PROCS
-    
+
     SENDER = MSRID -1 ! SEND FROM MASTER
     CALL MPI_BCAST(NNODE,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
-    
+
     IF( .NOT. MSR) THEN
-       
+
        ALLOCATE(NODES(NNODE))
-       
+
     END IF
-    
-    
+
+
     CALL MPI_BCAST(NODES,NNODE,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
 
 
@@ -816,7 +816,7 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
 ! USES DATA READ INTO: NID - THE NESTING BOUNDARY NODE STRING
 !
 !
-!                     
+!
 ! Creates:             MAP LINK LIST ENTRY FOR IO
 !                      THE GRID FOR THE NESTING OUTPUT
 !                          The transform from the local nesting list to the local domain
@@ -860,8 +860,8 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
            END IF
         END IF
      END DO
-     
-     
+
+
      ! MUST COUNT ELEMENTS
      CNT_L=0
      DO I=1,CNT
@@ -871,12 +871,12 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
      CNT_L = 0
      CNT = 0
   END IF
-  
+
   ! SET DIMENSIONS...
   NG%MGL = ubound(NID,1) ! nodes are easy
-   
+
   CALL MPI_ALLREDUCE(CNT_L,NG%NGL,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,IERR)
-  
+
   IF(NG%NGL < 1) CALL FATAL_ERROR&
        &("GENMAP_NCNEST: THERE IS A PROBLEM WITH YOUR NESTING FILE",&
        & "THERE ARE NO ELEMENTS SELCTED BASED ON THE NODES YOU SPECIFIED!")
@@ -884,7 +884,7 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
   ! LEVELS AND LAYERS ARE EASY...
   NG%KB = KB
   NG%KBM1 = KBM1
-  
+
 # if defined (WAVE_CURRENT_INTERACTION)
   NG%MSC = MSC
   NG%MDC = MDC
@@ -894,19 +894,19 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
 !  WRITE(IPT,*) "MYID,LCL,LXL,GL",MYID,CNT_L,CNT,NG%NGL
 
   IF(.not. IOPROC) THEN
-     
+
      ! BUILD ONE GLOBAL LIST OF NESTING ELEMENTS
      ALLOCATE(ELMS_GL(NG%NGL))
      K = 1
      DO I = 1, NPROCS
-        
+
         ! SEND THE NUMBER OF ELEMENTS YOU HAVE
         SENDER = I -1
         IF(MYID == I)THEN
            I1 = CNT_L
         END IF
         CALL MPI_BCAST(I1,1,MPI_INTEGER,SENDER,MPI_FVCOM_GROUP,IERR)
-        
+
         ! COLLECT THE GLOBAL IDS
         IF(I1 > 0)THEN
            ALLOCATE(TEMP1(I1))
@@ -919,31 +919,31 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
                  END IF
               END DO
 !              WRITE(IPT,*) "ELMS_LCL",TEMP1
-              
+
            END IF
-           
-           
+
+
            CALL MPI_BCAST(TEMP1,I1,MPI_INTEGER,SENDER,MPI_FVCOM_GROUP,IERR)
-           
+
            ELMS_GL(K:(K+I1-1))=TEMP1
            DEALLOCATE(TEMP1)
-           
+
            K = K+I1
         END IF
-        
+
      END DO
-     
+
 !     WRITE(IPT,*) "ELMS_GL",ELMS_GL
-     
+
      DEALLOCATE(ELMS)
 !============================================
 ! Make a list of the local Nesting nodes
 !============================================
-     
+
      !!SET UP LOCAL NESTING NODES
      ALLOCATE(TEMP1(0:NG%MGL));      TEMP1=0
      ALLOCATE(TEMP2(0:NG%MGL));      TEMP2=0
-     
+
      NCNT = 0
      DO I=1,NG%MGL
         I1 = NLID( NID(I) )
@@ -953,7 +953,7 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
            TEMP2(NCNT) = I
         END IF
      END DO
-     
+
      ! SET LOCAL NUMBER OF BOUNDARY NODES
      NG%M = NCNT
 
@@ -973,7 +973,7 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
      !!SET UP LOCAL+HALO NESTING NODES
      ALLOCATE(TEMP1(0:NG%MGL));      TEMP1=0
      ALLOCATE(TEMP2(0:NG%MGL));      TEMP2=0
-     
+
      NCNT = 0
      DO I=1,NG%MGL
         I1 = NLID_X( NID(I) )
@@ -983,7 +983,7 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
            TEMP2(NCNT) = I
         END IF
      END DO
-     
+
      ! SET LOCAL NUMBER OF BOUNDARY NODES
      NG%MT = NG%M + NCNT
 
@@ -1018,14 +1018,14 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
 
      NCNT = 0
      DO I=1,NG%NGL
-        I1 =  ELID(ELMS_GL(I)) 
+        I1 =  ELID(ELMS_GL(I))
         IF(I1 /= 0)THEN
            NCNT = NCNT + 1
            TEMP1(NCNT) = I1
            TEMP2(NCNT) = I
         END IF
      END DO
-     
+
      ! SET LOCAL NUMBER OF BOUNDARY NODES
      NG%N = NCNT
 
@@ -1051,14 +1051,14 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
 
      NCNT = 0
      DO I=1,NG%NGL
-        I1 =  ELID_X(ELMS_GL(I)) 
+        I1 =  ELID_X(ELMS_GL(I))
         IF(I1 > N)THEN
            NCNT = NCNT + 1
            TEMP1(NCNT) = I1
            TEMP2(NCNT) = I
         END IF
      END DO
-     
+
      ! SET LOCAL NUMBER OF BOUNDARY NODES
      NG%NT = NG%N + NCNT
 
@@ -1079,7 +1079,7 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
      NG%ELID_X(lb:ub) = TEMP1(1:NCNT)
 
      NG%EGID_X(lb:ub) = TEMP2(1:NCNT)
-     
+
      DEALLOCATE(TEMP1)
      DEALLOCATE(TEMP2)
      DEALLOCATE(ELMS_GL)
@@ -1087,7 +1087,7 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
   END IF
 
   !==============================================================================|
-  !   SET UP ELEMENT MAPPING FOR GLOBAL 2 LOCAL TRANSFER OF BC'S                 | 
+  !   SET UP ELEMENT MAPPING FOR GLOBAL 2 LOCAL TRANSFER OF BC'S                 |
   !   BOUNDARY MAP :: BCMAP(NPROCS)                                              |
   !     BCMAP(1-->NPROCS)%NSIZE  :: NUMBER OF BOUNDARY NODES IN EACH DOM         |
   !     BCMAP(1-->NPROCS)%LOC_2_GL(NSIZE) :: LOCAL TO GLOBAL MAPPING IN EACH DOM |
@@ -1177,7 +1177,7 @@ SUBROUTINE GENMAP_NCNEST(NID,NG)
 
 
   if (dbg_set(dbg_sbr)) &
-       & write(IPT,*) "END: GENMAP_NCNEST"   
+       & write(IPT,*) "END: GENMAP_NCNEST"
 
   RETURN
 END SUBROUTINE GENMAP_NCNEST
@@ -1190,10 +1190,10 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 !==============================================================================|
 !
 ! CREATE A GLOBAL TO LOCAL MAP FOR DOMAIN NESTING OUTPUT
-! USES DATA READ INTO: 
-!                     
+! USES DATA READ INTO:
+!
 ! Creates:             MAP LINK LIST ENTRY FOR IO
-!                      
+!
 !
 !==============================================================================|
 !  USE MOD_NESTING
@@ -1215,11 +1215,11 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
   REAL(SP),POINTER :: E_max(:), N_max(:)
 
   REAL(SP),POINTER :: RBUF(:)
-  
+
   REAL(SP),POINTER :: DIST(:)
 
   REAL(SP) :: DMAX
-  
+
   REAL(SP),POINTER :: TEMP3(:),TEMP4(:,:)
 
   if (dbg_set(dbg_SBR)) &
@@ -1235,7 +1235,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 !  LG%KBM1 = KBM1
 
   IF(.not. IOPROC) THEN !ONLY THE FVCOM GROUP PROCS CAN DO THIS
-     
+
      !MATCH BASED ON GRID LOCATIONS!
      ! THIS WILL FIND THE LOCAL NODE AND ELEMENT NUMBERS
      ALLOCATE(EID(0:NG%NGL)); EID=0
@@ -1243,13 +1243,13 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      ALLOCATE(E_max(0:NG%NGL)); E_max = 0.0_SP
      DO I = 1,NG%NGL
 
-#  if !defined (SPHERICAL) 
+#  if !defined (SPHERICAL)
         DIST = abs(XMC-NG%XMC(I)) + abs(YMC-NG%YMC(I))
 
         J = MINLOC(DIST(1:NT),1)
-        
+
         EID(I)=J
-        
+
         E_max(I) = SQRT((XMC(J)-NG%XMC(I))**2 + (YMC(J)-NG%YMC(I))**2)
 
 # else
@@ -1262,22 +1262,22 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
         EID(I)=J
         E_max(I) = DIST(J)
 # endif
-        
+
      END DO
      DEALLOCATE(DIST)
-     
+
      ALLOCATE(NID(0:NG%MGL)); NID=0
      ALLOCATE(DIST(0:MT)); DIST = 0.0_SP
      ALLOCATE(N_max(0:NG%MGL));  N_max = 0.0_SP
      DO I = 1,NG%MGL
 
-#  if !defined (SPHERICAL) 
+#  if !defined (SPHERICAL)
         DIST = abs(XM-NG%XM(I)) + abs(YM-NG%YM(I))
         J = MINLOC(DIST(1:MT),1)
-        
+
 
         NID(I)=J
-        
+
         N_max(I) = SQRT((XM(J)-NG%XM(I))**2 + (YM(J)-NG%YM(I))**2)
 
 # else
@@ -1293,35 +1293,35 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 # endif
      END DO
      DEALLOCATE(DIST)
-     
+
      !COLLECT NEAREST INFO TO ALL PROCESSORS AND KEEP ONLY YOUR OWN
-     
-     
+
+
      ! CELLS
      ALLOCATE(RBUF(0:NG%NGL))
      CALL MPI_ALLREDUCE(E_max,RBUF,NG%NGL+1,MPI_F,MPI_MIN,MPI_FVCOM_GROUP,IERR)
-     
+
      ! WHERE ANOTHER PROCESSOR HAS A CLOSER VALUE - SET EID = 0
      WHERE(E_max - RBUF /=0.0_SP )
         EID = 0
      END WHERE
-     
+
      E_max = RBUF
      DEALLOCATE(RBUF)
-     
+
      !NODES
      ALLOCATE(RBUF(0:NG%MGL))
      CALL MPI_ALLREDUCE(N_max,RBUF,NG%MGL+1,MPI_F,MPI_MIN,MPI_FVCOM_GROUP,IERR)
-     
+
 
      ! WHERE ANOTHER PROCESSOR HAS A CLOSER VALUE - SET EID = 0
      WHERE(N_max - RBUF /=0.0_SP )
         NID = 0
      END WHERE
-     
+
      N_max = RBUF
      DEALLOCATE(RBUF)
-          
+
      ! REPORT ANY DISCREPANCY IN GRID LOCATIONS
      Dmax= max(maxval(E_max),maxval(N_max))
 
@@ -1335,8 +1335,8 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
         end if
      END if
      DEALLOCATE(E_MAX,N_MAX)
-  
-     
+
+
 !============================================
 ! Make a list of the local Nesting nodes
 !============================================
@@ -1346,7 +1346,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      ALLOCATE(TEMP2(0:LG%MGL));      TEMP2=0
      ALLOCATE(TEMP3(0:LG%MGL));         TEMP3 = 0.0_SP
      ALLOCATE(TEMP4(0:LG%MGL,LG%KBM1)); TEMP4 = 0.0_SP
-     
+
      NCNT = 0
      !!SET UP LOCAL NESTING NODES
      DO I=1,LG%MGL
@@ -1359,7 +1359,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 	   TEMP4(NCNT,:) = NG%ZZ(I,:)
         END IF
      END DO
-     
+
      ! SET LOCAL NUMBER OF NESTING NODES
      LG%MT = NCNT
      LG%M = NCNT
@@ -1374,7 +1374,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      LG%NLID_X = TEMP1(0:NCNT)
 
      LG%NGID_X = TEMP2(0:NCNT)
-     
+
      DEALLOCATE(TEMP1)
      DEALLOCATE(TEMP2)
 
@@ -1383,7 +1383,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 
      ALLOCATE(LG%ZZ(0:LG%MT,LG%KBM1),stat=status)
      if(status /= 0) call fatal_error("GENMAP_NESTING: can not allocate:LG%ZZ")
-     
+
      LG%H = TEMP3(0:NCNT)
      LG%ZZ = TEMP4(0:NCNT,1:KBM1)
 
@@ -1398,7 +1398,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      ALLOCATE(TEMP2(0:LG%NGL));      TEMP2=0
      ALLOCATE(TEMP3(0:LG%NGL));         TEMP3=0.0_SP
      ALLOCATE(TEMP4(0:LG%NGL,LG%KBM1)); TEMP4=0.0_SP
-     
+
      NCNT = 0
      !!SET UP LOCAL OPEN BOUNDARY NODES
      DO I=1,LG%NGL
@@ -1411,7 +1411,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 	   TEMP4(NCNT,:) = NG%ZZ1(I,:)
         END IF
      END DO
-     
+
      ! SET LOCAL NUMBER OF NESTING ELEMENTS
      LG%NT = NCNT
      LG%N = NCNT
@@ -1426,7 +1426,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      LG%ELID_X = TEMP1(0:NCNT)
 
      LG%EGID_X = TEMP2(0:NCNT)
-     
+
      DEALLOCATE(TEMP1)
      DEALLOCATE(TEMP2)
 
@@ -1435,7 +1435,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 
      ALLOCATE(LG%ZZ1(0:LG%NT,LG%KBM1),stat=status)
      if(status /= 0) call fatal_error("GENMAP_NESTING: can not allocate:LG%ZZ1")
-     
+
      LG%H1 = TEMP3(0:NCNT)
      LG%ZZ1 = TEMP4(0:NCNT,1:KBM1)
 
@@ -1447,7 +1447,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 
 
   !==============================================================================|
-  !   SET UP ELEMENT MAPPING FOR GLOBAL 2 LOCAL TRANSFER OF BC'S                 | 
+  !   SET UP ELEMENT MAPPING FOR GLOBAL 2 LOCAL TRANSFER OF BC'S                 |
   !   BOUNDARY MAP :: BCMAP(NPROCS)                                              |
   !     BCMAP(1-->NPROCS)%NSIZE  :: NUMBER OF BOUNDARY NODES IN EACH DOM         |
   !     BCMAP(1-->NPROCS)%LOC_2_GL(NSIZE) :: LOCAL TO GLOBAL MAPPING IN EACH DOM |
@@ -1458,7 +1458,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
   CALL ADD_MAP2LIST(INTERNAL_MAPS,E_MAP)
   NULLIFY(E_MAP)
 
-  
+
 
   ! NODES
   N_MAP => MAKE_MAP(MYID,NPROCS,LG%MGL,LG%MT,LG%NGID_X)
@@ -1468,12 +1468,12 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 ! DO NOT DEALLOCATE MAP!!!
 
   if (dbg_set(dbg_sbr)) &
-       & write(IPT,*) "END: GENMAP_NESTING"   
+       & write(IPT,*) "END: GENMAP_NESTING"
   RETURN
 END SUBROUTINE GENMAP_NESTING
   !============================================================================!
   !
-  !============================================================================!   
+  !============================================================================!
   SUBROUTINE ALLOC_NEST ! CALL IN ALLOCATE ALL - USE THE MEM_COUNT!
     IMPLICIT NONE
     TYPE(GRID), POINTER :: G
@@ -1487,7 +1487,7 @@ END SUBROUTINE GENMAP_NESTING
     NDB = 2
 # endif
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START ALLOC_NEST" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START ALLOC_NEST"
 
     IF(NESTING_ON) THEN
 
@@ -1518,7 +1518,15 @@ END SUBROUTINE GENMAP_NESTING
        ALLOCATE(HYW_NEST(0:G%MT,KB),stat=status)
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:HYW_NEST")
 
-# if defined (FABM)
+       ALLOCATE(WCELL_NEST(0:G%NT),stat=status)
+       if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:WCELL_NEST")
+
+       ALLOCATE(WNODE_NEST(0:G%MT),stat=status)
+       if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:WNODE_NEST")
+
+       MEMCNT = MEMCNT + G%NT * (2 + 2*KB)* NDB + G%MT * (1 + 3*KB)* NDB
+
+ # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
           ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,IFABMadv),stat=status) !RJT restricting nesting actions to advectable variables only
 !          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,size(model%state_variables)),stat=status)
@@ -1528,15 +1536,9 @@ END SUBROUTINE GENMAP_NESTING
        END IF
 # endif
 
-       ALLOCATE(WCELL_NEST(0:G%NT),stat=status)
-       if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:WCELL_NEST")
-      
-       ALLOCATE(WNODE_NEST(0:G%MT),stat=status)
-       if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:WNODE_NEST")
+      MEMCNT = MEMCNT + G%MT * KB * IFABMadv
 
-       MEMCNT = MEMCNT + G%NT * (2 + 2*KB)* NDB + G%MT * (1 + 3*KB)* NDB
-
-       ! ALLOCATE SPACE FOR INTERPOLATED DATA
+      ! ALLOCATE SPACE FOR INTERPOLATED DATA
        ALLOCATE(U_NEST_L(0:G%NT,KB_L),stat=status)
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:U_NEST_L")
 
@@ -1554,10 +1556,10 @@ END SUBROUTINE GENMAP_NESTING
 
        MEMCNT = MEMCNT + G%NT * 2*KB_L * NDB + G%MT * 3*KB_L * NDB
 
-       
+
 
        ! ALLOCATE SPACE FOR DATA BLOCK IO FILE
-       
+
        ALLOCATE(NESTING_DATA,STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE NESTING_DATA!")
 
@@ -1568,22 +1570,22 @@ END SUBROUTINE GENMAP_NESTING
        ! ALLOCATE SPACE FOR DATA BLOCK IO FILE
        ALLOCATE(D%UA_BLK(0:G%NT,NESTING_BLOCKSIZE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:UA_BLK")
-       
+
        ALLOCATE(D%VA_BLK(0:G%NT,NESTING_BLOCKSIZE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:VA_BLK")
-       
+
        ALLOCATE(D%EL_BLK(0:G%MT,NESTING_BLOCKSIZE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:EL_BLK")
-       
+
        ALLOCATE(D%U_BLK(0:G%NT,KB_L,NESTING_BLOCKSIZE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:U_BLK")
-       
+
        ALLOCATE(D%V_BLK(0:G%NT,KB_L,NESTING_BLOCKSIZE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:V_BLK")
-       
+
        ALLOCATE(D%S1_BLK(0:G%MT,KB_L,NESTING_BLOCKSIZE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:S1_BLK")
-       
+
        ALLOCATE(D%T1_BLK(0:G%MT,KB_L,NESTING_BLOCKSIZE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:T1_BLK")
 
@@ -1598,7 +1600,7 @@ END SUBROUTINE GENMAP_NESTING
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:FABM_ALL_TMP")
        END IF
 # endif
-       
+
        ALLOCATE(D%TIME_BLK(NESTING_BLOCKSIZE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:TIME_BLK")
 
@@ -1614,12 +1616,12 @@ END SUBROUTINE GENMAP_NESTING
     END IF
 
     IF(NCNEST_ON) THEN
-       
+
 
        ALLOCATE(NCNEST_DATA(NCNEST_NUM),STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE NCNEST_DATA!")
-       
-       
+
+
 
        DO I = 1, NCNEST_NUM
 
@@ -1632,51 +1634,52 @@ END SUBROUTINE GENMAP_NESTING
          ! ALLOCATE SPACE FOR DATA BLOCK IO FILE
          ALLOCATE(D%UA_BLK(0:G%N,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:UA_BLK")
-         
+
          ALLOCATE(D%VA_BLK(0:G%N,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:VA_BLK")
-         
+
          ALLOCATE(D%EL_BLK(0:G%M,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:EL_BLK")
-         
+
          ALLOCATE(D%U_BLK(0:G%N,KB,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:U_BLK")
-         
+
          ALLOCATE(D%V_BLK(0:G%N,KB,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:V_BLK")
-         
+
          ALLOCATE(D%S1_BLK(0:G%M,KB,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:S1_BLK")
-         
+
          ALLOCATE(D%T1_BLK(0:G%M,KB,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:T1_BLK")
-                  
+
          ALLOCATE(D%HYW_BLK(0:G%M,KB,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:HYW_BLK")
-         
+
          ALLOCATE(D%TIME_BLK(NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:TIME_BLK")
 
          ALLOCATE(D%WCELL_BLK(0:G%N,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:WCELL_BLK")
-         
+
          ALLOCATE(D%WNODE_BLK(0:G%M,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:WNODE_BLK")
 # if defined (FABM)
 !       IF(FABM_NCNEST_ON) THEN ! active as long as NCNEST is on
           ALLOCATE(D%FABM_ALL_BLK(0:G%M,KB,NCNEST_BLOCKSIZE,IFABMadv),stat=status)! RJT Use only advectable variables
           if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:D%FABM_ALL_BLK")
+         MEMCNT = MEMCNT + G%M * KB * IFABMadv * NCNEST_BLOCKSIZE
 !       END IF
 # endif
          MEMCNT = MEMCNT + G%N * (2 + 2*KB)* NDB * NCNEST_BLOCKSIZE &
               & +  G%M * (1 + 3*KB)* NDB * NCNEST_BLOCKSIZE
-         
+
       END DO
 
    END IF
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END ALLOC_NEST" 
-   
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END ALLOC_NEST"
+
    RETURN
  END SUBROUTINE ALLOC_NEST
 
@@ -1696,13 +1699,13 @@ END SUBROUTINE GENMAP_NESTING
 
     ! ARRAY TO HOLD TIME DATA
     INTEGER, POINTER :: INT_PNT(:)
-    
+
     INTEGER :: I,status
 # if defined (FABM)
     INTEGER :: IFABM
 # endif
-    
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START SETUP_NEST" 
+
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START SETUP_NEST"
 
     IF(NCNEST_ON)THEN
 
@@ -1712,7 +1715,7 @@ END SUBROUTINE GENMAP_NESTING
        END DO
 
        CALL SETUP_NCNEST_FILE
-       
+
 
     END IF
 
@@ -1730,21 +1733,21 @@ END SUBROUTINE GENMAP_NESTING
        TIMETEST = get_file_time(NESTING_FILE,1)
 
        IF(StartTime < TIMETEST) THEN
-          
+
           CALL PRINT_TIME(TIMETEST,IPT,"NESTING FILE STARTS")
           CALL PRINT_TIME(STARTTIME,IPT,"STARTTIME")
-          
+
           CALL FATAL_ERROR&
                &("THE MODEL START TIME DOES NOT MATCH THE NESTING FILE START TIME")
        END IF
-       
+
        ! TEST THE END TIME
        TIMETEST = get_file_time(NESTING_FILE,DIM%DIM)
        IF(TIMETEST < EndTime) CALL WARNING &
             &("MODEL END TIME EXCEEDS THE NESTING FILE END TIME",&
             & "THIS WILL CAUSE AN ERROR IF THE SUBDOMAIN MODEL OUTPACES",&
             & "THE LARGE DOMAIN MODEL AND NO NEW NESTIND DATA IS AVAILABLE!")
-       
+
        !!========================================
        !! CONNECT MEMORY AND READ FIRST TIME STEP
        !!=======================================
@@ -1774,7 +1777,7 @@ END SUBROUTINE GENMAP_NESTING
        CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%UA_BLK)
        CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
        VAR_UA => VAR
-       
+
        VAR => FIND_VAR(NESTING_FILE,"va",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN NESTING FILE OBJECT NO 'va' FOUND?")
@@ -1821,23 +1824,34 @@ END SUBROUTINE GENMAP_NESTING
 
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
+         IFABMnest = 0 ! Initialise count of nesting variables present in file
+         IFABMnest_idx = IFABMadv_idx
        DO IFABM = 1,IFABMadv
 !         WRITE (6,*) 'Index ', IFABM,IFABMadv_idx(IFABM), 'Name ',TRIM(model%state_variables(IFABMadv_idx(IFABM))%name)
          VAR => FIND_VAR(NESTING_FILE,TRIM(model%state_variables(IFABMadv_idx(IFABM))%name),FOUND) ! RJT looping only through advectable variables
-         IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO "// &
-            & TRIM(model%state_variables(IFABMadv_idx(IFABM))%name)//"  FOUND?")
+! If the variable is in the file
+         IF(FOUND) THEN
+! increase counter
+            IFABMnest = IFABMnest + 1
+! populate variable mapping index
+            IFABMnest_idx(IFABM_nest) = IFABMadv_idx(IFABM)
+            CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)
+            CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
+            NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABMnest)=NESTING_DATA%FABM_ALL_TMP
+! Report variable to log file
+            WRITE(IPT,*) "Found Variable ",TRIM(model%state_variables(IFABMadv_idx(IFABM))%name) , " in nesting file, with nesting index ", IFABMnest
+         END IF
+!         IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO "// &
+!            & TRIM(model%state_variables(IFABMadv_idx(IFABM))%name)//"  FOUND?")
 !         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM))
 !         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
-         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)
-         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
-         NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM)=NESTING_DATA%FABM_ALL_TMP
        END DO
        END IF
 # endif
 
 ! songhu
-       IF(TRIM(NESTING_TYPE) == '3')THEN 
-       
+       IF(TRIM(NESTING_TYPE) == '3')THEN
+
        VAR => FIND_VAR(NESTING_FILE,"weight_cell",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN NESTING FILE OBJECT NO 'weight_cell' FOUND?")
@@ -1850,7 +1864,7 @@ END SUBROUTINE GENMAP_NESTING
        CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%WNODE_BLK)
        CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
        VAR_WNODE => VAR
-       
+
        END IF
 
        ALLOCATE(INT_PNT(NESTING_BLOCKSIZE))
@@ -1871,7 +1885,7 @@ END SUBROUTINE GENMAP_NESTING
        VAR_TIME2=> VAR
 
     END IF
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END SETUP_NEST" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END SETUP_NEST"
 
 
   END Subroutine SETUP_NEST
@@ -1884,7 +1898,7 @@ END SUBROUTINE GENMAP_NESTING
  USE MOD_FABM_DATA
 !   USE fabm, ONLY: fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
 !   USE fabm_types, ONLY: output_none
-# endif 
+# endif
     IMPLICIT NONE
     TYPE(NEST_DATA),POINTER::D
 
@@ -1894,50 +1908,50 @@ END SUBROUTINE GENMAP_NESTING
     TYPE(NCATT),  POINTER :: ATT
 # if defined (FABM)
     REAL(SP), POINTER :: pdata3(:,:,:)
-    TYPE(NCFILE), POINTER :: NCF_FABM 
-# endif 
+    TYPE(NCFILE), POINTER :: NCF_FABM
+# endif
 
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START NESTING_FILE_OBJECT" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START NESTING_FILE_OBJECT"
 
     IF(IOPROC)THEN
 
-       ALLOCATE(D%EL_BLK(Dim_node%dim,NCNEST_BLOCKSIZE),STAT=STATUS) 
+       ALLOCATE(D%EL_BLK(Dim_node%dim,NCNEST_BLOCKSIZE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:EL_BLK")
        D%EL_BLK = 0.0_SP
 
-       ALLOCATE(D%UA_BLK(Dim_nele%dim,NCNEST_BLOCKSIZE),STAT=STATUS) 
+       ALLOCATE(D%UA_BLK(Dim_nele%dim,NCNEST_BLOCKSIZE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UA_BLK")
        D%UA_BLK = 0.0_SP
 
-       ALLOCATE(D%VA_BLK(Dim_nele%dim,NCNEST_BLOCKSIZE),STAT=STATUS) 
+       ALLOCATE(D%VA_BLK(Dim_nele%dim,NCNEST_BLOCKSIZE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:VA_BLK")
        D%VA_BLK = 0.0_SP
 
-       ALLOCATE(D%U_BLK(Dim_nele%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS) 
+       ALLOCATE(D%U_BLK(Dim_nele%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:U_BLK")
        D%U_BLK = 0.0_SP
 
-       ALLOCATE(D%V_BLK(Dim_nele%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS) 
+       ALLOCATE(D%V_BLK(Dim_nele%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:V_BLK")
        D%V_BLK = 0.0_SP
 
-       ALLOCATE(D%S1_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS) 
+       ALLOCATE(D%S1_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:S1_BLK")
        D%S1_BLK = 0.0_SP
 
-       ALLOCATE(D%T1_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS) 
+       ALLOCATE(D%T1_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:T1_BLK")
        D%T1_BLK = 0.0_SP
 
-       ALLOCATE(D%HYW_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS) 
+       ALLOCATE(D%HYW_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:HYW_BLK")
        D%HYW_BLK = 0.0_SP
@@ -1952,7 +1966,7 @@ END SUBROUTINE GENMAP_NESTING
        D%WNODE_BLK = 0.0_SP
 # if defined (FABM)
 !       IF(FABM_NCNEST_ON) THEN
-! this needs a variable with size IFABM... 
+! this needs a variable with size IFABM...
          ALLOCATE(D%FABM_ALL_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE,IFABMadv),STAT=STATUS)
          IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA: D%FABM_ALL_BLK")
@@ -1967,25 +1981,25 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='zeta',&
          & values=D%EL_BLK, DIM1= Dim_node, DIM2 = DIM_TIME)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Water Surface Elevation') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Water Surface Elevation')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='meters') 
+    ATT  => NC_MAKE_ATT(name='units',values='meters')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='positive',values='up') 
+    ATT  => NC_MAKE_ATT(name='positive',values='up')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_surface_elevation') 
+    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_surface_elevation')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='SSH_Mesh') 
+    ATT  => NC_MAKE_ATT(name='grid',values='SSH_Mesh')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -1994,16 +2008,16 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='ua',&
          & values=D%UA_BLK, DIM1= Dim_nele, DIM2= DIM_TIME)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Vertically Averaged x-velocity') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Vertically Averaged x-velocity')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -2013,16 +2027,16 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='va',&
          & values=D%VA_BLK, DIM1= Dim_nele, DIM2= DIM_TIME)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Vertically Averaged y-velocity') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Vertically Averaged y-velocity')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -2030,16 +2044,16 @@ END SUBROUTINE GENMAP_NESTING
     ! U_BLK
     VAR  => NC_MAKE_PVAR(name='u', values=D%U_BLK, DIM1= Dim_nele,&
          & DIM2= DIM_siglay, DIM3= DIM_TIME)
-    ATT  => NC_MAKE_ATT(name='long_name',values='Eastward Water Velocity') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Eastward Water Velocity')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -2048,16 +2062,16 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='v', values=D%V_BLK, DIM1= Dim_nele, &
          & DIM2= DIM_siglay, DIM3 = DIM_TIME)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Northward Water Velocity') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Northward Water Velocity')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -2066,23 +2080,23 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='temp',&
          & values=D%T1_BLK, DIM1= Dim_node, DIM2= DIM_siglay, DIM3 = Dim_time)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='temperature') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='temperature')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_water_temperature') 
+    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_water_temperature')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='degrees_C') 
+    ATT  => NC_MAKE_ATT(name='units',values='degrees_C')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
-    VAR  => ADD(VAR,ATT)    
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
 
@@ -2091,22 +2105,22 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='salinity',&
          & values=D%S1_BLK, DIM1= Dim_node, DIM2= DIM_siglay, DIM3 = Dim_time)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='salinity') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='salinity')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_water_salinity') 
+    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_water_salinity')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='1e-3') 
+    ATT  => NC_MAKE_ATT(name='units',values='1e-3')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
-    VAR  => ADD(VAR,ATT)    
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -2116,19 +2130,19 @@ END SUBROUTINE GENMAP_NESTING
          & values=D%HYW_BLK, DIM1= Dim_node, DIM2= DIM_siglev, DIM3 = Dim_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='hydro static vertical&
-         & velocity') 
+         & velocity')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='m/s') 
+    ATT  => NC_MAKE_ATT(name='units',values='m/s')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
-    VAR  => ADD(VAR,ATT)    
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -2150,7 +2164,7 @@ END SUBROUTINE GENMAP_NESTING
   END FUNCTION NESTING_FILE_OBJECT
   !==================================================================================!
   !
-  !===========================================================================!  
+  !===========================================================================!
   SUBROUTINE ARCHIVE_NEST
     USE MOD_SET_TIME, ONLY : GET_OUTPUT_FILE_INTERVAL
     IMPLICIT NONE
@@ -2161,7 +2175,7 @@ END SUBROUTINE GENMAP_NESTING
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START ARCHIVE_NEST"
 
-    
+
     ! SETUP THE OUTPUT IF THIS HAS NOT BEEN DONE YET
     if(NEED_INIT_NEST) then
        IF(USE_MPI_IO_MODE) THEN
@@ -2171,7 +2185,7 @@ END SUBROUTINE GENMAP_NESTING
           IF (status/=0) call fatal_error("ARCHIVE:: Bad INITNEST_CODE",&
                & "Could not retrieve valid function pointer?")
        END IF
-       
+
        NEED_INIT_NEST = .FALSE.
        NCNEST_CMD_DUMP = .FALSE.
     end if
@@ -2195,11 +2209,11 @@ END SUBROUTINE GENMAP_NESTING
       CALL ASSIGN2BLOCK(D,G)
      END DO
      TIME_INTERVAL = IntTime + INTERVAL_TIME_NCNEST
-    
+
     ! WRITE THE FILE IF IT IS TIME
     IF(NCNEST_DATA(1)%IDX == NCNEST_BLOCKSIZE .or.    &
        IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
-       
+
        IF(USE_MPI_IO_MODE) THEN
           CALL MPI_IO_SYNCHRONIZE(NESTING_CODE)
        ELSE
@@ -2212,20 +2226,20 @@ END SUBROUTINE GENMAP_NESTING
           D=>NCNEST_DATA(I)
           CALL RESET_BLOCK(D)
        END DO
-       
-       
+
+
     END IF
     END IF
 
 !    ! WRITE THE FILE AT THE END OF RUN, OR IF THE RESTART FILE JUST GOT DUMPED!
 !    IF(IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
-       
+
 !      DO I =1,NCNEST_NUM
 !        D=>NCNEST_DATA(I)
 !        G=>NCNEST_GRIDS(I)
 !        CALL ASSIGN2BLOCK(D,G)
 !      END DO
-      
+
 !      IF(USE_MPI_IO_MODE) THEN
 !        CALL MPI_IO_SYNCHRONIZE(NESTING_CODE)
 !      ELSE
@@ -2238,7 +2252,7 @@ END SUBROUTINE GENMAP_NESTING
 !        D=>NCNEST_DATA(I)
 !        CALL RESET_BLOCK(D)
 !      END DO
-       
+
 !    END IF
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END ARCHIVE_NEST"
@@ -2258,10 +2272,10 @@ END SUBROUTINE GENMAP_NESTING
     INTEGER, POINTER :: TEMP1(:),TEMP2(:)
     TYPE(NEST_DATA), POINTER :: D
     REAL(DP) :: INTERVAL
-    
+
     TEMP1 => NULL()
     TEMP2 => NULL()
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START DUMP_NCNEST_FILE" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START DUMP_NCNEST_FILE"
 
 
     DO I =1,NCNEST_NUM
@@ -2273,7 +2287,7 @@ END SUBROUTINE GENMAP_NESTING
 
        ! MAKE MAP FOR SPECIAL END OF RUN CASE IF NEEDED
        IF(NCNEST_DATA(I)%IDX /=NCNEST_BLOCKSIZE) THEN
-          
+
           ! ADJUST THE STACK RANGE
           NCNEST_DATA(I)%RNG(2) = NCNEST_DATA(I)%RNG(1)+NCNEST_DATA(I)%IDX-1
 
@@ -2297,7 +2311,7 @@ END SUBROUTINE GENMAP_NESTING
              NULLIFY(GMAP)
              DEALLOCATE(TEMP2)
 
-          ELSE 
+          ELSE
              ! SINCE TEMP1 STAYS ALLOCATED, IT IS A RECORD OF THE
              ! OTHER PROCESSORS VALUES FOR IDX - CHECK IT!
              IF(SIZE(TEMP1) /= NCNEST_DATA(I)%IDX) call fatal_error&
@@ -2309,15 +2323,15 @@ END SUBROUTINE GENMAP_NESTING
 
 
 
-       
+
        NCF => FIND_FILE(FILEHEAD,NCNEST_FNAMES(I),FOUND)
        IF(.NOT. FOUND) CALL FATAL_ERROR&
             &("DUMP_NCNEST_FILE: COULD NOT FIND FILE IN LIST:"//TRIM(NCNEST_FNAMES(I)))
-       
+
 
        ! UPDATE THE TIME VARIABLES IN THE NCF
        IF(.NOT.IOPROC) THEN
-          
+
           ! TAKE CARE OF END OF MODEL CASE
           CNT=NCNEST_DATA(I)%IDX
 
@@ -2328,7 +2342,7 @@ END SUBROUTINE GENMAP_NESTING
                 CALL WARNING&
                      & ("DUMP_NCNEST_FILE: FOUND ONLY PART OF INTEGER TIME VARIABLE IN OUT PUT FILE!")
              ELSE
-                
+
                 ! USE TRICK WITH POINTERS TO UPDATE THE DATA IN THE TIME VARIABLE
                 DO J=1,NCNEST_BLOCKSIZE
                    VAR1%SCL_INT => VAR1%VEC_INT(J)
@@ -2342,8 +2356,8 @@ END SUBROUTINE GENMAP_NESTING
                 END DO
              END IF
           END IF
-          
-          
+
+
           VAR1 => FIND_VAR(NCF,"time",FOUND)
           IF(FOUND) THEN
              DO J=1,NCNEST_BLOCKSIZE
@@ -2351,7 +2365,7 @@ END SUBROUTINE GENMAP_NESTING
                 VAR1%SCL_DBL => VAR1%VEC_DBL(J)
 # else
                 VAR1%SCL_FLT => VAR1%VEC_FLT(J)
-# endif		
+# endif
                 IF (J <= CNT) THEN
                    CALL UPDATE_FLOAT_TIME_NEST(VAR1,NCNEST_DATA(I)%TIME_BLK(J))
                 ELSE
@@ -2359,12 +2373,12 @@ END SUBROUTINE GENMAP_NESTING
                    VAR1%SCL_DBL = 0
 # else
                    VAR1%SCL_FLT = 0
-# endif		
+# endif
                 END IF
              END DO
           END IF
-          
-          
+
+
           VAR1 => FIND_VAR(NCF,"iint",FOUND)
           IF(FOUND) THEN
              VAR1%VEC_INT = 0
@@ -2384,22 +2398,22 @@ END SUBROUTINE GENMAP_NESTING
        IF(DBG_SET(DBG_IO) .and. I==1)THEN
           WRITE(IPT,*) "IDX=",D%IDX,NCNEST_BLOCKSIZE
           WRITE(IPT,*) "RNG=",D%RNG
-          
+
        END IF
 
 
        CALL NC_WRITE_FILE(NCF,STKRNG=D%RNG)
-       
+
        D%RNG(1)=D%RNG(1)+D%IDX
        D%RNG(2)=D%RNG(1)+NCNEST_BLOCKSIZE-1
-       
+
 
     END DO
 
 
     IF(ASSOCIATED(TEMP1)) DEALLOCATE(TEMP1)
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END DUMP_NCNEST_FILE" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END DUMP_NCNEST_FILE"
 
   END SUBROUTINE DUMP_NCNEST_FILE
 
@@ -2420,7 +2434,7 @@ END SUBROUTINE GENMAP_NESTING
     TYPE(NEST_DATA_WAVE), POINTER :: D
     REAL(DP) :: INTERVAL_WAVE
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START DUMP_NCNEST_FILE_WAVE" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START DUMP_NCNEST_FILE_WAVE"
 
 
     DO I =1,NCNEST_NUM_WAVE
@@ -2432,7 +2446,7 @@ END SUBROUTINE GENMAP_NESTING
 
        ! MAKE MAP FOR SPECIAL END OF RUN CASE IF NEEDED
        IF(NCNEST_DATA_WAVE(I)%IDX /=NCNEST_BLOCKSIZE_WAVE) THEN
-          
+
           ! ADJUST THE STACK RANGE
           NCNEST_DATA_WAVE(I)%RNG(2) = NCNEST_DATA_WAVE(I)%RNG(1)+NCNEST_DATA_WAVE(I)%IDX-1
 
@@ -2456,7 +2470,7 @@ END SUBROUTINE GENMAP_NESTING
              NULLIFY(GMAP)
              DEALLOCATE(TEMP2)
 
-          ELSE 
+          ELSE
              ! SINCE TEMP1 STAYS ALLOCATED, IT IS A RECORD OF THE
              ! OTHER PROCESSORS VALUES FOR IDX - CHECK IT!
              IF(SIZE(TEMP1) /= NCNEST_DATA_WAVE(I)%IDX) call fatal_error&
@@ -2468,15 +2482,15 @@ END SUBROUTINE GENMAP_NESTING
 
 
 
-       
+
        NCF1 => FIND_FILE(FILEHEAD,NCNEST_FNAMES_WAVE(I),FOUND)
        IF(.NOT. FOUND) CALL FATAL_ERROR&
             &("DUMP_NCNEST_FILE_WAVE: COULD NOT FIND FILE IN LIST:"//TRIM(NCNEST_FNAMES_WAVE(I)))
-       
+
 
        ! UPDATE THE TIME VARIABLES IN THE NCF
        IF(.NOT.IOPROC) THEN
-          
+
           ! TAKE CARE OF END OF MODEL CASE
           CNT=NCNEST_DATA_WAVE(I)%IDX
 
@@ -2487,7 +2501,7 @@ END SUBROUTINE GENMAP_NESTING
                 CALL WARNING&
                      & ("DUMP_NCNEST_FILE_WAVE: FOUND ONLY PART OF INTEGER TIME VARIABLE IN OUT PUT FILE!")
              ELSE
-                
+
                 ! USE TRICK WITH POINTERS TO UPDATE THE DATA IN THE TIME VARIABLE
                 DO J=1,NCNEST_BLOCKSIZE_WAVE
                    VAR1%SCL_INT => VAR1%VEC_INT(J)
@@ -2501,8 +2515,8 @@ END SUBROUTINE GENMAP_NESTING
                 END DO
              END IF
           END IF
-          
-          
+
+
           VAR1 => FIND_VAR(NCF1,"time",FOUND)
           IF(FOUND) THEN
              DO J=1,NCNEST_BLOCKSIZE_WAVE
@@ -2510,7 +2524,7 @@ END SUBROUTINE GENMAP_NESTING
                 VAR1%SCL_DBL => VAR1%VEC_DBL(J)
 # else
                 VAR1%SCL_FLT => VAR1%VEC_FLT(J)
-# endif		
+# endif
                 IF (J <= CNT) THEN
                    CALL UPDATE_FLOAT_TIME_NEST(VAR1,NCNEST_DATA_WAVE(I)%TIME_BLK(J))
                 ELSE
@@ -2518,12 +2532,12 @@ END SUBROUTINE GENMAP_NESTING
                    VAR1%SCL_DBL = 0
 # else
                    VAR1%SCL_FLT = 0
-# endif		
+# endif
                 END IF
              END DO
           END IF
-          
-          
+
+
           VAR1 => FIND_VAR(NCF1,"iint",FOUND)
           IF(FOUND) THEN
              VAR1%VEC_INT = 0
@@ -2543,28 +2557,28 @@ END SUBROUTINE GENMAP_NESTING
        IF(DBG_SET(DBG_IO) .and. I==1)THEN
           WRITE(IPT,*) "IDX=",D%IDX,NCNEST_BLOCKSIZE_WAVE
           WRITE(IPT,*) "RNG=",D%RNG
-          
+
        END IF
 
 
        CALL NC_WRITE_FILE(NCF1,STKRNG=D%RNG)
-       
+
        D%RNG(1)=D%RNG(1)+D%IDX
        D%RNG(2)=D%RNG(1)+NCNEST_BLOCKSIZE_WAVE-1
-       
+
 
     END DO
 
 
     IF(ASSOCIATED(TEMP1)) DEALLOCATE(TEMP1)
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END DUMP_NCNEST_FILE_WAVE" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END DUMP_NCNEST_FILE_WAVE"
 
   END SUBROUTINE DUMP_NCNEST_FILE_WAVE
-# endif  
+# endif
   !========================================================================!
   !
-  !========================================================================!  
+  !========================================================================!
   SUBROUTINE SETUP_NCNEST_FILE
     USE CONTROL
     IMPLICIT NONE
@@ -2587,23 +2601,23 @@ END SUBROUTINE GENMAP_NESTING
     END IF
 
     DO I = 1,NCNEST_NUM
-       
+
 
        G => NCNEST_GRIDS(I)
        D => NCNEST_DATA(I)
 
-       
+
        ! ADD DO LOOP HERE OVER NUMBER OF OUTPUT FILES
-       
+
        ! WHAT ABOUT SETTING UP THE DIMENSIONS?
-       
+
        ! ALLOCATE THE NEW FILE OBJECT
        NCF => NEW_FILE()
-       
+
        CALL PATH_SPLIT(NCNEST_FNAMES(I),PATH,FILE,EXT)
-       
+
        NCF%FNAME = trim(OUTPUT_DIR)//trim(FILE)//".nc"
-       
+
        ! CHANGE NAME IN LIST TO NETCDF NAME
        NCNEST_FNAMES(I) = NCF%FNAME
 
@@ -2620,12 +2634,12 @@ END SUBROUTINE GENMAP_NESTING
        NCF3  => IINT_OBJECT(DIM=Dim_time,SIZE=NCNEST_BLOCKSIZE)
        NCF  => ADD(NCF,NCF3)
 !!$       NCF  => ADD(NCF,IINT_OBJECT(DIM=Dim_time,SIZE=NCNEST_BLOCKSIZE))
-       
+
        ! time
        NCF3  => FLOAT_TIME_OBJECT_NEST(USE_MJD=use_real_world_time,DIM=DIM_TIME,SIZE=NCNEST_BLOCKSIZE)
        NCF  => ADD(NCF, NCF3)
 !!$       NCF  => ADD(NCF, FLOAT_TIME_OBJECT(USE_MJD=use_real_world_time,DIM=DIM_TIME,SIZE=NCNEST_BLOCKSIZE))
-       
+
        !ITIME
        NCF3 => ITIME_OBJECT_NEST(Use_MJD=use_real_world_time,DIM=DIM_TIME,SIZE=NCNEST_BLOCKSIZE)
        NCF => ADD(NCF,NCF3)
@@ -2639,15 +2653,15 @@ END SUBROUTINE GENMAP_NESTING
        NCF2 => NESTING_FILE_OBJECT(D)
        NCF => ADD(NCF,NCF2)
 !!$       NCF => ADD(NCF,NESTING_FILE_OBJECT(D) )
-       
+
        NCF%FTIME => NEW_FTIME()
-       
+
        IF (STARTUP_TYPE /= "crashrestart") THEN
           CALL NC_WRITE_FILE(NCF)
           NCF%FTIME%NEXT_STKCNT=1
           D%RNG(1)=1
           D%RNG(2)=NCNEST_BLOCKSIZE
-          
+
        ELSE IF (NCNEST_ON) THEN
           NCF%CONNECTED = .FALSE.
           CALL NC_WRITE_FILE(NCF)
@@ -2672,7 +2686,7 @@ END SUBROUTINE GENMAP_NESTING
        IF(DBG_SET(DBG_IO) .and. I==1)THEN
           WRITE(IPT,*) "SETUP IDX=",D%IDX,NCNEST_BLOCKSIZE
           WRITE(IPT,*) "SETUP RNG=",D%RNG
-          
+
        END IF
 
        FILEHEAD => ADD(FILEHEAD,NCF)
@@ -2733,9 +2747,9 @@ END SUBROUTINE GENMAP_NESTING
     REAL(SP) :: DDDX,DDDY,WW1,U_TMP,V_TMP,DEDY,DEDX,ETF1AA
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START CALC_HYW"
-    
+
     HYW = 0.0_SP
-    
+
     DO I=1, G%M
 
        DO J=1, NTVE(G%NLID(I))
@@ -2803,9 +2817,9 @@ END SUBROUTINE GENMAP_NESTING
 
 
   END SUBROUTINE RESET_BLOCK
-  !========================================================================!  
+  !========================================================================!
   !
-  !========================================================================!    
+  !========================================================================!
 # if defined (FABM)
   SUBROUTINE SET_VAR(NOW,UA,VA,EL,U,V,S1,T1,HYW,FABM_ALL, &
        & ZERO_2D_NODES,ZERO_2D_NODES_OBC,ZERO_3D_NODES,ZERO_3D_NODES_OBC,&
@@ -2815,9 +2829,9 @@ END SUBROUTINE GENMAP_NESTING
        & ZERO_2D_NODES,ZERO_2D_NODES_OBC,ZERO_3D_NODES,ZERO_3D_NODES_OBC,&
        & ZERO_2D_CELLS,ZERO_2D_CELLS_OBC,ZERO_3D_CELLS,ZERO_3D_CELLS_OBC)
 
-# endif 
+# endif
     IMPLICIT NONE
-    TYPE(TIME), INTENT(IN) :: NOW    
+    TYPE(TIME), INTENT(IN) :: NOW
     REAL(SP), ALLOCATABLE, OPTIONAL :: UA(:),VA(:),EL(:)
     REAL(SP), ALLOCATABLE, OPTIONAL :: U(:,:),V(:,:),S1(:,:),T1(:,:),HYW(:,:)
 # if defined (FABM)
@@ -2830,12 +2844,12 @@ END SUBROUTINE GENMAP_NESTING
     REAL(SP), ALLOCATABLE, OPTIONAL :: ZERO_2D_CELLS(:),ZERO_2D_CELLS_OBC(:)
 
 ! To help with SINTER INTERPOLATION
-    REAL(SP), DIMENSION(KBM1)   :: PHY_Z   !Depth(m) in every standary Z levels 
-    REAL(SP), DIMENSION(KBM1)   :: VARZ    !Variable in standary Z levels 
+    REAL(SP), DIMENSION(KBM1)   :: PHY_Z   !Depth(m) in every standary Z levels
+    REAL(SP), DIMENSION(KBM1)   :: VARZ    !Variable in standary Z levels
     REAL(SP), DIMENSION(KBM1_L)  :: ZM      !Depth (m) in every sigma levels for giving node
     REAL(SP), DIMENSION(KBM1_L)  :: VARS    !Variable AT SIGMA LEVELS
 
- 
+
     REAL(DP)     :: denom, numer
     REAL(DP)     :: prev_w, next_w
     INTEGER      :: STEP,PREV,NEXT,I
@@ -2865,7 +2879,7 @@ END SUBROUTINE GENMAP_NESTING
 
 
     PREV = STEP -1
-    NEXT = STEP 
+    NEXT = STEP
 
     ! GET THE INTERPOLATION WEIGHTS
 
@@ -2902,7 +2916,7 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%NT
          I_TMP = NESTING_GRID%ELID_X(I)
-         UA(I_TMP) =  UA_NEST(I) * WCELL_NEST(I) + UA(I_TMP) * (1_SP -  WCELL_NEST(I))  
+         UA(I_TMP) =  UA_NEST(I) * WCELL_NEST(I) + UA(I_TMP) * (1_SP -  WCELL_NEST(I))
        END DO
 
     ELSEIF(PRESENT(VA)) THEN
@@ -2916,7 +2930,7 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%NT
          I_TMP = NESTING_GRID%ELID_X(I)
-         VA(I_TMP) =  VA_NEST(I) * WCELL_NEST(I) + VA(I_TMP) * (1_SP -  WCELL_NEST(I)) 
+         VA(I_TMP) =  VA_NEST(I) * WCELL_NEST(I) + VA(I_TMP) * (1_SP -  WCELL_NEST(I))
        END DO
 
     ELSEIF(PRESENT(EL)) THEN
@@ -2926,16 +2940,16 @@ END SUBROUTINE GENMAP_NESTING
        WNODE_NEST = 1.0_SP
        IF(TRIM(NESTING_TYPE) == '3') WNODE_NEST =  NESTING_DATA%WNODE_BLK(:,PREV) * PREV_W +&
                 & NESTING_DATA%WNODE_BLK(:,NEXT) * NEXT_W
-    
+
        DO I = 1, NESTING_GRID%MT
          I_TMP = NESTING_GRID%NLID_X(I)
-         EL(I_TMP) =  EL_NEST(I) * WNODE_NEST(I) + EL(I_TMP) * (1_SP - WNODE_NEST(I)) 
+         EL(I_TMP) =  EL_NEST(I) * WNODE_NEST(I) + EL(I_TMP) * (1_SP - WNODE_NEST(I))
        END DO
 
     ELSEIF(PRESENT(U)) THEN
        U_NEST_L =  NESTING_DATA%U_BLK(:,:,PREV) * PREV_W +&
                 & NESTING_DATA%U_BLK(:,:,NEXT) * NEXT_W
-		
+
        WCELL_NEST = 1.0_SP
        IF(TRIM(NESTING_TYPE) == '3') WCELL_NEST =  NESTING_DATA%WCELL_BLK(:,PREV) * PREV_W +&
                 & NESTING_DATA%WCELL_BLK(:,NEXT) * NEXT_W
@@ -3015,7 +3029,7 @@ END SUBROUTINE GENMAP_NESTING
 # if defined (FABM)
     ELSEIF(PRESENT(FABM_ALL)) THEN
     IF(FABM_NESTING_ON) THEN
-    DO IFABM = 1,IFABMadv !size(model%state_variables) 
+    DO IFABM = 1,IFABMnest !IFABMadv !size(model%state_variables)
        FABM_ALL_NEST(:,:,IFABM) =   NESTING_DATA%FABM_ALL_BLK(:,:,PREV,IFABM) * PREV_W +&
                 &  NESTING_DATA%FABM_ALL_BLK(:,:,NEXT,IFABM) * NEXT_W
 
@@ -3027,7 +3041,7 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%MT
           I_TMP = NESTING_GRID%NLID_X(I)
-          FABM_ALL(I_TMP,:,IFABMadv_idx(IFABM)) =  FABM_ALL_NEST(I,:,IFABM) * WNODE_NEST(I) + FABM_ALL(I_TMP,:,IFABMadv_idx(IFABM)) * (1_SP - WNODE_NEST(I))
+          FABM_ALL(I_TMP,:,IFABMnest_idx(IFABM)) =  FABM_ALL_NEST(I,:,IFABM) * WNODE_NEST(I) + FABM_ALL(I_TMP,:,IFABMnest_idx(IFABM)) * (1_SP - WNODE_NEST(I))
        END DO
     END DO
     END IF
@@ -3114,7 +3128,7 @@ END SUBROUTINE GENMAP_NESTING
 
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END SET_NOW (NESTING)"
-    
+
   END SUBROUTINE SET_VAR
 
   SUBROUTINE UPDATE_BLOCK(NOW)
@@ -3203,10 +3217,11 @@ END SUBROUTINE GENMAP_NESTING
 
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
-       DO IFABM = 1,IFABMadv
-         VAR => FIND_VAR(NESTING_FILE,TRIM(model%state_variables(IFABMadv_idx(IFABM))%name),FOUND)! RJT looping only through advectable variables
+       DO IFABM = 1,IFABMnest
+         VAR => FIND_VAR(NESTING_FILE,TRIM(model%state_variables(IFABMnest_idx(IFABM))%name),FOUND)! RJT looping only through variables in the file
+! Fatal error here is justified
          IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO "// &
-            & TRIM(model%state_variables(IFABMadv_idx(IFABM))%name)//"  FOUND?")
+            & TRIM(model%state_variables(IFABMnest_idx(IFABM))%name)//"  FOUND?")
 !         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM))
 !         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
          CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)
@@ -3235,7 +3250,7 @@ END SUBROUTINE GENMAP_NESTING
        CALL NC_READ_VAR(VAR_TIME1,STKRNG=NESTING_DATA%RNG)
        CALL NC_READ_VAR(VAR_TIME2,STKRNG=NESTING_DATA%RNG)
     END IF
-        
+
     ! UPDATE THE DATA IN THE TIME BLOCK
     DO J=1,MYSIZE
        NESTING_DATA%TIME_BLK(J) = NCITIME(VAR_TIME1%VEC_INT(J),VAR_TIME2%VEC_INT(J))
@@ -3243,7 +3258,7 @@ END SUBROUTINE GENMAP_NESTING
 
     ! RESET ALLOCATION and SET THE END OF THE DATA TO A LATER TIME...
     IF (MYSIZE /= NESTING_BLOCKSIZE) THEN
-       
+
        J = MYSIZE +1
        NESTING_DATA%TIME_BLK(j:NESTING_BLOCKSIZE) = &
             & NESTING_DATA%TIME_BLK(MYSIZE) + days2time(1000)
@@ -3262,7 +3277,7 @@ END SUBROUTINE GENMAP_NESTING
   END SUBROUTINE UPDATE_BLOCK
   !===========================================================================!
   !
-  !============================================================================!   
+  !============================================================================!
 # if defined (WAVE_CURRENT_INTERACTION)
   SUBROUTINE ALLOC_NEST_WAVE ! CALL IN ALLOCATE ALL - USE THE MEM_COUNT!
     IMPLICIT NONE
@@ -3277,12 +3292,12 @@ END SUBROUTINE GENMAP_NESTING
     NDB = 2
 # endif
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START ALLOC_NEST_WAVE" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START ALLOC_NEST_WAVE"
 
     IF(NESTING_ON_WAVE) THEN
 
        G => NESTING_GRID_WAVE
-       
+
        IF(TRIM(NESTING_TYPE_WAVE) == 'wave parameters')THEN
 
        ! ALLOCATE SPACE FOR INTERPOLATED DATA
@@ -3304,15 +3319,15 @@ END SUBROUTINE GENMAP_NESTING
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:AC2_NEST")
 
        MEMCNT = MEMCNT + G%MT * MDC * MSC * NDB
-       
+
        ELSE
          CALL FATAL_ERROR("THE PARAMETER NESTING_TYPE_WAVE NOT CORRECT.")
        END IF
 
-       
+
 
        ! ALLOCATE SPACE FOR DATA BLOCK IO FILE
-       
+
        ALLOCATE(NESTING_DATA_WAVE,STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE NESTING_DATA_WAVE!")
 
@@ -3325,23 +3340,23 @@ END SUBROUTINE GENMAP_NESTING
        ! ALLOCATE SPACE FOR DATA BLOCK IO FILE
        ALLOCATE(D%HSC1_BLK(0:G%MT,NESTING_BLOCKSIZE_WAVE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:HSC1_BLK")
-       
+
        ALLOCATE(D%TPEAK_BLK(0:G%MT,NESTING_BLOCKSIZE_WAVE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:TPEAK_BLK")
-       
+
        ALLOCATE(D%DIRDEG1_BLK(0:G%MT,NESTING_BLOCKSIZE_WAVE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:DIRDEG1_BLK")
-       
+
        MEMCNT = MEMCNT + G%MT * 3 * NDB * NESTING_BLOCKSIZE_WAVE
 
        ELSE IF(TRIM(NESTING_TYPE_WAVE) == 'spectral density')THEN
-       
+
        ! ALLOCATE SPACE FOR DATA BLOCK IO FILE
        ALLOCATE(D%AC2_BLK(0:G%MT,MSC,MDC,NESTING_BLOCKSIZE_WAVE),stat=status)
        if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:AC2_BLK")
-       
+
        MEMCNT = MEMCNT + G%MT * MDC * MSC * NDB * NESTING_BLOCKSIZE_WAVE
-       
+
        ELSE
          CALL FATAL_ERROR("THE PARAMETER NESTING_TYPE_WAVE NOT CORRECT.")
        END IF
@@ -3354,11 +3369,11 @@ END SUBROUTINE GENMAP_NESTING
     END IF
 
     IF(NCNEST_ON_WAVE) THEN
-       
+
 
        ALLOCATE(NCNEST_DATA_WAVE(NCNEST_NUM_WAVE),STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE NCNEST_DATA_WAVE!")
-       
+
        DO I = 1, NCNEST_NUM_WAVE
 
          G=> NCNEST_GRIDS_WAVE(I)
@@ -3371,23 +3386,23 @@ END SUBROUTINE GENMAP_NESTING
          ! ALLOCATE SPACE FOR DATA BLOCK IO FILE
          ALLOCATE(D%HSC1_BLK(0:G%M,NCNEST_BLOCKSIZE_WAVE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:HSC1_BLK")
-         
+
          ALLOCATE(D%TPEAK_BLK(0:G%M,NCNEST_BLOCKSIZE_WAVE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:TPEAK_BLK")
-         
+
          ALLOCATE(D%DIRDEG1_BLK(0:G%M,NCNEST_BLOCKSIZE_WAVE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:DIRDEG1_BLK")
-         
+
          MEMCNT = MEMCNT + G%M * 3 * NDB * NCNEST_BLOCKSIZE_WAVE
-         
+
          ELSE IF(TRIM(NCNEST_TYPE_WAVE) == 'spectral density')THEN
-	 
+
          ! ALLOCATE SPACE FOR DATA BLOCK IO FILE
          ALLOCATE(D%AC2_BLK(0:G%M,MSC,MDC,NCNEST_BLOCKSIZE_WAVE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:AC2_BLK")
-         
+
          MEMCNT = MEMCNT + G%M * MDC * MSC * NDB * NCNEST_BLOCKSIZE_WAVE
-         
+
 	 ELSE
            CALL FATAL_ERROR("THE PARAMETER NCNEST_TYPE_WAVE NOT CORRECT.")
 	 END IF
@@ -3401,8 +3416,8 @@ END SUBROUTINE GENMAP_NESTING
 
    END IF
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END ALLOC_NEST_WAVE" 
-   
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END ALLOC_NEST_WAVE"
+
    RETURN
  END SUBROUTINE ALLOC_NEST_WAVE
   !==================================================================================!
@@ -3421,10 +3436,10 @@ END SUBROUTINE GENMAP_NESTING
 
     ! ARRAY TO HOLD TIME DATA
     INTEGER, POINTER :: INT_PNT(:)
-    
+
     INTEGER :: I,status
-    
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START SETUP_NEST_WAVE" 
+
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START SETUP_NEST_WAVE"
 
     IF(NCNEST_ON_WAVE)THEN
 
@@ -3434,7 +3449,7 @@ END SUBROUTINE GENMAP_NESTING
        END DO
 
        CALL SETUP_NCNEST_FILE_WAVE
-       
+
 
     END IF
 
@@ -3452,21 +3467,21 @@ END SUBROUTINE GENMAP_NESTING
        TIMETEST = get_file_time(NESTING_FILE_WAVE,1)
 
        IF(StartTime < TIMETEST) THEN
-          
+
           CALL PRINT_TIME(TIMETEST,IPT,"WAVE NESTING FILE STARTS")
           CALL PRINT_TIME(STARTTIME,IPT,"STARTTIME")
-          
+
           CALL FATAL_ERROR&
                &("THE MODEL START TIME DOES NOT MATCH THE WAVE NESTING FILE START TIME")
        END IF
-       
+
        ! TEST THE END TIME
        TIMETEST = get_file_time(NESTING_FILE_WAVE,DIM%DIM)
        IF(TIMETEST < EndTime) CALL WARNING &
             &("MODEL END TIME EXCEEDS THE WAVE NESTING FILE END TIME",&
             & "THIS WILL CAUSE AN ERROR IF THE SUBDOMAIN MODEL OUTPACES",&
             & "THE LARGE DOMAIN MODEL AND NO NEW NESTIND DATA IS AVAILABLE!")
-       
+
        !!========================================
        !! CONNECT MEMORY AND READ FIRST TIME STEP
        !!=======================================
@@ -3498,7 +3513,7 @@ END SUBROUTINE GENMAP_NESTING
        CALL NC_CONNECT_PVAR(VAR, NESTING_DATA_WAVE%TPEAK_BLK)
        CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA_WAVE%RNG)
        VAR_TPEAK => VAR
-       
+
        VAR => FIND_VAR(NESTING_FILE_WAVE,"wdir",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN WAVE NESTING FILE OBJECT NO 'wdir' FOUND?")
@@ -3518,7 +3533,7 @@ END SUBROUTINE GENMAP_NESTING
        ELSE
          CALL FATAL_ERROR("THE PARAMETER NESTING_TYPE_WAVE NOT CORRECT.")
        END IF
-       
+
        ALLOCATE(INT_PNT(NESTING_BLOCKSIZE_WAVE))
        VAR => FIND_VAR(NESTING_FILE_WAVE,"Itime",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
@@ -3537,13 +3552,13 @@ END SUBROUTINE GENMAP_NESTING
        VAR_TIME2=> VAR
 
     END IF
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END SETUP_NEST_WAVE" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "END SETUP_NEST_WAVE"
 
 
   END Subroutine SETUP_NEST_WAVE
   !==================================================================================!
   !
-  !========================================================================!  
+  !========================================================================!
   SUBROUTINE SETUP_NCNEST_FILE_WAVE
     USE CONTROL
     IMPLICIT NONE
@@ -3566,23 +3581,23 @@ END SUBROUTINE GENMAP_NESTING
     END IF
 
     DO I = 1,NCNEST_NUM_WAVE
-       
+
 
        G => NCNEST_GRIDS_WAVE(I)
        D => NCNEST_DATA_WAVE(I)
 
-       
+
        ! ADD DO LOOP HERE OVER NUMBER OF OUTPUT FILES
-       
+
        ! WHAT ABOUT SETTING UP THE DIMENSIONS?
-       
+
        ! ALLOCATE THE NEW FILE OBJECT
        NCF1 => NEW_FILE()
-       
+
        CALL PATH_SPLIT(NCNEST_FNAMES_WAVE(I),PATH,FILE,EXT)
-       
+
        NCF1%FNAME = trim(OUTPUT_DIR)//trim(FILE)//".nc"
-       
+
        ! CHANGE NAME IN LIST TO NETCDF NAME
        NCNEST_FNAMES_WAVE(I) = NCF1%FNAME
 
@@ -3599,12 +3614,12 @@ END SUBROUTINE GENMAP_NESTING
         NCF3  => IINT_OBJECT(DIM=Dim_time,SIZE=NCNEST_BLOCKSIZE_WAVE)
         NCF1  => ADD(NCF1,NCF3)
 !!$        NCF1  => ADD(NCF1,IINT_OBJECT(DIM=Dim_time,SIZE=NCNEST_BLOCKSIZE_WAVE))
-       
+
         ! time
         NCF3  => FLOAT_TIME_OBJECT_NEST(USE_MJD=use_real_world_time,DIM=DIM_TIME,SIZE=NCNEST_BLOCKSIZE_WAVE)
         NCF1  => ADD(NCF1, NCF3)
 !!$        NCF1  => ADD(NCF1, FLOAT_TIME_OBJECT(USE_MJD=use_real_world_time,DIM=DIM_TIME,SIZE=NCNEST_BLOCKSIZE_WAVE))
-       
+
         !ITIME
         NCF3 => ITIME_OBJECT_NEST(Use_MJD=use_real_world_time,DIM=DIM_TIME,SIZE=NCNEST_BLOCKSIZE_WAVE)
         NCF1 => ADD(NCF1,NCF3)
@@ -3618,15 +3633,15 @@ END SUBROUTINE GENMAP_NESTING
        NCF2 => NESTING_FILE_OBJECT_WAVE(D)
        NCF1 => ADD(NCF1,NCF2)
 !!$       NCF1 => ADD(NCF1,NESTING_FILE_OBJECT_WAVE(D) )
-       
+
        NCF1%FTIME => NEW_FTIME()
-       
+
        IF (STARTUP_TYPE /= "crashrestart") THEN
           CALL NC_WRITE_FILE(NCF1)
           NCF1%FTIME%NEXT_STKCNT=1
           D%RNG(1)=1
           D%RNG(2)=NCNEST_BLOCKSIZE_WAVE
-          
+
        ELSE IF (NCNEST_ON_WAVE) THEN
           NCF1%CONNECTED = .FALSE.
           CALL NC_WRITE_FILE(NCF1)
@@ -3651,7 +3666,7 @@ END SUBROUTINE GENMAP_NESTING
        IF(DBG_SET(DBG_IO) .and. I==1)THEN
           WRITE(IPT,*) "SETUP IDX=",D%IDX,NCNEST_BLOCKSIZE_WAVE
           WRITE(IPT,*) "SETUP RNG=",D%RNG
-          
+
        END IF
 
        FILEHEAD => ADD(FILEHEAD,NCF1)
@@ -3676,30 +3691,30 @@ END SUBROUTINE GENMAP_NESTING
     TYPE(NCVAR),  POINTER :: VAR
     TYPE(NCATT),  POINTER :: ATT
 
-    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START NESTING_FILE_OBJECT_WAVE" 
+    IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START NESTING_FILE_OBJECT_WAVE"
 
     IF(IOPROC)THEN
 
       IF(TRIM(NCNEST_TYPE_WAVE) == 'wave parameters')THEN
 
-       ALLOCATE(D%HSC1_BLK(Dim_node%dim,NCNEST_BLOCKSIZE_WAVE),STAT=STATUS) 
+       ALLOCATE(D%HSC1_BLK(Dim_node%dim,NCNEST_BLOCKSIZE_WAVE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:HSC1_BLK")
        D%HSC1_BLK = 0.0_SP
 
-       ALLOCATE(D%TPEAK_BLK(Dim_node%dim,NCNEST_BLOCKSIZE_WAVE),STAT=STATUS) 
+       ALLOCATE(D%TPEAK_BLK(Dim_node%dim,NCNEST_BLOCKSIZE_WAVE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:TPEAK_BLK")
        D%TPEAK_BLK = 0.0_SP
 
-       ALLOCATE(D%DIRDEG1_BLK(Dim_node%dim,NCNEST_BLOCKSIZE_WAVE),STAT=STATUS) 
+       ALLOCATE(D%DIRDEG1_BLK(Dim_node%dim,NCNEST_BLOCKSIZE_WAVE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:DIRDEG1_BLK")
        D%DIRDEG1_BLK = 0.0_SP
 
       ELSE IF(TRIM(NCNEST_TYPE_WAVE) == 'spectral density')THEN
 
-       ALLOCATE(D%AC2_BLK(Dim_node%dim,MSC,MDC,NCNEST_BLOCKSIZE_WAVE),STAT=STATUS) 
+       ALLOCATE(D%AC2_BLK(Dim_node%dim,MSC,MDC,NCNEST_BLOCKSIZE_WAVE),STAT=STATUS)
        IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:AC2_BLK")
        D%AC2_BLK = 0.0_SP
@@ -3707,7 +3722,7 @@ END SUBROUTINE GENMAP_NESTING
       ELSE
         CALL FATAL_ERROR("THE PARAMETER NCNEST_TYPE_WAVE SHOULD BE 'wave parameters' or 'spectral density'")
       END IF
-      
+
     END IF
 
 
@@ -3719,16 +3734,16 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='hs',&
          & values=D%HSC1_BLK, DIM1= Dim_node, DIM2 = DIM_TIME)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Significant Wave Height') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Significant Wave Height')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='meters') 
+    ATT  => NC_MAKE_ATT(name='units',values='meters')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -3737,16 +3752,16 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='tpeak',&
          & values=D%TPEAK_BLK, DIM1= Dim_node, DIM2= DIM_TIME)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Relative Peak Period') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Relative Peak Period')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='s') 
+    ATT  => NC_MAKE_ATT(name='units',values='s')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -3756,16 +3771,16 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='wdir',&
          & values=D%DIRDEG1_BLK, DIM1= Dim_node, DIM2= DIM_TIME)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Wave Direction') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Wave Direction')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='degree') 
+    ATT  => NC_MAKE_ATT(name='units',values='degree')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
@@ -3776,22 +3791,22 @@ END SUBROUTINE GENMAP_NESTING
     VAR  => NC_MAKE_PVAR(name='ac2',&
          & values=D%AC2_BLK, DIM1= Dim_node, DIM2 = Dim_MSC, DIM3 = DIM_MDC, DIM4 = DIM_TIME)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Wave Spectral Density') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Wave Spectral Density')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='m^2/hz^2') 
+    ATT  => NC_MAKE_ATT(name='units',values='m^2/hz^2')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    ATT  => NC_MAKE_ATT(name='type',values='data')
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
 
     ELSE
-      CALL FATAL_ERROR("THE PARAMETER NCNEST_TYPE_WAVE SHOULD BE 'wave parameters' or 'spectral density'")    
+      CALL FATAL_ERROR("THE PARAMETER NCNEST_TYPE_WAVE SHOULD BE 'wave parameters' or 'spectral density'")
     END IF
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END NESTING_FILE_OBJECT_WAVE"
@@ -3799,7 +3814,7 @@ END SUBROUTINE GENMAP_NESTING
   END FUNCTION NESTING_FILE_OBJECT_WAVE
   !==================================================================================!
   !
-  !===========================================================================!  
+  !===========================================================================!
   SUBROUTINE ARCHIVE_NEST_WAVE
     USE MOD_SET_TIME, ONLY : GET_OUTPUT_FILE_INTERVAL
     IMPLICIT NONE
@@ -3810,7 +3825,7 @@ END SUBROUTINE GENMAP_NESTING
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START ARCHIVE_NEST_WAVE"
 
-    
+
     ! SETUP THE OUTPUT IF THIS HAS NOT BEEN DONE YET
     if(NEED_INIT_NEST) then
        IF(USE_MPI_IO_MODE) THEN
@@ -3820,7 +3835,7 @@ END SUBROUTINE GENMAP_NESTING
           IF (status/=0) call fatal_error("ARCHIVE:: Bad INITNEST_CODE_WAVE",&
                & "Could not retrieve valid function pointer?")
        END IF
-       
+
        NEED_INIT_NEST = .FALSE.
        NCNEST_CMD_DUMP = .FALSE.
     end if
@@ -3844,11 +3859,11 @@ END SUBROUTINE GENMAP_NESTING
        CALL ASSIGN2BLOCK_WAVE(D,G)
      END DO
      TIME_INTERVAL_WAVE = IntTime + INTERVAL_TIME_NCNEST_WAVE
-    
+
     ! WRITE THE FILE IF IT IS TIME
     IF(NCNEST_DATA_WAVE(1)%IDX == NCNEST_BLOCKSIZE_WAVE .or.   &
        IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
-       
+
        IF(USE_MPI_IO_MODE) THEN
           CALL MPI_IO_SYNCHRONIZE(NESTING_CODE_WAVE)
        ELSE
@@ -3861,19 +3876,19 @@ END SUBROUTINE GENMAP_NESTING
           D=>NCNEST_DATA_WAVE(I)
           CALL RESET_BLOCK_WAVE(D)
        END DO
-       
-     END IF  
+
+     END IF
     END IF
 
 !    ! WRITE THE FILE AT THE END OF RUN, OR IF THE RESTART FILE JUST GOT DUMPED!
 !    IF(IntTime >= EndTime .or. NCNEST_CMD_DUMP) then
-       
+
 !      DO I =1,NCNEST_NUM_WAVE
 !        D=>NCNEST_DATA_WAVE(I)
 !        G=>NCNEST_GRIDS_WAVE(I)
 !        CALL ASSIGN2BLOCK_WAVE(D,G)
 !      END DO
-      
+
 !      IF(USE_MPI_IO_MODE) THEN
 !        CALL MPI_IO_SYNCHRONIZE(NESTING_CODE_WAVE)
 !      ELSE
@@ -3886,9 +3901,9 @@ END SUBROUTINE GENMAP_NESTING
 !        D=>NCNEST_DATA_WAVE(I)
 !        CALL RESET_BLOCK_WAVE(D)
 !      END DO
-       
+
 !    END IF
-    
+
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END ARCHIVE_NEST_WAVE"
   END SUBROUTINE ARCHIVE_NEST_WAVE
   !========================================================================!
@@ -3914,14 +3929,14 @@ END SUBROUTINE GENMAP_NESTING
     D%TIME_BLK(D%IDX)      = INTTIME
 
     ELSE IF(TRIM(NCNEST_TYPE_WAVE) == 'spectral density')THEN
-    
+
     DO ID=1,MDC
     DO IS=1,MSC
-      ALLOCATE(AC2_TT(0:MT)) 
+      ALLOCATE(AC2_TT(0:MT))
       AC2_TT(:) = AC2(ID,IS,:)
       D%AC2_BLK(:,IS,ID,D%IDX)    = AC2_TT(G%NLID(:))
       DEALLOCATE(AC2_TT)
-    END DO  
+    END DO
     END DO
     D%TIME_BLK(D%IDX)      = INTTIME
 
@@ -3952,7 +3967,7 @@ END SUBROUTINE GENMAP_NESTING
 
     D%AC2_BLK    =  -99.0_SP
     D%TIME_BLK    =  zerotime
-    
+
     ELSE
       CALL FATAL_ERROR("THE PARAMETER NCNEST_TYPE_WAVE SHOULD BE 'wave parameters' or 'spectral density'")
     END IF
@@ -4041,7 +4056,7 @@ END SUBROUTINE GENMAP_NESTING
     ELSE
       CALL FATAL_ERROR("THE PARAMETER NESTING_TYPE_WAVE SHOULD BE 'wave parameters' or 'spectral density'")
     END IF
-    
+
     ! TIME IS A PROBLEM IS THE BLOCK SIZE DOES NOT MATCH THE
     ! ALLOCATED SIZE
     IF (MYSIZE /= NESTING_BLOCKSIZE_WAVE) THEN
@@ -4058,7 +4073,7 @@ END SUBROUTINE GENMAP_NESTING
        CALL NC_READ_VAR(VAR_TIME1,STKRNG=NESTING_DATA_WAVE%RNG)
        CALL NC_READ_VAR(VAR_TIME2,STKRNG=NESTING_DATA_WAVE%RNG)
     END IF
-        
+
     ! UPDATE THE DATA IN THE TIME BLOCK
     DO J=1,MYSIZE
        NESTING_DATA_WAVE%TIME_BLK(J) = NCITIME(VAR_TIME1%VEC_INT(J),VAR_TIME2%VEC_INT(J))
@@ -4066,7 +4081,7 @@ END SUBROUTINE GENMAP_NESTING
 
     ! RESET ALLOCATION and SET THE END OF THE DATA TO A LATER TIME...
     IF (MYSIZE /= NESTING_BLOCKSIZE_WAVE) THEN
-       
+
        J = MYSIZE +1
        NESTING_DATA_WAVE%TIME_BLK(j:NESTING_BLOCKSIZE_WAVE) = &
             & NESTING_DATA_WAVE%TIME_BLK(MYSIZE) + days2time(1000)
@@ -4083,16 +4098,16 @@ END SUBROUTINE GENMAP_NESTING
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END UPDATE_BLOCK_WAVE (NESTING)"
 
   END SUBROUTINE UPDATE_BLOCK_WAVE
-  !========================================================================!  
+  !========================================================================!
   !
-  !========================================================================!    
+  !========================================================================!
   SUBROUTINE SET_VAR_WAVE(NOW,HSC1,TPEAK,DIRDEG1,                              &
        & ZERO_2D_NODES,ZERO_2D_NODES_OBC,ZERO_3D_NODES,ZERO_3D_NODES_OBC,&
        & ZERO_2D_CELLS,ZERO_2D_CELLS_OBC,ZERO_3D_CELLS,ZERO_3D_CELLS_OBC)
 
     IMPLICIT NONE
-    TYPE(TIME), INTENT(IN) :: NOW    
-    REAL(SP), ALLOCATABLE, OPTIONAL :: HSC1(:),TPEAK(:),DIRDEG1(:) 
+    TYPE(TIME), INTENT(IN) :: NOW
+    REAL(SP), ALLOCATABLE, OPTIONAL :: HSC1(:),TPEAK(:),DIRDEG1(:)
     REAL(SP), ALLOCATABLE, OPTIONAL :: ZERO_3D_NODES(:,:),ZERO_3D_NODES_OBC(:,:)
     REAL(SP), ALLOCATABLE, OPTIONAL :: ZERO_2D_NODES(:),ZERO_2D_NODES_OBC(:)
 
@@ -4103,7 +4118,7 @@ END SUBROUTINE GENMAP_NESTING
     REAL(DP)     :: denom, numer
     REAL(DP)     :: prev_w, next_w
     INTEGER      :: STEP,PREV,NEXT,I
-    
+
     REAL(SP), ALLOCATABLE :: X0(:),X1(:),X2(:),Y0(:),Y1(:),Y2(:),ANGLE(:)
 
     TYPE(TIME) :: TDIFF
@@ -4128,7 +4143,7 @@ END SUBROUTINE GENMAP_NESTING
 
 
     PREV = STEP -1
-    NEXT = STEP 
+    NEXT = STEP
 
     ! GET THE INTERPOLATION WEIGHTS
 
@@ -4179,21 +4194,21 @@ END SUBROUTINE GENMAP_NESTING
        ALLOCATE(ANGLE(0:G%MT))
        X1 = COS(NESTING_DATA_WAVE%DIRDEG1_BLK(:,PREV)*DEG2RAD)
        X2 = COS(NESTING_DATA_WAVE%DIRDEG1_BLK(:,NEXT)*DEG2RAD)
-       Y1 = SIN(NESTING_DATA_WAVE%DIRDEG1_BLK(:,PREV)*DEG2RAD)  
-       Y2 = SIN(NESTING_DATA_WAVE%DIRDEG1_BLK(:,NEXT)*DEG2RAD)  
+       Y1 = SIN(NESTING_DATA_WAVE%DIRDEG1_BLK(:,PREV)*DEG2RAD)
+       Y2 = SIN(NESTING_DATA_WAVE%DIRDEG1_BLK(:,NEXT)*DEG2RAD)
        X0 = X1*PREV_W + X2*NEXT_W
        Y0 = Y1*PREV_W + Y2*NEXT_W
        ANGLE = ATAN2(Y0,X0)
        WHERE(ANGLE < 0.) ANGLE = ANGLE + PI*2.0
-       DIRDEG1_NEST = ANGLE*180.0/PI          
-       
+       DIRDEG1_NEST = ANGLE*180.0/PI
+
 !       DIRDEG1_NEST =  NESTING_DATA_WAVE%DIRDEG1_BLK(:,PREV) * PREV_W +&
 !                & NESTING_DATA_WAVE%DIRDEG1_BLK(:,NEXT) * NEXT_W
 
        DO I = 1, NESTING_GRID_WAVE%MT
           DIRDEG1(NESTING_GRID_WAVE%NLID_X(I)) =  DIRDEG1_NEST(I)
        END DO
-       
+
        DEALLOCATE(X1,X2,Y1,Y2,X0,Y0,ANGLE)
 
     END IF
@@ -4201,21 +4216,21 @@ END SUBROUTINE GENMAP_NESTING
 
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END SET_VAR_WAVE (NESTING)"
-    
+
   END SUBROUTINE SET_VAR_WAVE
-  !========================================================================!    
+  !========================================================================!
   !
-  !========================================================================!    
+  !========================================================================!
   SUBROUTINE SET_VAR_WAVE_AC2(NOW,AC2)
 
     IMPLICIT NONE
-    TYPE(TIME), INTENT(IN) :: NOW    
-    REAL(SP), ALLOCATABLE, OPTIONAL :: AC2(:,:,:) 
+    TYPE(TIME), INTENT(IN) :: NOW
+    REAL(SP), ALLOCATABLE, OPTIONAL :: AC2(:,:,:)
 
     REAL(DP)     :: denom, numer
     REAL(DP)     :: prev_w, next_w
     INTEGER      :: STEP,PREV,NEXT,I,ID,IS
-    
+
     REAL(SP), ALLOCATABLE :: X0(:),X1(:),X2(:),Y0(:),Y1(:),Y2(:),ANGLE(:)
 
     TYPE(TIME) :: TDIFF
@@ -4240,7 +4255,7 @@ END SUBROUTINE GENMAP_NESTING
 
 
     PREV = STEP -1
-    NEXT = STEP 
+    NEXT = STEP
 
     ! GET THE INTERPOLATION WEIGHTS
 
@@ -4279,7 +4294,7 @@ END SUBROUTINE GENMAP_NESTING
     END IF
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END SET_VAR_WAVE (NESTING)"
-    
+
   END SUBROUTINE SET_VAR_WAVE_AC2
 # endif
 # else
@@ -4288,17 +4303,17 @@ END SUBROUTINE GENMAP_NESTING
 
   SUBROUTINE SET_VAR(NOW,UA,VA,EL,U,V,S1,T1,HYW)
     IMPLICIT NONE
-    TYPE(TIME), INTENT(IN) :: NOW    
+    TYPE(TIME), INTENT(IN) :: NOW
     REAL(SP), ALLOCATABLE, OPTIONAL :: UA(:),VA(:),EL(:)
     REAL(SP), ALLOCATABLE, OPTIONAL :: U(:,:),V(:,:),S1(:,:),T1(:,:),HYW(:,:)
   END SUBROUTINE SET_VAR
 
   SUBROUTINE SET_VAR_WAVE(NOW,HSC1,TPEAK,DIRDEG1)
     IMPLICIT NONE
-    TYPE(TIME), INTENT(IN) :: NOW    
-    REAL(SP), ALLOCATABLE, OPTIONAL :: HSC1(:),TPEAK(:),DIRDEG1(:)   
+    TYPE(TIME), INTENT(IN) :: NOW
+    REAL(SP), ALLOCATABLE, OPTIONAL :: HSC1(:),TPEAK(:),DIRDEG1(:)
   END SUBROUTINE SET_VAR_WAVE
-  
+
   SUBROUTINE ARCHIVE_NEST
     IMPLICIT NONE
   END SUBROUTINE ARCHIVE_NEST
@@ -4335,10 +4350,10 @@ END SUBROUTINE GENMAP_NESTING
 
     TEST = TIME2NCITIME_NEST(NOW,D1,D2)
 
-!    if(.not. TEST) call fatal_error("That is bad times man!") 
+!    if(.not. TEST) call fatal_error("That is bad times man!")
     if(TEST==0) call fatal_error("That is bad times man!")
     ! THIS SHOULD NEVER HAPPEN?
-    
+
   END SUBROUTINE UPDATE_ITIME_NEST
 !====================================================================
 !======================================================
@@ -4355,10 +4370,10 @@ END SUBROUTINE GENMAP_NESTING
 
      ! CHECK TO MAKE SURE IT IS NOT TOO LARGE
      IF (ABS(MJD%MJD) .GT. HUGE(D)) THEN
-        res =0 
+        res =0
         return
      END IF
-     
+
      D = MJD%MJD
 
    END FUNCTION TIME2NCITIME_NEST
@@ -4381,7 +4396,7 @@ END SUBROUTINE GENMAP_NESTING
     END IF
 
     CALL NC_POINT_VAR(VAR,Data)
-    
+
     Data = DAYS(NOW)
 
   END SUBROUTINE UPDATE_FLOAT_TIME_NEST
@@ -4414,28 +4429,28 @@ END SUBROUTINE GENMAP_NESTING
     ELSE
        VAR  => NC_MAKE_PVAR(name='time', values=Data_scl)
     END IF
-    
+
     ATT  => NC_MAKE_ATT(name='long_name',values='time')
     VAR  => ADD(VAR,ATT)
-    
+
     IF (use_mjd) THEN
        ATT  => NC_MAKE_ATT(name='units',values=mjd_units)
        VAR  => ADD(VAR,ATT)
-       
+
        ATT  => NC_MAKE_ATT(name='format',values=fmat)
        VAR  => ADD(VAR,ATT)
 
-       ATT  => NC_MAKE_ATT(name='time_zone',values='UTC') 
+       ATT  => NC_MAKE_ATT(name='time_zone',values='UTC')
        VAR  => ADD(VAR,ATT)
-       
+
     ELSE
        ATT  => NC_MAKE_ATT(name='units',values=days_units)
-       VAR  => ADD(VAR,ATT)       
-       
-       ATT  => NC_MAKE_ATT(name='time_zone',values='none') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='time_zone',values='none')
        VAR  => ADD(VAR,ATT)
     END IF
-    
+
 
   END FUNCTION FLOAT_TIME_OBJECT_NEST
 !====================================================================
@@ -4456,7 +4471,7 @@ END SUBROUTINE GENMAP_NESTING
        ALLOCATE(DATA_vec(1))
        DATA_scl =>DATA_vec(1)
     END IF
-    
+
         ! Itime
     IF (PRESENT(DIM)) THEN
         VAR  => NC_MAKE_PVAR(name='Itime', values=Data_vec, DIM1= DIM)
@@ -4472,13 +4487,13 @@ END SUBROUTINE GENMAP_NESTING
        ATT  => NC_MAKE_ATT(name='format',values=fmat)
        VAR  => ADD(VAR,ATT)
 
-       ATT  => NC_MAKE_ATT(name='time_zone',values='UTC') 
+       ATT  => NC_MAKE_ATT(name='time_zone',values='UTC')
        VAR  => ADD(VAR,ATT)
     ELSE
        ATT  => NC_MAKE_ATT(name='units',values=days_units)
        VAR  => ADD(VAR,ATT)
-              
-       ATT  => NC_MAKE_ATT(name='time_zone',values='none') 
+
+       ATT  => NC_MAKE_ATT(name='time_zone',values='none')
        VAR  => ADD(VAR,ATT)
     END IF
 
