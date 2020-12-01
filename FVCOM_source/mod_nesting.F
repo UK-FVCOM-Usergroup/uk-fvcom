@@ -1834,7 +1834,7 @@ END SUBROUTINE GENMAP_NESTING
 ! increase counter
             IFABMnest = IFABMnest + 1
 ! populate variable mapping index
-            IFABMnest_idx(IFABM_nest) = IFABMadv_idx(IFABM)
+            IFABMnest_idx(IFABMnest) = IFABMadv_idx(IFABM)
             CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)
             CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
             NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABMnest)=NESTING_DATA%FABM_ALL_TMP
