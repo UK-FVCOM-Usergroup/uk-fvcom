@@ -1526,7 +1526,7 @@ END SUBROUTINE GENMAP_NESTING
 
        MEMCNT = MEMCNT + G%NT * (2 + 2*KB)* NDB + G%MT * (1 + 3*KB)* NDB
 
- # if defined (FABM)
+# if defined (FABM)
        IF(FABM_NESTING_ON) THEN
           ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,IFABMadv),stat=status) !RJT restricting nesting actions to advectable variables only
 !          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,size(model%state_variables)),stat=status)
@@ -4296,8 +4296,8 @@ END SUBROUTINE GENMAP_NESTING
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END SET_VAR_WAVE (NESTING)"
 
   END SUBROUTINE SET_VAR_WAVE_AC2
-# endif
-# else
+# endif !  WAVE_CURRENT_INTERACTION line 3281
+# else ! MULTIPROCESSOR
 
   ! DEFINE SOME DUMMY ROUTINES
 
@@ -4322,7 +4322,7 @@ END SUBROUTINE GENMAP_NESTING
     IMPLICIT NONE
   END SUBROUTINE ARCHIVE_NEST_WAVE
 
-# endif
+# endif ! MULTIPROCESSOR
 
 !====================================================================
   SUBROUTINE UPDATE_ITIME_NEST(VAR1,VAR2,NOW)

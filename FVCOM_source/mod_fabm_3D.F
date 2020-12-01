@@ -46,14 +46,14 @@ MODULE MOD_FABM_3D
   REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
   REAL(SP), ALLOCATABLE,TARGET :: BOTTOM_STRESS(:)
 ! DUMMY VARIABLE TO FIX VALUES IN SELECTED ERSEM VARIABLES
-! RJT use sparingly 
+! RJT use sparingly
 !  REAL(SP), ALLOCATABLE,TARGET :: ERSEM1(:,:)
 !  INTEGER :: ERSEMid
-!RJT 
+!RJT
 # if defined (SEDIMENT)
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM(:,:)   ! mg/m^3
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM_g(:,:) ! g/m^3
-! No longer needed... they are directly calculated in light_iop_ady_spm... 
+! No longer needed... they are directly calculated in light_iop_ady_spm...
 !  REAL(SP), ALLOCATABLE,TARGET :: SPM_ABS_FABM(:,:)
 !  REAL(SP), ALLOCATABLE,TARGET :: SPM_BB_FABM(:,:)
 # endif
@@ -123,7 +123,7 @@ MODULE MOD_FABM_3D
    FABM_DEBUG = .FALSE.
    FABM_DIAG_OUT = .TRUE.
 
-   END SUBROUTINE NAME_LIST_INITIALIZE_FABM  
+   END SUBROUTINE NAME_LIST_INITIALIZE_FABM
 
    SUBROUTINE NAME_LIST_READ_FABM
    USE CONTROL
@@ -211,13 +211,13 @@ MODULE MOD_FABM_3D
     IF(SEDIMENT_MODEL)THEN
 !RJT June_2016
     ! Suspended sediment concentration from FVCOM - currently only one variable
-    ! and for testing purposes it is constant everywhere. 
+    ! and for testing purposes it is constant everywhere.
     ! The commented code would only work if SPM was part of the
     ! standard_variable list. We are taking a shortcut here by using ESS as the
     ! hook, which is not a standard variable
     IF (model%variable_needs_values(standard_variables%mass_concentration_of_suspended_matter)) THEN
        ALLOCATE(SPM_FABM_g(0:MT,KB))
-       call model%link_interior_data(standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:)) 
+       call model%link_interior_data(standard_variables%mass_concentration_of_suspended_matter,SPM_FABM_g(1:M,:))
     END IF
 
     IF (model%variable_needs_values(type_bulk_standard_variable(name='mass_concentration_of_silt'))) THEN
@@ -287,9 +287,11 @@ MODULE MOD_FABM_3D
     DO IFABM=1,SIZE(model%state_variables)
        DISABLE_TRANSPORT(IFABM) = model%state_variables(IFABM)%properties%get_logical('disable_transport',default=.false.)
     END DO
-    IFABMadv = size(model%state_variables) - COUNT(DISABLE_TRANSPORT) ! get the number of advecting variables 
-! Build map of advectable variables in model%state_variables    
+    IFABMadv = size(model%state_variables) - COUNT(DISABLE_TRANSPORT) ! get the number of advecting variables
+! Build map of advectable variables in model%state_variables
     ALLOCATE(IFABMadv_idx(IFABMadv))
+    if (NESTING_ON.AND.FABM_NESTING_ON)  ALLOCATE(IFABMnest_idx(IFABMadv))
+
     II = 1
     DO IFABM=1,SIZE(model%state_variables)
        IF (.not. DISABLE_TRANSPORT(IFABM)) THEN
@@ -297,7 +299,7 @@ MODULE MOD_FABM_3D
           II=II+1
        END IF
     END DO
-! link model variable to dummy ERSEM1 variable. 
+! link model variable to dummy ERSEM1 variable.
 !   NAME_ ='O2_o'
 !      DO IFABM=1,SIZE(model%state_variables)
 !       write(ipt,*) "FABM state_variable ", TRIM(model%state_variables(IFABM)%name)
@@ -305,10 +307,10 @@ MODULE MOD_FABM_3D
 !       ALLOCATE(ERSEM1(0:MT,KB))
 !       ERSEM1 = 350.0_SP
 !       ERSEMid = IFABM
-!      write(ipt,*) "FABM ALLOCATE: FOUND VARIABLE ",TRIM(NAME_)," in the model configuration" 
- 
-!    ELSE 
-!      write(ipt,*) "FABM ALLOCATE: unabled to find ",TRIM(NAME_)," in the model configuration" 
+!      write(ipt,*) "FABM ALLOCATE: FOUND VARIABLE ",TRIM(NAME_)," in the model configuration"
+
+!    ELSE
+!      write(ipt,*) "FABM ALLOCATE: unabled to find ",TRIM(NAME_)," in the model configuration"
 !    END IF
 !   ENDDO
 
@@ -413,12 +415,12 @@ MODULE MOD_FABM_3D
             SPM_FABM_g = CSED*1000.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions)
       END IF
       ! Light_iop_ady_spm.F90 only needs specific absorption and backscattering so we can skip
-      ! aggregation here. 
+      ! aggregation here.
       !NO LONGER APPLIES...Specific absorption and backscattering are hard coded
       ! here. Should be in namelist... ideally in FABM.yaml but this requires
       ! addiging the variables to ERSEM code (share.F90, CMakelist, ERSEM model
       ! library) as they should be new variables and a new light_iop_spm.F90
-      ! file. 
+      ! file.
 !      IF (ALLOCATED(SPM_ABS_FABM)) THEN
          ! Pass on SPM absorptions in 1/m FVCOM. Make it depth dependent here
          ! for testing purposes.
@@ -431,15 +433,15 @@ MODULE MOD_FABM_3D
 !        ENDDO
       ! using hard coded absorption coefficient. If using SPM concentrations,
       ! this will need to be the specific absorption coefficient x SPM
-      ! concentraions. 
+      ! concentraions.
         !SPM_ABS_FABM = SPM_ABS_FABM*0.7_SP
       ! absorption relationship from Babin et al 2003 with abs* = 0.031m2/g , abs* = 0.031/(10.0_SP**3.0_SP) m2/mg
 
-!        SPM_ABS_FABM = (0.031_SP/(10.0_SP**3.0_SP))*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions). I think they have an specific order in CSED... so shouldn't be a problem. 
+!        SPM_ABS_FABM = (0.031_SP/(10.0_SP**3.0_SP))*CSED*10.0_SP**6.0_SP ! This should be changed to the appropriate SPM variables from FVCOM (either only the silt fraction or sum of smaller size fractions). I think they have an specific order in CSED... so shouldn't be a problem.
 !      END IF
 
 !      IF (ALLOCATED(SPM_BB_FABM)) THEN
-         ! Pass on SPM backscatter coefficient in 1/m FVCOM. 
+         ! Pass on SPM backscatter coefficient in 1/m FVCOM.
 !        DO K=1,KBM1
 !         SPM_BB_FABM(:,K)  =   ( 3* (( (D*ZZ(:,K)-MIN_DEPTH ) / (15.0_SP-MIN_DEPTH))**2 ))  &
 !                    - ( 2*(( (D*ZZ(:,K)-MIN_DEPTH)/(15.0_SP-MIN_DEPTH))**3)   )
@@ -471,7 +473,7 @@ MODULE MOD_FABM_3D
 
    SUBROUTINE FABM_INITIALIZE_STATE()
       INTEGER :: K
-      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_STATE" 
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_STATE"
       IF (.NOT.ALLOCATED(FABM_ALL)) CALL FATAL_ERROR("FABM_INITIALIZE_STATE called before FABM_ALLOCATE")
 
       CALL PREPARE_ENVIRONMENT
@@ -492,13 +494,13 @@ MODULE MOD_FABM_3D
 # else
       call fabm_set_mask(model,MASK_NONE)
 # endif
-      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE" 
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE"
 
    END SUBROUTINE FABM_INITIALIZE_STATE
 
    SUBROUTINE FABM_INITIALIZE_DIAGNOSTICS()
 
-      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_DIAGNOSTICS" 
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_INITIALIZE_DIAGNOSTICS"
 
       ! Provide FABM with pointer to the dummy mask ("nothing masked") to ensure even diagnostics on dry points have a value.
       call fabm_set_mask(model,MASK_NONE)
@@ -516,7 +518,7 @@ MODULE MOD_FABM_3D
 
       ! Compute initial value of conserved quantity integrals
       CALL CHECK_CONSERVATION
-      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE" 
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_INITIALIZE_STATE"
 
    END SUBROUTINE FABM_INITIALIZE_DIAGNOSTICS
 
@@ -526,7 +528,7 @@ SUBROUTINE FABM_UPDATE
 
      INTEGER :: IFABM
      LOGICAL :: VALID
-     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE" 
+     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE"
 
      ! Integrate biogeochemical sources-sinks
      CALL FABM_SOURCES(DTI,UPDATE=.TRUE.)  ! This operates on FABM_ALL
@@ -622,7 +624,7 @@ SUBROUTINE FABM_UPDATE
 
 # if !defined (ONE_D_MODEL)
   DO IFABM=1,size(model%state_variables)
-      IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
+      IF (.not. DISABLE_TRANSPORT(IFABM) ) then
         FABM_ALL(:,:,IFABM) = FABM_F(:,:,IFABM)      ! Update to new time level skipping non-advective variables
       END IF
   END DO
@@ -657,7 +659,7 @@ END SUBROUTINE REPORT_FABM
 SUBROUTINE FABM_UPDATE_SALINITY
    INTEGER :: I
 
-      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE_SALINITY" 
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE_SALINITY"
 
    ! Note that FABM salinity is expressed in g/L, NOT in g/kg as absolute salinity (TEOS 2010), which would come closer to PSU.
    ! Hence, we here divide by density in kg/L to get g/kg.
@@ -681,7 +683,7 @@ SUBROUTINE FABM_UPDATE_SALINITY
 
    ! Use updated salinity also on elements
    CALL N2E3D(S1,S)
-      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_UPDATE_SALINITY" 
+      IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: FABM_UPDATE_SALINITY"
 
 END SUBROUTINE FABM_UPDATE_SALINITY
 
@@ -694,7 +696,7 @@ SUBROUTINE FABM_UPDATE_DEPTH
    LOGICAL  :: ISONB2
 
    IF (.NOT.USE_FABM_BOTTOM_THICKNESS) RETURN
-   
+
    IF(DBG_SET(DBG_SBR)) write(ipt,*) "START: FABM_UPDATE_DEPTH"
 
    DO I = 1,M
@@ -784,7 +786,7 @@ SUBROUTINE CHECK_CONSERVATION()
 
      ALLOCATE(WEIGHTS(1:M))
      WEIGHTS = ART1(1:M)
-#   if defined (MULTIPROCESSOR) 
+#   if defined (MULTIPROCESSOR)
      IF(PAR) THEN
         DO I=1,M
            IF(NDE_ID(I) == 1) THEN   !! INTERNAL BOUNDARY NODE (SHARED BETWEEN SUBDOMAINS)
@@ -816,7 +818,7 @@ SUBROUTINE CHECK_CONSERVATION()
 # endif
 
 
-# if defined (MULTIPROCESSOR) 
+# if defined (MULTIPROCESSOR)
      IF(PAR) THEN
         ! NB: similar to logic in mod_report
         CALL MPI_REDUCE(TOTALS_LOC,FABM_TOTALS,SIZE(TOTALS_LOC),MPI_DP,MPI_SUM,MSRID-1,MPI_FVCOM_GROUP,IERR)
@@ -920,20 +922,20 @@ END SUBROUTINE FABM_SOURCES
      END DO
 
   eps = epsilon(eps)
-  !Loop over Horizontal Domain       
+  !Loop over Horizontal Domain
      DO I=1,M
 #  if defined (WET_DRY)
       ! no calculation when dry nodes
        IF(ISWETN(I) == 1) THEN
 #  endif
-  !Loop over FABM variables       
+  !Loop over FABM variables
          DO IFABM=1,SIZE(model%state_variables)
 
           !setup 1D concentration and grid arrays
           C(1:kbm1) = FABM_ALL(I,1:KBM1,IFABM)
           DX(1:kbm1) = DZ(I,1:KBM1)*D(I)
           W(1:kbm1) = w_ct(I,1:KBM1,IFABM)
-      
+
 
       !set up cycles (use max(CFL) == 1)
       DTmax = Settle_CFL*minval(ABS(DX(1:KBM1)/W(1:KBM1)))
@@ -959,7 +961,7 @@ END SUBROUTINE FABM_SOURCES
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: CALC_VERTICAL_MOVEMENT :"
   End Subroutine CALC_VERTICAL_MOVEMENT
 
-Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat) 
+Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 ! Adapted from mod_scal Calc_VFlux
 ! Uses sigma layers velocities rather than interface velocities
 ! Interface velocities are linearly interpolated here
@@ -969,7 +971,7 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 	  real(sp), intent(inout) ::  c(n)
 	  real(sp), intent(in   ) :: dx(n)
 	  real(sp), intent(in   ) :: wset(n)
-	  real(sp), intent(in   ) :: deltat 
+	  real(sp), intent(in   ) :: deltat
 	  real(sp) :: conv(n+1),diss(n+1)
 	  real(sp) :: cin(0:n+1)
 	  real(sp) :: dis4,wvel,sl_u,sl_f
@@ -983,11 +985,11 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
   sl_h(1:n) = dx(1:n)
 
   !surface bcs (no flux - to achieve that, make sure mean of cin(1) and cin(0) is zero)
-  cin(0)  =  -cin(1) 
+  cin(0)  =  -cin(1)
   sl_h(0) = dx(1)
 
   !bottom bcs (no flux - to achieve that, make sure mean of cin(n) and cin(n+1) is zero)
-  cin(n+1) = -cin(n) 
+  cin(n+1) = -cin(n)
   sl_h(n+1) = dx(n)
 
   !flux computation
@@ -996,9 +998,9 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
     dis4    = wvel/2.
     sl_u = 2.0_SP*(cin(i)-cin(i+1))/(sl_h(i)+sl_h(i+1))
     sl_f = 2.0_SP*(cin(i-2)-cin(i-1))/(sl_h(i-2)+sl_h(i-1))
-    conv(i) = wvel*(cin(i)+cin(i-1))/2. 
-!    diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(sl_h(i-1)+sl_h(i))) 
-    diss(i) = dis4*(cin(i)-cin(i-1)-lim(cin(i+1)-cin(i),cin(i-1)-cin(i-2))) 
+    conv(i) = wvel*(cin(i)+cin(i-1))/2.
+!    diss(i) = dis4*(cin(i-1)-cin(i)-0.5_SP*LIMLED2(sl_u,sl_f,2.0_SP)*(sl_h(i-1)+sl_h(i)))
+    diss(i) = dis4*(cin(i)-cin(i-1)-lim(cin(i+1)-cin(i),cin(i-1)-cin(i-2)))
   end do
 
   !zero out surface flux
@@ -1009,7 +1011,7 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 
   !update
   do i=1,n
-    c(i) = cin(i) + (deltat/sl_h(i))*(-conv(i+1)+conv(i) + diss(i+1)-diss(i)) 
+    c(i) = cin(i) + (deltat/sl_h(i))*(-conv(i+1)+conv(i) + diss(i+1)-diss(i))
   end do
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: SETTLE_FLUX_FABM :"
@@ -1039,7 +1041,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
          ! Linearly interpolate to velocities at the interfaces between layers
          ! TODO: account for differences in layer heights (now we simply use the unweighted average of center velocities)
          w_if(1:KBM1-1,:) = (w_ct(I,1:KBM1-1,:)+w_ct(I,2:KBM1,:))/2
-!         write (*,*) 'Vertical velocities    ',maxval(w_if(1:KBM1-1,:)),minval(w_if(1:KBM1-1,:))         
+!         write (*,*) 'Vertical velocities    ',maxval(w_if(1:KBM1-1,:)),minval(w_if(1:KBM1-1,:))
          ! Convert velocities in m s-1 to mass fluxes (e.g., mol m-2 s-1) - both at interfaces between layers.
          DO IFABM=1,SIZE(model%state_variables)
             DO K=1,KBM1-1
@@ -1083,8 +1085,8 @@ SUBROUTINE FABM_EXCHANGE(F)
      DO IFABM=1,size(model%state_variables)
         F_T(:,:)  = F(:,:,IFABM)
         CALL AEXCHANGE(NC,MYID,NPROCS,F_T)
-        F(:,:,IFABM)  = F_T(:,:)  
-     END DO 
+        F(:,:,IFABM)  = F_T(:,:)
+     END DO
      DEALLOCATE(F_T)
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_EXCHANGE :"
 
@@ -1152,7 +1154,7 @@ SUBROUTINE FABM_EXCHANGE(F)
   END DO
 
   DO IFABM=1,size(model%state_variables)
-      IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
+      IF (.not. DISABLE_TRANSPORT(IFABM) ) then
 
   !------------------------------------------------------------------------------!
   !   surface bcs;                                                        !
@@ -1221,9 +1223,9 @@ SUBROUTINE FABM_EXCHANGE(F)
    IF(NOFLUX_BOT_CONDITION)THEN
        IF (TMP1 < 0.0_SP) TMP=0.0_SP
        TMP = -TMP
-   ELSE	   
+   ELSE
            TMP = 0.0_SP
-   END IF	   
+   END IF
            ! -------------------------------------------------------------------
 
 !           FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)) &
@@ -1286,7 +1288,7 @@ SUBROUTINE FABM_EXCHANGE(F)
           & .AND.K<=KDAM(I_NODE_DAM2_N(I,2)) )THEN
           FTMP= F(I_NODE_DAM2_N(I,1),K,IFABM)*ART1(I_NODE_DAM2_N(I,1)) &
            &   +F(I_NODE_DAM2_N(I,2),K,IFABM)*ART1(I_NODE_DAM2_N(I,2)) &
-           &   +F(I_NODE_DAM2_N(I,3),K,IFABM)*ART1(I_NODE_DAM2_N(I,3)) 
+           &   +F(I_NODE_DAM2_N(I,3),K,IFABM)*ART1(I_NODE_DAM2_N(I,3))
           STMP=ART1(I_NODE_DAM2_N(I,1))+ART1(I_NODE_DAM2_N(I,2)) &
            &   +ART1(I_NODE_DAM2_N(I,3))
           F(I_NODE_DAM2_N(I,1),K,IFABM)=FTMP/STMP
@@ -1301,7 +1303,7 @@ SUBROUTINE FABM_EXCHANGE(F)
           FTMP =F(I_NODE_DAM3_N(I,1),K,IFABM)*ART1(I_NODE_DAM3_N(I,1)) &
            &   +F(I_NODE_DAM3_N(I,2),K,IFABM)*ART1(I_NODE_DAM3_N(I,2)) &
            &   +F(I_NODE_DAM3_N(I,3),K,IFABM)*ART1(I_NODE_DAM3_N(I,3)) &
-           &   +F(I_NODE_DAM3_N(I,4),K,IFABM)*ART1(I_NODE_DAM3_N(I,4))  
+           &   +F(I_NODE_DAM3_N(I,4),K,IFABM)*ART1(I_NODE_DAM3_N(I,4))
           STMP =ART1(I_NODE_DAM3_N(I,1)) + ART1(I_NODE_DAM3_N(I,2)) &
            &  + ART1(I_NODE_DAM3_N(I,3)) + ART1(I_NODE_DAM3_N(I,4))
           F(I_NODE_DAM3_N(I,1),K,IFABM)=FTMP/STMP
@@ -1312,7 +1314,7 @@ SUBROUTINE FABM_EXCHANGE(F)
      END DO
    END DO
 #  endif
-     ENDIF! IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
+     ENDIF! IF (.not. DISABLE_TRANSPORT(IFABM) ) then
 
   END DO ! IFABM
 
@@ -1322,7 +1324,7 @@ END SUBROUTINE FABM_MIXING
 
 # if defined (FABM_ADV_VEC)
 !=============================================================================!
-   SUBROUTINE FABM_ADV  
+   SUBROUTINE FABM_ADV
 !=============================================================================!
 !                                                                             !
 !   This subroutine is used to calculate the horizontal advection and         !
@@ -1342,23 +1344,23 @@ END SUBROUTINE FABM_MIXING
   REAL(SP), ALLOCATABLE :: XFLUX(:,:,:),XFLUX_ADV(:,:,:)
   REAL(SP), ALLOCATABLE :: PFPX(:,:),PFPY(:,:),PFPXD(:,:),PFPYD(:,:)
   REAL(SP), ALLOCATABLE :: FABM_VEC(:,:,:) ! RJT for matrix inversion
-  REAL(SP), ALLOCATABLE ::FABM_MEAN(:,:) ! I am still not clear why we need FABM_MEAN - to remove horizontal 
+  REAL(SP), ALLOCATABLE ::FABM_MEAN(:,:) ! I am still not clear why we need FABM_MEAN - to remove horizontal
   REAL(SP), ALLOCATABLE :: FABM_Fadv(:,:,:) ! FABM_F equivalent
-  REAL(SP), DIMENSION(0:MT,KB)  :: XFLUXTMP,XFLUX_ADVTMP 
-!  REAL(SP), DIMENSION(IFABMadv,0:MT,KB)  :: XFLUX,XFLUX_ADV 
+  REAL(SP), DIMENSION(0:MT,KB)  :: XFLUXTMP,XFLUX_ADVTMP
+!  REAL(SP), DIMENSION(IFABMadv,0:MT,KB)  :: XFLUX,XFLUX_ADV
 !  REAL(SP), DIMENSION(IFABMadv,MT) :: PFPX,PFPY,PFPXD,PFPYD
 !  REAL(SP), DIMENSION(IFABMadv,0:MT,KB) :: FABM_VEC ! RJT for matrix inversion
-!  REAL(SP), DIMENSION(IFABMadv,KB) ::FABM_MEAN ! I am still not clear why we need FABM_MEAN - to remove horizontal 
+!  REAL(SP), DIMENSION(IFABMadv,KB) ::FABM_MEAN ! I am still not clear why we need FABM_MEAN - to remove horizontal
 !  REAL(SP), DIMENSION(IFABMadv,0:MT,KB) ::FABM_Fadv ! FABM_F equivalent
-  REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY  
+  REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY
   REAL(SP), DIMENSION(M)           :: VISCOFF
-  REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ 
+  REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ
   REAL(SP), DIMENSION(3*(NT),KBM1) :: UVN
   REAL(SP), DIMENSION(IFABMadv) :: FFD,FF1   !,X11,Y11,X22,Y22,X33,Y33,TMP1,TMP2,XI,YI
   REAL(SP), DIMENSION(IFABMadv) :: FIJ1,FIJ2
   REAL(SP) :: UN ! removed DXA,DYA,DXB,DYB
   REAL(SP), DIMENSION(IFABMadv) :: TXX,TYY,FXX,FYY,VISCOF,EXFLUX,TEMP,STPOINT
-  REAL(SP) :: FACT,FM1 
+  REAL(SP) :: FACT,FM1
   INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,K,JTMP,JJ,IFABM
   REAL(SP), DIMENSION(IFABMadv) :: WQM1MIN, WQM1MAX, WQM2MIN, WQM2MAX
 #  if defined (SEMI_IMPLICIT)
@@ -1370,9 +1372,9 @@ END SUBROUTINE FABM_MIXING
   REAL(SP) :: WQMMIN,WQMMAX,XXXX
   REAL(SP), DIMENSION(0:MT,KB)     :: WQM_S    !! temporary salinity in modified upwind
   REAL(SP), DIMENSION(IFABMadv,0:MT,KB)     :: WQM_SF   !! temporary salinity in modified upwind
-  REAL(SP), DIMENSION(0:MT,KB)     :: WWWS     
-  REAL(SP), DIMENSION(0:MT,KB)     :: WWWSF   
-  REAL(SP), DIMENSION(0:MT)        :: DTWWWS  
+  REAL(SP), DIMENSION(0:MT,KB)     :: WWWS
+  REAL(SP), DIMENSION(0:MT,KB)     :: WWWSF
+  REAL(SP), DIMENSION(0:MT)        :: DTWWWS
   REAL(SP), DIMENSION(0:MT,KB)     :: ZZZFLUX !! temporary total flux in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETA    !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
@@ -1492,19 +1494,19 @@ END SUBROUTINE FABM_MIXING
 	 ELSE
           FFD(:)=0.5_SP*((FABM_VEC(:,I1,K)-FABM_MEAN(:,K))+(FABM_VEC(:,I2,K)-FABM_MEAN(:,K)))
           FF1(:)=0.5_SP*(FABM_VEC(:,I1,K)+FABM_VEC(:,I2,K))
-	 END IF 
-#    else	 
+	 END IF
+#    else
            FFD(:)=0.5_SP*((FABM_VEC(:,I1,K)-FABM_MEAN(:,K))+(FABM_VEC(:,I2,K)-FABM_MEAN(:,K)))
            FF1(:)=0.5_SP*(FABM_VEC(:,I1,K)+FABM_VEC(:,I2,K))
-#    endif	 
-	 
+#    endif
 
-           
+
+
            PFPX(:,I)=PFPX(:,I)+FF1(:)*DLTYTRIE(i,j)
            PFPY(:,I)=PFPY(:,I)+FF1(:)*DLTXTRIE(i,j)
            PFPXD(:,I)=PFPXD(:,I)+FFD(:)*DLTYTRIE(i,j)
            PFPYD(:,I)=PFPYD(:,I)+FFD(:)*DLTXTRIE(i,j)
-           
+
 
         END DO ! ENDDO J=1,NTSN(I)-1
 
@@ -1555,17 +1557,17 @@ END SUBROUTINE FABM_MIXING
           IF(FIJ2(IFABM) < WQM2MIN(IFABM)) FIJ2(IFABM)=WQM2MIN(IFABM)
           IF(FIJ2(IFABM) > WQM2MAX(IFABM)) FIJ2(IFABM)=WQM2MAX(IFABM)
        END DO
- 
+
         UN=UVN(I,K)
 #      if defined (SEMI_IMPLICIT)
        UN1=UVN1(I,K)
 #      endif
 
         !VISCOF=HORCON*(FACT*(VISCOFF(IA)+VISCOFF(IB))*0.5_SP + FM1)
-        
+
         ! David moved HPRNU and added HVC
         VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
-        
+
         TXX(:)=0.5_SP*(PFPXD(:,IA)+PFPXD(:,IB))*VISCOF
         TYY(:)=0.5_SP*(PFPYD(:,IA)+PFPYD(:,IB))*VISCOF
 
@@ -1578,7 +1580,7 @@ END SUBROUTINE FABM_MIXING
 #       else
         EXFLUX(:)=-UN*DTIJ(I,K)* &
            ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2(:)+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1(:))*0.5_SP
-        EXFLUX(:)=(1.0_SP-IFCETA)*EXFLUX+IFCETA*(-UN1*DTIJ1(I,K)* & 
+        EXFLUX(:)=(1.0_SP-IFCETA)*EXFLUX+IFCETA*(-UN1*DTIJ1(I,K)* &
            ((1.0_SP+SIGN(1.0_SP,UN1))*FIJ2(:)+(1.0_SP-SIGN(1.0_SP,UN1))*FIJ1)*0.5_SP)+FXX(:)+FYY(:)
 #       endif
 
@@ -1602,9 +1604,9 @@ END SUBROUTINE FABM_MIXING
   XFLUXTMP = XFLUX(IFABM,:,:)
   XFLUX_ADVTMP = XFLUX_ADV(IFABM,:,:)
   IF(PAR)CALL NODE_MATCH(0,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,XFLUXTMP,XFLUX_ADVTMP)
-   XFLUX(IFABM,:,:)=  XFLUXTMP 
-   XFLUX_ADV(IFABM,:,:) =XFLUX_ADVTMP 
-  
+   XFLUX(IFABM,:,:)=  XFLUXTMP
+   XFLUX_ADV(IFABM,:,:) =XFLUX_ADVTMP
+
  END DO
 # endif
 
@@ -1634,7 +1636,7 @@ END SUBROUTINE FABM_MIXING
   !-----combine all the horizontal flux first-----------------------------------
 
   !-------fresh water part--------------
-  ! ----------- This uses the transposed FABM_VEC Matrix but not in vectorised form... 
+  ! ----------- This uses the transposed FABM_VEC Matrix but not in vectorised form...
   ! it will potentially have a performance impact -----------------------------------!
   FABM_FRESH=FABM_VEC(IFABM,:,:) ! make a copy of FABM_ALL that will include river inputs
 
@@ -1702,7 +1704,7 @@ END SUBROUTINE FABM_MIXING
            IF(K == 1) THEN
               TEMP(IFABM) = -(WTS(I,K+1)-ABS(WTS(I,K+1)))*FABM_VEC(IFABM,I,K)   &
                    -(WTS(I,K+1)+ABS(WTS(I,K+1)))*FABM_VEC(IFABM,I,K+1) &
-                   +(WTS(I,K)+ABS(WTS(I,K)))*FABM_VEC(IFABM,I,K)    
+                   +(WTS(I,K)+ABS(WTS(I,K)))*FABM_VEC(IFABM,I,K)
            ELSE IF(K == KBM1) THEN
               TEMP(IFABM) = +(WTS(I,K)-ABS(WTS(I,K)))*FABM_VEC(IFABM,I,K-1)     &
                    +(WTS(I,K)+ABS(WTS(I,K)))*FABM_VEC(IFABM,I,K)
@@ -1712,7 +1714,7 @@ END SUBROUTINE FABM_MIXING
                    +(WTS(I,K)-ABS(WTS(I,K)))*FABM_VEC(IFABM,I,K-1)     &
                    +(WTS(I,K)+ABS(WTS(I,K)))*FABM_VEC(IFABM,I,K)
            END IF
-           TEMP(IFABM) = 0.5_SP*TEMP(IFABM) 
+           TEMP(IFABM) = 0.5_SP*TEMP(IFABM)
 
            IF(K == 1)THEN
               WQMMAX = MAXVAL(FABM_VEC(IFABM,NBSN(I,1:NTSN(I)),K))
@@ -1732,8 +1734,8 @@ END SUBROUTINE FABM_MIXING
            END IF
 
 
-           ZZZFLUX(I,K) = TEMP(IFABM)*(DTI/DT(I))/DZ(I,K) + XFLUX(IFABM,I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
-           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_VEC(IFABM,I,K)-FABM_VEC(IFABM,I,K)*DT(I)/DTFA(I) 
+           ZZZFLUX(I,K) = TEMP(IFABM)*(DTI/DT(I))/DZ(I,K) + XFLUX(IFABM,I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K)
+           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_VEC(IFABM,I,K)-FABM_VEC(IFABM,I,K)*DT(I)/DTFA(I)
 
            BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (WQMMAX-FABM_VEC(IFABM,I,K))/(ABS(XXXX)+1.E-10) &
                 +0.5*(1.-SIGN(1._SP,-XXXX)) * (FABM_VEC(IFABM,I,K)-WQMMIN)/(ABS(XXXX)+1.E-10)
@@ -1748,7 +1750,7 @@ END SUBROUTINE FABM_MIXING
 
   !----------------------------------------------------------------------------------------
   NTERA = 4
-  DO ITERA=1,NTERA   !! Smolaricizw Loop 
+  DO ITERA=1,NTERA   !! Smolaricizw Loop
      IF(ITERA == 1)THEN
         WWWSF  = WTS
         WQM_S   = WQM_SF(IFABM,:,:)
@@ -1763,8 +1765,8 @@ END SUBROUTINE FABM_MIXING
            TEMP(IFABM)=ABS(WWWSF(I,K))-DTI*(WWWSF(I,K))*(WWWSF(I,K))/DZ(I,K)/DTWWWS(I)
            WWWS(I,K)=TEMP(IFABM)*(WQM_S(I,K-1)-WQM_S(I,K))/(ABS(WQM_S(I,K-1))+ABS(WQM_S(I,K))+1.E-14)
 
-           IF(TEMP(IFABM) < 0.0_SP .OR. WQM_S(I,K) == 0.0_SP)THEN 
-              WWWS(I,K)=0. 
+           IF(TEMP(IFABM) < 0.0_SP .OR. WQM_S(I,K) == 0.0_SP)THEN
+              WWWS(I,K)=0.
            END IF
         END DO
      END DO
@@ -1830,7 +1832,7 @@ END SUBROUTINE FABM_MIXING
      END DO
 
 
-     WWWS=WWWSF 
+     WWWS=WWWSF
 
      DO K=1,KBM1
         DO I=1,M
@@ -1851,7 +1853,7 @@ END SUBROUTINE FABM_MIXING
                       +(WWWS(I,K)+ABS(WWWS(I,K)))*WQM_S(I,K)
               END IF
               TEMP(IFABM) = 0.5_SP*TEMP(IFABM)
-              WQM_SF(IFABM,I,K)=(WQM_S(I,K)-TEMP(IFABM)*(DTI/DTFA(I))/DZ(I,K)) 
+              WQM_SF(IFABM,I,K)=(WQM_S(I,K)-TEMP(IFABM)*(DTI/DTFA(I))/DZ(I,K))
 #      if defined (WET_DRY)
            END IF
 #      endif
@@ -1962,7 +1964,7 @@ END SUBROUTINE FABM_MIXING
   DO I=1,M
      IF(ISWETN(I)*ISWETNT(I) == 1 )THEN
         DO K=1,KBM1
-#    if !defined (MPDATA)     
+#    if !defined (MPDATA)
            !       FABM_F(I,K,IFABM)=(FABM_VEC(IFABM,I,K)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
@@ -1975,7 +1977,7 @@ END SUBROUTINE FABM_MIXING
 #      endif
 #    else
            FABM_Fadv(:,I,K)=WQM_SF(:,I,K)
-#    endif              
+#    endif
         END DO
 
      ELSE ! IF NOT WET S STAYS THE SAME
@@ -1992,7 +1994,7 @@ END SUBROUTINE FABM_MIXING
 
   DO I=1,M
      DO K=1,KBM1
-#    if !defined (MPDATA)     
+#    if !defined (MPDATA)
         !       FABM_F((I,K,IFABM)=(FABM_VEC(IFABM,I,K)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
@@ -2005,7 +2007,7 @@ END SUBROUTINE FABM_MIXING
 #      endif
 #    else
         FABM_Fadv(:,I,K)=WQM_SF(:,I,K)
-#    endif              
+#    endif
      END DO
 
   END DO
@@ -2022,15 +2024,15 @@ END SUBROUTINE FABM_MIXING
      END IF
   END DO
 ! dallocate large matrices to avoid stack limits on ceto
-   DEALLOCATE(XFLUX);   
-   DEALLOCATE(XFLUX_ADV); 
-   DEALLOCATE(PFPX);          
-   DEALLOCATE(PFPY);          
-   DEALLOCATE(PFPXD);          
-   DEALLOCATE(PFPYD);          
-   DEALLOCATE(FABM_Fadv); 
-   DEALLOCATE(FABM_VEC);  
-   DEALLOCATE(FABM_MEAN);      
+   DEALLOCATE(XFLUX);
+   DEALLOCATE(XFLUX_ADV);
+   DEALLOCATE(PFPX);
+   DEALLOCATE(PFPY);
+   DEALLOCATE(PFPXD);
+   DEALLOCATE(PFPYD);
+   DEALLOCATE(FABM_Fadv);
+   DEALLOCATE(FABM_VEC);
+   DEALLOCATE(FABM_MEAN);
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_ADV"
 
@@ -2038,7 +2040,7 @@ END SUBROUTINE FABM_ADV
 
 # else
 !=============================================================================!
-   SUBROUTINE FABM_ADV  
+   SUBROUTINE FABM_ADV
 !=============================================================================!
 !                                                                             !
 !   This subroutine is used to calculate the horizontal advection and         !
@@ -2059,10 +2061,10 @@ END SUBROUTINE FABM_ADV
 # endif
 
   IMPLICIT NONE
-  REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables))  :: XFLUX,XFLUX_ADV 
-  REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY  
+  REAL(SP), DIMENSION(0:MT,KB,size(model%state_variables))  :: XFLUX,XFLUX_ADV
+  REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY
   REAL(SP), DIMENSION(M)           :: PFPX,PFPY,PFPXD,PFPYD,VISCOFF
-  REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ 
+  REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ
   REAL(SP), DIMENSION(3*(NT),KBM1) :: UVN
   REAL(SP) :: FFD,FF1   !,X11,Y11,X22,Y22,X33,Y33,TMP1,TMP2,XI,YI
   REAL(SP) :: FIJ1,FIJ2,UN ! removed DXA,DYA,DXB,DYB
@@ -2087,9 +2089,9 @@ END SUBROUTINE FABM_ADV
   REAL(SP) :: WQMMIN,WQMMAX,XXXX
   REAL(SP), DIMENSION(0:MT,KB)     :: WQM_S    !! temporary salinity in modified upwind
   REAL(SP), DIMENSION(0:MT,KB)     :: WQM_SF   !! temporary salinity in modified upwind
-  REAL(SP), DIMENSION(0:MT,KB)     :: WWWS     
-  REAL(SP), DIMENSION(0:MT,KB)     :: WWWSF   
-  REAL(SP), DIMENSION(0:MT)        :: DTWWWS  
+  REAL(SP), DIMENSION(0:MT,KB)     :: WWWS
+  REAL(SP), DIMENSION(0:MT,KB)     :: WWWSF
+  REAL(SP), DIMENSION(0:MT)        :: DTWWWS
   REAL(SP), DIMENSION(0:MT,KB)     :: ZZZFLUX !! temporary total flux in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETA    !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
@@ -2189,19 +2191,19 @@ END SUBROUTINE FABM_ADV
 	 ELSE
           FFD=0.5_SP*((FABM_ALL(I1,K,IFABM)-FABM_MEAN)+(FABM_ALL(I2,K,IFABM)-FABM_MEAN))
           FF1=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM))
-	 END IF 
-#    else	 
+	 END IF
+#    else
            FFD=0.5_SP*((FABM_ALL(I1,K,IFABM)-FABM_MEAN)+(FABM_ALL(I2,K,IFABM)-FABM_MEAN))
            FF1=0.5_SP*(FABM_ALL(I1,K,IFABM)+FABM_ALL(I2,K,IFABM))
-#    endif	 
-	 
+#    endif
 
-           
+
+
            PFPX(I)=PFPX(I)+FF1*DLTYTRIE(i,j)
            PFPY(I)=PFPY(I)+FF1*DLTXTRIE(i,j)
            PFPXD(I)=PFPXD(I)+FFD*DLTYTRIE(i,j)
            PFPYD(I)=PFPYD(I)+FFD*DLTXTRIE(i,j)
-           
+
 
         END DO
 
@@ -2259,7 +2261,7 @@ END SUBROUTINE FABM_ADV
 !     If A is upstream of B
        FAB_upstreamA=FABM_ALL(Anear_node(I),K,IFABM)+PFPX(Anear_node(I))*XUAdist(I)+PFPY(Anear_node(I))*YUAdist(I)
 !     If B is upstream of A
-       FAB_upstreamB=FABM_ALL(Bnear_node(I),K,IFABM)+PFPX(Bnear_node(I))*XUBdist(I)+PFPY(Bnear_node(I))*YUBdist(I)                
+       FAB_upstreamB=FABM_ALL(Bnear_node(I),K,IFABM)+PFPX(Bnear_node(I))*XUBdist(I)+PFPY(Bnear_node(I))*YUBdist(I)
 
 !    The smoothness-parameter
 ! -----------------------------------
@@ -2276,7 +2278,7 @@ END SUBROUTINE FABM_ADV
           smoothrB    = (FABM_ALL(IB,K,IFABM)-FAB_upstreamB)/(FABM_ALL(IA,K,IFABM)-FABM_ALL(IB,K,IFABM))
        END IF
 
-!     The Flux-limiter 
+!     The Flux-limiter
 !      (superbee)
        A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
        B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
@@ -2302,10 +2304,10 @@ END SUBROUTINE FABM_ADV
 #      endif
 
         !VISCOF=HORCON*(FACT*(VISCOFF(IA)+VISCOFF(IB))*0.5_SP + FM1)
-        
+
         ! David moved HPRNU and added HVC
         VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
-        
+
         TXX=0.5_SP*(PFPXD(IA)+PFPXD(IB))*VISCOF
         TYY=0.5_SP*(PFPYD(IA)+PFPYD(IB))*VISCOF
 
@@ -2440,7 +2442,7 @@ END SUBROUTINE FABM_ADV
            IF(K == 1) THEN
               TEMP = -(WTS(I,K+1)-ABS(WTS(I,K+1)))*FABM_ALL(I,K,IFABM)   &
                    -(WTS(I,K+1)+ABS(WTS(I,K+1)))*FABM_ALL(I,K+1,IFABM) &
-                   +(WTS(I,K)+ABS(WTS(I,K)))*FABM_ALL(I,K,IFABM)    
+                   +(WTS(I,K)+ABS(WTS(I,K)))*FABM_ALL(I,K,IFABM)
            ELSE IF(K == KBM1) THEN
               TEMP = +(WTS(I,K)-ABS(WTS(I,K)))*FABM_ALL(I,K-1,IFABM)     &
                    +(WTS(I,K)+ABS(WTS(I,K)))*FABM_ALL(I,K,IFABM)
@@ -2450,7 +2452,7 @@ END SUBROUTINE FABM_ADV
                    +(WTS(I,K)-ABS(WTS(I,K)))*FABM_ALL(I,K-1,IFABM)     &
                    +(WTS(I,K)+ABS(WTS(I,K)))*FABM_ALL(I,K,IFABM)
            END IF
-           TEMP = 0.5_SP*TEMP 
+           TEMP = 0.5_SP*TEMP
 
            IF(K == 1)THEN
               WQMMAX = MAXVAL(FABM_ALL(NBSN(I,1:NTSN(I)),K,IFABM))
@@ -2470,8 +2472,8 @@ END SUBROUTINE FABM_ADV
            END IF
 
 
-           ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
-           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_ALL(I,K,IFABM)-FABM_ALL(I,K,IFABM)*DT(I)/DTFA(I) 
+           ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I))/DZ(I,K)
+           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_ALL(I,K,IFABM)-FABM_ALL(I,K,IFABM)*DT(I)/DTFA(I)
 
            BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (WQMMAX-FABM_ALL(I,K,IFABM))/(ABS(XXXX)+1.E-10) &
                 +0.5*(1.-SIGN(1._SP,-XXXX)) * (FABM_ALL(I,K,IFABM)-WQMMIN)/(ABS(XXXX)+1.E-10)
@@ -2486,7 +2488,7 @@ END SUBROUTINE FABM_ADV
 
   !----------------------------------------------------------------------------------------
   NTERA = 4
-  DO ITERA=1,NTERA   !! Smolaricizw Loop 
+  DO ITERA=1,NTERA   !! Smolaricizw Loop
      IF(ITERA == 1)THEN
         WWWSF  = WTS
         WQM_S   = WQM_SF
@@ -2501,8 +2503,8 @@ END SUBROUTINE FABM_ADV
            TEMP=ABS(WWWSF(I,K))-DTI*(WWWSF(I,K))*(WWWSF(I,K))/DZ(I,K)/DTWWWS(I)
            WWWS(I,K)=TEMP*(WQM_S(I,K-1)-WQM_S(I,K))/(ABS(WQM_S(I,K-1))+ABS(WQM_S(I,K))+1.E-14)
 
-           IF(TEMP < 0.0_SP .OR. WQM_S(I,K) == 0.0_SP)THEN 
-              WWWS(I,K)=0. 
+           IF(TEMP < 0.0_SP .OR. WQM_S(I,K) == 0.0_SP)THEN
+              WWWS(I,K)=0.
            END IF
         END DO
      END DO
@@ -2568,7 +2570,7 @@ END SUBROUTINE FABM_ADV
      END DO
 
 
-     WWWS=WWWSF 
+     WWWS=WWWSF
 
      DO K=1,KBM1
         DO I=1,M
@@ -2589,7 +2591,7 @@ END SUBROUTINE FABM_ADV
                       +(WWWS(I,K)+ABS(WWWS(I,K)))*WQM_S(I,K)
               END IF
               TEMP = 0.5_SP*TEMP
-              WQM_SF(I,K)=(WQM_S(I,K)-TEMP*(DTI/DTFA(I))/DZ(I,K)) 
+              WQM_SF(I,K)=(WQM_S(I,K)-TEMP*(DTI/DTFA(I))/DZ(I,K))
 #      if defined (WET_DRY)
            END IF
 #      endif
@@ -2695,7 +2697,7 @@ END SUBROUTINE FABM_ADV
   DO I=1,M
      IF(ISWETN(I)*ISWETNT(I) == 1 )THEN
         DO K=1,KBM1
-#    if !defined (MPDATA)     
+#    if !defined (MPDATA)
            !       FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
@@ -2708,7 +2710,7 @@ END SUBROUTINE FABM_ADV
 #      endif
 #    else
            FABM_F(I,K,IFABM)=WQM_SF(I,K)
-#    endif              
+#    endif
         END DO
 
      ELSE ! IF NOT WET S STAYS THE SAME
@@ -2725,7 +2727,7 @@ END SUBROUTINE FABM_ADV
 
   DO I=1,M
      DO K=1,KBM1
-#    if !defined (MPDATA)     
+#    if !defined (MPDATA)
         !       FABM_F((I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
@@ -2738,7 +2740,7 @@ END SUBROUTINE FABM_ADV
 #      endif
 #    else
         FABM_F(I,K,IFABM)=WQM_SF(I,K)
-#    endif              
+#    endif
      END DO
 
   END DO
@@ -2750,7 +2752,7 @@ END SUBROUTINE FABM_ADV
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_ADV"
 
 END SUBROUTINE FABM_ADV
-# endif 
+# endif
 ! FABM_ADV_VEC
 !==============================================================================|
 
@@ -2792,7 +2794,7 @@ END SUBROUTINE FABM_ADV
 !------------------------------------------------------------------------------|
 
 ! make use of masks for  OBC. Non suplied variables will get diluted (in the case of the rivers) or fixed
-! to interior values for OBCs. 
+! to interior values for OBCs.
 !------------------------------------------------------------------------------|
 !!!! River nutrient treatment for FABM as SPECIFIED rather than CALCULATED which is handled during advection
 ! FABMDIS is initialised to zero so we don't need a mask. Not-read values will be zero
@@ -2880,7 +2882,7 @@ END SUBROUTINE FABM_ADV
 !              Original code similar to mod_bio_3D.F
              ! Mass Preserving implementation
              FABM_F(J,K,IFABM) = FABM_F(J1,K,IFABM)*(T2D_OBC / T2D_NEXT) ! proportionality per layer. T2 have concentrations units
-             ! Other alternatives 
+             ! Other alternatives
 !             FABM_F(J,K,IFABM) = FABM_F(J1,K,IFABM) ! See bcon_scal_OBC.F for this crazyness
             END DO
            ELSE
@@ -2914,7 +2916,7 @@ END SUBROUTINE FABM_ADV
                     (FABM_ALL(J,K,IFABM)*DZ(J,K+1)+FABM_ALL(J,K+1,IFABM)*DZ(J,K))/  &
 		     (DZ(J,K)+DZ(J,K+1)))
            END IF
- 
+
            ! Clip to extremes of all neighbours. The effect of this should be dampening of grid-scale oscillations.
            IF(WQMMIN-FABM_F(J,K,IFABM) > 0.0_SP)FABM_F(J,K,IFABM) = WQMMIN
            IF(FABM_F(J,K,IFABM)-WQMMAX > 0.0_SP)FABM_F(J,K,IFABM) = WQMMAX
@@ -2952,7 +2954,7 @@ END SUBROUTINE FABM_ADV
   SUBROUTINE fvcom_driver_fatal_error(self,location,message)
      CLASS (type_fvcom_driver), INTENT(INOUT) :: self
      CHARACTER(LEN=*),          INTENT(IN)    :: location,message
-    
+
      WRITE (IPT,*) 'FABM '//TRIM(location)//': '//TRIM(message)
      CALL FATAL_ERROR('FABM '//TRIM(location)//': '//TRIM(message))
   END SUBROUTINE
@@ -2975,7 +2977,7 @@ END SUBROUTINE FABM_ADV
      K = location(2)
      WRITE (string,'("I=",I0,",K=",I0," (LON=",G0.6,",LAT=",G0.6,",Z=",G0.4," m,DZ=",G0.4," m, H=",G0.4," m, WET =",I0,", TOTAL_DEPTH =",G0.4," m)")') &
             NGID(I),K,LON(I),LAT(I),-ZZ(I,K)*D(I),DZ(I,K)*D(I),H(I),ISWETN(I),D(I)
-     IF (PRINT_STATE) THEN 
+     IF (PRINT_STATE) THEN
 
        WRITE (IPT,'("  ",A,": ",G12.5)') 'TEMPERATURE',T1(I,K)
        WRITE (IPT,'("  ",A,": ",G12.5)') 'SALINITY',S1(I,K)
@@ -2995,20 +2997,20 @@ END SUBROUTINE FABM_ADV
        DO IFABM=1,size(model%state_variables)
          WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_F(I,K,IFABM)
        END DO
- 
+
        DO IFABM=1,size(model%state_variables)
          WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%state_variables(IFABM)%name),FABM_ALL(I,K,IFABM)
        END DO
-     
+
        DO IFABM=1,size(model%bottom_state_variables)
          WRITE (IPT,'("  ",A,": ",G12.5)') TRIM(model%bottom_state_variables(IFABM)%name),FABM_ALL_BT(I,IFABM)
        END DO
      END IF
-     
+
   END FUNCTION
 
 !==========================================================================
-! Calculate LED Limiter L(u,v) FOR vertical flux as per Sediment module - RJT2015  
+! Calculate LED Limiter L(u,v) FOR vertical flux as per Sediment module - RJT2015
 !==========================================================================
   FUNCTION Lim(a,b)
      REAL(SP) :: lim,a,b
@@ -3016,7 +3018,7 @@ END SUBROUTINE FABM_ADV
      REAL(SP) :: eps
      REAL(SP),PARAMETER ::qlim = 1.0
   eps = epsilon(eps)
-  
+
  ! exponent
  ! qlim = 0. !1st order
  ! qlim = 1. !minmod
@@ -3106,7 +3108,7 @@ SUBROUTINE FCT_FABM
   END DO fabm
 
 !  WHERE(SF1 < 0.0_SP)SF1=0.0_SP TRying to avoid brute force clipping...
-  
+
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: fct_fabm"
   !#  endif
 END SUBROUTINE FCT_FABM
