@@ -677,6 +677,16 @@ CONTAINS
           !-----------------------------------------------------------------
        END IF
 # endif
+
+# if defined (ICENORKYST)
+       IF(NC_ICENORKYST) THEN
+          !-----------------------------------------------------------------
+          ! state variables
+          NCF2 => ICENORKYST_DATA_STATE_FILE_OBJECT()
+          NCF => ADD(NCF,NCF2)
+       END IF
+# endif
+
        
        IF (STARTUP_TYPE /= "crashrestart") THEN
 
@@ -1348,6 +1358,16 @@ CONTAINS
     NC_RST => ADD(NC_RST,NC_RST2)
 !!$    NC_RST => ADD(NC_RST,ICE_EXTRA_FILE_OBJECT() )
 # endif
+
+# if defined (ICENORKYST)
+      !-----------------------------------------------------------------
+      ! state variables
+!    NC_RST2 => ICENORKYST_RESTART_STATE_FILE_OBJECT()
+    NC_RST2 => ICENORKYST_DATA_STATE_FILE_OBJECT()
+    NC_RST => ADD(NC_RST,NC_RST2)
+
+# endif
+
 
     IF (STARTUP_TYPE /= "crashrestart") THEN
        CALL NC_WRITE_FILE(NC_RST)
@@ -5153,6 +5173,73 @@ CONTAINS
     
   END FUNCTION NH_RST_FILE_OBJECT
 # endif
+
+!!------------------------------------------------------------------
+!! Qin, modifications for ICENORKYST,12/12/2020
+
+# if defined(ICENORKYST)
+
+!=============================================================
+  FUNCTION ICENORKYST_DATA_STATE_FILE_OBJECT() RESULT(NCF)
+
+    USE mod_ICENORKYST
+
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS
+   ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+
+       allocate(ZICE(NGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC
+FOR OUTPUT DATA:UICE")
+       ZICE = 0.0_SP
+
+    END IF
+
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+    VAR  => NC_MAKE_AVAR(name='zice',&
+         & values=zice, DIM1= DIM_node, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='ice thickness')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='ice thickness')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+ END FUNCTION ICENORKYST_DATA_STATE_FILE_OBJECT
+
+
+# endif   ! define ICENORKYST
+
 
 !!! ggao/0104/2008  !! restart file for ice model
 !!---------------------------------------------------------------------------

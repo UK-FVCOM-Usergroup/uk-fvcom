@@ -264,7 +264,9 @@ MODULE CONTROL
     LOGICAL NC_NH_QP
     LOGICAL NC_NH_RHS
     LOGICAL NC_ICE
-    
+# if defined (ICENORKYST)
+    LOGICAL NC_ICENORKYST
+# endif    
     ! FORCING DATA
     LOGICAL NC_WIND_VEL
     LOGICAL NC_WIND_STRESS
@@ -317,6 +319,9 @@ MODULE CONTROL
          & NC_GROUNDWATER,   &
 # if defined(ICE)
          & NC_ICE,           &
+# endif
+# if defined(ICENORKYST)
+         & NC_ICENORKYST,           &
 # endif
          & NC_BIO,           &
 # if defined(FABM)
@@ -1331,7 +1336,9 @@ MODULE ALL_VARS
 
 
 !---------------2-d flow variable arrays at elements-------------------------------!
-
+# if defined (ICENORKYST)
+   REAL(SP),ALLOCATABLE,TARGET :: ZICE1(:)              !! ICE THICKNESS (unit:m)
+# endif
    REAL(SP), ALLOCATABLE,TARGET :: UA(:)            !!VERTICALLY AVERAGED X-VELOC
    REAL(SP), ALLOCATABLE,TARGET :: VA(:)            !!VERTICALLY AVERAGED Y-VELOC
    REAL(SP), ALLOCATABLE,TARGET :: UAF(:)           !!UA FROM PREVIOUS RK STAGE 
@@ -1395,6 +1402,10 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: EGF_AIR(:)
    
    REAL(SP), ALLOCATABLE,TARGET :: VORT(:)
+
+# if defined (ICENORKYST)
+   REAL(SP),ALLOCATABLE,TARGET :: ZICE(:)              !! ICE THICKNESS (unit:m)
+# endif
 
 
 !---------------surface/bottom boundary conditions---------------------------------!
@@ -1974,6 +1985,11 @@ CONTAINS
    ALLOCATE(CC_SPONGE(0:NT))     ;CC_SPONGE = ZERO  !!SPONGE DAMPING COEFFICIENT FOR MOMENTUM
                  MEMCNT = NT*17*NDB + MT*NDB + MEMCNT
 
+# if defined (ICENORKYST)
+   ALLOCATE(ZICE1(0:NT))       ; ZICE1  =ZERO             !! ICE THICKNESS
+# endif
+
+
 !---------------2-d flow variable arrays at nodes----------------------------------!
 
    ALLOCATE(H(0:MT))             ;H    = ZERO       !!BATHYMETRIC DEPTH   
@@ -2020,6 +2036,10 @@ CONTAINS
 
    ALLOCATE(VORT(0:MT))          ; VORT     = ZERO            
                MEMCNT = MT*NDB + MEMCNT
+
+# if defined (ICENORKYST)
+   ALLOCATE(ZICE(0:MT))       ; ZICE  =ZERO             !! ICE THICKNESS
+# endif
 
 !---------------surface/bottom/edge boundary conditions-----------------------------!
 

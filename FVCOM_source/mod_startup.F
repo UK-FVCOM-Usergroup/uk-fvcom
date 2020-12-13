@@ -41,6 +41,11 @@ MODULE MOD_STARTUP
   USE MOD_ICE2D
 #  endif
 
+# if defined (ICESHELF)
+ USE MOD_ICENORKYST
+# endif
+
+
 # if defined (WATER_QUALITY)
   USE MOD_WQM
 # endif
@@ -153,6 +158,13 @@ CONTAINS
     CALL READ_SED
   endif
 # endif
+
+
+# if defined (ICENORKYST)
+  CALL READ_ZICE
+# endif
+
+
 
 # if defined (MEAN_FLOW)
     CALL READ_MEANFLOW_RST
@@ -1629,6 +1641,35 @@ CONTAINS
  
  
 # endif
+
+
+!==============================================================================|
+# if defined(ICENORKYST)
+! read ice thickness for ICENORKYST restart
+! Qin, 12.12.2020
+  SUBROUTINE READ_ZICE
+    IMPLICIT NONE
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM
+    LOGICAL :: FOUND
+    INTEGER :: STKCNT
+
+    STKCNT = NC_START%FTIME%PREV_STKCNT
+
+
+    ! LOAD ice thickness
+    VAR => FIND_VAR(NC_START,'zice',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'ZICE'&
+         & IN THE HOTSTART FILE OBJECT")
+    CALL NC_CONNECT_AVAR(VAR,zice)
+    CALL NC_READ_VAR(VAR,STKCNT)
+
+
+ END SUBROUTINE READ_ZICE
+
+
+# endif
+
 
 # if defined (SEDIMENT)
 !-----------------------------------------------------------------------------
