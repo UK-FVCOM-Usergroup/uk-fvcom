@@ -205,14 +205,10 @@ ENDWHERE
 #  endif
 # endif
 
-
-
-!!======================================================
-!!======================================================
+END SUBROUTINE ICE_NORKYST
 # endif
 
-END SUBROUTINE ICE_NORKYST
-
+!==================================================
 
 END MODULE  MOD_ICENORKYST
 
