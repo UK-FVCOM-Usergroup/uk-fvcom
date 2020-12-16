@@ -467,6 +467,10 @@ PROGRAM FVCOM
   USE MOD_OBCS3
 # endif
 
+# if defined (ICENORKYST)
+  USE MOD_ICENORKYST
+# endif
+
 # if defined (ICE)
   USE MOD_ICE
 # endif
@@ -681,6 +685,11 @@ PROGRAM FVCOM
 # if defined (ICE)
   IF(ICE_MODEL) CALL ICE_INIT_0
 # endif
+
+# if defined (ICENORKYST)
+   CALL ICENORKYST_INIT_0
+# endif
+
 
   !  SETUP PETSc FOR SEMI_IMPLICIT AND NON-HYDROSTATIC MODULE
 # if defined (SEMI_IMPLICIT) || (NH) || (defined (WAVE_CURRENT_INTERACTION) && !defined (EXPLICIT))

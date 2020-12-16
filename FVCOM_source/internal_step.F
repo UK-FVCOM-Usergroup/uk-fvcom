@@ -39,6 +39,9 @@ SUBROUTINE INTERNAL_STEP
   USE MOD_ICE
   USE MOD_ICE2D
   USE MOD_NORTHPOLE
+# if defined(ICENORKYST)
+  USE MOD_ICENORKYST
+# endif
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
@@ -457,6 +460,10 @@ SUBROUTINE INTERNAL_STEP
      !----------------------------------------------------------------------------------!
 #endif
 
+# if defined (ICENORKYST)
+   CALL ICE_NORKYST
+# endif 
+
 !==============================================================================!
 !  CALCULATE DISPERSION (GX/GY) AND BAROCLINIC PRESSURE GRADIENT TERMS         !
 !==============================================================================!
@@ -754,6 +761,24 @@ SUBROUTINE INTERNAL_STEP
          IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,WUSURF,WVSURF)
 #   endif
 # endif
+
+# if defined (ICENORKYST)
+
+  DO I =1,NT
+    IF(ZICE1(I)>0.05_sp) THEN
+       WUSURF(I)=DRAGW*min(SQRT(U(I,1)**2+V(I,1)**2),1.0_SP)*U(I,1)*1.0E-3  !
+       WVSURF(I)=DRAGW*min(SQRT(U(I,1)**2+V(I,1)**2),1.0_SP)*V(I,1)*1.0E-3
+    END IF
+  END DO
+
+
+#   if defined (MULTIPROCESSOR)
+         IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,WUSURF,WVSURF)
+#   endif
+
+# endif
+
+
 
 # endif
 !end !defined (TWO_D_MODEL)

@@ -46,6 +46,10 @@ SUBROUTINE EXTERNAL_STEP
   USE MOD_ICE
   USE MOD_ICE2D
 
+# if defined (ICENORKYST)
+  USE MOD_ICENORKYST
+# endif
+
 # if defined (PLBC)
   USE MOD_PERIODIC_LBC
 # endif
@@ -122,6 +126,19 @@ SUBROUTINE EXTERNAL_STEP
 
 #endif
 
+# if defined (ICENORKYST)
+    DO I =1,NT
+     IF(ZICE1(I)>0.05_sp) THEN
+       WUSURF2(I)=-DRAGW*min(SQRT(U(I,1)**2+V(I,1)**2),1.0_SP)*U(I,1)*1.0E-3  !
+       WVSURF2(I)=-DRAGW*min(SQRT(U(I,1)**2+V(I,1)**2),1.0_SP)*V(I,1)*1.0E-3
+     ENDIF
+    ENDDO
+
+# if defined (MULTIPROCESSOR)
+        IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,WUSURF2,WVSURF2)
+# endif
+ 
+# endif 
 
 !
 !------SAVE VALUES FROM CURRENT TIME STEP--------------------------------------!
