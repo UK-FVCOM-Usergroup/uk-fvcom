@@ -1,0 +1,30 @@
+Quick Fix to nesting approach
+
+Keep maximum allocation of Nesting variables to all advectable variables i.e. IFABMadv
+This is so that we allow for all variables to be present and because the same variable type is used for nesting and ncnest procedures. NCNEST will still output all variables subject to advection
+
+Generate a new index mapping variable IFABMnest_idx similar to IFABMadv_idx
+
+Populate this on reading the nesting file. 
+Loop through IFABMadv
+Don't use the FATAL_ERROR if variable is missing from file. Instead report to the log which variables are present. 
+
+save idx in IFABMnest_idx
+IFABMnest_idx <= IFABMadv_idx 
+
+in set_var, use the IFABMnest_idx instead of IFABMadv_idx
+in UPDATE_BLOCK use IFABMnest_idx instead of IFABMadv_idx
+
+Risk    Usage of IFABMadv_idx when IFABMnest_idx should have been used
+
+Make sure all references to NCNEST still use IFABM_adv!!
+Assign2block is a mistery! - No,  this is for ncnest...so we are ok 
+NESTING_FILE_OBJECT is only used for NCNEST
+
+All code has been updated. 
+Changes were required for mod_nesting.F, mod_fabm_data.F and mod_fabm_3D.F
+The latter one initialises IFABMnest_idx to have the same values as IFABMadv_idx as default. 
+
+
+
+

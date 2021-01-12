@@ -587,10 +587,10 @@ SUBROUTINE FABM_UPDATE
 
      ! Vertical mixing
 # if !defined (ONE_D_MODEL)
-! We need to remove non advecting/miixing variables from FABM_ALL for this case RJT
+! We need to remove non advecting/mixing variables from FABM_ALL for this case RJT
      CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
 # else
-! We need to remove non advecting/miixing variables from FABM_ALL for this case RJT
+! We need to remove non advecting/mixing variables from FABM_ALL for this case RJT
      CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
 # endif
      IF (FABM_DEBUG) THEN
@@ -1927,7 +1927,8 @@ END SUBROUTINE FABM_MIXING
   !
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
   !
-  IF(RIVER_TS_SETTING == 'calculated') THEN
+   IF (.NOT. model%state_variables(IFABM)%no_river_dilution) THEN
+ IF(RIVER_TS_SETTING == 'calculated') THEN
      IF(RIVER_INFLOW_LOCATION == 'node') THEN
         IF(NUMQBC > 0) THEN
            DO J=1,NUMQBC
@@ -2380,38 +2381,42 @@ END SUBROUTINE FABM_ADV
 
   FABM_FRESH=FABM_ALL(:,:,IFABM)
 
-
-  IF(RIVER_TS_SETTING == 'calculated') THEN
-     IF(RIVER_INFLOW_LOCATION == 'node') THEN
-        IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-              JJ=INODEQ(J)
-              STPOINT=FABMDIS(J,IFABM)
-              DO K=1,KBM1
-                 FABM_FRESH(JJ,K)=FABMDIS(J,IFABM)
-                 XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
-              END DO
-           END DO
-        END IF
-     ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
-        IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-              J1=N_ICELLQ(J,1)
-              J2=N_ICELLQ(J,2)
-              STPOINT=FABMDIS(J,IFABM)!!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
-              DO K=1,KBM1
-                 FABM_FRESH(J1,K)=FABMDIS(J,IFABM)
-                 FABM_FRESH(J2,K)=FABMDIS(J,IFABM)
-                 XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-  &
-                      QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
-                 XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-  &
-                      QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
-              END DO
-           END DO
-        END IF
-     END IF
-  END IF
-  !
+  IF (.NOT. model%state_variables(IFABM)%no_river_dilution) THEN
+      IF(RIVER_TS_SETTING == 'calculated') THEN
+         IF(RIVER_INFLOW_LOCATION == 'node') THEN
+            IF(NUMQBC > 0) THEN
+               DO J=1,NUMQBC
+                  JJ=INODEQ(J)
+                  STPOINT=FABMDIS(J,IFABM)
+                  DO K=1,KBM1
+                     FABM_FRESH(JJ,K)=FABMDIS(J,IFABM) ! Not sure this is correct
+                     XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
+                  END DO
+               END DO
+            END IF
+         ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+            IF(NUMQBC > 0) THEN
+               DO J=1,NUMQBC
+                  J1=N_ICELLQ(J,1)
+                  J2=N_ICELLQ(J,2)
+                  STPOINT=FABMDIS(J,IFABM)!!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+                  DO K=1,KBM1
+                     FABM_FRESH(J1,K)=FABMDIS(J,IFABM)
+                     FABM_FRESH(J2,K)=FABMDIS(J,IFABM)
+                     XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-  &
+                          QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
+                     XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-  &
+                          QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
+                  END DO
+               END DO
+            END IF
+         END IF
+      END IF
+    ELSE
+        ! we don't want this variable to be diluted with 0 concentration
+        IF (DBG_SET(DBG_VRB)) WRITE (IPT,'("  ",A,"  "') "FABM Variable ",  TRIM(model%state_variables(IFABM)%name) , " is not in river forcing file and will not be diluted"
+    END IF
+ !
 
 
   ! The horizontal term of advection is neglected here for Open boundary locations
@@ -2517,7 +2522,7 @@ END SUBROUTINE FABM_ADV
      DO I=1,M
         WQMMAX = MAXVAL(FABM_ALL(NBSN(I,1:NTSN(I)),1,IFABM))
         WQMMIN = MINVAL(FABM_ALL(NBSN(I,1:NTSN(I)),1,IFABM))
-        WQMMAX = MAX(WQMMAX,FABM_ALL(I,2,IFABM),FABM_ALL(I,1,IFABM),FABM_FRESH(I,1))
+        WQMMAX = MAX(WQMMAX,FABM_ALL(I,2,IFABM),FABM_ALL(I,1,IFABM),FABM_FRESH(I,1)) ! What if I is a river node?
         WQMMIN = MIN(WQMMIN,FABM_ALL(I,2,IFABM),FABM_ALL(I,1,IFABM),FABM_FRESH(I,1))
 
         TEMP=0.5*((WWWS(I,2)+ABS(WWWS(I,2)))*WQM_S(I,2))*(DTI/DTFA(I))/DZ(I,1)
@@ -2660,35 +2665,41 @@ END SUBROUTINE FABM_ADV
   !
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
   !
-  IF(RIVER_TS_SETTING == 'calculated') THEN
-     IF(RIVER_INFLOW_LOCATION == 'node') THEN
-        IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-              JJ=INODEQ(J)
-              STPOINT=FABMDIS(J,IFABM)
-              DO K=1,KBM1
-                 !             XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT/DZ(JJ,K)
-                 XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
-              END DO
-           END DO
-        END IF
-     ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
-        IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-              J1=N_ICELLQ(J,1)
-              J2=N_ICELLQ(J,2)
-              STPOINT=FABMDIS(J,IFABM) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
-              DO K=1,KBM1
-                 !             XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-   &
-                 !                         QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT/DZ1(J1,K)
-                 !             XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-   &
-                 !                         QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT/DZ1(J2,K)
-                 XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
-                 XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
-              END DO
-           END DO
-        END IF
-     END IF
+  ! Check if variable will dilute
+  IF (.NOT. model%state_variables(IFABM)%no_river_dilution) THEN
+      IF(RIVER_TS_SETTING == 'calculated') THEN
+         IF(RIVER_INFLOW_LOCATION == 'node') THEN
+            IF(NUMQBC > 0) THEN
+               DO J=1,NUMQBC
+                  JJ=INODEQ(J)
+                  STPOINT=FABMDIS(J,IFABM) ! river concentration in original units mass/vol
+                  DO K=1,KBM1
+                     !             XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT/DZ(JJ,K)
+                     XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
+                  END DO
+               END DO
+            END IF
+         ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+            IF(NUMQBC > 0) THEN
+               DO J=1,NUMQBC
+                  J1=N_ICELLQ(J,1)
+                  J2=N_ICELLQ(J,2)
+                  STPOINT=FABMDIS(J,IFABM) !! river concentration in original units M/L3
+                  DO K=1,KBM1
+                     !             XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-   &
+                     !                         QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT/DZ1(J1,K)
+                     !             XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-   &
+                     !                         QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT/DZ1(J2,K)
+                     XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
+                     XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
+                  END DO
+               END DO
+            END IF
+         END IF
+      END IF
+  ELSE
+    ! we don't want this variable to be diluted with 0 concentration
+    IF (DBG_SET(DBG_VRB)) WRITE (IPT,'("  ",A,"  "') "FABM Variable ",  TRIM(model%state_variables(IFABM)%name) , " is not in river forcing file and will not be diluted"
   END IF
 !---------------------------------------------------------------------
 # endif
@@ -2802,35 +2813,40 @@ END SUBROUTINE FABM_ADV
 ! FABMDIS is initialised to zero so we don't need a mask. Not-read values will be zero
 !--SET CONDITIONS FOR FRESH WATER INFLOW for SPECIFIED CASE!!---------------------------------|
 !
-   IF(RIVER_TS_SETTING == 'specified') THEN
-     ! Impact of rivers is accounted for by OVERWRITING concentrations at inflow nodes with
-     ! the concentrations in the river. Note: the alternative RIVER_TS_SETTING=='calculated'
-     ! updates the concentration at the inflow nodes by taking into account their volume, the
-     ! local concentration, the river concentration and the river flow rate. This scenario is
-     ! handled in FABM_ADV.
-     IF(NUMQBC > 0) THEN
-       IF(RIVER_INFLOW_LOCATION == 'node') THEN
-         DO I=1,NUMQBC
-           J11=INODEQ(I)
-           DO K=1,KBM1
-             DO IFABM=1,size(model%state_variables)
-               FABM_F(J11,K,IFABM) = FABMDIS(I,IFABM)
+   IF (.NOT. model%state_variables(IFABM)%no_river_dilution) THEN
+      IF(RIVER_TS_SETTING == 'specified') THEN
+         ! Impact of rivers is accounted for by OVERWRITING concentrations at inflow nodes with
+         ! the concentrations in the river. Note: the alternative RIVER_TS_SETTING=='calculated'
+         ! updates the concentration at the inflow nodes by taking into account their volume, the
+         ! local concentration, the river concentration and the river flow rate. This scenario is
+         ! handled in FABM_ADV.
+         IF(NUMQBC > 0) THEN
+           IF(RIVER_INFLOW_LOCATION == 'node') THEN
+             DO I=1,NUMQBC
+               J11=INODEQ(I)
+               DO K=1,KBM1
+                 DO IFABM=1,size(model%state_variables)
+                   FABM_F(J11,K,IFABM) = FABMDIS(I,IFABM)
+                 END DO
+               END DO
              END DO
-           END DO
-         END DO
-       ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
-         DO I=1,NUMQBC
-           J11=N_ICELLQ(I,1)
-           J22=N_ICELLQ(I,2)
-           DO K=1,KBM1
-             DO IFABM=1,size(model%state_variables)
-               FABM_F(J11,K,IFABM)=FABMDIS(I,IFABM)
-               FABM_F(J22,K,IFABM)=FABMDIS(I,IFABM)
+           ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+             DO I=1,NUMQBC
+               J11=N_ICELLQ(I,1)
+               J22=N_ICELLQ(I,2)
+               DO K=1,KBM1
+                 DO IFABM=1,size(model%state_variables)
+                   FABM_F(J11,K,IFABM)=FABMDIS(I,IFABM)
+                   FABM_F(J22,K,IFABM)=FABMDIS(I,IFABM)
+                 END DO
+               END DO
              END DO
-           END DO
-         END DO
+           END IF
+         END IF
        END IF
-     END IF
+   ELSE
+        ! we don't want this variable to be diluted with 0 concentration
+       IF (DBG_SET(DBG_VRB)) WRITE (IPT,'("  ",A,"  "') "FABM Variable ",  TRIM(model%state_variables(IFABM)%name) , " is not in river forcing file and will not be diluted"
    END IF
 
    ! Update concentrations at open boundary nodes, if nudging to boundary state is active.
