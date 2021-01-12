@@ -2414,7 +2414,7 @@ END SUBROUTINE FABM_ADV
       END IF
     ELSE
         ! we don't want this variable to be diluted with 0 concentration
-        IF (DBG_SET(DBG_VRB)) WRITE (IPT,'("  ",A,"  "') "FABM Variable ",  TRIM(model%state_variables(IFABM)%name) , " is not in river forcing file and will not be diluted"
+        IF (DBG_SET(DBG_VRB)) WRITE (IPT,*) "FABM Variable "//TRIM(model%state_variables(IFABM)%name)//" is not in river forcing file and will not be diluted"
     END IF
  !
 
@@ -2699,7 +2699,7 @@ END SUBROUTINE FABM_ADV
       END IF
   ELSE
     ! we don't want this variable to be diluted with 0 concentration
-    IF (DBG_SET(DBG_VRB)) WRITE (IPT,'("  ",A,"  "') "FABM Variable ",  TRIM(model%state_variables(IFABM)%name) , " is not in river forcing file and will not be diluted"
+    IF (DBG_SET(DBG_VRB)) WRITE (IPT,*) "FABM Variable "//TRIM(model%state_variables(IFABM)%name)//" is not in river forcing file and will not be diluted"
   END IF
 !---------------------------------------------------------------------
 # endif
@@ -2846,7 +2846,7 @@ END SUBROUTINE FABM_ADV
        END IF
    ELSE
         ! we don't want this variable to be diluted with 0 concentration
-       IF (DBG_SET(DBG_VRB)) WRITE (IPT,'("  ",A,"  "') "FABM Variable ",  TRIM(model%state_variables(IFABM)%name) , " is not in river forcing file and will not be diluted"
+       IF (DBG_SET(DBG_VRB)) WRITE (IPT,*) "FABM Variable "//TRIM(model%state_variables(IFABM)%name)//" is not in river forcing file and will not be diluted"
    END IF
 
    ! Update concentrations at open boundary nodes, if nudging to boundary state is active.
