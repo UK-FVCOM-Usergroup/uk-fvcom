@@ -1777,6 +1777,15 @@ CONTAINS
        TIDE_FORCING_TYPE = TIDE_FORCING_TIMESERIES
 
 
+    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! Initialize some variables 
+    ! afm 20150914
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+    tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0
+    ! --------- end new --------------------------------------------
+
        ! NOT MUCH ELSE TO REPORT SINCE WE DON'T LOAD ANY DATA NOW
 
        !=====================================
@@ -1789,12 +1798,6 @@ CONTAINS
             &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
-
-    ! afm 20151112 & EJA 20160921
-    ! Need initialization. Otherwise, random values are asigned
-    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
-    ! This problem reported with Intel15.0.3. 
-    tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END TIDAL_ELEVATION"
 
