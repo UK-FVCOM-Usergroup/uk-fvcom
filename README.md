@@ -19,12 +19,15 @@ Once registered, the official releases of FVCOM are available for download as ta
 Support
 -------
 
-The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is a wiki available at https://wiki.fvcom.pml.ac.uk.
+The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is a wiki available at https://wiki.fvcom.pml.ac.uk and one associated with this repo. 
 
 FABM
 ----------
 
 The main FABM website is https://github.com/fabm-model/fabm/. While this branch has been updated to work with FABM v1 it has not been tested in a realistic application. Consider this branch a beta version. 
+The yaml modules from FABM have been moved and FVCOM make.inc requires an extra include entry:
+BIOINCS = -I<FABMINSTALLDIR>/include -I<FABMINSTALLDIR>/include/yaml
+
 
 FABM-ERSEM
 ----------
