@@ -3619,6 +3619,10 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:V")
        V = 0.0_sp
 
+       allocate(VISCOFH(MGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:VISCOFH")
+       VISCOFH = 0.0_SP
+       
        allocate(KH(MGL,KB),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:KH")
        KH = 0.0_SP
@@ -3746,6 +3750,27 @@ CONTAINS
     ATT  => NC_MAKE_ATT(name='location',values='face') 
     VAR  => ADD(VAR,ATT)
 # endif
+
+    NCF  => ADD(NCF,VAR)
+
+    ! VISCOFH
+    VAR  => NC_MAKE_AVAR(name='viscofh',&
+         & values=viscofh, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Horizontal Turbulent Eddy Viscosity For Scalars') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
 
