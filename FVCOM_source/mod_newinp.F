@@ -304,6 +304,7 @@ contains
   integer           :: ntemp
   real(sp)          :: ftemp
   real(sp)          :: REALVEC(150)
+  CHARACTER(LEN=30) :: FFMT
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start:Get_Float_Val_Array "
 
@@ -340,7 +341,9 @@ contains
   ! echo to screen 
   if(present(echo))then
     if(echo)then 
-      write(*,'(A20,F10.4)')trim(argname)//': ',fval(1:SIZE)
+      WRITE(FFMT,'("(A20,",I0,"F10.4)")') SIZE
+      write(*,FFMT) trim(argname)//': ',fval(1:SIZE)
+!!$      write(*,'(A20,<size>F10.4)')trim(argname)//': ',fval(1:SIZE)
     endif
   end if
     
@@ -373,6 +376,7 @@ contains
   integer           :: ntemp
   real(sp)          :: ftemp
   real(sp)          :: REALVEC(150)
+  CHARACTER(LEN=30) :: FFMT
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Get_Integer_Val_Array"
 
@@ -409,7 +413,9 @@ contains
   ! echo to screen 
   if(present(echo))then
     if(echo)then 
-      write(*,'(A20,I10)')trim(argname)//': ',ival(1:SIZE)
+      WRITE(FFMT,'("(A20,",I0,"I10)")') SIZE
+      write(*,FFMT) trim(argname)//': ',ival(1:SIZE)
+!!$      write(*,'(A20,<size>I10)')trim(argname)//': ',ival(1:SIZE)
     endif
   end if
 
@@ -441,6 +447,7 @@ contains
   integer           :: ntemp
   real(sp)          :: ftemp
   character(len=80), dimension(100):: CHARVEC
+  CHARACTER(LEN=30) :: FFMT
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Get_Logical_Val_Array" 
 
@@ -482,7 +489,9 @@ contains
   ! echo to screen 
   if(present(echo))then
     if(echo)then 
-      write(*,'(A20,L10)')trim(argname)//': ',cval(1:SIZE)
+      WRITE(FFMT,'("(A20,",I0,"L10)")') SIZE
+      write(*,FFMT) trim(argname)//': ',cval(1:SIZE)
+!!$      write(*,'(A20,<size>L10)')trim(argname)//': ',cval(1:SIZE)
     endif
   end if
     
@@ -518,6 +527,7 @@ contains
   integer           :: ntemp
   real(sp)          :: ftemp
   character(len=80), dimension(100):: CHARVEC
+  CHARACTER(LEN=30) :: FFMT
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Get_String_Val_Array" 
 
@@ -555,7 +565,9 @@ contains
   ! echo to screen 
   if(present(echo))then
     if(echo)then 
-      write(*,'(A20,A10)')trim(argname)//': ',sval(1:SIZE)
+      WRITE(FFMT,'("(A20,",I0,"A10)")') SIZE
+      write(*,FFMT) trim(argname)//': ',sval(1:SIZE)
+!!$      write(*,'(A20,<size>A10)')trim(argname)//': ',sval(1:SIZE)
     endif
   end if
     

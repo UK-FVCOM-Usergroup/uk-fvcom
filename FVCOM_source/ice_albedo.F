@@ -166,9 +166,6 @@
       !-----------------------------------------------------------------
 
       do ni = 1, ncat
-!cdir$ ivdep      !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -237,9 +234,6 @@
       enddo
 
       do ni = 1, ncat
-!cdir$ ivdep      !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -252,9 +246,6 @@
          enddo                  ! ij
       enddo                     ! ncat
 
-!cdir$ ivdep      !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)

@@ -9,6 +9,8 @@ MODULE MOD_STATION_TIMESERIES
   LOGICAL OUT_STATION_TIMESERIES_ON
   CHARACTER(LEN=80) STATION_FILE
   CHARACTER(LEN=80) LOCATION_TYPE
+!  LOGICAL READ_GRID_EDGE_FROM_FILE
+  CHARACTER(LEN=80) GRID_EDGE_FILE_NAME
   LOGICAL OUT_ELEVATION
   LOGICAL OUT_VELOCITY_3D
   LOGICAL OUT_VELOCITY_2D
@@ -30,6 +32,8 @@ MODULE MOD_STATION_TIMESERIES
        & OUT_STATION_TIMESERIES_ON,        &
        & STATION_FILE,                     &
        & LOCATION_TYPE,                    &
+!       & READ_GRID_EDGE_FROM_FILE,         &
+       & GRID_EDGE_FILE_NAME,              &
        & OUT_ELEVATION,                    &
        & OUT_VELOCITY_3D,                  &
        & OUT_VELOCITY_2D,                  &
@@ -129,6 +133,7 @@ MODULE MOD_STATION_TIMESERIES
    OUT_STATION_TIMESERIES_ON = .False.
    STATION_FILE         = "'none'"
    LOCATION_TYPE             = "'node' or 'cell'"
+   GRID_EDGE_FILE_NAME       = "'none'"
    OUT_ELEVATION             = .False.
    OUT_VELOCITY_3D           = .False.
    OUT_VELOCITY_2D           = .False.
@@ -587,7 +592,11 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
     cdfname = trim(OUTPUT_DIR)//trim(casename)//'_station_timeseries.nc'
 
 !--Create File 
+# if defined (USE_NETCDF4)
+    ierr = nf90_create(path=cdfname,cmode=nf90_netcdf4,ncid=nc_ofid)
+# else
     ierr = nf90_create(path=cdfname,cmode=nf90_clobber,ncid=nc_ofid)
+# endif
     if(ierr /= nf90_noerr)then
      call handle_ncerr(ierr,"file creation error")
     end if
@@ -637,23 +646,35 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
     !!====Station Name (NAME_STA)  ===================!
     ierr = nf90_def_var(nc_ofid,"name_station",nf90_char,stat2ds_char,name_s_vid)
     ierr = nf90_put_att(nc_ofid,name_s_vid,"long_name","Station Name")   
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, name_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
 !--Define Coordinate Variables and Attributes
     !!====X Grid Coordinate at Nodes (VX) (Meters)===========!
     ierr = nf90_def_var(nc_ofid,"x",nf90_float,stat2ds,x_s_vid)
     ierr = nf90_put_att(nc_ofid,x_s_vid,"long_name","station x-coordinate")
     ierr = nf90_put_att(nc_ofid,x_s_vid,"units","meters")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, x_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
     !!====Y Grid Coordinate at Nodes (VY) (Meters)===========!
     ierr = nf90_def_var(nc_ofid,"y",nf90_float,stat2ds,y_s_vid)
     ierr = nf90_put_att(nc_ofid,y_s_vid,"long_name","station y-coordinate")
     ierr = nf90_put_att(nc_ofid,y_s_vid,"units","meters")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, y_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
     !!====Longitudinal Coordinate at Nodes (LON) (degrees)===!
     ierr = nf90_def_var(nc_ofid,"lon",nf90_float,stat2ds,lon_s_vid)
     ierr = nf90_put_att(nc_ofid,lon_s_vid,"long_name","Longitude")
     ierr = nf90_put_att(nc_ofid,lon_s_vid,"standard_name","longitude")
     ierr = nf90_put_att(nc_ofid,lon_s_vid,"units","degrees_east")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, lon_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
     !!====Latitudinal  Coordinate at Nodes (LAT) (degrees)===!
     ierr = nf90_def_var(nc_ofid,"lat",nf90_float,stat2ds,lat_s_vid)
@@ -661,6 +682,9 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
     ierr = nf90_put_att(nc_ofid,lat_s_vid,"standard_name","latitude")
     ierr = nf90_put_att(nc_ofid,lat_s_vid,"units","degrees_north")
     ierr = nf90_put_att(nc_ofid,lat_s_vid,"grid","Bathymetry_Mesh")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, lat_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
    !!====Sigma Coordinate for Sigma Layers (ZZ)  (-)========!
    ierr = nf90_def_var(nc_ofid,"siglay",nf90_float,stat2ds_lay,siglay_vid)
@@ -670,6 +694,9 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
    ierr = nf90_put_att(nc_ofid,siglay_vid,"valid_min","-1")
    ierr = nf90_put_att(nc_ofid,siglay_vid,"valid_max","0")
    ierr = nf90_put_att(nc_ofid,siglay_vid,"formula_terms","siglay:siglay eta:zeta depth:depth")
+#  if defined (USE_NETCDF4) && (USE_COMPRESSION)
+   ierr = nf90_def_var_deflate(nc_ofid, siglay_vid, shuffle=1, deflate=1, deflate_level=9)
+#  endif
 
    !!====Sigma Coordinate for Sigma Levels (Z)   (-)========!
    ierr = nf90_def_var(nc_ofid,"siglev",nf90_float,stat2ds_lev,siglev_vid)
@@ -679,6 +706,9 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
    ierr = nf90_put_att(nc_ofid,siglev_vid,"valid_min","-1")
    ierr = nf90_put_att(nc_ofid,siglev_vid,"valid_max","0")
    ierr = nf90_put_att(nc_ofid,siglev_vid,"formula_terms","siglev:siglev eta:zeta depth:depth")
+#  if defined (USE_NETCDF4) && (USE_COMPRESSION)
+   ierr = nf90_def_var_deflate(nc_ofid, siglev_vid, shuffle=1, deflate=1, deflate_level=9)
+#  endif
 
 !--Define Mesh Relevant Variables and Attributes
 
@@ -688,6 +718,9 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
     ierr = nf90_put_att(nc_ofid,h_s_vid,"units","meters")
     ierr = nf90_put_att(nc_ofid,h_s_vid,"positive","down")
     ierr = nf90_put_att(nc_ofid,h_s_vid,"standard_name","depth")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, h_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
 !--Define Model Time Variables and Attributes    
     IF(USE_REAL_WORLD_TIME)THEN
@@ -710,9 +743,15 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
 !JQI      ierr = nf90_put_att(nc_ofid,time_s_vid,"calendar","none")
       ierr = nf90_put_att(nc_ofid,time_s_vid,"time_zone","none")
     END IF  
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, time_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
     ierr = nf90_def_var(nc_ofid,"iint",nf90_int,dynmtime,iint_vid)
     ierr = nf90_put_att(nc_ofid,iint_vid,"long_name","internal mode iteration number")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, iint_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
 !--Define Time Dependent Flow Variables (selected by user from input file)
     if(OUT_VELOCITY_3D)then
@@ -725,7 +764,7 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
        
      ierr = nf90_def_var(nc_ofid,"v",nf90_float,dynm2de_lay,v_s_vid)
      ierr = nf90_put_att(nc_ofid,v_s_vid,"long_name","Northward Water Velocity")
-     ierr = nf90_put_att(nc_ofid,u_s_vid,"standard_name","northward_sea_water_velocity")
+     ierr = nf90_put_att(nc_ofid,v_s_vid,"standard_name","northward_sea_water_velocity")
      ierr = nf90_put_att(nc_ofid,v_s_vid,"units","meters s-1")
      ierr = nf90_put_att(nc_ofid,v_s_vid,"type","data")
      ierr = nf90_put_att(nc_ofid,v_s_vid,"coordinates","time siglay station")
@@ -734,6 +773,12 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,ww_s_vid,"long_name","Upward Water Velocity")
      ierr = nf90_put_att(nc_ofid,ww_s_vid,"units","meters s-1")
      ierr = nf90_put_att(nc_ofid,ww_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, u_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, v_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, ww_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_VELOCITY_2D)then
@@ -746,6 +791,11 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,va_s_vid,"long_name","Vertically Averaged y-velocity")
      ierr = nf90_put_att(nc_ofid,va_s_vid,"units","meters s-1")
      ierr = nf90_put_att(nc_ofid,va_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, ua_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, va_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_SALT_TEMP)then
@@ -762,6 +812,11 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,s1_s_vid,"units","1e-3")
      ierr = nf90_put_att(nc_ofid,s1_s_vid,"type","data")
      ierr = nf90_put_att(nc_ofid,s1_s_vid,"coordinates","time siglay station")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, t1_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, s1_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_ELEVATION)then
@@ -772,6 +827,10 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,el_s_vid,"standard_name","sea_surface_height_above_geoid")
      ierr = nf90_put_att(nc_ofid,el_s_vid,"type","data")
      ierr = nf90_put_att(nc_ofid,el_s_vid,"coordinates","time station")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, el_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_WIND_VELOCITY)then
@@ -788,6 +847,11 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,vvwind_s_vid,"standard_name","northward wind")
      ierr = nf90_put_att(nc_ofid,vvwind_s_vid,"type","data")
      ierr = nf90_put_att(nc_ofid,vvwind_s_vid,"coordinates","time station")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, uuwind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, vvwind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
 #   if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
@@ -797,6 +861,10 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,atmpres_s_vid,"units","(Pa)")
      ierr = nf90_put_att(nc_ofid,atmpres_s_vid,"standard_name","atmospheric pressure")
      ierr = nf90_put_att(nc_ofid,atmpres_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, atmpres_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 #   endif    
 
@@ -808,6 +876,10 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,hs_s_vid,"positive","up")
      ierr = nf90_put_att(nc_ofid,hs_s_vid,"standard_name","signaficant_wave_height")
      ierr = nf90_put_att(nc_ofid,hs_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, hs_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_REL_PEAK_PERIOD)then
@@ -816,6 +888,10 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,pperiod_s_vid,"units","seconds")
      ierr = nf90_put_att(nc_ofid,pperiod_s_vid,"standard_name","relative_peak_period")
      ierr = nf90_put_att(nc_ofid,pperiod_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, pperiod_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_WAVE_DIRECTION)then
@@ -824,6 +900,10 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,wdir_s_vid,"units","degrees")
      ierr = nf90_put_att(nc_ofid,wdir_s_vid,"standard_name","wave_direction")
      ierr = nf90_put_att(nc_ofid,wdir_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, wdir_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_ENERGY_SPECTRUM)then
@@ -832,6 +912,10 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,sdensity_s_vid,"units","m^2/hz")
      ierr = nf90_put_att(nc_ofid,sdensity_s_vid,"standard_name","energy_dpectrum")
      ierr = nf90_put_att(nc_ofid,sdensity_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, sdensity_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_WAVE_PARTITION)then
@@ -882,6 +966,17 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
      ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"units","non")
      ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"standard_name","dirdeg_pos_swell")
      ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, hwind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, dwind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, twind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, twindp_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, hswell_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, dswell_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, tswell_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, tswellp_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
 #   endif
@@ -911,14 +1006,14 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
    call putvar(i1,i2,m,mgl,1,1,"n",lat,nc_ofid,lat_s_vid,myid&
         &,nprocs,ipt, stck_cnt) 
 
-   !!====X Grid Coordinate at Nodes (VX)====================!
-   i1 = lbound(vx,1) ; i2 = ubound(vx,1)
-   call putvar(i1,i2,m,mgl,1,1,"n",vx+vxmin,nc_ofid,x_s_vid,myid,nprocs&
+   !!====X Grid Coordinate at Nodes (XM)====================!
+   i1 = lbound(xm,1) ; i2 = ubound(xm,1)
+   call putvar(i1,i2,m,mgl,1,1,"n",xm,nc_ofid,x_s_vid,myid,nprocs&
         &,ipt, stck_cnt) 
 
-   !!====Y Grid Coordinate at Nodes (VY)====================!
-   i1 = lbound(vy,1) ; i2 = ubound(vy,1)
-   call putvar(i1,i2,m,mgl,1,1,"n",vy+vymin,nc_ofid,y_s_vid,myid,nprocs&
+   !!====Y Grid Coordinate at Nodes (YM)====================!
+   i1 = lbound(ym,1) ; i2 = ubound(ym,1)
+   call putvar(i1,i2,m,mgl,1,1,"n",ym,nc_ofid,y_s_vid,myid,nprocs&
         &,ipt, stck_cnt) 
 
    !!====Bathymetry at Nodes (H)============================!
@@ -1278,50 +1373,87 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
    SUBROUTINE TRIANGLE_GRID_EDGE_GL
 
 !==============================================================================|
-!             DEFINE NTVEGL, NBVEGL                                          !
+!             DEFINE NTVEGL, NBVEGL                                            !
 !                                                                              !
-! ntvegl(1:mgl):           total number of the surrounding triangles               !
+! ntvegl(1:mgl):       total number of the surrounding triangles               !
 !                      connected to the given node                             !
-! nbvegl(1:mgl, 1:ntvegl+1): the identification number of surrounding                !
+! nbvegl(1:mgl, 1:ntvegl+1): the identification number of surrounding          !
 !                      triangles with a common node (counted clockwise)        !
 !==============================================================================|
    USE ALL_VARS
    IMPLICIT NONE
-   INTEGER I,J,NCNT,MX_NBR_ELEM_GL
+   LOGICAL FEXIST
+   INTEGER I,J,NCNT,MX_NBR_ELEM_GL,II
+   CHARACTER(LEN=160) :: pathnfile
 
+   pathnfile=trim(INPUT_DIR)//trim(GRID_EDGE_FILE_NAME)
+   INQUIRE(FILE=TRIM(pathnfile),EXIST=FEXIST)
+
+   IF(.NOT. FEXIST)THEN
 !
 !----DETERMINE MAX NUMBER OF SURROUNDING ELEMENTS------------------------------!
 !
-   MX_NBR_ELEM_GL = 0
-   DO I=1,MGL
-     NCNT = 0
-     DO J=1,NGL
-       IF( FLOAT(NVG(J,1)-I)*FLOAT(NVG(J,2)-I)*FLOAT(NVG(J,3)-I) == 0.0_SP) &
-         NCNT = NCNT + 1
+     MX_NBR_ELEM_GL = 0
+     DO I=1,MGL
+       NCNT = 0
+       DO J=1,NGL
+         IF( FLOAT(NVG(J,1)-I)*FLOAT(NVG(J,2)-I)*FLOAT(NVG(J,3)-I) == 0.0_SP) &
+           NCNT = NCNT + 1
+       END DO
+       MX_NBR_ELEM_GL = MAX(MX_NBR_ELEM_GL,NCNT)
      END DO
-     MX_NBR_ELEM_GL = MAX(MX_NBR_ELEM_GL,NCNT)
-   END DO
 
 !
 !----ALLOCATE ARRAYS BASED ON MX_NBR_ELEM--------------------------------------!
 ! 
-   ALLOCATE(NTVEGL(MGL));                  NTVEGL = 0
-   ALLOCATE(NBVEGL(MGL,MX_NBR_ELEM_GL+1)); NBVEGL = 0
+     ALLOCATE(NTVEGL(MGL));                  NTVEGL = 0
+     ALLOCATE(NBVEGL(MGL,MX_NBR_ELEM_GL+1)); NBVEGL = 0
 !
 !--DETERMINE NUMBER OF SURROUNDING ELEMENTS FOR NODE I = NTVEGL(I)---------------!
 !--DETERMINE NBVEGL - INDICES OF NEIGHBORING ELEMENTS OF NODE I------------------!
 !
        
-   DO I=1,MGL
-     NCNT=0
-     DO J=1,NGL
-       IF (FLOAT(NVG(J,1)-I)*FLOAT(NVG(J,2)-I)*FLOAT(NVG(J,3)-I) == 0.0_SP)THEN
-         NCNT = NCNT+1
-         NBVEGL(I,NCNT)=J
-       END IF
+     DO I=1,MGL
+       NCNT=0
+       DO J=1,NGL
+         IF (FLOAT(NVG(J,1)-I)*FLOAT(NVG(J,2)-I)*FLOAT(NVG(J,3)-I) == 0.0_SP)THEN
+           NCNT = NCNT+1
+           NBVEGL(I,NCNT)=J
+         END IF
+       ENDDO
+       NTVEGL(I)=NCNT
      ENDDO
-     NTVEGL(I)=NCNT
-   ENDDO
+   
+     IF(MSR)THEN
+       pathnfile = trim(INPUT_DIR)//trim(GRID_EDGE_FILE_NAME)             
+       OPEN(10,file=trim(pathnfile))
+
+!  Added by Zheng
+       WRITE(10,'(I4)') MX_NBR_ELEM_GL+1
+!  Added by Zheng
+
+       DO I=1,MGL
+         WRITE(10,'(2I10,<MX_NBR_ELEM_GL+1>I10)') I,NTVEGL(I),(NBVEGL(I,J),J=1,NTVEGL(I))
+       END DO
+       CLOSE(10)
+     END IF
+   ELSE
+     pathnfile = trim(INPUT_DIR)//trim(GRID_EDGE_FILE_NAME)             
+     OPEN(10,file=trim(pathnfile))
+
+!  Added by Zheng
+     READ(10,'(I4)') MX_NBR_ELEM_GL
+     ALLOCATE(NTVEGL(MGL));                  NTVEGL = 0
+     ALLOCATE(NBVEGL(MGL,MX_NBR_ELEM_GL));   NBVEGL = 0
+!  Added by Zheng
+
+     DO I=1,MGL
+       READ(10,*) II,NTVEGL(I),(NBVEGL(I,J),J=1,NTVEGL(I))
+     END DO
+   
+     CLOSE(10)
+   
+   END IF
 
    RETURN
    END SUBROUTINE TRIANGLE_GRID_EDGE_GL

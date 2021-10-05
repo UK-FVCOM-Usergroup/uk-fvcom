@@ -65,6 +65,9 @@ SUBROUTINE NAMELIST
 # endif 
 # if defined (DATA_ASSIM)
   USE MOD_ASSIM
+! lwang added for the SST mld assimilation
+  USE MOD_MLD_RHO
+! lwang
 # endif 
 # if defined (HEATING_CALCULATED)
   USE MOD_HEATFLUX
@@ -191,6 +194,24 @@ SUBROUTINE NAMELIST
 
   !READ DATA IN THE NAME LIST FILE
   CALL NAME_LIST_READ ! ALL PROCS READ THIS
+
+!---> Siqi Li
+#  if defined (WET_DRY)
+    IF (.not. WETTING_DRYING_ON) THEN 
+      ! CALL FATAL_ERROR('Turn on WETTING_DRYING_ON in nml, or recompile with WET_DRY off')
+      IF(MSR) WRITE(*,*) 'Turn on WETTING_DRYING_ON in nml, or recompile with WET_DRY off'
+      CALL PSTOP
+  END IF
+#  endif
+
+#  if defined (AIR_PRESSURE)
+    IF (.not. AIRPRESSURE_ON) THEN
+      IF(MSR) WRITE(*,*) 'Turn on AIRPRESSURE_ON in nml, or recompile with AIR_PRESSURE off'
+      CALL PSTOP
+  END IF
+#  endif
+!<--- Siqi Li
+
 
   CALL NAME_LIST_READ_NEST
   IF(NESTING_ON .AND. SERIAL)THEN

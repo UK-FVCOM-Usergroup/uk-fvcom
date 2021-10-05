@@ -27,6 +27,7 @@ MODULE VARS_WAVE
   INTEGER :: ITW,IT0            
 
   REAL(SP)   , ALLOCATABLE :: HSC1(:), DIRDEG1(:), TPEAK(:), WLEN(:),QB1(:)
+  REAl(SP)   , ALLOCATABLE :: CP(:)      ! Wave phase speed (m/s) ! Siqi Li, 2021-01-27
   REAL, ALLOCATABLE ::  OBC_HS(:,:),OBC_DIR(:,:),OBC_TPEAK(:,:)
 
   REAL   , ALLOCATABLE :: Pwave_bot(:),Ub_swan(:)

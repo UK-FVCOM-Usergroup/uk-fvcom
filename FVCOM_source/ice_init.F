@@ -619,9 +619,7 @@
       enddo              ! i
       enddo              ! j
       do ni = 1,ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
+
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -786,7 +784,7 @@
 !      !  if running in coupled mode
 !#ifdef fcd_coupled
 !      ! direct ice-ocean coupling
-!      call MPI_COMM_DUP(MPI_COMM_WORLD, MPI_COMM_ICE, ierr)
+!      call MPI_COMM_DUP(MPI_FVCOM_GROUP, MPI_COMM_ICE, ierr)
 !#else
 !      ! CCSM coupling
 !      call ice_coupling_setup('ice',MPI_COMM_ICE)
@@ -798,7 +796,7 @@
 !#else
 !      call MPI_INIT(ierr)
 !#endif
-!      call MPI_COMM_DUP(MPI_COMM_WORLD, MPI_COMM_ICE, ierr)
+!      call MPI_COMM_DUP(MPI_FVCOM_GROUP, MPI_COMM_ICE, ierr)
 !#endif
 !#endif
 !

@@ -46,7 +46,6 @@ SUBROUTINE ADV_T
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
-
 # if defined (THIN_DAM)
   USE MOD_DAM,only : kdam,N_DAM_MATCH,IS_DAM
 # endif
@@ -72,7 +71,7 @@ SUBROUTINE ADV_T
   REAL(SP), DIMENSION(1:M)             :: dstA,dstB
   REAL(SP), DIMENSION(1:NCV)           :: XUA,XUB,YUA,YUB
   REAL(SP) :: LX,LY,minA,minB,T_upstreamA,T_upstreamB,A_limiter
-  REAL(SP) :: B_limiter,T12_A,T12_B,smoothrA,smoothrB
+  REAL(SP) :: B_limiter,smoothrA,smoothrB
 # endif
 
 !!$#  if defined (SPHERICAL)
@@ -137,7 +136,6 @@ SUBROUTINE ADV_T
   !
   !--Initialize Fluxes-----------------------------------------------------------!
   !
-
   XFLUX     = 0.0_SP
   XFLUX_ADV = 0.0_SP
 
@@ -178,10 +176,6 @@ SUBROUTINE ADV_T
   !--Add the Shortwave Radiation Body Force--------------------------------------!
   !
   RF = 0.0_sp
-  ! ----
-  ! Merk: Dette stammer fra mod_heatflux, ikke fra cmake! Dermed må denne tas med
-  ! i MPDATA!
-  ! ----
   IF(HEATING_ON) THEN
      SELECT CASE(HEATING_TYPE)
      CASE('body')
@@ -202,8 +196,12 @@ SUBROUTINE ADV_T
               !           IF(DT(I) > 0.0_SP) THEN
               ZDEP=0.5_SP*(Z(I,K)+Z(I,K+1))*DT(I)
               !           END IF
+!JQI              RF(I,K)=-SWRAD(I)*((RHEAT/ZETA1)*EXP(ZDEP/ZETA1) &
+!JQI                   +((1-RHEAT)/ZETA2)*EXP(ZDEP/ZETA2))*DT(I)
               RF(I,K)=-SWRAD(I)*((RHEAT/ZETA1)*EXP(ZDEP/ZETA1) &
-                   +((1-RHEAT)/ZETA2)*EXP(ZDEP/ZETA2))*DT(I)
+                   +((1-RHEAT)/ZETA2)*EXP(ZDEP/ZETA2))*DT(I)*DZ(I,K)
+!CHEN              RF(I,K)=-SWRAD(I)*((RHEAT/(ZETA1*ZETA1))*EXP(ZDEP/ZETA1) &
+!CHEN                   +((1-RHEAT)/(ZETA2*ZETA2))*EXP(ZDEP/ZETA2))*DT(I)*DZ(I,K)
               !         END IF
            END DO
         END DO
@@ -211,15 +209,13 @@ SUBROUTINE ADV_T
 
      CASE('flux')
         RF = 0.0_SP
+     CASE('surface')
+        RF = 0.0_SP
      CASE DEFAULT
         CALL FATAL_ERROR('The surface heating type is set incorrectly:',&
              & TRIM(HEATING_TYPE))
      END SELECT
   END IF
-
-! ---
-! Dette gjøres altså _ikke_ i MPDATA!
-! ---
 
 !--ADJUST VOLUME'S HEAT CONTENT FOR EVAPORATION AND PRECIPITATION ------------------!
   IF (PRECIPITATION_ON) THEN
@@ -513,11 +509,23 @@ SUBROUTINE ADV_T
        T_upstreamB=T1(Bnear_node(I),K)+PTPX(Bnear_node(I))*XUBdist(I)+PTPY(Bnear_node(I))*YUBdist(I)                
 
 !    The smoothness-parameter
-       IF (T1(IA,K).EQ.T1(IB,K)) THEN
+!       IF (T1(IA,K).EQ.T1(IB,K)) THEN
+!          smoothrA    = 0.0_SP
+!          smoothrB    = 0.0_SP
+!         ELSE
+!     T_upstreamA is the "far upstream node", T1(IA,K) is upstream of T1(IB,K)
+!          smoothrA    = (T1(IA,K)-T_upstreamA)/(T1(IB,K)-T1(IA,K))
+!          smoothrB    = (T1(IB,K)-T_upstreamB)/(T1(IA,K)-T1(IB,K))
+!       END IF
+
+      IF (T1(IA,K).EQ.T1(IB,K)) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+         ELSE IF (T1(IA,K).LT.1.E-10.AND.T1(IB,K).LT.1.E-10) THEN
           smoothrA    = 0.0_SP
           smoothrB    = 0.0_SP
          ELSE
-!     T_upstreamA is the "far upstream node", T1(IA,K) is upstream of T1(IB,K)
+!         T_upstreamA is the "far upstream node", T1(IA,K) is upstream of T1(IB,K), vica versa for "B"
           smoothrA    = (T1(IA,K)-T_upstreamA)/(T1(IB,K)-T1(IA,K))
           smoothrB    = (T1(IB,K)-T_upstreamB)/(T1(IA,K)-T1(IB,K))
        END IF
@@ -532,8 +540,10 @@ SUBROUTINE ADV_T
 !      B_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrB))
 
 !      Calculating the salinity in-between IA and IB
-       T12_A     = T1(IA,K)+0.5_SP*A_LIMITER*(T1(IB,K)-T1(IA,K))
-       T12_B     = T1(IB,K)+0.5_SP*B_LIMITER*(T1(IA,K)-T1(IB,K))
+!       T12_A     = T1(IA,K)+0.5_SP*A_LIMITER*(T1(IB,K)-T1(IA,K))
+!       T12_B     = T1(IB,K)+0.5_SP*B_LIMITER*(T1(IA,K)-T1(IB,K))
+       FIJ1     = T1(IA,K)+0.5_SP*A_LIMITER*(T1(IB,K)-T1(IA,K))
+       FIJ2     = T1(IB,K)+0.5_SP*B_LIMITER*(T1(IA,K)-T1(IB,K))
 # endif
 
         UN=UVN(I,K)
@@ -553,13 +563,8 @@ SUBROUTINE ADV_T
         FYY= DTIJ(I,K)*TYY*DLTXE(I)
 
 #       if !defined (SEMI_IMPLICIT)
-#       if !defined (TVD)
         EXFLUX=-UN*DTIJ(I,K)* &
              ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP+FXX+FYY
-#       else
-        EXFLUX = -UN*DTIJ(I,K)* &
-             ((1.0_SP+SIGN(1.0_SP,UN))*T12_B+(1.0_SP-SIGN(1.0_SP,UN))*T12_A)*0.5_SP+FXX+FYY
-#       endif
 #       else
         EXFLUX=-UN*DTIJ(I,K)* &
             ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP
@@ -675,7 +680,7 @@ SUBROUTINE ADV_T
            DO J=1,NUMQBC
               J1=N_ICELLQ(J,1)
               J2=N_ICELLQ(J,2)
-              STPOINT=TDIS(J)+OFFS(1,1) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+              STPOINT=TDIS(J)+OFFS(1,1)
               DO K=1,KBM1
               !   STPOINT1 = T1(J1,K)
               !   STPOINT2 = T1(J2,K)
@@ -754,6 +759,12 @@ SUBROUTINE ADV_T
               TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            END IF
 
+         ! Total (horizontal + vertical) flux to the cell
+           ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K)
+
+         ! Updated salinity without limiter minus current salinity
+           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+T1(I,K)-T1(I,K)*DT(I)/DTFA(I)
+           
            ! Added by Akvaplan 2018 to avoid single precision-crash
          IF((ABS(XXXX).LT.ABS(TMAX-T1(I,K))).AND.(XXXX.LT.0.0_SP)) THEN
             T1_SF(I,K) = T1(I,K)-XXXX
@@ -767,13 +778,13 @@ SUBROUTINE ADV_T
             T1_SF(I,K)=T1(I,K)-MIN(1._SP,BETA(I,K))*XXXX
          END IF
 
-           ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
-           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+T1(I,K)-T1(I,K)*DT(I)/DTFA(I) 
+!           ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
+!           XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+T1(I,K)-T1(I,K)*DT(I)/DTFA(I) 
 
-           BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (TMAX-T1(I,K))/(ABS(XXXX)+1.E-10) &
-                +0.5*(1.-SIGN(1._SP,-XXXX)) * (T1(I,K)-TMIN)/(ABS(XXXX)+1.E-10)
+!           BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (TMAX-T1(I,K))/(ABS(XXXX)+1.E-10) &
+!                +0.5*(1.-SIGN(1._SP,-XXXX)) * (T1(I,K)-TMIN)/(ABS(XXXX)+1.E-10)
 
-           T1_SF(I,K)=T1(I,K)-MIN(1.,BETA(I,K))*XXXX
+!           T1_SF(I,K)=T1(I,K)-MIN(1.,BETA(I,K))*XXXX
 
 #    if defined (WET_DRY)
         END IF
@@ -830,7 +841,7 @@ SUBROUTINE ADV_T
            TMIN = MINVAL(T1(NBSN(I,1:NTSN(I)),K))
            TMAX = MAX(TMAX,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
            TMIN = MIN(TMIN,T1(I,K+1),T1(I,K-1),T1(I,K),T1_FRESH(I,K))
-           
+
            TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*T1_S(I,K+1)-  &
                 (WWWS(I,K)-ABS(WWWS(I,K)))*T1_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)
            BETAIN(I,K)=(TMAX-T1_S(I,K))/(TEMP+1.E-10)
@@ -983,6 +994,7 @@ SUBROUTINE ADV_T
              ENDIF
            ENDIF
 !J. Ge for tracer advection
+
 #          endif
 
            IF(ISONB(I) == 2) THEN
@@ -1035,16 +1047,12 @@ SUBROUTINE ADV_T
            DO J=1,NUMQBC
               J1=N_ICELLQ(J,1)
               J2=N_ICELLQ(J,2)
-              STPOINT=TDIS(J) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+              STPOINT=TDIS(J) 
               DO K=1,KBM1
                  !STPOINT1 = T1(J1,K)
                  !STPOINT2 = T1(J2,K)
-                 !             XFLUX(J1,K)=XFLUX(J1,K)-  &
-                 !                         QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT1/DZ1(J1,K)
-                 !             XFLUX(J2,K)=XFLUX(J2,K)-  &
-                 !                         QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT2/DZ1(J2,K)
-                 XFLUX(J1,K)=XFLUX(J1,K)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT   !1
-                 XFLUX(J2,K)=XFLUX(J2,K)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT   !2
+                 XFLUX(J1,K)=XFLUX(J1,K)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT     !1/DZ1(J1,K)
+                 XFLUX(J2,K)=XFLUX(J2,K)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT     !2/DZ1(J2,K)
               END DO
            END DO
         END IF
@@ -1074,6 +1082,7 @@ SUBROUTINE ADV_T
 !J. Ge for tracer advection
      END DO
   END IF
+
 
   !
   !--Update Temperature----------------------------------------------------------!
@@ -1147,6 +1156,9 @@ SUBROUTINE ADV_T
      END DO
   END DO
 # endif
+
+
+
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: adv_t"
 
 END SUBROUTINE ADV_T

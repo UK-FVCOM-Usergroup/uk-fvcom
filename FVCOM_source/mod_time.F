@@ -1310,7 +1310,11 @@ MODULE Mod_Time
 
      !CALL DATE_AND_TIME ( DATE=D,TIME=T, ZONE=Z)
 
-     D='1990-01-01'
+!Michael Dunphy (Michael.Dunphy@dfo-mpo.gc.ca)
+!A memory checker found this 10-byte write to an 8-byte string
+!     D='1990-01-01'
+     D='19900101'
+!Michael Dunphy
      toff = '0:00'
 
      ! TS1

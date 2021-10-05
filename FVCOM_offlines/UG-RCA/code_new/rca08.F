@@ -1,0 +1,157 @@
+      SUBROUTINE  RCA08 
+! 
+!     RCA08 IS USED TO SET UP SYNCRONIZE DATA FILES FOR "B" VECTORS
+!            IF SIMULATION STARTS OTHER THAN TIME EQUAL TO ZERO 
+! 
+      USE ALL_VARS,ONLY : HOUR,NCFILE,MSR,CARAY,CDARAY
+      USE MOD_RCA
+      IMPLICIT NONE
+      SAVE
+!      INCLUDE 'RCACM' 
+ 
+      REAL   TVAL(600)
+      REAL TMID
+      INTEGER LNDWTROPT
+      INTEGER I,IBRK
+
+
+!     Transport
+
+   10 DO WHILE(TZERO > NXHYDT)
+!      Dummy reads for TMID/QDIFF
+       IF(IDIFFOPT == 1) READ(31,END=900)
+       NXHYDTSECS=NXHYDTSECS+IHYDDTSECS
+       NXHYDT=NXHYDTSECS/86400.
+      END DO
+  
+      TMID = NXHYDT
+      HOUR = NXHYDT*24
+  
+      CALL RCA03A
+
+!     Boundary Conditions
+      IF(BCFILNA /= 'NULL') THEN
+       IF(IBCOPT /= 1) THEN
+        DO WHILE(TZERO >= NXBCT)
+         CALL RCA11
+        END DO
+
+!       Put Boundary Conditions into -CARAY-
+        DO ISYS=1,NOSYS
+         IF(NOBC(ISYS) /= 0) THEN
+          DO I=1,NOBC(ISYS)
+           CARAY(IBC(1,I,ISYS),IBC(2,I,ISYS),ISYS)=BBC(I,ISYS)
+          END DO
+         END IF
+        END DO	    
+       END IF
+      END IF	   
+
+!     POINT SOURCE LOADS
+      IF(PSFILNA /= 'NULL') THEN
+       IF(IPSOPT /= 1) THEN
+        DO WHILE(TZERO >= NXPST)
+         CALL RCA10(SPS_GL,BPS_GL,MXWK,NOPS_GL,NXPST,33,IPSPWLOPT,SCALPS)
+        END DO
+       END IF
+      END IF 	
+
+!     Nonpoint source loads
+      IF(NPSFILNA /= 'NULL') THEN 
+       IF(INPSOPT /= 1) THEN
+        DO WHILE(TZERO >= NXNPST)
+         CALL RCA10(SNPS_GL,BNPS_GL,MXWK,NONPS_GL,NXNPST,34,INPSPWLOPT,SCALNPS)
+        END DO
+       END IF
+      END IF
+      	
+!     Fall-line loads
+      IF(FLFILNA /= 'NULL') THEN
+       IF(IFLOPT /= 1) THEN
+        DO WHILE(TZERO >= NXFLT)
+         CALL RCA10(SFL_GL,BFL_GL,MXWK,NOFL_GL,NXFLT,35,IFLPWLOPT,SCALFL)
+        END DO
+       END IF
+      END IF	  
+
+!     Atmospheric loads
+      IF(ATMFILNA /= 'NULL') THEN 
+       IF(IATMOPT /= 1) THEN 
+        DO WHILE(TZERO >= NXATMT)
+         CALL RCA10(SATM_GL,BATM_GL,NXY,NOATM_GL,NXATMT,36,IATMPWLOPT,SCALATM)
+        END DO
+       END IF
+      END IF	  
+
+      CALL GLOB2LOC10
+      
+!     Misc time functions
+      IF(PCFILNA /= 'NULL') THEN 
+       IF(NOFUNC /= 0) THEN 
+        DO I=1,NOFUNC
+         IF(TZERO >= NXFUNT(I)) THEN
+          DO IBRK=1,MXFUNCT
+           IF(TZERO <= TIMEMTF(I,IBRK)) GO TO 330
+          END DO 
+          IF(MSR) WRITE(OUT,2000)  TZERO,I
+ 2000  FORMAT(///5X,'ERROR ... REQUESTED START TIME (TZERO) =',F10.3,       &
+       ' GREATER THAN MAXIMUM TIME BREAK SPECIFIED FOR',                    &
+       ' MISCELLANEOUS TIME FUNCTION NUMBER',I3/5X,'RCA TERMINATED')
+  330         ITIMF(I) = IBRK
+         ENDIF
+        ENDDO
+       END IF
+      END IF	  
+
+      RETURN
+
+!     End of hydrodynamic file encountered ...
+!     Check if recycle option enabled
+  900 IF(HYDCYCOPT == 1) THEN
+!      IF SO REWIND FILE AND CONTINUE SIMULATION
+       IF(IDIFFOPT == 1) THEN
+        REWIND(31)
+        READ(31)
+       ENDIF
+       GO TO 10
+!      OR IF "LINK-FILE" OPTION ENABLED
+      ELSE IF(HYDCYCOPT == 2) THEN
+!      IF SO CLOSE PRESENT "GCM-" FILES AND OPEN NEW "GCM-" FILES
+       IF(IDIFFOPT == 1) CLOSE(31)
+       IHYDFILE=IHYDFILE+1
+       IF(IHYDFILE > MXHYDFILES) GO TO 970
+       IF(MSR) WRITE(OUT,1310)  HYDFILNA(IHYDFILE),DIFFILNA(IHYDFILE)
+ 1310  FORMAT(//20X,'OPENING HYDRODYNAMIC TRANPORT FIELD FILE =',A40/      &
+             16X,'AND OPENING DIFFUSER DISCHARGE FILE =',A40)
+       NCFILE  = TRIM(HYDFILNA(IHYDFILE))
+!JQI       OPEN(30,FILE=HYDFILNA(IHYDFILE),FORM='UNFORMATTED',
+!JQI    .       STATUS='OLD',ERR=980)
+       IF(IDIFFOPT == 1) THEN
+        OPEN(31,FILE=DIFFILNA(IHYDFILE),FORM='UNFORMATTED',STATUS='OLD',ERR=990)
+        READ(31)
+       ENDIF
+       GO TO 10
+      ELSE
+!      ERROR MESSAGE AND EXIT
+       IF(MSR) WRITE(OUT,9100)   HYDFILNA(IHYDFILE)
+ 9100  FORMAT(///5X,'END-OF-FILE ENCOUNTERED DURING READ OF'/5X,A40)
+      ENDIF
+      CALL EXIT
+
+  950 CALL FMTER
+      CALL EXIT 
+  970 IF(MSR) WRITE(OUT,9700)
+ 9700 FORMAT(///                                                          &
+        5X,'ERROR...END-OF-FILE ENCOUNTERED IN LAST HYDRODYNAMIC FILE'/   &
+        5X,'NO MORE USER-SPECIFIED HYDRODYNAMIC FILES EXIST'/             &
+        5X,' ... RCA TERMINATED')
+      CALL EXIT
+  980 IF(MSR) WRITE(OUT,9800)  HYDFILNA(IHYDFILE)
+ 9800 FORMAT(///                                                          &
+        5X,'ERROR ENCOUNTERED OPENING HYDRODYNAMIC FILE ',A40/5X,' ... RCA TERMINATED')
+      CALL EXIT
+  990 IF(MSR) WRITE(OUT,9900)  DIFFILNA(IHYDFILE)
+ 9900 FORMAT(///                                                          &
+        5X,'ERROR ENCOUNTERED OPENING DIFFUSER FILE ',A40/5X,' ... RCA TERMINATED')
+      CALL EXIT
+      END SUBROUTINE  RCA08

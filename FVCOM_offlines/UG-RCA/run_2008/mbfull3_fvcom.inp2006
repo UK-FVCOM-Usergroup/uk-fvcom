@@ -1,0 +1,111 @@
+C    Cycle List_Geom  List_BCs  List_WKs  List_PCs  List_ICs   IDIAGDT    INPCHK
+         0         0         0         1         1         0         0         0     ! Cycle(0=cold) Geom,Bound,Load,Param,IC,IniOPT,
+C    Model run descriptor
+Massachusetts Bay Fine Grid Model RCA Version 3
+END
+C  State variable names
+     SAL   PHYT1   PHYT2   PHYT3    RPOP    LPOP    RDOP    LDOP     DIP    RPON
+    LPON    RDON    LDON     NH4    NO23     SIU      SI    RPOC    LPOC    RDOC   
+    LDOC   EXDOC   REPOC   REDOC    O2EQ      DO        
+C   System by-pass option in simulation
+ 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0         
+C NEGSLN  SLCOPT  
+         0         0                        !0=no negative values
+C    TWARP     TZERO     IDTWQ
+      SECS       0.0       240  
+C NUMBER OF STEPS IN STEP-SIZE HISTORY, how many different time steps
+         1
+C       DT      TIME    (sec and day)
+        60     365.0 	 
+C PRINT INFO: IPRINTG,IPRINTD,NDMPS,TWARPP, IGDOPT,   IDDOPT	  
+         3         3       128      DAYS         1         0       (Global, detail, average average)
+C  Intermediate dunps (IR,IC,IL, repeat)
+     766       1     766      10     465       1     465      10     688       1     688      10
+     126       1     126      10     678       1     678      10     556       1     556      10
+     445       1     445      10     391       1     391      10     739       1     739      10
+     736       1     736      10     610       1     610      10     287       1     287      10
+     920       1     920      10    1025       1    1025      10     803       1     803      10
+     667       1     667      10     548       1     548      10    1107       1    1107      10
+     662       1     662      10     907       1     907      10     721       1     721      10
+     539       1     539      10    1147       1    1147      10    1092       1    1092      10
+    1096       1    1096      10     425       1     425      10     275       1     275      10
+     333       1     333      10     124       1     124      10    1170       1    1170      10
+    1132       1    1132      10     518       1     518      10     224       1     224      10
+    1089       1    1089      10    1047       1    1047      10     963       1     963      10
+     855       1     855      10     912       1     912      10     858       1     858      10
+     729       1     729      10     916       1     916      10     967       1     967      10
+    1053       1    1053      10    1075       1    1075      10    1050       1    1050      10
+    1049       1    1049      10    1019       1    1019      10     911       1     911      10
+     913       1     913      10     859       1     859      10     966       1     966      10
+    1022       1    1022      10    1021       1    1021      10     965       1     965      10
+    1208       1    1208      10    1188       1    1188      10    1170       1    1170      10
+    1160       1    1160      10    1130       1    1130      10    1201       1    1201      10
+    1163       1    1163      10    1173       1    1173      10    1133       1    1133      10
+    1135       1    1135      10
+C DETAILED DUMP BYPASS OPT
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0    !dump by-pass
+C INTERMEDIATE DUMPS
+    3460       2     526      30     458       1     505      30     426       1    1208       1 
+C   MB OPT  IPRINTMB   TWARPMB    IMBOPT  ISTARTMB    IENDMB  
+         0     44712      SECS         0         0  31521960  
+C HYDCYCOPT,IDIFFOPT
+         0         0  
+C   IHYDDT     UNITS
+      3600      secs      
+C SCALRX      SCALRY    SCALRZ
+       1.0       1.0       1.0
+C NO OF HYDRO FILES  NOHYDFILNA
+        24
+../run_2008/Transport/mb_000101.nc      ./Transport/gcm_qdiff_1.dat                         !IDOFFPPT=1
+../run_2008/Transport/mb_000201.nc      ./Transport/gcm_qdiff_1.dat                                    
+../run_2008/Transport/mb_000301.nc      ./Transport/gcm_qdiff_1.dat                                      
+../run_2008/Transport/mb_000401.nc      ./Transport/gcm_qdiff_1.dat                                
+../run_2008/Transport/mb_000501.nc      ./Transport/gcm_qdiff_1.dat                  
+../run_2008/Transport/mb_000601.nc      ./Transport/gcm_qdiff_1.dat                      
+../run_2008/Transport/mb_000701.nc      ./Transport/gcm_qdiff_1.dat      
+../run_2008/Transport/mb_000801.nc      ./Transport/gcm_qdiff_1.dat             
+../run_2008/Transport/mb_000901.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_001001.nc      ./Transport/gcm_qdiff_1.dat  
+../run_2008/Transport/mb_001101.nc      ./Transport/gcm_qdiff_1.dat          
+../run_2008/Transport/mb_001201.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_001301.nc      ./Transport/gcm_qdiff_1.dat                         !IDOFFPPT=1 
+../run_2008/Transport/mb_001401.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_001501.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_001601.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_001701.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_001801.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_001901.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_002001.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_002101.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_002201.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_002301.nc      ./Transport/gcm_qdiff_1.dat
+../run_2008/Transport/mb_002401.nc      ./Transport/gcm_qdiff_1.dat
+C BOUNDARY CONDITION FILE NAME          BINARY OPT  (A40 I10)
+../run_2008/in_2008/bcf2008_fvcom.2wk       0             !0=ascii, 1=binary
+C POINT SURCE FILE NAME                 BINARY OPT
+../run_2008/in_2008/ps_fvcom.2008.wk        0
+C NON-POINT SURCE FILE NAME             BINARY OPT
+../run_2008/in_2008/nps_fvcom.2008          0
+C FALL_LINE LOAD FILE NAME              BINARY OPT
+../run_2008/in_2008/model_fvcom.fl2008      0
+C ATMOSPHERIC LOAD FILE NAME            BINARY OPT
+../run_2008/in_2008/atmos2008_fvcom.load    0
+C PARA, CONS, TVFs FILE NAME            BINARY OPT
+../run_2008/in_2008/model_fvcom_pcv.2008    0
+C INITIAL CONDITION FILE NAME           BINARY OPT
+../run_2008/in_2008/bin2008_fvcom.ic        1                    !RCAFIC33 !bin2006_fvcom.ic 
+C STABILITY CONCENTRATIONS
+stability      5000.     3000.    3000.0    1000.0   100.000      20.0     50.00
+              100.00     500.0    100.00    1000.0     500.0    1000.0    1000.0
+              1000.0    1000.0    1000.0    1000.0    2000.0    5000.0    3000.0
+              1000.0    3000.0    5000.0    5000.0    5000.0
+C ACCURACY CONCENTRATIONS	      
+accuracy          1.      .001      .001      .001    .00002    .00002    .00001
+              .00001     .0001     .0005     .0005      .004      .004     .0001
+               .0001      .001      .005      .005      .005      .001      .001
+              0.0001    0.0001    0.0001  0.000001       .01
+C Global Dumps Specified by Layer or Individual Segments at the end of simulation
+
+
+  1                                                                       LYR  1
+  1                                                                       LYR 10

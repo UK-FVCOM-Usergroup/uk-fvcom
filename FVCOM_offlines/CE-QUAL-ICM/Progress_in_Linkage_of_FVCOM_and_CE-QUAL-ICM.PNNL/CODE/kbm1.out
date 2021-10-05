@@ -1,0 +1,1116 @@
+adv_wqm.F:   REAL, DIMENSION(3*(NTLOC),KBM1) :: UVN
+adv_wqm.F:   REAL :: C2MEAN(MLOC,KBM1,NCP)
+adv_wqm.F:     DO K=1,KBM1
+adv_wqm.F:     DO K=1,KBM1
+adv_wqm.F:     DO K=1,KBM1
+adv_wqm.F:         ELSE IF(K == KBM1) THEN
+adv_wqm.F:         DO K = 1, KBM1
+bcond_wqm.F:	   DO K=1,KBM1
+bcond_wqm.F:	   DO K=1,KBM1
+bcond_wqm.F:       ALLOCATE(TTMP(NOBTY,KBM1)); TTMP=0.0_SP
+bcond_wqm.F:         DO K=1,KBM1
+bcond_wqm.F:!          if(II.eq.27) write(2239,*)J,J1,DT(J),(DZ(K),K=1,KBM1),D(J),DTI
+bcond_wqm.F:            DO K=1,KBM1
+bcond_wqm.F:!            DO K=1,KBM1
+bcond_wqm.F:            DO K=1,KBM1
+bcond_wqm.F:           ELSE IF(K == KBM1)THEN
+bcond_wqm.F:           DO K=1,KBM1
+bcond_wqm.F:   REAL(SP):: TTMP(NOBTY,KBM1)
+bcond_wqm.F:!     DO K=1,KBM1
+bcond_wqm.F:!     DO K=1,KBM1
+bcond_wqm.F:!     DO K=1,KBM1
+bcond_wqm.F:!     DO K=1,KBM1
+bcond_wqm.F:!     DO K=1,KBM1
+fct_nut.F:      DO K=1,KBM1
+fct_nut.F:       ELSE IF(K == KBM1)THEN
+hydro.F:    REAL(8)   MASS(0:MTLOC,KBM1,NCP)
+mod_par.F:!  CALL PPRINT(433,I1,I2,KB,T1,"node",422,1,KBM1,THOUR)                        |
+mod_par.F:!        K1 = 1,K2 = KBM1 FOR ALL LEVELS                                       |
+mod_var.F:  INTEGER KBM1               !!NUMBER OF SIGMA LEVELS-1
+ncdio.F:  KBM1=N_SIG_M1
+ncdio.F:  DO K=1,KBM1
+ncdio.F:  ZZ(KB)=2.0_SP*ZZ(KBM1)-ZZ(KBM2)
+ncdio.F:  REAL, DIMENSION(0:NOBTY,KBM1) :: XFLUX_OBC_GL
+ncdio.F:  REAL, DIMENSION(0:NOBTY,KBM1),INTENT(OUT) :: XFLUX_OBCL
+ncdio.F:  ALLOCATE(TEMP(MGL,KBM1))
+ncdio.F:  CALL GETDVAR(NC_FID,LEN_TRIM('salinity'),'salinity',MGL,KBM1,TEMP,HT)
+ncdio.F:  SL_GL(1:MGL,1:KBM1) = TEMP(1:MGL,1:KBM1)
+ncdio.F:    DO K=1,KBM1
+ncdio.F:   ALLOCATE(TEMP(MGL,KBM1))
+ncdio.F:   CALL GETDVAR(NC_FID,LEN_TRIM('temp'),'temp',MGL,KBM1,TEMP,HT)
+ncdio.F:   TL_GL(1:MGL,1:KBM1) = TEMP(1:MGL,1:KBM1)
+ncdio.F:    DO K=1,KBM1
+ncdio.F:  ALLOCATE(TEMP(NGL,KBM1))
+ncdio.F:  CALL GETDVAR(NC_FID,LEN_TRIM('u'),'u',NGL,KBM1,TEMP,HT)
+ncdio.F:  UL_GL(1:NGL,1:KBM1) = TEMP(1:NGL,1:KBM1)
+ncdio.F:    DO K=1,KBM1
+ncdio.F:  ALLOCATE(TEMP(NGL,KBM1))
+ncdio.F:  CALL GETDVAR(NC_FID,LEN_TRIM('v'),'v',NGL,KBM1,TEMP,HT)
+ncdio.F:  VL_GL(1:NGL,1:KBM1) = TEMP(1:NGL,1:KBM1)
+ncdio.F:    DO K=1,KBM1
+ncdio.F:  ALLOCATE(TEMP(NOBTY,KBM1))
+ncdio.F:  CALL GETDVAR(NC_FID,LEN_TRIM('xflux_obc'),'xflux_obc',NOBTY,KBM1,TEMP,HT)
+ncdio.F:  XFLUX_OBC_GL(1:NOBTY,1:KBM1) = TEMP(1:NOBTY,1:KBM1)
+ncdio.F:    DO K=1,KBM1
+ncdio.F:  ALLOCATE(TEMP(MGL,KBM1))
+ncdio.F:  CALL GETDVAR(NC_FID,LEN_TRIM('kh'),'kh',MGL,KBM1,TEMP,HT)
+ncdio.F:  KHL_GL(1:MGL,1:KBM1) = TEMP(1:MGL,1:KBM1)
+ncdio.F:    DO K=1,KBM1
+ncdio_newK.F:!  KBM1=N_SIG_M1
+ncdio_newK.F:  KBM1 = KB
+ncdio_newK.F:  DO K=1,KBM1
+ncdio_newK.F:  ZZ(KB)=2.0_SP*ZZ(KBM1)-ZZ(KBM2)
+ncdio_newK.F:  REAL, DIMENSION(0:NOBTY,KBM1) :: XFLUX_OBC_GL
+ncdio_newK.F:  REAL, DIMENSION(0:NOBTY,KBM1),INTENT(OUT) :: XFLUX_OBCL
+ncdio_newK.F:  ALLOCATE(TEMP(MGL,KBM1))
+ncdio_newK.F:  CALL GETDVAR(NC_FID,LEN_TRIM('salinity'),'salinity',MGL,KBM1,TEMP,HT)
+ncdio_newK.F:  SL_GL(1:MGL,1:KBM1) = TEMP(1:MGL,1:KBM1)
+ncdio_newK.F:    DO K=1,KBM1
+ncdio_newK.F:   ALLOCATE(TEMP(MGL,KBM1))
+ncdio_newK.F:   CALL GETDVAR(NC_FID,LEN_TRIM('temp'),'temp',MGL,KBM1,TEMP,HT)
+ncdio_newK.F:   TL_GL(1:MGL,1:KBM1) = TEMP(1:MGL,1:KBM1)
+ncdio_newK.F:    DO K=1,KBM1
+ncdio_newK.F:  ALLOCATE(TEMP(NGL,KBM1))
+ncdio_newK.F:  CALL GETDVAR(NC_FID,LEN_TRIM('u'),'u',NGL,KBM1,TEMP,HT)
+ncdio_newK.F:  UL_GL(1:NGL,1:KBM1) = TEMP(1:NGL,1:KBM1)
+ncdio_newK.F:    DO K=1,KBM1
+ncdio_newK.F:  ALLOCATE(TEMP(NGL,KBM1))
+ncdio_newK.F:  CALL GETDVAR(NC_FID,LEN_TRIM('v'),'v',NGL,KBM1,TEMP,HT)
+ncdio_newK.F:  VL_GL(1:NGL,1:KBM1) = TEMP(1:NGL,1:KBM1)
+ncdio_newK.F:    DO K=1,KBM1
+ncdio_newK.F:  ALLOCATE(TEMP(NOBTY,KBM1))
+ncdio_newK.F:  CALL GETDVAR(NC_FID,LEN_TRIM('xflux_obc'),'xflux_obc',NOBTY,KBM1,TEMP,HT)
+ncdio_newK.F:  XFLUX_OBC_GL(1:NOBTY,1:KBM1) = TEMP(1:NOBTY,1:KBM1)
+ncdio_newK.F:    DO K=1,KBM1
+ncdio_newK.F:  ALLOCATE(TEMP(MGL,KBM1))
+ncdio_newK.F:  CALL GETDVAR(NC_FID,LEN_TRIM('kh'),'kh',MGL,KBM1,TEMP,HT)
+ncdio_newK.F:  KHL_GL(1:MGL,1:KBM1) = TEMP(1:MGL,1:KBM1)
+ncdio_newK.F:    DO K=1,KBM1
+vdif_wqm.F:   REAL, DIMENSION(0:MTLOC,KBM1,NCP) :: F,FF
+vdif_wqm.F:   DO K = 2, KBM1
+vdif_wqm.F:     DO K = 1, KBM1 
+vdif_wqm.F:         FF(I,KBM1,II) = (CF(I,KBM1)*VHPF(I,KBM2,II)-FF(I,KBM1,II)   &
+vdif_wqm.F:                         -DLT*BENFLUX(I,II)/(D(I)*DZ(KBM1)))/  &
+vdif_wqm.F:                         (CF(I,KBM1)*(1.-VHF(I,KBM2,II))-1.)
+vdif_wqm.F:     DO K = 2, KBM1
+vdif_wqm.F:         DO K = 1, KBM1
+vdif_wqm_newK.F:   REAL, DIMENSION(0:MTLOC,KBM1,NCP) :: F,FF
+vdif_wqm_newK.F:   DO K = 2, KBM1
+vdif_wqm_newK.F:     DO K = 1, KBM1 
+vdif_wqm_newK.F:         FF(I,KBM1,II) = (CF(I,KBM1)*VHPF(I,KBM2,II)-FF(I,KBM1,II)   &
+vdif_wqm_newK.F:                         -DLT*BENFLUX(I,II)/(D(I)*DZ(KBM1)))/  &
+vdif_wqm_newK.F:                         (CF(I,KBM1)*(1.-VHF(I,KBM2,II))-1.)
+vdif_wqm_newK.F:     DO K = 2, KBM1
+vdif_wqm_newK.F:         DO K = 1, KBM1
+vertvl.F:   REAL(SP) :: XFLUX(MTLOC,KBM1)
+vertvl.F:     DO K=1,KBM1
+vertvl.F:        DO K=1,KBM1
+vertvl.F:     DO K=1,KBM1
+vertvl.F:         TMP1=EL(I)*FLOAT(KBM1)-WTS(I,KB)*DLT/DZ(1)
+vertvl.F:         TMP1=TMP1/FLOAT(KBM1)
+vertvl.F:           WTS(I,K)=WTS(I,K)-FLOAT(K-1)/FLOAT(KBM1)*WTS(I,KB)
+viscofh.F:   DO K=1,KBM1
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:       ALLOCATE(RTMP21(MGL,KBM1));     RTMP21 = 0.0
+wqm_alg.F:       ALLOCATE(RTMP22(MGL,KBM1));     RTMP22 = 0.0
+wqm_alg.F:       ALLOCATE(RTMP23(MGL,KBM1));     RTMP23 = 0.0
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:         DO K=1,KBM1
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:       ALLOCATE(RTMP21(MGL,KBM1));    RTMP21 = 0.0
+wqm_alg.F:       ALLOCATE(RTMP22(MGL,KBM1));    RTMP22 = 0.0
+wqm_alg.F:       ALLOCATE(RTMP23(MGL,KBM1));    RTMP23 = 0.0
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:         DO K=1,KBM1
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:       ALLOCATE(RTMP21(MGL,KBM1));    RTMP21 = 0.0
+wqm_alg.F:       ALLOCATE(RTMP22(MGL,KBM1));    RTMP22 = 0.0
+wqm_alg.F:       ALLOCATE(RTMP23(MGL,KBM1));    RTMP23 = 0.0
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:         DO K=1,KBM1
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:       DO K=1,KBM1
+wqm_alg.F:   REAL,DIMENSION(0:MTLOC,KBM1) :: DTB1, DTB2,DTB3
+wqm_alg.F:   REAL,DIMENSION(0:MTLOC,KBM1) :: FLXS1,FLXS2,FLXS3
+wqm_alg.F:   ALLOCATE(STOX1(MLOC,KBM1));  STOX1 = 0.0
+wqm_alg.F:   ALLOCATE(STOX2(MLOC,KBM1));  STOX2 = 0.0
+wqm_alg.F:   ALLOCATE(STOX3(MLOC,KBM1));  STOX3 = 0.0
+wqm_alg.F:   ALLOCATE(NL1NNF(MLOC,KBM1)); NL1NNF = 0.0
+wqm_alg.F:   ALLOCATE(ITBOT(MLOC,KBM1));  ITBOT = 0.0
+wqm_alg.F:   DO K=1,KBM1
+wqm_alg.F:   DO K=1,KBM1
+wqm_alg.F:   DO K=1,KBM1
+wqm_alg.F:   DO K=1,KBM1
+wqm_alg.F:   DO K=1,KBM1
+wqm_alg.F:   DO K=1,KBM1
+wqm_alg.F:   DO K=2,KBM1
+wqm_alg.F:     DO K=1,KBM1
+wqm_alg.F:     DO K=1,KBM1
+wqm_alg.F:   DO K=1,KBM1
+wqm_alg.F:   DO K=2,KBM1
+wqm_alg.F:   DO K=1,KBM1
+wqm_alg.F:       XL(I)=TREC/(D(I)*DZ(KBM1))     
+wqm_alg.F:       DTB1(I,KBM1) = DTB1(I,KBM1)+(WS1(I,KBM1)-WS1NET(I))*B1(I,KBM1)*XL(I)
+wqm_alg.F:       DTB2(I,KBM1) = DTB2(I,KBM1)+(WS2(I,KBM1)-WS2NET(I))*B2(I,KBM1)*XL(I)
+wqm_alg.F:       DTB3(I,KBM1) = DTB3(I,KBM1)+(WS3(I,KBM1)-WS3NET(I))*B3(I,KBM1)*XL(I)
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP21(MGL,KBM1));     RTMP21 = 0.0
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP22(MGL,KBM1));     RTMP22 = 0.0
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP23(MGL,KBM1));     RTMP23 = 0.0
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:         DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP21(MGL,KBM1));    RTMP21 = 0.0
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP22(MGL,KBM1));    RTMP22 = 0.0
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP23(MGL,KBM1));    RTMP23 = 0.0
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:         DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP21(MGL,KBM1));    RTMP21 = 0.0
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP22(MGL,KBM1));    RTMP22 = 0.0
+wqm_alg_phyt_analsoln.F:       ALLOCATE(RTMP23(MGL,KBM1));    RTMP23 = 0.0
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:         DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   REAL,DIMENSION(0:MTLOC,KBM1) :: DTB1, DTB2,DTB3
+wqm_alg_phyt_analsoln.F:   REAL,DIMENSION(0:MTLOC,KBM1) :: FLXS1,FLXS2,FLXS3
+wqm_alg_phyt_analsoln.F:   ALLOCATE(STOX1(MLOC,KBM1));  STOX1 = 0.0
+wqm_alg_phyt_analsoln.F:   ALLOCATE(STOX2(MLOC,KBM1));  STOX2 = 0.0
+wqm_alg_phyt_analsoln.F:   ALLOCATE(STOX3(MLOC,KBM1));  STOX3 = 0.0
+wqm_alg_phyt_analsoln.F:   ALLOCATE(NL1NNF(MLOC,KBM1)); NL1NNF = 0.0
+wqm_alg_phyt_analsoln.F:   ALLOCATE(ITBOT(MLOC,KBM1));  ITBOT = 0.0
+wqm_alg_phyt_analsoln.F:   DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=2,KBM1
+wqm_alg_phyt_analsoln.F:     DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:     DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=2,KBM1
+wqm_alg_phyt_analsoln.F:   DO K=1,KBM1
+wqm_alg_phyt_analsoln.F:       XL(I)=TREC/(D(I)*DZ(KBM1))     
+wqm_alg_phyt_analsoln.F:       DTB1(I,KBM1) = DTB1(I,KBM1)+(WS1(I,KBM1)-WS1NET(I))*B1(I,KBM1)*XL(I)
+wqm_alg_phyt_analsoln.F:       DTB2(I,KBM1) = DTB2(I,KBM1)+(WS2(I,KBM1)-WS2NET(I))*B2(I,KBM1)*XL(I)
+wqm_alg_phyt_analsoln.F:       DTB3(I,KBM1) = DTB3(I,KBM1)+(WS3(I,KBM1)-WS3NET(I))*B3(I,KBM1)*XL(I)
+wqm_inputs.F:   IF(MSR)WRITE(*,*)  '!  # OF SIGMA LEVELS     :',KB     !KBM1
+wqm_inputs.F:  ALLOCATE(XFLUX_OBCNC1(0:NOBTY,KBM1));  XFLUX_OBCNC1  = 0.0
+wqm_inputs.F:  ALLOCATE(XFLUX_OBCNC2(0:NOBTY,KBM1));  XFLUX_OBCNC2  = 0.0
+wqm_inputs.F:  ALLOCATE(XFLUX_OBC(0:NOBTY,KBM1));  XFLUX_OBC  = 0.0
+wqm_inputs.F:  ALLOCATE(XFLUX_OBCT(0:NOBTY,KBM1));  XFLUX_OBCT  = 0.0
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP(0:MGL,KBM1,NCP));   RTMP = 0.0
+wqm_inputs.F:       READ (ICI) (((RTMP(I,K,JC),I=0,MGL),K=1,KBM1),JC=1,NCP)
+wqm_inputs.F:	   DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));   RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));    RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));    RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));    RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));      RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));    RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1)); RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));    RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));    RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:       ALLOCATE(RTMP2(MGL,KBM1));     RTMP2 = 0.0
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:	 DO K=1,KBM1
+wqm_inputs.F:         ALLOCATE(RTMP2(MGL,KBM1));    RTMP2 = 0.0
+wqm_inputs.F:         ALLOCATE(RTMP21(MGL,KBM1));   RTMP21 = 0.0
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:           DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:         ALLOCATE(RTMP2(MGL,KBM1));     RTMP2  = 0.0
+wqm_inputs.F:         ALLOCATE(RTMP21(MGL,KBM1));    RTMP21 = 0.0
+wqm_inputs.F:         ALLOCATE(RTMP22(MGL,KBM1));    RTMP22 = 0.0
+wqm_inputs.F:         ALLOCATE(RTMP23(MGL,KBM1));    RTMP23 = 0.0
+wqm_inputs.F:         ALLOCATE(RTMP24(MGL,KBM1));    RTMP24 = 0.0
+wqm_inputs.F:         ALLOCATE(RTMP25(MGL,KBM1));    RTMP25 = 0.0
+wqm_inputs.F:         ALLOCATE(RTMP26(MGL,KBM1));    RTMP26 = 0.0
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:           DO K=1,KBM1
+wqm_inputs.F:         DO K=1,KBM1
+wqm_inputs.F:       DO K=1,KBM1
+wqm_inputs.F:     DO K=1,KBM1
+wqm_inputs.F:       IF(MSR)WRITE (PLT,*) NSB,((V1SINGLE(I,K),I=0,MTLOC),K=1,KBM1),           &
+wqm_inputs.F:       IF(MSR)WRITE (APL) NSB,((V1SINGLE(I,K),I=0,MTLOC),K=1,KBM1),           &
+wqm_inputs.F:     IF (MSR .AND. KINETIC_FLUXES) WRITE (KFL) TITLE, MTLOC, KBM1,              &
+wqm_inputs.F:                         ((V1SINGLE(I,K),I=0,MTLOC),K=1,KBM1),        &
+wqm_inputs.F:       IF(MSR)WRITE (OPL) TITLE,MTLOC,KBM1,NOINT,(OINT(I),I=1,NOINT),                &
+wqm_inputs.F:                  ((V1SINGLE(I,K),I=0,MTLOC),K=1,KBM1)
+wqm_kin.F:   REAL :: DTT(0:MTLOC,KBM1)    
+wqm_kin.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTSSI, FLXSSSI    
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=2,KBM1
+wqm_kin.F:       DTSSI(I,KBM1) = DTSSI(I,KBM1)+(WSSHI(I,KBM1)-WSSNET(I))        &
+wqm_kin.F:                       *SSI(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:     DO K=1,KBM1
+wqm_kin.F:    ALLOCATE(RTMP21(MGL,KBM1));     RTMP21 = 0.0
+wqm_kin.F:    ALLOCATE(RTMP22(MGL,KBM1));     RTMP22 = 0.0
+wqm_kin.F:    ALLOCATE(RTMP23(MGL,KBM1));     RTMP23 = 0.0
+wqm_kin.F:    ALLOCATE(RTMP24(MGL,KBM1));     RTMP24 = 0.0
+wqm_kin.F:    ALLOCATE(RTMP25(MGL,KBM1));     RTMP25 = 0.0
+wqm_kin.F:     DO K=1,KBM1
+wqm_kin.F:       DO K=1,KBM1
+wqm_kin.F:     DO K=1,KBM1
+wqm_kin.F:    ALLOCATE(RTMP21(MGL,KBM1));     RTMP21 = 0.0
+wqm_kin.F:    ALLOCATE(RTMP22(MGL,KBM1));     RTMP22 = 0.0
+wqm_kin.F:    ALLOCATE(RTMP23(MGL,KBM1));     RTMP23 = 0.0
+wqm_kin.F:    ALLOCATE(RTMP24(MGL,KBM1));     RTMP24 = 0.0
+wqm_kin.F:    ALLOCATE(RTMP25(MGL,KBM1));     RTMP25 = 0.0
+wqm_kin.F:     DO K=1,KBM1
+wqm_kin.F:       DO K=1,KBM1
+wqm_kin.F:     DO K=1,KBM1
+wqm_kin.F:     DO K=1,KBM1
+wqm_kin.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTSZ, DTLZ
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTLDOC, DTRDOC, DTLPOC, DTRPOC, FLXSPOC
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=2,KBM1
+wqm_kin.F:     DTLDOC(I,KBM1)  = DTLDOC(I,KBM1)+BENDOC(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTLPOC(I,KBM1) = DTLPOC(I,KBM1)+(WSL(I,KBM1)-WSLNET(I))      &
+wqm_kin.F:                        *LPOC(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTRPOC(I,KBM1) = DTRPOC(I,KBM1)+(WSR(I,KBM1)-WSRNET(I))      &
+wqm_kin.F:                        *RPOC(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTNH4, DTNO3, DTLDON, DTRDON, DTLPON,  &
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=2,KBM1
+wqm_kin.F:     DTNH4(I,KBM1)  = DTNH4(I,KBM1)+BENNH4(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:     DTNO3(I,KBM1)  = DTNO3(I,KBM1)+BENNO3(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:     DTLDON(I,KBM1) = DTLDON(I,KBM1)+BENDON(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTLPON(I,KBM1) = DTLPON(I,KBM1)+(WSL(I,KBM1)-WSLNET(I))       &
+wqm_kin.F:                        *LPON(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTRPON(I,KBM1) = DTRPON(I,KBM1)+(WSR(I,KBM1)-WSRNET(I))       &
+wqm_kin.F:                        *RPON(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTPO4, DTLDOP, DTRDOP, DTLPOP, DTRPOP,  &
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=2,KBM1
+wqm_kin.F:     DTPO4(I,KBM1)  = DTPO4(I,KBM1)+BENPO4(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:     DTLDOP(I,KBM1) = DTLDOP(I,KBM1)+BENDOP(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       PF = KADPO4*SSI(I,KBM1)/(1.+KADPO4*SSI(I,KBM1))
+wqm_kin.F:       PP = PF*PO4(I,KBM1)
+wqm_kin.F:       DTPO4(I,KBM1)  = DTPO4(I,KBM1)+(WSS(I,KBM1)-WSSNET(I))*PP     &
+wqm_kin.F:                        /(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTLPOP(I,KBM1) = DTLPOP(I,KBM1)+(WSL(I,KBM1)-WSLNET(I))       &
+wqm_kin.F:                        *LPOP(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTRPOP(I,KBM1) = DTRPOP(I,KBM1)+(WSR(I,KBM1)-WSRNET(I))       &
+wqm_kin.F:                        *RPOP(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTPIB1(I,KBM1) = DTPIB1(I,KBM1)+(WS1(I,KBM1)-WS1NET(I))*      &
+wqm_kin.F:                        PIB1(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTPIB2(I,KBM1) = DTPIB2(I,KBM1)+(WS2(I,KBM1)-WS2NET(I))*      &
+wqm_kin.F:                        PIB2(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTPIB3(I,KBM1) = DTPIB3(I,KBM1)+(WS3(I,KBM1)-WS3NET(I))*      &
+wqm_kin.F:                        PIB3(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:     DO K=2,KBM1
+wqm_kin.F:         DTPIP(I,KBM1) = DTPIP(I,KBM1)+(WSSHI(I,KBM1)-WSSNET(I))    &
+wqm_kin.F:                         *PIP(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:   REAL :: DTCOD(MTLOC,KBM1)
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:     DTCOD(I,KBM1) = DTCOD(I,KBM1)!+BENCOD(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:   REAL :: DTDO(MTLOC,KBM1)
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:     DTDO(I,KBM1) = DTDO(I,KBM1)!+BENDO(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTSU, DTSA, FLXSSI
+wqm_kin.F:   DO K=1,KBM1
+wqm_kin.F:   DO K=2,KBM1
+wqm_kin.F:     DTSA(I,KBM1) = DTSA(I,KBM1)+BENSA(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       PF           = KADSA*SSI(I,KBM1)/(1.+KADSA*SSI(I,KBM1))
+wqm_kin.F:       DTSA(I,KBM1) = DTSA(I,KBM1)+(WSS(I,KBM1)-WSSNET(I))*PF        &
+wqm_kin.F:                      *SA(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTSU(I,KBM1) = DTSU(I,KBM1)+(WSU(I,KBM1)-WSUNET(I))           &
+wqm_kin.F:                      *SU(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:     FTSOD    = EXP(KSO*(T(I,KBM1)-TRSO))
+wqm_kin.F:     FTNH4    = EXP(KSNH4*(T(I,KBM1)-TRSNH4))
+wqm_kin.F:     FTNO3    = EXP(KSNO3*(T(I,KBM1)-TRSNO3))
+wqm_kin.F:     FTPO4    = EXP(KSPO4*(T(I,KBM1)-TRSPO4))
+wqm_kin.F:     FTSA     = EXP(KSSA*(T(I,KBM1)-TRSSA))
+wqm_kin.F:     FTDOC    = EXP(KSDOC*(T(I,KBM1)-TRSDOC))
+wqm_kin.F:     BENDO(I) = BENDOB(I)*FTSOD*DO(I,KBM1)/(KHSO+DO(I,KBM1))
+wqm_kin.F:     BENCOD(I) = BENCODB(I)-BENDOB(I)*FTSOD*KHSO/(KHSO+DO(I,KBM1))
+wqm_kin.F:     BENNO3(I) = BENNO3B(I)+FTNO3*MTCNO3*(SEDNO3-NO3(I,KBM1))
+wqm_kin.F:     PPFWS(I) = PPFWS(I)-WSL(I,KBM1)*LPOP(I,KBM1)-WSR(I,KBM1)*RPOP(I,KBM1)
+wqm_kin.F:     PNFWS(I) = PNFWS(I)-WSL(I,KBM1)*LPON(I,KBM1)-WSR(I,KBM1)*RPON(I,KBM1)
+wqm_kin.F:     PCFWS(I) = PCFWS(I)-WSL(I,KBM1)*LPOC(I,KBM1)-WSR(I,KBM1)*RPOC(I,KBM1)
+wqm_kin.F:     PSFWS(I) = PSFWS(I)-WSU(I,KBM1)*SU(I,KBM1)
+wqm_kin.F:     PPFWS(I) = PPFWS(I)-Q1(I,KBM1)*WS1(I,KBM1)*B1(I,KBM1)               &
+wqm_kin.F:                -Q2(I,KBM1)*WS2(I,KBM1)*B2(I,KBM1)                       &
+wqm_kin.F:                -Q3(I,KBM1)*WS3(I,KBM1)*B3(I,KBM1)
+wqm_kin.F:     PNFWS(I) = PNFWS(I)-WS1(I,KBM1)*ANC1*B1(I,KBM1)                     &
+wqm_kin.F:                -WS3(I,KBM1)*ANC3*B3(I,KBM1)-WS2(I,KBM1)*ANC2*B2(I,KBM1)
+wqm_kin.F:     PCFWS(I) = PCFWS(I)-WS1(I,KBM1)*B1(I,KBM1)                          &
+wqm_kin.F:                -WS2(I,KBM1)*B3(I,KBM1)-WS2(I,KBM1)*B2(I,KBM1)
+wqm_kin.F:     PSFWS(I) = PSFWS(I)-WS1(I,KBM1)*ASC1*B1(I,KBM1)                     &
+wqm_kin.F:                -WS2(I,KBM1)*ASC2*B2(I,KBM1)-WS3(I,KBM1)*ASC3*B3(I,KBM1)
+wqm_kin.F:     PF           = KADPO4*SSI(I,KBM1)/(1.+KADPO4*SSI(I,KBM1))
+wqm_kin.F:     PIOP          = PF*PO4(I,KBM1)
+wqm_kin.F:     PPFWS(I)     = PPFWS(I)-WSS(I,KBM1)*PIOP
+wqm_kin.F:     PF           = KADSA*SSI(I,KBM1)/(1.+KADSA*SSI(I,KBM1))
+wqm_kin.F:     PSFWS(I)     = PSFWS(I)-WSS(I,KBM1)*PF*SA(I,KBM1)
+wqm_kin_phyt_analsoln.F:   REAL :: DTT(0:MTLOC,KBM1)    
+wqm_kin_phyt_analsoln.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTSSI, FLXSSSI    
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=2,KBM1
+wqm_kin_phyt_analsoln.F:       DTSSI(I,KBM1) = DTSSI(I,KBM1)+(WSSHI(I,KBM1)-WSSNET(I))        &
+wqm_kin_phyt_analsoln.F:                       *SSI(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:     DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP21(MGL,KBM1));     RTMP21 = 0.0
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP22(MGL,KBM1));     RTMP22 = 0.0
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP23(MGL,KBM1));     RTMP23 = 0.0
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP24(MGL,KBM1));     RTMP24 = 0.0
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP25(MGL,KBM1));     RTMP25 = 0.0
+wqm_kin_phyt_analsoln.F:     DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:       DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:     DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP21(MGL,KBM1));     RTMP21 = 0.0
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP22(MGL,KBM1));     RTMP22 = 0.0
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP23(MGL,KBM1));     RTMP23 = 0.0
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP24(MGL,KBM1));     RTMP24 = 0.0
+wqm_kin_phyt_analsoln.F:    ALLOCATE(RTMP25(MGL,KBM1));     RTMP25 = 0.0
+wqm_kin_phyt_analsoln.F:     DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:       DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:     DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:     DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTSZ, DTLZ
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTLDOC, DTRDOC, DTLPOC, DTRPOC, FLXSPOC
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=2,KBM1
+wqm_kin_phyt_analsoln.F:     DTLDOC(I,KBM1)  = DTLDOC(I,KBM1)+BENDOC(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTLPOC(I,KBM1) = DTLPOC(I,KBM1)+(WSL(I,KBM1)-WSLNET(I))      &
+wqm_kin_phyt_analsoln.F:                        *LPOC(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTRPOC(I,KBM1) = DTRPOC(I,KBM1)+(WSR(I,KBM1)-WSRNET(I))      &
+wqm_kin_phyt_analsoln.F:                        *RPOC(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTNH4, DTNO3, DTLDON, DTRDON, DTLPON,  &
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=2,KBM1
+wqm_kin_phyt_analsoln.F:     DTNH4(I,KBM1)  = DTNH4(I,KBM1)+BENNH4(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:     DTNO3(I,KBM1)  = DTNO3(I,KBM1)+BENNO3(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:     DTLDON(I,KBM1) = DTLDON(I,KBM1)+BENDON(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTLPON(I,KBM1) = DTLPON(I,KBM1)+(WSL(I,KBM1)-WSLNET(I))       &
+wqm_kin_phyt_analsoln.F:                        *LPON(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTRPON(I,KBM1) = DTRPON(I,KBM1)+(WSR(I,KBM1)-WSRNET(I))       &
+wqm_kin_phyt_analsoln.F:                        *RPON(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTPO4, DTLDOP, DTRDOP, DTLPOP, DTRPOP,  &
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=2,KBM1
+wqm_kin_phyt_analsoln.F:     DTPO4(I,KBM1)  = DTPO4(I,KBM1)+BENPO4(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:     DTLDOP(I,KBM1) = DTLDOP(I,KBM1)+BENDOP(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       PF = KADPO4*SSI(I,KBM1)/(1.+KADPO4*SSI(I,KBM1))
+wqm_kin_phyt_analsoln.F:       PP = PF*PO4(I,KBM1)
+wqm_kin_phyt_analsoln.F:       DTPO4(I,KBM1)  = DTPO4(I,KBM1)+(WSS(I,KBM1)-WSSNET(I))*PP     &
+wqm_kin_phyt_analsoln.F:                        /(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTLPOP(I,KBM1) = DTLPOP(I,KBM1)+(WSL(I,KBM1)-WSLNET(I))       &
+wqm_kin_phyt_analsoln.F:                        *LPOP(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTRPOP(I,KBM1) = DTRPOP(I,KBM1)+(WSR(I,KBM1)-WSRNET(I))       &
+wqm_kin_phyt_analsoln.F:                        *RPOP(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTPIB1(I,KBM1) = DTPIB1(I,KBM1)+(WS1(I,KBM1)-WS1NET(I))*      &
+wqm_kin_phyt_analsoln.F:                        PIB1(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTPIB2(I,KBM1) = DTPIB2(I,KBM1)+(WS2(I,KBM1)-WS2NET(I))*      &
+wqm_kin_phyt_analsoln.F:                        PIB2(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTPIB3(I,KBM1) = DTPIB3(I,KBM1)+(WS3(I,KBM1)-WS3NET(I))*      &
+wqm_kin_phyt_analsoln.F:                        PIB3(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:     DO K=2,KBM1
+wqm_kin_phyt_analsoln.F:         DTPIP(I,KBM1) = DTPIP(I,KBM1)+(WSSHI(I,KBM1)-WSSNET(I))    &
+wqm_kin_phyt_analsoln.F:                         *PIP(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:   REAL :: DTCOD(MTLOC,KBM1)
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:     DTCOD(I,KBM1) = DTCOD(I,KBM1)!+BENCOD(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:   REAL :: DTDO(MTLOC,KBM1)
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:     DTDO(I,KBM1) = DTDO(I,KBM1)!+BENDO(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTSU, DTSA, FLXSSI
+wqm_kin_phyt_analsoln.F:   DO K=1,KBM1
+wqm_kin_phyt_analsoln.F:   DO K=2,KBM1
+wqm_kin_phyt_analsoln.F:     DTSA(I,KBM1) = DTSA(I,KBM1)+BENSA(I)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       PF           = KADSA*SSI(I,KBM1)/(1.+KADSA*SSI(I,KBM1))
+wqm_kin_phyt_analsoln.F:       DTSA(I,KBM1) = DTSA(I,KBM1)+(WSS(I,KBM1)-WSSNET(I))*PF        &
+wqm_kin_phyt_analsoln.F:                      *SA(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTSU(I,KBM1) = DTSU(I,KBM1)+(WSU(I,KBM1)-WSUNET(I))           &
+wqm_kin_phyt_analsoln.F:                      *SU(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:     FTSOD    = EXP(KSO*(T(I,KBM1)-TRSO))
+wqm_kin_phyt_analsoln.F:     FTNH4    = EXP(KSNH4*(T(I,KBM1)-TRSNH4))
+wqm_kin_phyt_analsoln.F:     FTNO3    = EXP(KSNO3*(T(I,KBM1)-TRSNO3))
+wqm_kin_phyt_analsoln.F:     FTPO4    = EXP(KSPO4*(T(I,KBM1)-TRSPO4))
+wqm_kin_phyt_analsoln.F:     FTSA     = EXP(KSSA*(T(I,KBM1)-TRSSA))
+wqm_kin_phyt_analsoln.F:     FTDOC    = EXP(KSDOC*(T(I,KBM1)-TRSDOC))
+wqm_kin_phyt_analsoln.F:     BENDO(I) = BENDOB(I)*FTSOD*DO(I,KBM1)/(KHSO+DO(I,KBM1))
+wqm_kin_phyt_analsoln.F:     BENCOD(I) = BENCODB(I)-BENDOB(I)*FTSOD*KHSO/(KHSO+DO(I,KBM1))
+wqm_kin_phyt_analsoln.F:     BENNO3(I) = BENNO3B(I)+FTNO3*MTCNO3*(SEDNO3-NO3(I,KBM1))
+wqm_kin_phyt_analsoln.F:     PPFWS(I) = PPFWS(I)-WSL(I,KBM1)*LPOP(I,KBM1)-WSR(I,KBM1)*RPOP(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PNFWS(I) = PNFWS(I)-WSL(I,KBM1)*LPON(I,KBM1)-WSR(I,KBM1)*RPON(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PCFWS(I) = PCFWS(I)-WSL(I,KBM1)*LPOC(I,KBM1)-WSR(I,KBM1)*RPOC(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PSFWS(I) = PSFWS(I)-WSU(I,KBM1)*SU(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PPFWS(I) = PPFWS(I)-Q1(I,KBM1)*WS1(I,KBM1)*B1(I,KBM1)               &
+wqm_kin_phyt_analsoln.F:                -Q2(I,KBM1)*WS2(I,KBM1)*B2(I,KBM1)                       &
+wqm_kin_phyt_analsoln.F:                -Q3(I,KBM1)*WS3(I,KBM1)*B3(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PNFWS(I) = PNFWS(I)-WS1(I,KBM1)*ANC1*B1(I,KBM1)                     &
+wqm_kin_phyt_analsoln.F:                -WS3(I,KBM1)*ANC3*B3(I,KBM1)-WS2(I,KBM1)*ANC2*B2(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PCFWS(I) = PCFWS(I)-WS1(I,KBM1)*B1(I,KBM1)                          &
+wqm_kin_phyt_analsoln.F:                -WS2(I,KBM1)*B3(I,KBM1)-WS2(I,KBM1)*B2(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PSFWS(I) = PSFWS(I)-WS1(I,KBM1)*ASC1*B1(I,KBM1)                     &
+wqm_kin_phyt_analsoln.F:                -WS2(I,KBM1)*ASC2*B2(I,KBM1)-WS3(I,KBM1)*ASC3*B3(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PF           = KADPO4*SSI(I,KBM1)/(1.+KADPO4*SSI(I,KBM1))
+wqm_kin_phyt_analsoln.F:     PIOP          = PF*PO4(I,KBM1)
+wqm_kin_phyt_analsoln.F:     PPFWS(I)     = PPFWS(I)-WSS(I,KBM1)*PIOP
+wqm_kin_phyt_analsoln.F:     PF           = KADSA*SSI(I,KBM1)/(1.+KADSA*SSI(I,KBM1))
+wqm_kin_phyt_analsoln.F:     PSFWS(I)     = PSFWS(I)-WSS(I,KBM1)*PF*SA(I,KBM1)
+wqm_main.F:     DO K=1,KBM1
+wqm_main.F:       DO K=1,KBM1
+wqm_main.F:     DO K=1,KBM1
+wqm_main.F:       DO K=1,KBM1 
+wqm_main.F:          DO K=1,KBM1
+wqm_main.F:       DO K=1,KBM1
+wqm_main.F:         DO K=1,KBM1
+wqm_main.F:       DO K=1,KBM1
+wqm_main.F:           WRITE (SNP,3030) CNAME(AC(JC)),((C1(I,K,AC(JC)),I=1,MLOC),K=1,KBM1)
+wqm_main.F:         WRITE (PLT,*) JDAY,(((C2(I,K,AC(JC)),I=1,MLOC),K=1,KBM1),JC=1,NAC)
+wqm_main.F:         WRITE (PLT,*) ((CCHL1(I,K),I=1,MLOC),K=1,KBM1),                       &
+wqm_main.F:	             ((CCHL2(I,K),I=1,MLOC),K=1,KBM1),                       &
+wqm_main.F:                     ((CCHL3(I,K),I=1,MLOC),K=1,KBM1)
+wqm_main.F:           WRITE (PLT,*) ((FI1(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:	               ((NL1(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:                       ((PL1(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:                       ((SL1(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:                       ((FI2(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:	               ((NL2(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:	               ((PL2(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:                       ((SL2(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:                       ((FI3(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:		       ((NL3(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:		       ((PL3(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:                       ((SL3(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:                       ((NPP(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:		       ((GPP(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main.F:		       ((RESP(I,K),I=1,MLOC),K=1,KBM1),              &
+wqm_main.F:                       ((KESS(I,K),I=1,MLOC),K=1,KBM1),              &
+wqm_main.F:		       ((CLSZ(I,K),I=1,MLOC),K=1,KBM1),              &
+wqm_main.F:		       ((CLLZ(I,K),I=1,MLOC),K=1,KBM1),              &
+wqm_main.F:               C1MIN(I,K,AC(JC)),C1MAX(I,K,AC(JC)),I=1,MLOC),K=1,KBM1),JC=1,NAC)
+wqm_main.F:         WRITE (APL) ((ACCHL1(I,K),I=1,MLOC),K=1,KBM1),                         &
+wqm_main.F:                     ((ACCHL2(I,K),I=1,MLOC),K=1,KBM1),                         &
+wqm_main.F:                     ((ACCHL3(I,K),I=1,MLOC),K=1,KBM1)
+wqm_main.F:           WRITE (APL) ((AFI1(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:	               ((ANL1(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:                       ((APL1(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:	               ((ASL1(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:                       ((AFI2(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:		       ((ANL2(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:                       ((APL2(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:		       ((ASL2(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:                       ((AFI3(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:		       ((ANL3(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:                       ((APL3(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:	               ((ASL3(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:                       ((ANPP(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:		       ((AGPP(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main.F:                       ((ARESP(I,K),I=1,MLOC),K=1,KBM1),                &
+wqm_main.F:		       ((AKE(I,K),I=1,MLOC),K=1,KBM1),                  &
+wqm_main.F:                       ((ACLSZ(I,K),I=1,MLOC),K=1,KBM1),                &
+wqm_main.F:		       ((ACLLZ(I,K),I=1,MLOC),K=1,KBM1),                &
+wqm_main.F:           WRITE (RSO) (((C1(I,K,J),I=0,MLOC),K=1,KBM1),J=1,NCP)
+wqm_main.F:     WRITE (ICO) (((C1(I,K,J),I=0,MLOC),K=1,KBM1),J=1,NCP)
+wqm_main_newK.F:     DO K=1,KBM1
+wqm_main_newK.F:       DO K=1,KBM1
+wqm_main_newK.F:     DO K=1,KBM1
+wqm_main_newK.F:       DO K=1,KBM1 
+wqm_main_newK.F:          DO K=1,KBM1
+wqm_main_newK.F:       DO K=1,KBM1
+wqm_main_newK.F:         DO K=1,KBM1
+wqm_main_newK.F:       DO K=1,KBM1
+wqm_main_newK.F:           WRITE (SNP,3030) CNAME(AC(JC)),((C1(I,K,AC(JC)),I=1,MLOC),K=1,KBM1)
+wqm_main_newK.F:         WRITE (PLT,*) JDAY,(((C2(I,K,AC(JC)),I=1,MLOC),K=1,KBM1),JC=1,NAC)
+wqm_main_newK.F:         WRITE (PLT,*) ((CCHL1(I,K),I=1,MLOC),K=1,KBM1),                       &
+wqm_main_newK.F:	             ((CCHL2(I,K),I=1,MLOC),K=1,KBM1),                       &
+wqm_main_newK.F:                     ((CCHL3(I,K),I=1,MLOC),K=1,KBM1)
+wqm_main_newK.F:           WRITE (PLT,*) ((FI1(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:	               ((NL1(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:                       ((PL1(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:                       ((SL1(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:                       ((FI2(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:	               ((NL2(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:	               ((PL2(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:                       ((SL2(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:                       ((FI3(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:		       ((NL3(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:		       ((PL3(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:                       ((SL3(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:                       ((NPP(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:		       ((GPP(I,K),I=1,MLOC),K=1,KBM1),               &
+wqm_main_newK.F:		       ((RESP(I,K),I=1,MLOC),K=1,KBM1),              &
+wqm_main_newK.F:                       ((KESS(I,K),I=1,MLOC),K=1,KBM1),              &
+wqm_main_newK.F:		       ((CLSZ(I,K),I=1,MLOC),K=1,KBM1),              &
+wqm_main_newK.F:		       ((CLLZ(I,K),I=1,MLOC),K=1,KBM1),              &
+wqm_main_newK.F:               C1MIN(I,K,AC(JC)),C1MAX(I,K,AC(JC)),I=1,MLOC),K=1,KBM1),JC=1,NAC)
+wqm_main_newK.F:         WRITE (APL) ((ACCHL1(I,K),I=1,MLOC),K=1,KBM1),                         &
+wqm_main_newK.F:                     ((ACCHL2(I,K),I=1,MLOC),K=1,KBM1),                         &
+wqm_main_newK.F:                     ((ACCHL3(I,K),I=1,MLOC),K=1,KBM1)
+wqm_main_newK.F:           WRITE (APL) ((AFI1(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:	               ((ANL1(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:                       ((APL1(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:	               ((ASL1(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:                       ((AFI2(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:		       ((ANL2(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:                       ((APL2(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:		       ((ASL2(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:                       ((AFI3(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:		       ((ANL3(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:                       ((APL3(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:	               ((ASL3(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:                       ((ANPP(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:		       ((AGPP(I,K),I=1,MLOC),K=1,KBM1),                 &
+wqm_main_newK.F:                       ((ARESP(I,K),I=1,MLOC),K=1,KBM1),                &
+wqm_main_newK.F:		       ((AKE(I,K),I=1,MLOC),K=1,KBM1),                  &
+wqm_main_newK.F:                       ((ACLSZ(I,K),I=1,MLOC),K=1,KBM1),                &
+wqm_main_newK.F:		       ((ACLLZ(I,K),I=1,MLOC),K=1,KBM1),                &
+wqm_main_newK.F:           WRITE (RSO) (((C1(I,K,J),I=0,MLOC),K=1,KBM1),J=1,NCP)
+wqm_main_newK.F:     WRITE (ICO) (((C1(I,K,J),I=0,MLOC),K=1,KBM1),J=1,NCP)
+wqm_modules.F:   ALLOCATE(T(0:MTLOC,KBM1));     T = 0.0
+wqm_modules.F:   ALLOCATE(SSI(0:MTLOC,KBM1));   SSI = 0.0
+wqm_modules.F:   ALLOCATE(B1(0:MTLOC,KBM1));    B1  = 0.0
+wqm_modules.F:   ALLOCATE(B2(0:MTLOC,KBM1));    B2  = 0.0
+wqm_modules.F:   ALLOCATE(B3(0:MTLOC,KBM1));    B3  = 0.0
+wqm_modules.F:   ALLOCATE(LDOC(0:MTLOC,KBM1));  LDOC = 0.0
+wqm_modules.F:   ALLOCATE(LPOC(0:MTLOC,KBM1));  LPOC = 0.0
+wqm_modules.F:   ALLOCATE(RPOC(0:MTLOC,KBM1));  RPOC = 0.0
+wqm_modules.F:   ALLOCATE(NH4(0:MTLOC,KBM1));   NH4  = 0.0
+wqm_modules.F:   ALLOCATE(NO3(0:MTLOC,KBM1));   NO3  = 0.0
+wqm_modules.F:   ALLOCATE(LDON(0:MTLOC,KBM1));  LDON = 0.0
+wqm_modules.F:   ALLOCATE(LPON(0:MTLOC,KBM1));  LPON = 0.0
+wqm_modules.F:   ALLOCATE(RPON(0:MTLOC,KBM1));  RPON = 0.0
+wqm_modules.F:   ALLOCATE(PO4(0:MTLOC,KBM1));   PO4  = 0.0
+wqm_modules.F:   ALLOCATE(LDOP(0:MTLOC,KBM1));  LDOP = 0.0
+wqm_modules.F:   ALLOCATE(LPOP(0:MTLOC,KBM1));  LPOP = 0.0
+wqm_modules.F:   ALLOCATE(RPOP(0:MTLOC,KBM1));  RPOP = 0.0
+wqm_modules.F:   ALLOCATE(COD(0:MTLOC,KBM1));   COD  = 0.0
+wqm_modules.F:   ALLOCATE(DO(0:MTLOC,KBM1));    DO   = 0.0
+wqm_modules.F:   ALLOCATE(SU(0:MTLOC,KBM1));    SU   = 0.0
+wqm_modules.F:   ALLOCATE(SA(0:MTLOC,KBM1));    SA   = 0.0
+wqm_modules.F:   ALLOCATE(SALT(0:MTLOC,KBM1));  SALT = 0.0
+wqm_modules.F:   ALLOCATE(SZ(0:MTLOC,KBM1));    SZ   = 0.0
+wqm_modules.F:   ALLOCATE(LZ(0:MTLOC,KBM1));    LZ   = 0.0
+wqm_modules.F:   ALLOCATE(RDOC(0:MTLOC,KBM1));  RDOC = 0.0
+wqm_modules.F:   ALLOCATE(RDON(0:MTLOC,KBM1));  RDON = 0.0
+wqm_modules.F:   ALLOCATE(RDOP(0:MTLOC,KBM1));  RDOP = 0.0
+wqm_modules.F:   ALLOCATE(UREA(0:MTLOC,KBM1));  UREA = 0.0
+wqm_modules.F:   ALLOCATE(PIP(0:MTLOC,KBM1));   PIP  = 0.0
+wqm_modules.F:   ALLOCATE(PIB1(0:MTLOC,KBM1));  PIB1 = 0.0
+wqm_modules.F:   ALLOCATE(PIB2(0:MTLOC,KBM1));  PIB2 = 0.0 
+wqm_modules.F:   ALLOCATE(PIB3(0:MTLOC,KBM1));  PIB3 = 0.0
+wqm_modules.F:   ALLOCATE(PN1(MTLOC,KBM1));            PN1     = 0.0
+wqm_modules.F:   ALLOCATE(PN2(MTLOC,KBM1));            PN2     = 0.0
+wqm_modules.F:   ALLOCATE(PN3(MTLOC,KBM1));            PN3     = 0.0
+wqm_modules.F:   ALLOCATE(BM1(MTLOC,KBM1));            BM1     = 0.0
+wqm_modules.F:   ALLOCATE(BM2(MTLOC,KBM1));            BM2     = 0.0
+wqm_modules.F:   ALLOCATE(BM3(MTLOC,KBM1));            BM3     = 0.0
+wqm_modules.F:   ALLOCATE(MNLLDOC(MTLOC,KBM1));        MNLLDOC = 0.0
+wqm_modules.F:   ALLOCATE(FTCOD(MTLOC,KBM1));          FTCOD   = 0.0     
+wqm_modules.F:   ALLOCATE(NPP(MTLOC,KBM1));            NPP     = 0.0
+wqm_modules.F:   ALLOCATE(P1(MTLOC,KBM1));             P1      = 0.0
+wqm_modules.F:   ALLOCATE(P2(MTLOC,KBM1));             P2      = 0.0
+wqm_modules.F:   ALLOCATE(P3(MTLOC,KBM1));             P3      = 0.0
+wqm_modules.F:   ALLOCATE(NT(MTLOC,KBM1));             NT      = 0.0
+wqm_modules.F:   ALLOCATE(PR1(MTLOC,KBM1));            PR1     = 0.0
+wqm_modules.F:   ALLOCATE(PR2(MTLOC,KBM1));            PR2     = 0.0
+wqm_modules.F:   ALLOCATE(PR3(MTLOC,KBM1));            PR3     = 0.0
+wqm_modules.F:   ALLOCATE(DENIT(MTLOC,KBM1));          DENIT   = 0.0 
+wqm_modules.F:   ALLOCATE(RATOX(MTLOC,KBM1));          RATOX   = 0.0
+wqm_modules.F:   ALLOCATE(GPP(MTLOC,KBM1));            GPP     = 0.0
+wqm_modules.F:   ALLOCATE(MNLRDOC(MTLOC,KBM1));        MNLRDOC = 0.0
+wqm_modules.F:   ALLOCATE(P1NNF(MTLOC,KBM1));          P1NNF   = 0.0
+wqm_modules.F:   ALLOCATE(KE(MTLOC,KBM1));           KE     = 0.0  
+wqm_modules.F:   ALLOCATE(FI1(MTLOC,KBM1));          FI1    = 0.0
+wqm_modules.F:   ALLOCATE(FI2(MTLOC,KBM1));          FI2    = 0.0
+wqm_modules.F:   ALLOCATE(FI3(MTLOC,KBM1));          FI3    = 0.0
+wqm_modules.F:   ALLOCATE(NL1(MTLOC,KBM1));          NL1    = 0.0
+wqm_modules.F:   ALLOCATE(NL2(MTLOC,KBM1));          NL2    = 0.0
+wqm_modules.F:   ALLOCATE(NL3(MTLOC,KBM1));          NL3    = 0.0
+wqm_modules.F:   ALLOCATE(PL1(MTLOC,KBM1));          PL1    = 0.0
+wqm_modules.F:   ALLOCATE(PL2(MTLOC,KBM1));          PL2    = 0.0 
+wqm_modules.F:   ALLOCATE(PL3(MTLOC,KBM1));          PL3    = 0.0
+wqm_modules.F:   ALLOCATE(SL2(MTLOC,KBM1));          SL2    = 0.0
+wqm_modules.F:   ALLOCATE(RESP(MTLOC,KBM1));         RESP   = 0.0
+wqm_modules.F:   ALLOCATE(KESS(MTLOC,KBM1));         KESS   = 0.0
+wqm_modules.F:   ALLOCATE(SL1(MTLOC,KBM1));          SL1    = 0.0
+wqm_modules.F:   ALLOCATE(SL3(MTLOC,KBM1));          SL3    = 0.0
+wqm_modules.F:   ALLOCATE(IAVG(MTLOC,KBM1));         IAVG   = 0.0
+wqm_modules.F:   ALLOCATE(IATBOT(MTLOC,KBM1));       IATBOT = 0.0
+wqm_modules.F:   ALLOCATE(KEISS(MTLOC,KBM1));        KEISS  = 0.0
+wqm_modules.F:   ALLOCATE(KEVSS(MTLOC,KBM1));        KEVSS  = 0.0
+wqm_modules.F:   ALLOCATE(KEDOC(MTLOC,KBM1));        KEDOC  = 0.0
+wqm_modules.F:   ALLOCATE(PM1(MTLOC,KBM1));          PM1   = 0.0   
+wqm_modules.F:   ALLOCATE(PM2(MTLOC,KBM1));          PM2   = 0.0
+wqm_modules.F:   ALLOCATE(PM3(MTLOC,KBM1));          PM3   = 0.0
+wqm_modules.F:   ALLOCATE(BMR1(MTLOC,KBM1));         BMR1  = 0.0
+wqm_modules.F:   ALLOCATE(BMR2(MTLOC,KBM1));         BMR2  = 0.0
+wqm_modules.F:   ALLOCATE(BMR3(MTLOC,KBM1));         BMR3  = 0.0
+wqm_modules.F:   ALLOCATE(BPR1(MTLOC,KBM1));         BPR1  = 0.0
+wqm_modules.F:   ALLOCATE(BPR2(MTLOC,KBM1));         BPR2  = 0.0
+wqm_modules.F:   ALLOCATE(BPR3(MTLOC,KBM1));         BPR3  = 0.0
+wqm_modules.F:   ALLOCATE(CCHL1(MTLOC,KBM1));        CCHL1 = 0.0
+wqm_modules.F:   ALLOCATE(CCHL2(MTLOC,KBM1));        CCHL2 = 0.0
+wqm_modules.F:   ALLOCATE(CCHL3(MTLOC,KBM1));        CCHL3 = 0.0
+wqm_modules.F:   ALLOCATE(Q1(MTLOC,KBM1));           Q1    = 0.0
+wqm_modules.F:   ALLOCATE(Q2(MTLOC,KBM1));           Q2    = 0.0
+wqm_modules.F:   ALLOCATE(Q3(MTLOC,KBM1));           Q3    = 0.0
+wqm_modules.F:   ALLOCATE(DTUREA(MTLOC,KBM1));       DTUREA = 0.0
+wqm_modules.F:   ALLOCATE(B1SZ(MTLOC,KBM1));         B1SZ = 0.0    
+wqm_modules.F:   ALLOCATE(B2SZ(MTLOC,KBM1));         B2SZ = 0.0
+wqm_modules.F:   ALLOCATE(B3SZ(MTLOC,KBM1));         B3SZ = 0.0
+wqm_modules.F:   ALLOCATE(B1LZ(MTLOC,KBM1));         B1LZ = 0.0
+wqm_modules.F:   ALLOCATE(B2LZ(MTLOC,KBM1));         B2LZ = 0.0
+wqm_modules.F:   ALLOCATE(B3LZ(MTLOC,KBM1));         B3LZ = 0.0
+wqm_modules.F:   ALLOCATE(DOSZ(MTLOC,KBM1));         DOSZ = 0.0
+wqm_modules.F:   ALLOCATE(DOLZ(MTLOC,KBM1));         DOLZ = 0.0
+wqm_modules.F:   ALLOCATE(SASZ(MTLOC,KBM1));         SASZ = 0.0
+wqm_modules.F:   ALLOCATE(SUSZ(MTLOC,KBM1));         SUSZ = 0.0
+wqm_modules.F:   ALLOCATE(SALZ(MTLOC,KBM1));         SALZ = 0.0
+wqm_modules.F:   ALLOCATE(SULZ(MTLOC,KBM1));         SULZ = 0.0
+wqm_modules.F:   ALLOCATE(WSS(0:MTLOC,KBM1));        WSS   = 0.0
+wqm_modules.F:   ALLOCATE(WSL(0:MTLOC,KBM1));        WSL   = 0.0
+wqm_modules.F:   ALLOCATE(WSR(0:MTLOC,KBM1));        WSR   = 0.0
+wqm_modules.F:   ALLOCATE(WS1(0:MTLOC,KBM1));        WS1   = 0.0
+wqm_modules.F:   ALLOCATE(WS2(0:MTLOC,KBM1));        WS2   = 0.0
+wqm_modules.F:   ALLOCATE(WS3(0:MTLOC,KBM1));        WS3   = 0.0
+wqm_modules.F:   ALLOCATE(WSU(0:MTLOC,KBM1));        WSU   = 0.0
+wqm_modules.F:   ALLOCATE(WSSHI(0:MTLOC,KBM1));      WSSHI = 0.0
+wqm_modules.F:   ALLOCATE(FLXSPIB1(MTLOC,KBM1));     FLXSPIB1 = 0.0
+wqm_modules.F:   ALLOCATE(FLXSPIB2(MTLOC,KBM1));     FLXSPIB2 = 0.0
+wqm_modules.F:   ALLOCATE(FLXSPIB3(MTLOC,KBM1));     FLXSPIB3 = 0.0
+wqm_modules.F:   ALLOCATE(V1(0:MTLOC,KBM1));         V1 = 0.0    
+wqm_modules.F:   ALLOCATE(V2(0:MTLOC,KBM1));         V2 = 0.0
+wqm_modules.F:   ALLOCATE(BL(0:MTLOC,KBM1,3));       BL   = 0.0
+wqm_modules.F:   ALLOCATE(V1S(0:MTLOC,KBM1));        V1S  = 0.0
+wqm_modules.F:   ALLOCATE(HMV(0:MTLOC,KBM1));        HMV  = 0.0
+wqm_modules.F:   ALLOCATE(ZD(0:MTLOC,KBM1));         ZD   = 0.0
+wqm_modules.F:   ALLOCATE(DTM(0:MTLOC,KBM1,NCP));    DTM = 0.0
+wqm_modules.F:   ALLOCATE(B1ASZ(MTLOC,KBM1));        B1ASZ = 0.0 
+wqm_modules.F:   ALLOCATE(B2ASZ(MTLOC,KBM1));        B2ASZ = 0.0
+wqm_modules.F:   ALLOCATE(B3ASZ(MTLOC,KBM1));        B3ASZ = 0.0
+wqm_modules.F:   ALLOCATE(LPOCASZ(MTLOC,KBM1));      LPOCASZ = 0.0
+wqm_modules.F:   ALLOCATE(RPOCASZ(MTLOC,KBM1));      RPOCASZ = 0.0
+wqm_modules.F:   ALLOCATE(PRASZ(MTLOC,KBM1));        PRASZ = 0.0
+wqm_modules.F:   ALLOCATE(B1ALZ(MTLOC,KBM1));        B1ALZ = 0.0
+wqm_modules.F:   ALLOCATE(B2ALZ(MTLOC,KBM1));        B2ALZ = 0.0
+wqm_modules.F:   ALLOCATE(B3ALZ(MTLOC,KBM1));        B3ALZ = 0.0
+wqm_modules.F:   ALLOCATE(SZALZ(MTLOC,KBM1));        SZALZ = 0.0
+wqm_modules.F:   ALLOCATE(LPOCALZ(MTLOC,KBM1));      LPOCALZ = 0.0
+wqm_modules.F:   ALLOCATE(RPOCALZ(MTLOC,KBM1));      RPOCALZ = 0.0
+wqm_modules.F:   ALLOCATE(PRALZ(MTLOC,KBM1));        PRALZ = 0.0
+wqm_modules.F:   ALLOCATE(CLSZ(MTLOC,KBM1));         CLSZ = 0.0
+wqm_modules.F:   ALLOCATE(CLLZ(MTLOC,KBM1));         CLLZ = 0.0
+wqm_modules.F:   ALLOCATE(RSZ(MTLOC,KBM1));          RSZ = 0.0
+wqm_modules.F:   ALLOCATE(RLZ(MTLOC,KBM1));          RLZ = 0.0
+wqm_modules.F:   ALLOCATE(RMAXSZ(MTLOC,KBM1));       RMAXSZ = 0.0
+wqm_modules.F:   ALLOCATE(RMAXLZ(MTLOC,KBM1));       RMAXLZ = 0.0
+wqm_modules.F:   ALLOCATE(BMSZ(MTLOC,KBM1));         BMSZ = 0.0
+wqm_modules.F:   ALLOCATE(BMLZ(MTLOC,KBM1));         BMLZ = 0.0
+wqm_modules.F:   ALLOCATE(BMRSZ(MTLOC,KBM1));        BMRSZ = 0.0
+wqm_modules.F:   ALLOCATE(BMRLZ(MTLOC,KBM1));        BMRLZ = 0.0
+wqm_modules.F:   ALLOCATE(MSZ(MTLOC,KBM1));          MSZ = 0.0
+wqm_modules.F:   ALLOCATE(MLZ(MTLOC,KBM1));          MLZ = 0.0
+wqm_modules.F:   ALLOCATE(PRSZLZ(MTLOC,KBM1));       PRSZLZ = 0.0
+wqm_modules.F:   ALLOCATE(GSZ(MTLOC,KBM1));          GSZ = 0.0
+wqm_modules.F:   ALLOCATE(GLZ(MTLOC,KBM1));          GLZ = 0.0
+wqm_modules.F:   ALLOCATE(ESZ(MTLOC,KBM1));          ESZ = 0.0
+wqm_modules.F:   ALLOCATE(ELZ(MTLOC,KBM1));          ELZ = 0.0
+wqm_modules.F:   ALLOCATE(RFSZ(MTLOC,KBM1));         RFSZ = 0.0
+wqm_modules.F:   ALLOCATE(RFLZ(MTLOC,KBM1));         RFLZ = 0.0
+wqm_modules.F:   ALLOCATE(PRSZ(MTLOC,KBM1));         PRSZ = 0.0
+wqm_modules.F:   ALLOCATE(PRLZ(MTLOC,KBM1));         PRLZ = 0.0
+wqm_modules.F:   ALLOCATE(LDOCASZ(MTLOC,KBM1));      LDOCASZ = 0.0
+wqm_modules.F:   ALLOCATE(BPRSZ(MTLOC,KBM1));        BPRSZ = 0.0
+wqm_modules.F:   ALLOCATE(BPRLZ(MTLOC,KBM1));        BPRLZ = 0.0
+wqm_modules.F:   ALLOCATE(RDOCASZ(MTLOC,KBM1));      RDOCASZ = 0.0
+wqm_modules.F:   ALLOCATE(LDOCSZ(MTLOC,KBM1));       LDOCSZ = 0.0
+wqm_modules.F:   ALLOCATE(LPOCSZ(MTLOC,KBM1));       LPOCSZ = 0.0
+wqm_modules.F:   ALLOCATE(RPOCSZ(MTLOC,KBM1));       RPOCSZ = 0.0
+wqm_modules.F:   ALLOCATE(LDOCLZ(MTLOC,KBM1));       LDOCLZ = 0.0
+wqm_modules.F:   ALLOCATE(LPOCLZ(MTLOC,KBM1));       LPOCLZ = 0.0
+wqm_modules.F:   ALLOCATE(RPOCLZ(MTLOC,KBM1));       RPOCLZ = 0.0
+wqm_modules.F:   ALLOCATE(NH4SZ(MTLOC,KBM1));        NH4SZ = 0.0
+wqm_modules.F:   ALLOCATE(LDONSZ(MTLOC,KBM1));       LDONSZ = 0.0
+wqm_modules.F:   ALLOCATE(LPONSZ(MTLOC,KBM1));       LPONSZ = 0.0
+wqm_modules.F:   ALLOCATE(RPONSZ(MTLOC,KBM1));       RPONSZ = 0.0
+wqm_modules.F:   ALLOCATE(NH4LZ(MTLOC,KBM1));        NH4LZ = 0.0
+wqm_modules.F:   ALLOCATE(LDONLZ(MTLOC,KBM1));       LDONLZ = 0.0
+wqm_modules.F:   ALLOCATE(LPONLZ(MTLOC,KBM1));       LPONLZ = 0.0
+wqm_modules.F:   ALLOCATE(RPONLZ(MTLOC,KBM1));       RPONLZ = 0.0
+wqm_modules.F:   ALLOCATE(PO4SZ(MTLOC,KBM1));        PO4SZ = 0.0
+wqm_modules.F:   ALLOCATE(LDOPSZ(MTLOC,KBM1));       LDOPSZ = 0.0
+wqm_modules.F:   ALLOCATE(LPOPSZ(MTLOC,KBM1));       LPOPSZ = 0.0
+wqm_modules.F:   ALLOCATE(RPOPSZ(MTLOC,KBM1));       RPOPSZ = 0.0
+wqm_modules.F:   ALLOCATE(PO4LZ(MTLOC,KBM1));        PO4LZ = 0.0
+wqm_modules.F:   ALLOCATE(LDOPLZ(MTLOC,KBM1));       LDOPLZ = 0.0
+wqm_modules.F:   ALLOCATE(LPOPLZ(MTLOC,KBM1));       LPOPLZ = 0.0
+wqm_modules.F:   ALLOCATE(RPOPLZ(MTLOC,KBM1));       RPOPLZ = 0.0
+wqm_modules.F:   ALLOCATE(RDOCSZ(MTLOC,KBM1));       RDOCSZ = 0.0
+wqm_modules.F:   ALLOCATE(RDONSZ(MTLOC,KBM1));       RDONSZ = 0.0
+wqm_modules.F:   ALLOCATE(RDOPSZ(MTLOC,KBM1));       RDOPSZ = 0.0
+wqm_modules.F:   ALLOCATE(RDOCLZ(MTLOC,KBM1));       RDOCLZ = 0.0
+wqm_modules.F:   ALLOCATE(RDONLZ(MTLOC,KBM1));       RDONLZ = 0.0
+wqm_modules.F:   ALLOCATE(RDOPLZ(MTLOC,KBM1));       RDOPLZ = 0.0
+wqm_modules.F:   ALLOCATE(PIB1SZ(MTLOC,KBM1));       PIB1SZ = 0.0
+wqm_modules.F:   ALLOCATE(PIB2SZ(MTLOC,KBM1));       PIB2SZ = 0.0
+wqm_modules.F:   ALLOCATE(PIB3SZ(MTLOC,KBM1));       PIB3SZ = 0.0
+wqm_modules.F:   ALLOCATE(PIB1LZ(MTLOC,KBM1));       PIB1LZ = 0.0
+wqm_modules.F:   ALLOCATE(PIB2LZ(MTLOC,KBM1));       PIB2LZ = 0.0
+wqm_modules.F:   ALLOCATE(PIB3LZ(MTLOC,KBM1));       PIB3LZ = 0.0
+wqm_modules.F:   ALLOCATE(ALGDOC(MTLOC,KBM1));       ALGDOC  = 0.0 
+wqm_modules.F:   ALLOCATE(ALGPOC(MTLOC,KBM1));       ALGPOC  = 0.0
+wqm_modules.F:   ALLOCATE(HDRLPOC(MTLOC,KBM1));      HDRLPOC = 0.0
+wqm_modules.F:   ALLOCATE(HDRRPOC(MTLOC,KBM1));      HDRRPOC = 0.0
+wqm_modules.F:   ALLOCATE(KLDC(MTLOC,KBM1));         KLDC = 0.0   
+wqm_modules.F:   ALLOCATE(KRDC(MTLOC,KBM1));         KRDC = 0.0
+wqm_modules.F:   ALLOCATE(KDCALG(MTLOC,KBM1));       KDCALG = 0.0
+wqm_modules.F:   ALLOCATE(KLPC(MTLOC,KBM1));         KLPC = 0.0
+wqm_modules.F:   ALLOCATE(KLCALG(MTLOC,KBM1));       KLCALG = 0.0
+wqm_modules.F:   ALLOCATE(KRPC(MTLOC,KBM1));         KRPC = 0.0
+wqm_modules.F:   ALLOCATE(KSUA(MTLOC,KBM1));         KSUA = 0.0
+wqm_modules.F:   ALLOCATE(KCOD(MTLOC,KBM1));         KCOD = 0.0
+wqm_modules.F:   ALLOCATE(KLDN(MTLOC,KBM1));         KLDN = 0.0
+wqm_modules.F:   ALLOCATE(KRDN(MTLOC,KBM1));         KRDN = 0.0
+wqm_modules.F:   ALLOCATE(KDNALG(MTLOC,KBM1));       KDNALG = 0.0
+wqm_modules.F:   ALLOCATE(KLDP(MTLOC,KBM1));         KLDP = 0.0
+wqm_modules.F:   ALLOCATE(KRDP(MTLOC,KBM1));         KRDP = 0.0
+wqm_modules.F:   ALLOCATE(KDPALG(MTLOC,KBM1));       KDPALG = 0.0
+wqm_modules.F:   ALLOCATE(KLPN(MTLOC,KBM1));         KLPN = 0.0
+wqm_modules.F:   ALLOCATE(KLNALG(MTLOC,KBM1));       KLNALG = 0.0
+wqm_modules.F:   ALLOCATE(KLPP(MTLOC,KBM1));         KLPP = 0.0
+wqm_modules.F:   ALLOCATE(KLPALG(MTLOC,KBM1));       KLPALG = 0.0
+wqm_modules.F:   ALLOCATE(KRPN(MTLOC,KBM1));         KRPN = 0.0
+wqm_modules.F:   ALLOCATE(KRPP(MTLOC,KBM1));         KRPP = 0.0
+wqm_modules.F:   ALLOCATE(NTM(MTLOC,KBM1));          NTM = 0.0
+wqm_modules.F:   ALLOCATE(KRCOAG(MTLOC,KBM1));       KRCOAG = 0.0
+wqm_modules.F:   ALLOCATE(FTMNL(MTLOC,KBM1));        FTMNL = 0.0  
+wqm_modules.F:   ALLOCATE(FTHDR(MTLOC,KBM1));        FTHDR = 0.0
+wqm_modules.F:   ALLOCATE(RESPC(MTLOC,KBM1));        RESPC = 0.0   
+wqm_modules.F:   ALLOCATE(DLALGC(MTLOC,KBM1));       DLALGC = 0.0
+wqm_modules.F:   ALLOCATE(ALGNH4(MTLOC,KBM1));       ALGNH4 = 0.0
+wqm_modules.F:   ALLOCATE(ALGNO3(MTLOC,KBM1));       ALGNO3 = 0.0
+wqm_modules.F:   ALLOCATE(ALGDON(MTLOC,KBM1));       ALGDON = 0.0
+wqm_modules.F:   ALLOCATE(ALGPON(MTLOC,KBM1));       ALGPON = 0.0
+wqm_modules.F:   ALLOCATE(DENNO3(MTLOC,KBM1));       DENNO3 = 0.0
+wqm_modules.F:   ALLOCATE(MNLLDON(MTLOC,KBM1));      MNLLDON = 0.0
+wqm_modules.F:   ALLOCATE(HDRLPON(MTLOC,KBM1));      HDRLPON = 0.0
+wqm_modules.F:   ALLOCATE(HDRRPON(MTLOC,KBM1));      HDRRPON = 0.0
+wqm_modules.F:   ALLOCATE(MNLRDON(MTLOC,KBM1));      MNLRDON = 0.0
+wqm_modules.F:   ALLOCATE(NFIX(MTLOC,KBM1));         NFIX = 0.0
+wqm_modules.F:   ALLOCATE(ALGPO4(MTLOC,KBM1));       ALGPO4 = 0.0
+wqm_modules.F:   ALLOCATE(ALGDOP(MTLOC,KBM1));       ALGDOP = 0.0
+wqm_modules.F:   ALLOCATE(ALGPOP(MTLOC,KBM1));       ALGPOP = 0.0
+wqm_modules.F:   ALLOCATE(MNLLDOP(MTLOC,KBM1));      MNLLDOP = 0.0
+wqm_modules.F:   ALLOCATE(HDRLPOP(MTLOC,KBM1));      HDRLPOP = 0.0
+wqm_modules.F:   ALLOCATE(HDRRPOP(MTLOC,KBM1));      HDRRPOP = 0.0
+wqm_modules.F:   ALLOCATE(MNLRDOP(MTLOC,KBM1));      MNLRDOP = 0.0
+wqm_modules.F:   ALLOCATE(DORALG(MTLOC,KBM1));       DORALG = 0.0
+wqm_modules.F:   ALLOCATE(DOPR(MTLOC,KBM1));         DOPR = 0.0
+wqm_modules.F:   ALLOCATE(DCOD(MTLOC,KBM1));         DCOD = 0.0
+wqm_modules.F:   ALLOCATE(DDOC(MTLOC,KBM1));         DDOC = 0.0
+wqm_modules.F:   ALLOCATE(NITRIF(MTLOC,KBM1));       NITRIF = 0.0
+wqm_modules.F:   ALLOCATE(PSD(MTLOC,KBM1));          PSD = 0.0
+wqm_modules.F:   ALLOCATE(SAP(MTLOC,KBM1));          SAP = 0.0
+wqm_modules.F:   ALLOCATE(ALGUP(MTLOC,KBM1));        ALGUP = 0.0
+wqm_modules.F:   ALLOCATE(ALGRES(MTLOC,KBM1));       ALGRES = 0.0
+wqm_modules.F:   ALLOCATE(COLOR(MTLOC,KBM1));        COLOR = 0.0 
+wqm_modules.F:   ALLOCATE(TURB(MTLOC,KBM1));         TURB  = 0.0
+wqm_modules.F:   ALLOCATE(C1(0:MTLOC,KBM1,NCP));         C1    = 0.0
+wqm_modules.F:   ALLOCATE(C2(0:MTLOC,KBM1,NCP));         C2    = 0.0
+wqm_modules.F:   ALLOCATE(C2F(0:MTLOC,KBM1,NCP));        C2F    = 0.0
+wqm_modules.F:   ALLOCATE(CSTAR(0:MTLOC,KBM1,NCP));      CSTAR = 0.0
+wqm_modules.F:   ALLOCATE(DTC(0:MTLOC,KBM1,NCP));        DTC   = 0.0 
+wqm_modules.F:   ALLOCATE(AC1(0:MTLOC,KBM1,NCP));        AC1   = 0.0
+wqm_modules.F:   ALLOCATE(QLIT(MTLOC,KBM1));             QLIT = 0.0
+wqm_modules.F:   ALLOCATE(CONLIT(MTLOC,KBM1,NCP));       CONLIT = 0.0
+wqm_modules.F:   ALLOCATE(AFI1(MTLOC,KBM1));       AFI1 = 0.0 
+wqm_modules.F:   ALLOCATE(ANL1(MTLOC,KBM1));       ANL1 = 0.0
+wqm_modules.F:   ALLOCATE(APL1(MTLOC,KBM1));       APL1 = 0.0
+wqm_modules.F:   ALLOCATE(AFI2(MTLOC,KBM1));       AFI2 = 0.0
+wqm_modules.F:   ALLOCATE(ANL2(MTLOC,KBM1));       ANL2 = 0.0
+wqm_modules.F:   ALLOCATE(APL2(MTLOC,KBM1));       APL2 = 0.0
+wqm_modules.F:   ALLOCATE(ASL2(MTLOC,KBM1));       ASL2 = 0.0
+wqm_modules.F:   ALLOCATE(AFI3(MTLOC,KBM1));       AFI3 = 0.0
+wqm_modules.F:   ALLOCATE(ANL3(MTLOC,KBM1));       ANL3 = 0.0
+wqm_modules.F:   ALLOCATE(APL3(MTLOC,KBM1));       APL3 = 0.0
+wqm_modules.F:   ALLOCATE(ANPP(MTLOC,KBM1));       ANPP = 0.0
+wqm_modules.F:   ALLOCATE(ARESP(MTLOC,KBM1));      ARESP = 0.0
+wqm_modules.F:   ALLOCATE(AKE(MTLOC,KBM1));        AKE = 0.0
+wqm_modules.F:   ALLOCATE(ASL1(MTLOC,KBM1));       ASL1 = 0.0
+wqm_modules.F:   ALLOCATE(ASL3(MTLOC,KBM1));       ASL3 = 0.0
+wqm_modules.F:   ALLOCATE(AGPP(MTLOC,KBM1));       AGPP = 0.0
+wqm_modules.F:   ALLOCATE(ACCHL1(MTLOC,KBM1));     ACCHL1 = 0.0  
+wqm_modules.F:   ALLOCATE(ACCHL2(MTLOC,KBM1));     ACCHL2 = 0.0
+wqm_modules.F:   ALLOCATE(ACCHL3(MTLOC,KBM1));     ACCHL3 = 0.0
+wqm_modules.F:   ALLOCATE(ACLSZ(MTLOC,KBM1));        ACLSZ = 0.0
+wqm_modules.F:   ALLOCATE(ACLLZ(MTLOC,KBM1));        ACLLZ = 0.0
+wqm_modules.F:   ALLOCATE(ARSZ(MTLOC,KBM1));         ARSZ = 0.0
+wqm_modules.F:   ALLOCATE(ARLZ(MTLOC,KBM1));         ARLZ = 0.0
+wqm_modules.F:   ALLOCATE(ABMSZ(MTLOC,KBM1));        ABMSZ = 0.0
+wqm_modules.F:   ALLOCATE(ABMLZ(MTLOC,KBM1));        ABMLZ = 0.0
+wqm_modules.F:   ALLOCATE(AMSZ(MTLOC,KBM1));         AMSZ = 0.0
+wqm_modules.F:   ALLOCATE(AMLZ(MTLOC,KBM1));         AMLZ = 0.0
+wqm_modules.F:   ALLOCATE(APRSZLZ(MTLOC,KBM1));      APRSZLZ = 0.0
+wqm_modules.F:   ALLOCATE(AGSZ(MTLOC,KBM1));         AGSZ = 0.0
+wqm_modules.F:   ALLOCATE(AGLZ(MTLOC,KBM1));         AGLZ = 0.0
+wqm_modules.F:   ALLOCATE(ADOCSZ(MTLOC,KBM1));       ADOCSZ = 0.0
+wqm_modules.F:   ALLOCATE(APOCSZ(MTLOC,KBM1));       APOCSZ = 0.0
+wqm_modules.F:   ALLOCATE(ADOCLZ(MTLOC,KBM1));       ADOCLZ = 0.0
+wqm_modules.F:   ALLOCATE(APOCLZ(MTLOC,KBM1));       APOCLZ = 0.0
+wqm_modules.F:   ALLOCATE(ANH4SZ(MTLOC,KBM1));       ANH4SZ = 0.0
+wqm_modules.F:   ALLOCATE(ADONSZ(MTLOC,KBM1));       ADONSZ = 0.0
+wqm_modules.F:   ALLOCATE(APONSZ(MTLOC,KBM1));       APONSZ = 0.0
+wqm_modules.F:   ALLOCATE(ANH4LZ(MTLOC,KBM1));       ANH4LZ = 0.0
+wqm_modules.F:   ALLOCATE(ADONLZ(MTLOC,KBM1));       ADONLZ = 0.0
+wqm_modules.F:   ALLOCATE(APONLZ(MTLOC,KBM1));       APONLZ = 0.0
+wqm_modules.F:   ALLOCATE(APO4SZ(MTLOC,KBM1));       APO4SZ = 0.0
+wqm_modules.F:   ALLOCATE(ADOPSZ(MTLOC,KBM1));       ADOPSZ = 0.0
+wqm_modules.F:   ALLOCATE(APOPSZ(MTLOC,KBM1));       APOPSZ = 0.0
+wqm_modules.F:   ALLOCATE(APO4LZ(MTLOC,KBM1));       APO4LZ = 0.0
+wqm_modules.F:   ALLOCATE(ADOPLZ(MTLOC,KBM1));       ADOPLZ = 0.0
+wqm_modules.F:   ALLOCATE(APOPLZ(MTLOC,KBM1));       APOPLZ = 0.0
+wqm_modules.F:   ALLOCATE(APRSZ(MTLOC,KBM1));        APRSZ = 0.0
+wqm_modules.F:   ALLOCATE(APRLZ(MTLOC,KBM1));        APRLZ = 0.0
+wqm_modules.F:   ALLOCATE(APISZ(MTLOC,KBM1));        APISZ = 0.0
+wqm_modules.F:   ALLOCATE(APILZ(MTLOC,KBM1));        APILZ = 0.0
+wqm_modules.F:   ALLOCATE(AB1SZ(MTLOC,KBM1));        AB1SZ = 0.0  
+wqm_modules.F:   ALLOCATE(AB2SZ(MTLOC,KBM1));        AB2SZ = 0.0
+wqm_modules.F:   ALLOCATE(AB3SZ(MTLOC,KBM1));        AB3SZ = 0.0
+wqm_modules.F:   ALLOCATE(AB1LZ(MTLOC,KBM1));        AB1LZ = 0.0
+wqm_modules.F:   ALLOCATE(AB2LZ(MTLOC,KBM1));        AB2LZ = 0.0
+wqm_modules.F:   ALLOCATE(AB3LZ(MTLOC,KBM1));        AB3LZ = 0.0
+wqm_modules.F:   ALLOCATE(ADOSZ(MTLOC,KBM1));        ADOSZ = 0.0
+wqm_modules.F:   ALLOCATE(ADOLZ(MTLOC,KBM1));        ADOLZ = 0.0
+wqm_modules.F:   ALLOCATE(ASASZ(MTLOC,KBM1));        ASASZ = 0.0
+wqm_modules.F:   ALLOCATE(ASUSZ(MTLOC,KBM1));        ASUSZ = 0.0
+wqm_modules.F:   ALLOCATE(ASALZ(MTLOC,KBM1));        ASALZ = 0.0
+wqm_modules.F:   ALLOCATE(ASULZ(MTLOC,KBM1));        ASULZ = 0.0
+wqm_modules.F:   ALLOCATE(A_T(MTLOC,KBM1));              A_T = 0.0
+wqm_modules.F:   ALLOCATE(AP1(MTLOC,KBM1));              AP1 = 0.0
+wqm_modules.F:   ALLOCATE(ABM1(MTLOC,KBM1));             ABM1 = 0.0
+wqm_modules.F:   ALLOCATE(APR1(MTLOC,KBM1));             APR1 = 0.0
+wqm_modules.F:   ALLOCATE(AP2(MTLOC,KBM1));              AP2 = 0.0
+wqm_modules.F:   ALLOCATE(ABM2(MTLOC,KBM1));             ABM2 = 0.0
+wqm_modules.F:   ALLOCATE(APR2(MTLOC,KBM1));             APR2 = 0.0
+wqm_modules.F:   ALLOCATE(AP3(MTLOC,KBM1));              AP3 = 0.0
+wqm_modules.F:   ALLOCATE(ABM3(MTLOC,KBM1));             ABM3  = 0.0
+wqm_modules.F:   ALLOCATE(APR3(MTLOC,KBM1));             APR3 = 0.0
+wqm_modules.F:   ALLOCATE(AALGDOC(MTLOC,KBM1));          AALGDOC = 0.0
+wqm_modules.F:   ALLOCATE(AALGPOC(MTLOC,KBM1));          AALGPOC = 0.0
+wqm_modules.F:   ALLOCATE(ADENIT(MTLOC,KBM1));           ADENIT = 0.0
+wqm_modules.F:   ALLOCATE(AMNLDOC(MTLOC,KBM1));          AMNLDOC = 0.0
+wqm_modules.F:   ALLOCATE(AHDRPOC(MTLOC,KBM1));          AHDRPOC = 0.0
+wqm_modules.F:   ALLOCATE(AALGNH4(MTLOC,KBM1));          AALGNH4 = 0.0
+wqm_modules.F:   ALLOCATE(AALGNO3(MTLOC,KBM1));          AALGNO3 = 0.0
+wqm_modules.F:   ALLOCATE(AALGDON(MTLOC,KBM1));          AALGDON = 0.0
+wqm_modules.F:   ALLOCATE(AALGPON(MTLOC,KBM1));          AALGPON = 0.0
+wqm_modules.F:   ALLOCATE(ANT(MTLOC,KBM1));              ANT = 0.0
+wqm_modules.F:   ALLOCATE(ADENNO3(MTLOC,KBM1));          ADENNO3  = 0.0
+wqm_modules.F:   ALLOCATE(AMNLDON(MTLOC,KBM1));          AMNLDON = 0.0
+wqm_modules.F:   ALLOCATE(AHDRPON(MTLOC,KBM1));          AHDRPON = 0.0
+wqm_modules.F:   ALLOCATE(ANFIX(MTLOC,KBM1));            ANFIX = 0.0
+wqm_modules.F:   ALLOCATE(AALGPO4(MTLOC,KBM1));          AALGPO4 = 0.0
+wqm_modules.F:   ALLOCATE(AALGDOP(MTLOC,KBM1));          AALGDOP = 0.0
+wqm_modules.F:   ALLOCATE(AALGPOP(MTLOC,KBM1));          AALGPOP = 0.0
+wqm_modules.F:   ALLOCATE(AMNLDOP(MTLOC,KBM1));          AMNLDOP = 0.0
+wqm_modules.F:   ALLOCATE(AHDRPOP(MTLOC,KBM1));          AHDRPOP = 0.0
+wqm_modules.F:   ALLOCATE(APSD(MTLOC,KBM1));             APSD = 0.0
+wqm_modules.F:   ALLOCATE(ASAP(MTLOC,KBM1));             ASAP = 0.0
+wqm_modules.F:   ALLOCATE(AALGUP(MTLOC,KBM1));           AALGUP = 0.0
+wqm_modules.F:   ALLOCATE(AALGRES(MTLOC,KBM1));          AALGRES = 0.0
+wqm_modules.F:   ALLOCATE(ADO(MTLOC,KBM1));              ADO = 0.0
+wqm_modules.F:   ALLOCATE(ADORALG(MTLOC,KBM1));          ADORALG = 0.0
+wqm_modules.F:   ALLOCATE(ADOPR(MTLOC,KBM1));            ADOPR = 0.0
+wqm_modules.F:   ALLOCATE(ADCOD(MTLOC,KBM1));            ADCOD = 0.0
+wqm_modules.F:   ALLOCATE(ADDOC(MTLOC,KBM1));            ADDOC = 0.0
+wqm_modules.F:   ALLOCATE(ANITRIF(MTLOC,KBM1));          ANITRIF = 0.0
+wqm_modules.F:   ALLOCATE(V1SINGLE(0:MTLOC,KBM1)); V1SINGLE = 0.0
+wqm_modules.F:   ALLOCATE(FLUXS(0:MTLOC,KBM1,13));         FLUXS = 0.0
+wqm_modules.F:   ALLOCATE(IWCMNB(MTLOC,KBM1));        IWCMNB = 0.0
+wqm_modules.F:   ALLOCATE(IWCMPB(MTLOC,KBM1));        IWCMPB = 0.0
+wqm_modules.F:   ALLOCATE(IWCMCB(MTLOC,KBM1));        IWCMCB = 0.0
+wqm_modules.F:   ALLOCATE(IWCMSB(MTLOC,KBM1));        IWCMSB = 0.0
+wqm_modules.F:   ALLOCATE(WCMNB(MTLOC,KBM1));         WCMNB = 0.0
+wqm_modules.F:   ALLOCATE(WCMPB(MTLOC,KBM1));         WCMPB = 0.0
+wqm_modules.F:   ALLOCATE(WCMCB(MTLOC,KBM1));         WCMCB = 0.0
+wqm_modules.F:   ALLOCATE(WCMSB(MTLOC,KBM1));         WCMSB = 0.0
+wqm_modules.F:   ALLOCATE(DLWCMNB(MTLOC,KBM1));       DLWCMNB = 0.0
+wqm_modules.F:   ALLOCATE(DLWCMPB(MTLOC,KBM1));       DLWCMPB = 0.0
+wqm_modules.F:   ALLOCATE(DLWCKMNB(MTLOC,KBM1));      DLWCKMNB = 0.0
+wqm_modules.F:   ALLOCATE(DLWCKMCB(MTLOC,KBM1));      DLWCKMCB = 0.0
+wqm_modules.F:   ALLOCATE(S1FLXNB(MTLOC,KBM1));       S1FLXNB = 0.0
+wqm_modules.F:   ALLOCATE(S1FLXPB(MTLOC,KBM1));       S1FLXPB = 0.0
+wqm_modules.F:   ALLOCATE(S1FLXCB(MTLOC,KBM1));       S1FLXCB = 0.0
+wqm_modules.F:   ALLOCATE(S2FLXNB(MTLOC,KBM1));       S2FLXNB = 0.0
+wqm_modules.F:   ALLOCATE(S2FLXPB(MTLOC,KBM1));       S2FLXPB = 0.0
+wqm_modules.F:   ALLOCATE(S2FLXCB(MTLOC,KBM1));       S2FLXCB = 0.0
+wqm_modules.F:   ALLOCATE(S3FLXNB(MTLOC,KBM1));       S3FLXNB = 0.0
+wqm_modules.F:   ALLOCATE(S3FLXPB(MTLOC,KBM1));       S3FLXPB = 0.0
+wqm_modules.F:   ALLOCATE(S3FLXCB(MTLOC,KBM1));       S3FLXCB = 0.0
+wqm_modules.F:   ALLOCATE(C1MIN(MTLOC,KBM1,NCP));     C1MIN = 0.0   
+wqm_modules.F:   ALLOCATE(C1MAX(MTLOC,KBM1,NCP));     C1MAX = 0.0
+wqm_modules.F:   ALLOCATE(DOVDAYS(MTLOC,KBM1,NOIP));  DOVDAYS = 0.0
+wqm_owq.F:     DO K=2,KBM1
+wqm_owq.F:     DO K=2,KBM1
+wqm_sed.F:     IWC = KBM1
+wqm_sed.F:     IWC  = KBM1
+wqm_sed.F:                 *(T(I,KBM1)-CTEMP(I))
+wqm_sf.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTB1, DTB2, DTB3, DTPIB1, DTPIB2, DTPIB3,  &
+wqm_sf.F:     B1ASF = MAX(1.E-6,B1(I,KBM1))          
+wqm_sf.F:     B2ASF = MAX(1.E-6,B2(I,KBM1))          
+wqm_sf.F:     B3ASF = MAX(1.E-6,B3(I,KBM1))
+wqm_sf.F:     LPOCASF = MAX(1.E-6,LPOC(I,KBM1))          
+wqm_sf.F:     RPOCASF = MAX(1.E-6,RPOC(I,KBM1))
+wqm_sf.F:     LPONASF = MAX(1.E-6,LPON(I,KBM1))          
+wqm_sf.F:     RPONASF = MAX(1.E-6,RPON(I,KBM1))
+wqm_sf.F:     LPOPASF = MAX(1.E-6,LPOP(I,KBM1))          
+wqm_sf.F:     RPOPASF = MAX(1.E-6,RPOP(I,KBM1))
+wqm_sf.F:     SSIASF = MAX(1.E-6,SSI(I,KBM1))          
+wqm_sf.F:     SUASF = MAX(1.E-6,SU(I,KBM1))
+wqm_sf.F:     IF(DO(I,KBM1) < 0.0)THEN
+wqm_sf.F:       DOX=DO(I,KBM1)
+wqm_sf.F:     PFILT = SF(I)*FILTCT*(B1ASF*Q1(I,KBM1)+B2ASF*Q2(I,KBM1)+B3ASF*Q3(I,KBM1)         &
+wqm_sf.F:     GP = SF(I)*FILTCT*(SFA1X*B1ASF*Q1(I,KBM1)+SFA2X*B2ASF*Q2(I,KBM1)             &
+wqm_sf.F:          +SFA3X*B3ASF*Q3(I,KBM1)+SFA4X*LPOPASF+SFA5X*RPOPASF) 
+wqm_sf.F:     PFECES = SF(I)*FILTCT*RELING*((1.-SFAP1)*B1ASF*Q1(I,KBM1)             &
+wqm_sf.F:              +(1.-SFAP2)*B2ASF*Q2(I,KBM1)+(1.-SFAP3)*B3ASF*Q3(I,KBM1)     &
+wqm_sf.F:             /(Q1(I,KBM1)*B1ASF+Q2(I,KBM1)*B2ASF+Q3(I,KBM1)*B3ASF+LPOPASF+RPOPASF)
+wqm_sf.F:     PF = KADPO4*SSI(I,KBM1)/(1.+KADPO4*SSI(I,KBM1))
+wqm_sf.F:     SF_PIPX(I) =  FILTCT*SF(I)*WSSNET(I)/WSS(I,1)*PF*MAX(0.,PO4(I,KBM1))
+wqm_sf.F:     PF =          KADPO4*SSI(I,KBM1)/(1.+KADPO4*SSI(I,KBM1))
+wqm_sf.F:     SF_SASX(I) =  FILTCT*SF(I)*PF*SA(I,KBM1)*WSSNET(I)/WSS(I,1)
+wqm_sf.F:     DTB1(I,KBM1) = DTB1(I,KBM1) - ( FILTCT*SF(I)*B1ASF )               &
+wqm_sf.F:                 /(D(I)*DZ(KBM1)) /1000. /86400.           ! units: g/m3/s
+wqm_sf.F:     DTB2(I,KBM1) = DTB2(I,KBM1) - ( FILTCT*SF(I)*B2ASF )                     &
+wqm_sf.F:                 /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTB3(I,KBM1) = DTB3(I,KBM1) - ( FILTCT*SF(I)*B3ASF )                     &
+wqm_sf.F:                 /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTPIB1(I,KBM1) = DTPIB1(I,KBM1) - Q1(I,KBM1)*( FILTCT*SF(I)*B1ASF )           &
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.           ! units: g/m3/s
+wqm_sf.F:     DTPIB2(I,KBM1) = DTPIB2(I,KBM1) - Q2(I,KBM1)*( FILTCT*SF(I)*B2ASF )           &
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTPIB3(I,KBM1) = DTPIB3(I,KBM1) - Q3(I,KBM1)*( FILTCT*SF(I)*B3ASF )           &  
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTLPOC(I,KBM1) = DTLPOC(I,KBM1) - ( FILTCT*SF(I)*LPOCASF )               &
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTLPOP(I,KBM1) = DTLPOP(I,KBM1) - ( FILTCT*SF(I)*LPOPASF )               &
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTLPON(I,KBM1) = DTLPON(I,KBM1) - ( FILTCT*SF(I)*LPONASF )               &
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTRPOC(I,KBM1) = DTRPOC(I,KBM1) - ( FILTCT*SF(I)*RPOCASF )               &
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTRPOP(I,KBM1) = DTRPOP(I,KBM1) - ( FILTCT*SF(I)*RPOPASF )               &
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTRPON(I,KBM1) = DTRPON(I,KBM1) - ( FILTCT*SF(I)*RPONASF )               &
+wqm_sf.F:                   /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTSSI(I,KBM1) = DTSSI(I,KBM1) - SF_SSIX(I)                               &
+wqm_sf.F:                  /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTSU(I,KBM1) = DTSU(I,KBM1) - SF_SUX(I)                                  &
+wqm_sf.F:                  /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTSA(I,KBM1) = DTSA(I,KBM1) - SF_SASX(I)                                 &
+wqm_sf.F:                 /(D(I)*DZ(KBM1)) /1000. /86400.
+wqm_sf.F:     DTPO4(I,KBM1) = DTPO4(I,KBM1)                                            &
+wqm_sf.F:                  + SF_PIPX(I) /(D(I)*DZ(KBM1)) /1000. /86400.

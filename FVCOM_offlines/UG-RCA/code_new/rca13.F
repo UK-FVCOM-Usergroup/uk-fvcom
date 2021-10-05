@@ -1,0 +1,36 @@
+      SUBROUTINE RCA13(NXCALL)
+! 
+!     RCA13 UPDATES THE MISC TIME FUNCTIONS
+! 
+      USE MOD_RCA
+      IMPLICIT NONE
+      SAVE
+!      INCLUDE 'RCACM' 
+      REAL   NT,NXCALL
+      INTEGER I,ITIME,NTSECS
+
+      DO I=1,NOFUNC 
+       ITIME=ITIMF(I)
+       IF(TIMEMTF(I,ITIME) <= TIME) THEN
+        IF(ITVFPWLOPT == 0) THEN
+          MFUNC(I) = 0.
+          BFUNC(I) = VALMTF(I,ITIME) 
+        ELSE
+          MFUNC(I) = (VALMTF(I,ITIME)-VALMTF(I,ITIME+1))/         &
+                     (TIMEMTF(I,ITIME)-TIMEMTF(I,ITIME+1))
+          BFUNC(I) = VALMTF(I,ITIME+1) 
+        ENDIF
+        NTSECS=ISCALTVF*TIMEMTF(I,ITIME+1)
+        NT=NTSECS/86400.
+        NXFUNT(I) = NT
+        ITIMF(I) = ITIME+1
+       ENDIF
+      END DO 
+
+      NXCALL=9999.
+      DO I=1,NOFUNC
+       IF(NXFUNT(I) <= NXCALL) NXCALL=NXFUNT(I)
+      END DO
+
+      RETURN
+      END SUBROUTINE RCA13

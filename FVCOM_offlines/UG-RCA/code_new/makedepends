@@ -1,0 +1,178 @@
+ 
+mod_prec.o : mod_prec.F 
+mod_utils.o : mod_utils.F 
+mod_types.o : mod_types.F mod_prec.o 
+mod_var.o : mod_var.F 
+mod_rca.o : mod_rca.F 
+mod_sed.o : mod_sed.F 
+mod_par.o : mod_par.F mod_var.o mod_utils.o mod_types.o 
+mod_ncd.o : mod_ncd.F mod_var.o 
+ncdio.o : ncdio.F mod_par.o mod_rca.o mod_var.o mod_ncd.o 
+utilities.o : utilities.F 
+domdec.o : domdec.F mod_rca.o mod_var.o 
+genmap.o : genmap.F mod_par.o mod_var.o mod_rca.o mod_var.o 
+pdomdec.o : pdomdec.F mod_par.o mod_types.o mod_rca.o mod_var.o 
+allocate_rca.o : allocate_rca.F mod_rca.o mod_var.o 
+allocate_sed.o : allocate_sed.F mod_sed.o mod_var.o 
+cell_area.o : cell_area.F mod_rca.o mod_var.o 
+viscofh.o : viscofh.F mod_rca.o mod_var.o 
+iunitcheck.o : iunitcheck.F mod_rca.o mod_var.o 
+rca01.o : rca01.F mod_rca.o mod_var.o 
+rca02.o : rca02.F mod_par.o mod_rca.o mod_var.o 
+rca03.o : rca03.F mod_par.o mod_rca.o mod_var.o 
+rca04.o : rca04.F mod_par.o mod_rca.o mod_var.o 
+rca05.o : rca05.F mod_par.o mod_rca.o mod_var.o 
+rca06.o : rca06.F mod_par.o mod_rca.o mod_var.o 
+rca07.o : rca07.F mod_par.o mod_rca.o mod_var.o 
+rca08.o : rca08.F mod_rca.o mod_var.o 
+rca09.o : rca09.F mod_par.o mod_rca.o mod_var.o 
+rca10.o : rca10.F mod_par.o mod_rca.o mod_var.o 
+rca11.o : rca11.F mod_par.o mod_rca.o mod_var.o 
+rca12.o : rca12.F mod_par.o mod_rca.o mod_var.o 
+rca13.o : rca13.F mod_rca.o 
+rcabyss.o : rcabyss.F mod_par.o mod_rca.o mod_var.o 
+rcadwrit.o : rcadwrit.F mod_rca.o mod_var.o 
+eutro.o : eutro.F mod_par.o mod_rca.o mod_var.o 
+rcaadv.o : rcaadv.F mod_par.o eutro.o mod_rca.o mod_var.o 
+rcamess.o : rcamess.F mod_rca.o mod_var.o 
+rcamprof.o : rcamprof.F mod_rca.o mod_var.o 
+rcaprnt.o : rcaprnt.F mod_par.o mod_var.o mod_rca.o 
+sedmodlsubs.o : sedmodlsubs.F mod_par.o mod_var.o mod_sed.o mod_rca.o 
+sinter.o : sinter.F 
+stoich.o : stoich.F 
+vssedmodl.o : vssedmodl.F mod_par.o eutro.o mod_sed.o mod_rca.o mod_var.o 
+fmter.o : fmter.F mod_rca.o mod_var.o 
+vdif.o : vdif.F mod_rca.o mod_var.o 
+vertvl.o : vertvl.F mod_rca.o mod_var.o 
+fct_s.o : fct_s.F mod_var.o 
+print_vals.o : print_vals.F mod_par.o mod_rca.o mod_var.o 
+mod_prec.o : mod_prec.F 
+mod_utils.o : mod_utils.F 
+mod_types.o : mod_types.F mod_prec.o 
+mod_var.o : mod_var.F 
+mod_rca.o : mod_rca.F 
+mod_sed.o : mod_sed.F 
+mod_par.o : mod_par.F mod_var.o mod_utils.o mod_types.o 
+mod_ncd.o : mod_ncd.F mod_var.o 
+ncdio.o : ncdio.F mod_par.o mod_rca.o mod_var.o mod_ncd.o 
+utilities.o : utilities.F 
+tge.o : tge.F mod_par.o mod_rca.o mod_var.o 
+domdec.o : domdec.F mod_rca.o mod_var.o 
+genmap.o : genmap.F mod_par.o mod_var.o mod_rca.o mod_var.o 
+pdomdec.o : pdomdec.F mod_par.o mod_types.o mod_rca.o mod_var.o 
+allocate_rca.o : allocate_rca.F mod_rca.o mod_var.o 
+allocate_sed.o : allocate_sed.F mod_sed.o mod_var.o 
+cell_area.o : cell_area.F mod_rca.o mod_var.o 
+viscofh.o : viscofh.F mod_rca.o mod_var.o 
+iunitcheck.o : iunitcheck.F mod_rca.o mod_var.o 
+rca.o : rca.F mod_par.o mod_ncd.o mod_rca.o mod_var.o 
+rca01.o : rca01.F mod_rca.o mod_var.o 
+rca02.o : rca02.F mod_par.o mod_rca.o mod_var.o 
+rca03.o : rca03.F mod_par.o mod_rca.o mod_var.o 
+rca04.o : rca04.F mod_par.o mod_rca.o mod_var.o 
+rca05.o : rca05.F mod_par.o mod_rca.o mod_var.o 
+rca06.o : rca06.F mod_par.o mod_rca.o mod_var.o 
+rca07.o : rca07.F mod_par.o mod_rca.o mod_var.o 
+rca08.o : rca08.F mod_rca.o mod_var.o 
+rca09.o : rca09.F mod_par.o mod_rca.o mod_var.o 
+rca10.o : rca10.F mod_par.o mod_rca.o mod_var.o 
+rca11.o : rca11.F mod_par.o mod_rca.o mod_var.o 
+rca12.o : rca12.F mod_par.o mod_rca.o mod_var.o 
+rca13.o : rca13.F mod_rca.o 
+rcabyss.o : rcabyss.F mod_par.o mod_rca.o mod_var.o 
+rcadwrit.o : rcadwrit.F mod_rca.o mod_var.o 
+eutro.o : eutro.F mod_par.o mod_rca.o mod_var.o 
+rcaadv.o : rcaadv.F mod_par.o eutro.o mod_rca.o mod_var.o 
+rcamess.o : rcamess.F mod_rca.o mod_var.o 
+rcamprof.o : rcamprof.F mod_rca.o mod_var.o 
+rcaprnt.o : rcaprnt.F mod_par.o mod_var.o mod_rca.o 
+sedmodlsubs.o : sedmodlsubs.F mod_par.o mod_var.o mod_sed.o mod_rca.o 
+sinter.o : sinter.F 
+stoich.o : stoich.F 
+vssedmodl.o : vssedmodl.F mod_par.o eutro.o mod_sed.o mod_rca.o mod_var.o 
+fmter.o : fmter.F mod_rca.o mod_var.o 
+vdif.o : vdif.F mod_rca.o mod_var.o 
+vertvl.o : vertvl.F mod_rca.o mod_var.o 
+fct_s.o : fct_s.F mod_var.o 
+print_vals.o : print_vals.F mod_par.o mod_rca.o mod_var.o 
+mod_prec.o : mod_prec.F 
+mod_utils.o : mod_utils.F 
+mod_types.o : mod_types.F mod_prec.o 
+mod_var.o : mod_var.F 
+mod_rca.o : mod_rca.F 
+mod_sed.o : mod_sed.F 
+mod_par.o : mod_par.F mod_var.o mod_utils.o mod_types.o 
+mod_ncd.o : mod_ncd.F mod_var.o 
+ncdio.o : ncdio.F mod_par.o mod_rca.o mod_var.o mod_ncd.o 
+utilities.o : utilities.F 
+tge.o : tge.F mod_par.o mod_rca.o mod_var.o 
+domdec.o : domdec.F mod_rca.o mod_var.o 
+genmap.o : genmap.F mod_par.o mod_var.o mod_rca.o mod_var.o 
+pdomdec.o : pdomdec.F mod_par.o mod_types.o mod_rca.o mod_var.o 
+allocate_rca.o : allocate_rca.F mod_rca.o mod_var.o 
+allocate_sed.o : allocate_sed.F mod_sed.o mod_var.o 
+cell_area.o : cell_area.F mod_rca.o mod_var.o 
+viscofh.o : viscofh.F mod_rca.o mod_var.o 
+iunitcheck.o : iunitcheck.F mod_rca.o mod_var.o 
+rca.o : rca.F mod_par.o mod_ncd.o mod_rca.o mod_var.o 
+rca01.o : rca01.F mod_rca.o mod_var.o 
+rca02.o : rca02.F mod_par.o mod_rca.o mod_var.o 
+rca03.o : rca03.F mod_par.o mod_rca.o mod_var.o 
+rca04.o : rca04.F mod_par.o mod_rca.o mod_var.o 
+rca05.o : rca05.F mod_par.o mod_rca.o mod_var.o 
+rca06.o : rca06.F mod_par.o mod_rca.o mod_var.o 
+rca07.o : rca07.F mod_par.o mod_rca.o mod_var.o 
+rca08.o : rca08.F mod_rca.o mod_var.o 
+rca09.o : rca09.F mod_par.o mod_rca.o mod_var.o 
+rca10.o : rca10.F mod_par.o mod_rca.o mod_var.o 
+rca11.o : rca11.F mod_par.o mod_rca.o mod_var.o 
+rca12.o : rca12.F mod_par.o mod_rca.o mod_var.o 
+mod_prec.o : mod_prec.F 
+mod_utils.o : mod_utils.F 
+mod_types.o : mod_types.F mod_prec.o 
+mod_var.o : mod_var.F 
+mod_rca.o : mod_rca.F 
+mod_sed.o : mod_sed.F 
+mod_par.o : mod_par.F mod_var.o mod_utils.o mod_types.o 
+mod_ncd.o : mod_ncd.F mod_var.o 
+ncdio.o : ncdio.F mod_par.o mod_rca.o mod_var.o mod_ncd.o 
+utilities.o : utilities.F 
+tge.o : tge.F mod_par.o mod_rca.o mod_var.o 
+domdec.o : domdec.F mod_rca.o mod_var.o 
+genmap.o : genmap.F mod_par.o mod_var.o mod_rca.o mod_var.o 
+pdomdec.o : pdomdec.F mod_par.o mod_types.o mod_rca.o mod_var.o 
+allocate_rca.o : allocate_rca.F mod_rca.o mod_var.o 
+allocate_sed.o : allocate_sed.F mod_sed.o mod_var.o 
+cell_area.o : cell_area.F mod_rca.o mod_var.o 
+viscofh.o : viscofh.F mod_rca.o mod_var.o 
+iunitcheck.o : iunitcheck.F mod_rca.o mod_var.o 
+rca.o : rca.F mod_par.o mod_ncd.o mod_rca.o mod_var.o 
+rca01.o : rca01.F mod_rca.o mod_var.o 
+rca02.o : rca02.F mod_par.o mod_rca.o mod_var.o 
+rca03.o : rca03.F mod_par.o mod_rca.o mod_var.o 
+rca04.o : rca04.F mod_par.o mod_rca.o mod_var.o 
+rca05.o : rca05.F mod_par.o mod_rca.o mod_var.o 
+rca06.o : rca06.F mod_par.o mod_rca.o mod_var.o 
+rca07.o : rca07.F mod_par.o mod_rca.o mod_var.o 
+rca08.o : rca08.F mod_rca.o mod_var.o 
+rca09.o : rca09.F mod_par.o mod_rca.o mod_var.o 
+rca10.o : rca10.F mod_par.o mod_rca.o mod_var.o 
+rca11.o : rca11.F mod_par.o mod_rca.o mod_var.o 
+rca12.o : rca12.F mod_par.o mod_rca.o mod_var.o 
+rca13.o : rca13.F mod_rca.o 
+rcabyss.o : rcabyss.F mod_par.o mod_rca.o mod_var.o 
+rcadwrit.o : rcadwrit.F mod_rca.o mod_var.o 
+eutro.o : eutro.F mod_par.o mod_rca.o mod_var.o 
+rcaadv.o : rcaadv.F mod_par.o eutro.o mod_rca.o mod_var.o 
+rcamess.o : rcamess.F mod_rca.o mod_var.o 
+rcamprof.o : rcamprof.F mod_rca.o mod_var.o 
+rcaprnt.o : rcaprnt.F mod_par.o mod_var.o mod_rca.o 
+sedmodlsubs.o : sedmodlsubs.F mod_par.o mod_var.o mod_sed.o mod_rca.o 
+sinter.o : sinter.F 
+stoich.o : stoich.F 
+vssedmodl.o : vssedmodl.F mod_par.o eutro.o mod_sed.o mod_rca.o mod_var.o 
+fmter.o : fmter.F mod_rca.o mod_var.o 
+vdif.o : vdif.F mod_rca.o mod_var.o 
+vertvl.o : vertvl.F mod_rca.o mod_var.o 
+fct_s.o : fct_s.F mod_var.o 
+print_vals.o : print_vals.F mod_par.o mod_rca.o mod_var.o 

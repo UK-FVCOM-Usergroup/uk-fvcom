@@ -1,0 +1,272 @@
+!==============================================================================!
+!   INPUT FILE FOR PARAMETERS CONTROLLING EXECUTION OF FVCOM                   !
+!   DESCRIPTION OF VARIABLES AND SUGGESTED PARAMETERS CAN BE FOUND AT BOTTOM   !
+!                                                                              !
+!        FORMAT:			                                       !
+!       1.) VARIABLE  = VALUE  (EQUAL SIGN MUST BE USED)                       !
+!       2.) FLOATING POINT VARIABLES MUST CONTAIN A PERIOD "." EX: 1.3, 2.,etc !
+!       3.) BLANK LINES ARE IGNORED AS ARE LINES BEGINNING WITH ! (F90 COMMENT)!
+!       4.) COMMENTS CAN FOLLOW VALUES IF MARKED BY !                          !
+!       5.) ORDER OF VARIABLES IS NOT IMPORTANT                                !
+!       6.) FOR MULTIPLE VALUE VARIABLES FIRST ENTRY IS NUMBER OF VARIABLES    !
+!           TO FOLLOW (OR 0 IF NONE)                                           !
+!       7.) DO NOT USE COMMAS TO SEPARATE VARIABLES                            !
+!       8.) DO NOT EXCEED EIGHTY CHARACTERS PER LINE                           !
+!       9.) FOR LINE CONTINUATION ADD \\ TO END OF LINE TO FORCE CONTINUE      !
+!           TO NEXT LINE.  MAXIMUM 4 CONTINUATIONS                             !
+!       10.) TRUE = T, FALSE = F                                               !
+!                                                                              ! 
+!  THE PREVIOUS FORMAT OF "VARIABLE: VALUE" IS NO LONGER VALID                 !
+!  THE MORE ATTRACTIVE " = " FORMAT WAS SUGGESTED BY Hernan G. Arango          !
+!    AND SUBSEQUENTLY ADOPTED                                                  !
+!==============================================================================!
+
+
+!============ Case Title========================================================
+
+CASETITLE = GOM Resonance   
+
+!=========Parameters Controlling Time Integration===============================
+
+DTE    = 12.0  
+ISPLIT = 10
+IRAMP  = 432
+NSTEPS = 500 !162432 
+
+!=========Parameters Controlling Input/Output===================================
+
+INPDIR = ./RES_IN 
+OUTDIR = ./OUTDIR
+INFOFILE = screen
+IREPORT = 72          !8640
+IRECORD = 0 !daily
+IDMPSMS = 0 !432
+IRESTART = 1728  !daily
+RESTART = cold_start 
+
+!===VISIT META DATA COMPLEXITY===!
+VISIT_OPT = basic
+
+!--Parameters Controlling call rho_mean-----------------------------------!
+IRHO_MEAN = 0
+
+!=========Parameters Controlling Output of Average Data Fields=================!
+                                                                                
+AVGE_ON  = T
+INT_AVGE = 10 !18000
+BEG_AVGE = 100 !72000
+NUM_AVGE = 10 !2 
+CDF_OUT_AVE = T
+CDF_VDP_AVE = el ua va
+
+!=========Parameters Controlling Bottom Friction===============================!
+
+BFRIC = .0025
+Z0B    = .001
+BROUGH_TYPE = orig
+
+!=========Parameters Controlling Diffusivity Coefficients======================!
+
+HORZMIX = closure
+HORCON  = 4.000E-1
+HPRNU   = 1.000E+0
+VERTMIX = closure
+UMOL    = 1.000E-4
+VPRNU   = 1.000E+0
+
+!=========Parameters Controlling Model Equations================================
+
+BAROTROPIC = T
+SALINITY_ON = F
+TEMP_ON = F
+
+!=========Parameters Controlling Density Calculation============================
+
+C_BAROPG  = sigma
+CTRL_DEN  = sigma-t
+VERT_STAB = F
+
+!=========Parameters Controlling Atmospheric Forcing============================
+
+H_TYPE = flux_h
+M_TYPE = uniform
+WINDTYPE = speed
+ZETA1 = 1.4
+ZETA2 = 6.3
+RHEAT = .78
+THOUR_HS = 124.
+
+!=========Parameters Controlling Temp/Salinity Adjustments======================
+
+TS_FCT = T
+
+!=========Parameters Controlling Depth Adjustments==============================
+
+DJUST = 0.0
+MIN_DEPTH = 0.05
+
+!=========Parameters Controlling Tidal Forcing==================================
+
+S_TYPE = non-julian
+DELTT   = 720.
+
+!=========Standard Depth Levels=================================================
+
+KSL    =  16
+DPTHSL =  0. -10. -20. -30. -40. -50. -60. -75. -100. -125. -150. -175. \\
+-200. -225. -250. -300.
+
+
+!============ Parameter Controlling Vertical Coordinate Distribution============
+INDEX_VERCOR = 1
+
+!============ Parameters Controlling Sigma Distribution=========================
+!FOR CASE 1 (INDEX_VERCOR = 1). For detail, see set_sigma.F
+P_SIGMA = 1.0
+
+!============ Parameters Controlling General Vertical Coordinate Distribution===
+!FOR CASE 2 (INDEX_VERCOR = 2). For detail, see set_sigma.F
+DU2 = 0.001
+DL2 = 0.001
+
+!FOR CASE 3 (INDEX_VERCOR = 3). For detail, see set_sigma.F
+DUU   = 4.0
+DLL   = 0.0
+HMIN1 = 6.0
+KU    = 2
+KL    = 0
+ZKU   = 2. 2.
+ZKL   = 2. 2.
+
+!============ The number of vertical layers ====================================
+KB      = 11
+
+!============ Parameters Controlling Lagrangian Tracking========================
+
+LAG_ON = F
+LAG_INTERVAL = 1.0
+LAG_SCAL = s1
+LAG_COLD_START = T
+LAG_INPFILE = exa_lag.dat
+LAG_RESFILE = exa_lag_restart.dat
+LAG_OUTFILE = exa_lag_out.dat
+
+!============ Parameters Controlling Time Series Output=========================
+
+PROBE_ON = F
+
+!============ Parameters Controlling Water Quality Module=======================
+
+WQM_ON = F
+NB     = 8
+BENWQM_KEY = F
+
+!============ Parameters Controlling Wetting/Drying=============================
+                                                                                                                           
+WET_DRY_ON = F
+
+!============ Parmaeters Controlling SST Data Assimilation======================
+
+SST_ASSIM = F 
+SST_METHOD = OI
+RAD_SST = 10000.
+GAMA_SST = 1.0
+GALPHA_SST = 3.e-3
+ASTIME_WINDOW_SST = .50
+N_INFLU_SST = 1
+IAV_DAY = 5
+
+!====CURRENT DATA ASSIMILATION VARIABLES========================================
+
+CURRENT_ASSIM = F 
+CURRENT_METHOD = NG
+RAD_CUR = 20000.
+GAMA_CUR = 1.0 
+GALPHA_CUR = 8.3e-3 
+ASTIME_WINDOW_CUR = .50
+N_INFLU_CUR = 1 
+
+!====TEMPERATURE/SALINITY DATA ASSIMILATION VARIABLES===========================
+
+TS_ASSIM = F
+TS_METHOD = OI
+RAD_TS = 30000.
+GAMA_TS = 1.0
+GALPHA_TS = 8.3e-3
+ASTIME_WINDOW_TS = 72.
+N_INFLU_TS = 1
+
+!====VARIABLES CONTROLLING NETCDF OUTPUT========================================
+CDF_OUT = T
+CDF_INT = 4 
+CDF_STK = 5
+CDF_VDP = el ua va 
+INFO1   = 1995 Fine Grid Nov Output
+INFO2   = More Information Here
+
+!==== Parameter Controlling Richardson # dep. dissipation correction============
+SURFACEWAVE_MIX = F
+
+!==== Parameter Controlling Open Boundary Temp/Salt Nudging=====================
+TS_NUDGING_OBC = F
+ALPHA_OBC = 0.
+
+!==== Parameter controlling Open Boundary Temp/Salt Series Nudging===========
+TSOBC_ON = T
+ALPHA_SERIES_OBC = .0014
+
+!=====VARIABLES CONTROLLING 2D MOMENTUM BALANCE CHECKING OUTOUT======
+OUT_BALANCE = F                  
+NUM_BALANCE = 4           !!sum of cell for 2d momentum balance output
+NO_CELL  =  11446  11212  11213  11447
+
+!=====PARAMETER CONTROLLING THE TYPE OF Temp/Salt OBC=======
+TYPE_TSOBC = 3                  
+
+!==== Parameter controlling Tidal Open Boundary Output===========
+TIDE_INITIAL  = 14400
+TIDE_INTERVAL = 6
+
+!==== Option for semi-implicit corriolis force
+ADCOR_ON = F
+
+!=====VARIABLES for SPECIFY DYE RELEASE                 
+DYE_ON = T
+IINT_SPE_DYE_B = 390962    !391051    
+IINT_SPE_DYE_E = 390970    !391140   
+KSPE_DYE = 30 
+K_SPECIFY = 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 \\
+16 17 18 19 20 21 22 23 24 25 26 27 28 29 30
+MSPE_DYE = 29
+M_SPECIFY = 17536 17149 17150 16752 16751 16345 16344 15954 15953 15556 \\
+15555 15116 15115 14678 14677 14279 14676 14675 14674 14277 14276 13900 \\
+14275 13899 14274 14271 14270 14666 14272
+DYE_SOURCE_TERM = 1.0
+
+!==Parameters of tidal amplitude and phase for one-D mode with biological model
+UMAX = 0.0 0.0 0.0 0.0 0.0 0.0
+PMAX = 0.0 0.0 0.0 0.0 0.0 0.0
+
+!==== Parameter Controlling Net Heat Flux Calculation in Model===========
+C_HFX = T
+ZU = 10.0   !m
+ZT = 10.0   !m
+ZQ = 10.0   !m
+
+!==ICE_PARAMETERS
+type_ice = 2
+icefile  = './test_ice/ai.s2r'
+dtice    = 3600.
+rheology = 'EVP'
+outfield = 'ai','hi','ui'
+ice_eps  = 1e-6
+ice_kmax = 200
+/
+
+!==== Implicit Factor ===================================
+IFCETA = 0.55
+BEDF = 1.0
+KSTAGE_UV = 0
+KSTAGE_TE = 0
+KSTAGE_TS = 0
+MSTG = slow

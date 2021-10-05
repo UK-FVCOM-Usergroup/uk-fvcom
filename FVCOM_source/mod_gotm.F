@@ -113,8 +113,8 @@ MODULE MOD_GOTM
    DOUBLE PRECISION          :: NN1d(0:KBM1),SS1d(0:KBM1)
 !--Parameters------------------------------------------------
    REAL(SP), PARAMETER       :: KAPPA  = .4          !!Von Karman's Constant
-   REAL(DP), PARAMETER       :: CHARNOK_VAL = 1400.  !!Charnok Constant 
-   REAL(DP), PARAMETER       :: z0s_min = .00        !!Minimum Surface Roughness 
+   REAL(SP), PARAMETER       :: CHARNOK_VAL = 1400.  !!Charnok Constant 
+   REAL(SP), PARAMETER       :: z0s_min = .00        !!Minimum Surface Roughness 
    INTEGER , PARAMETER       :: MaxItz0b = 10
 
 !------------------------------------------------------------
@@ -132,13 +132,9 @@ MODULE MOD_GOTM
        NN(I,K) = -GRAV_N(I) * (RHO1(I,K-1)-RHO1(I,K))/(DZZ(I,K-1)*D(I))
      END DO
    END DO
-   !!Set BC's as GOTM Does 
-!RJT I think GOTM sets these to zero rather than what is here
-!   NN(:,1)  = NN(:,2)   
-!   NN(:,KB) = NN(:,KBM1)
-
-   NN(:,1)  = 0.0_SP
-   NN(:,KB) = 0.0_SP
+   !!Set BC's as GOTM Does
+   NN(:,1)  = NN(:,2)   
+   NN(:,KB) = NN(:,KBM1)
 
 !------------------Calculate Shear Frequency Squared (SS)----------------------!
 
@@ -185,9 +181,8 @@ MODULE MOD_GOTM
       u_taus=(wusurf_node**2+wvsurf_node**2)**(1./4.)
   
       !Set Surface Roughness Height Using Charnok Formula[m]
-!RJT the next two lines were commented out.
-      z0s_gotm = charnok_val*u_taus**2/grav_n(i)
-      if(z0s_gotm < z0s_min) z0s_gotm = z0s_min
+!      z0s_gotm = charnok_val*u_taus**2/grav
+!      if(z0s_gotm < z0s_min) z0s_gotm = z0s_min
       z0s_gotm = z0s_min
       
       !Set Bottom Roughness Height [m] and Friction Velocity [m/s] using GOTM Method 
@@ -202,8 +197,6 @@ MODULE MOD_GOTM
       END DO
       UU_NODE_KBM1 = UU_NODE_KBM1/FLOAT(NTVE(I))
       VV_NODE_KBM1 = VV_NODE_KBM1/FLOAT(NTVE(I))
-
-      u_taub = 0.0_SP !RJT initialise u_taub
 
       DO J=1,MaxItz0b
         z0b_gotm = 0.1*umol/max(umold,u_taub)+0.03*(cc_z0b(i)/.03)

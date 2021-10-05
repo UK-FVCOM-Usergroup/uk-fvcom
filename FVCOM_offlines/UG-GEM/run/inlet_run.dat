@@ -1,0 +1,109 @@
+!==============================================================================!
+!   INPUT FILE FOR PARAMETERS CONTROLLING EXECUTION OF FVCOM                   !
+!   DESCRIPTION OF VARIABLES AND SUGGESTED PARAMETERS CAN BE FOUND AT BOTTOM   !
+!                                                                              !
+!        FORMAT:			                                       !
+!       1.) VARIABLE  = VALUE  (EQUAL SIGN MUST BE USED)                       !
+!       2.) FLOATING POINT VARIABLES MUST CONTAIN A PERIOD "." EX: 1.3, 2.,etc !
+!       3.) BLANK LINES ARE IGNORED AS ARE LINES BEGINNING WITH ! (F90 COMMENT)!
+!       4.) COMMENTS CAN FOLLOW VALUES IF MARKED BY !                          !
+!       5.) ORDER OF VARIABLES IS NOT IMPORTANT                                !
+!       6.) FOR MULTIPLE VALUE VARIABLES FIRST ENTRY IS NUMBER OF VARIABLES    !
+!           TO FOLLOW (OR 0 IF NONE)                                           !
+!       7.) DO NOT USE COMMAS TO SEPARATE VARIABLES                            !
+!       8.) DO NOT EXCEED EIGHTY CHARACTERS PER LINE                           !
+!       9.) FOR LINE CONTINUATION ADD \\ TO END OF LINE TO FORCE CONTINUE      !
+!           TO NEXT LINE.  MAXIMUM 4 CONTINUATIONS                             !
+!       10.) TRUE = T, FALSE = F                                               !
+!                                                                              ! 
+!  THE PREVIOUS FORMAT OF "VARIABLE: VALUE" IS NO LONGER VALID                 !
+!  THE MORE ATTRACTIVE " = " FORMAT WAS SUGGESTED BY Hernan G. Arango          !
+!    AND SUBSEQUENTLY ADOPTED                                                  !
+!==============================================================================!
+
+
+!============ Case Title========================================================
+
+CASETITLE = Changjiang Biology
+
+!=========Parameters Controlling Time Integration===============================
+
+DTI    = 20.00        
+NSTEPS =  8640    !!21600     !22320 
+
+MGL = 6212    !13504         !14777         !14845         !5472
+NGL = 11998    !25559         !27421         !27571         !9739
+KB  = 9
+
+NOHYDFILNA = 1      !13      !4
+HYDFILNA   = inlet_0001.nc
+INTERVAL_HYD = 1.0     !HOURS
+
+
+!=========Parameters Controlling Input/Output===================================
+
+INPDIR = ./inlet_input
+OUTDIR = ./inlet_output
+INFOFILE = screen
+IREPORT = 720 
+IRESTART = 0
+RESTART = cold_start 
+
+!=========Parameters Controlling Output of Average Data Fields==================
+
+AVGE_ON  = F
+INT_AVGE = 5
+BEG_AVGE = 1
+NUM_AVGE = 10
+CDF_OUT_AVE = F
+CDF_VDP_AVE = u v el
+
+!=========Parameters Controlling Diffusivity Coefficients======================!
+
+HORZMIX = closure
+HORCON  = 4.000E-1
+HPRNU   = 1.000E+0
+VERTMIX = closure
+UMOL    = 1.000E-5          !1.000E-4        !1.000E-6
+VPRNU   = 1.000E+0
+
+!=========Parameters Controlling Temp/Salinity Adjustments======================
+
+BIO_FCT = T
+
+!=========Standard Depth Levels=================================================
+
+KSL   = 14       !16
+DPTHSL =  -0. -5. -10. -20. -30. -40. -50. -70. -100. -150. -200. -250. -300. -350.
+
+!============ Parameters Controlling Time Series Output=========================
+
+PROBE_ON = F
+
+!============ Parameters Controlling Wetting/Drying=============================
+                                                                                                                           
+WET_DRY_ON = T
+
+!====VARIABLES CONTROLLING NETCDF OUTPUT========================================
+CDF_OUT = T
+CDF_INT = 180  !2160   !30
+CDF_STK = 0
+CDF_VDP = u v t1 s1 el kh
+INFO1   = Benchmark Test 
+INFO2   = More Information Here
+
+!==== Parameter Controlling Open Boundary Temp/Salt Nudging=====================
+TS_NUDGING_OBC = F
+ALPHA_OBC = .1
+
+!==== Parameter controlling Open Boundary BIO Series Nudging===========
+BIO_OBC_ON = T
+ALPHA_SERIES_OBC = 0.001
+
+!=====PARAMETER CONTROLLING THE TYPE OF Temp/Salt OBC=======
+TYPE_TSOBC = 1                  
+
+!==Parameters of tidal amplitude and phase for one-D mode with biological model
+UMAX = 0.0 0.0 0.0 0.0 0.0 0.0
+PMAX = 0.0 0.0 0.0 0.0 0.0 0.0
+

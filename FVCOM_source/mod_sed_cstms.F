@@ -5794,7 +5794,7 @@ End Subroutine Read_Sed_Params
 # endif
 
     !J. Ge for tracer advection
-    IF(BACKWARD_ADVECTION.eqv..TRUE.)THEN
+    IF(BACKWARD_ADVECTION==.TRUE.)THEN
        IF(BACKWARD_STEP==1)THEN
           do i=1,nst
              SED0(i)%conc = sed(i)%cnew

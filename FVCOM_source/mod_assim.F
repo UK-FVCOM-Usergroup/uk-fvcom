@@ -82,6 +82,9 @@ MODULE MOD_ASSIM
   !--Data Assimilation Parameters for SST GRID Assimilation
   !
   LOGICAL  :: SSTGRD_ASSIM                    !!TRUE IF SST ASSIMILATION ACTIVE
+! lwang added for SST mld assimilation
+  LOGICAL  :: SSTGRD_MLD
+! lwang
   CHARACTER(LEN=80) SSTGRD_ASSIM_FILE         !!FILE NAME FOR SST DATA
   REAL(SP) :: SSTGRD_WEIGHT_MAX                    
   REAL(SP) :: SSTGRD_TIMESCALE
@@ -91,6 +94,9 @@ MODULE MOD_ASSIM
 
   NAMELIST /NML_SSTGRD_ASSIMILATION/      &
        & SSTGRD_ASSIM,                    &
+! lwang added for SST mld assimilation
+       & SSTGRD_MLD,                      &
+! lwang
        & SSTGRD_ASSIM_FILE,               &
        & SSTGRD_WEIGHT_MAX,               &
        & SSTGRD_TIMESCALE,                &
@@ -231,15 +237,15 @@ MODULE MOD_ASSIM
 !--Current Assimilation Object Type
 !
   TYPE ASSIM_OBJ_CUR
-   INTEGER  :: N_TIMES =0                    !!NUMBER OF DATA TIMES
-   INTEGER  :: N_INTPTS=0                    !!NUMBER OF INTERPOLATION POINTS 
-   INTEGER  :: N_T_WEIGHT=0                  !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
-   INTEGER  :: N_LAYERS=0                    !!NUMBER OF OBSERVATIONS IN THE VERTICAL
-   INTEGER  :: N_CELL=0                      !!CELL NUMBER OF OBSERVATION
-   REAL(SP) :: X=0.,Y=0.                         !!X AND Y COORDINATES OF OBSERVATION
-   REAL(SP) :: T_WEIGHT=0.                    !!TIME WEIGHT
-   REAL(SP) :: DEPTH =0.                      !!DEPTH AT OBSERVATION STATION (MOORING)
-   REAL(SP) :: SITA =0.                       !!LOCAL ISOBATH ANGLE AT OBSERVATION
+   INTEGER  :: N_TIMES                     !!NUMBER OF DATA TIMES
+   INTEGER  :: N_INTPTS                    !!NUMBER OF INTERPOLATION POINTS 
+   INTEGER  :: N_T_WEIGHT                  !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
+   INTEGER  :: N_LAYERS                    !!NUMBER OF OBSERVATIONS IN THE VERTICAL
+   INTEGER  :: N_CELL                      !!CELL NUMBER OF OBSERVATION
+   REAL(SP) :: X,Y                         !!X AND Y COORDINATES OF OBSERVATION
+   REAL(SP) :: T_WEIGHT                    !!TIME WEIGHT
+   REAL(SP) :: DEPTH                       !!DEPTH AT OBSERVATION STATION (MOORING)
+   REAL(SP) :: SITA                        !!LOCAL ISOBATH ANGLE AT OBSERVATION
    REAL(SP),ALLOCATABLE,DIMENSION(:)  :: ODEPTH      !!OBSERVATION DEPTHS
 !   REAL(SP),ALLOCATABLE,DIMENSION(:)  :: TIMES       !!DATA TIMES
    TYPE(TIME),ALLOCATABLE,DIMENSION(:)  :: TIMES       !!DATA TIMES
@@ -254,15 +260,15 @@ MODULE MOD_ASSIM
 !--Temperature/Salinity Assimilation Object Type
 !
    TYPE ASSIM_OBJ_TS  
-     INTEGER  :: N_TIMES =0                                  !!NUMBER OF DATA TIMES
-     INTEGER  :: N_INTPTS =0                                !!NUMBER OF INTERPOLATION POINTS
-     INTEGER  :: N_T_WEIGHT=0                               !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
-     INTEGER  :: N_LAYERS =0                                !!NUMBER OF OBSERVATIONS IN THE VERTICAL
-     INTEGER  :: N_CELL =0                                  !!CELL NUMBER OF OBSERVATION
-     REAL(SP) :: X=0.,Y=0.                                      !!X AND Y COORDINATES OF OBSERVATION
-     REAL(SP) :: T_WEIGHT=0.                                 !!TIME WEIGHT
-     REAL(SP) :: DEPTH =0.                                   !!DEPTH AT OBSERVATION STATION (MOORING)
-     REAL(SP) :: SITA =0.                                    !!LOCAL ISOBATH ANGLE AT OBSERVATION
+     INTEGER  :: N_TIMES                                  !!NUMBER OF DATA TIMES
+     INTEGER  :: N_INTPTS                                 !!NUMBER OF INTERPOLATION POINTS
+     INTEGER  :: N_T_WEIGHT                               !!DATA TIME FOR CURRENT OBSERVATION WEIGHTING
+     INTEGER  :: N_LAYERS                                 !!NUMBER OF OBSERVATIONS IN THE VERTICAL
+     INTEGER  :: N_CELL                                   !!CELL NUMBER OF OBSERVATION
+     REAL(SP) :: X,Y                                      !!X AND Y COORDINATES OF OBSERVATION
+     REAL(SP) :: T_WEIGHT                                 !!TIME WEIGHT
+     REAL(SP) :: DEPTH                                    !!DEPTH AT OBSERVATION STATION (MOORING)
+     REAL(SP) :: SITA                                     !!LOCAL ISOBATH ANGLE AT OBSERVATION
      REAL(SP), ALLOCATABLE, DIMENSION(:)   :: ODEPTH      !!OBSERVATION DEPTHS
 !     REAL(SP), ALLOCATABLE, DIMENSION(:)   :: TIMES       !!DATA TIMES
      TYPE(TIME),ALLOCATABLE,DIMENSION(:)  :: TIMES        !!DATA TIMES
@@ -294,9 +300,9 @@ MODULE MOD_ASSIM
 
 
   TYPE ASSIM_OBS_LOC
-     INTEGER  :: N_TIMES =0
+     INTEGER  :: N_TIMES
      TYPE(TIME), ALLOCATABLE, DIMENSION(:) :: OBSTIME(:)
-     INTEGER  :: N_LOCS =0
+     INTEGER  :: N_LOCS
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: X ! (N_LOCS,N_TIMES)
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: Y ! (N_LOCS,N_TIMES)
      REAL(SP), ALLOCATABLE, DIMENSION(:,:) :: Z ! (N_LOCS,N_TIMES)
@@ -313,15 +319,15 @@ MODULE MOD_ASSIM
 
   TYPE ASSIM_OBJ
      CHARACTER(LEN=80) :: VARNAME
-     REAL(SP), POINTER, DIMENSION(:,:) :: DATA  => NULL()
-     REAL(SP), POINTER, DIMENSION(:) :: X => NULL(),Y => NULL(),EL => NULL(),H => NULL()
-     REAL(SP), POINTER, DIMENSION(:,:) :: SIGMA => NULL()
-     REAL(SP):: RADIUS = 0.
-     REAL(SP):: WEIGHT_MAX=0.
-     REAL(SP):: TIMESCALE=0.  
-     REAL(SP):: TIME_WINDOW=0.
-     TYPE(NCFILE), POINTER :: FILE => NULL()
-     INTEGER :: N_OBS =0
+     REAL(SP), POINTER, DIMENSION(:,:) :: DATA
+     REAL(SP), POINTER, DIMENSION(:) :: X,Y,EL,H
+     REAL(SP), POINTER, DIMENSION(:,:) :: SIGMA
+     REAL(SP):: RADIUS
+     REAL(SP):: WEIGHT_MAX
+     REAL(SP):: TIMESCALE  
+     REAL(SP):: TIME_WINDOW
+     TYPE(NCFILE), POINTER :: FILE
+     INTEGER :: N_OBS
      TYPE(ASSIM_OBS_LOC), POINTER :: OBS_LOC
      TYPE(ASSIM_OBS_DATA), POINTER :: OBS_DAT
   END TYPE ASSIM_OBJ
@@ -362,6 +368,12 @@ MODULE MOD_ASSIM
   REAL(SP), ALLOCATABLE, TARGET, DIMENSION(:)  :: SST_OBS   !!SST OBS ON GRID
   REAL(SP), ALLOCATABLE, DIMENSION(:,:)  :: SST_SAVED  !!SST ON EACH HOUR DURING SIM 
   REAL(SP), ALLOCATABLE, DIMENSION(:)    :: SST_AVG   !!SIM SST AVERAGED OVER OBSERVATION PERIOD 
+! lwang added for SST mld assimilation
+  REAL(SP), ALLOCATABLE, DIMENSION(:,:,:)  :: T_SAVED, S_SAVED !!TEMP AND SALT ON EACH HOUR DURING SIM
+  REAL(SP), ALLOCATABLE, DIMENSION(:,:)    :: TT_AVG, SS_AVG  !! SIM TEMP AND SALT AVERAGED OVER OBSERVATION PERIOD
+  REAL(SP), ALLOCATABLE, DIMENSION(:,:)    :: RHO_AVG       !! AVERAGE DENSITY CALCULATED BY TT_AVG AND SS_AVG
+  REAL(SP), ALLOCATABLE, DIMENSION(:)      :: MLD_RHO       !! MIXED LAYER DEPTH
+! lwang  
 !# if defined (ENKF)
   REAL(SP), ALLOCATABLE, DIMENSION(:,:)    :: SST_AVG_ENKF   !!SIM SST AVERAGED OVER OBSERVATION PERIOD FOR EACH ENSEMBLE MEMBER
   REAL(SP), ALLOCATABLE, DIMENSION(:,:,:)  :: SST_SAVED_ENKF  !!SST ON EACH HOUR DURING SIM FOR EACH ENSEMBLE MEMBER
@@ -543,6 +555,9 @@ CONTAINS !------------------------------------------------------------------!
 
     !    NML_SSTGRD_ASSIMILIATION
     SSTGRD_ASSIM          = .FALSE.
+! lwang added for SST mld assimilation
+    SSTGRD_MLD            = .FALSE.
+! lwang
     SSTGRD_ASSIM_FILE     = trim(CASENAME)//"_sstgrd.nc"
     SSTGRD_WEIGHT_MAX     = 0.0_SP
     SSTGRD_TIMESCALE      = 0.0_SP
@@ -833,6 +848,13 @@ CONTAINS !------------------------------------------------------------------!
 
        IF(SSTGRD_ASSIM)THEN
           WRITE(IPT,*)'!  # SSTGRD_ASSIM           :  ACTIVE'
+! lwang added for SST mld assimilation
+          IF (SSTGRD_MLD)THEN
+             WRITE(IPT,*)'!  # SSTGRD_MLD             :   ACTIVE'
+          ELSE
+             WRITE(IPT,*)'!  # SSTGRD_MLD             :   NOT ACTIVE'
+          END IF
+! lwang
           WRITE(IPT,*)'!  # SSTGRD_ASSIM_FILE      : '//TRIM(SSTGRD_ASSIM_FILE)
           WRITE(IPT,*)'!  # SSTGRD_TIMESCALE       :',SSTGRD_TIMESCALE
           WRITE(IPT,*)'!  # SSTGRD_WEIGHT_MAX      :',SSTGRD_WEIGHT_MAX   
@@ -1364,6 +1386,16 @@ CONTAINS !------------------------------------------------------------------!
    ALLOCATE(SST_OBS(M))   
    ALLOCATE(SST_AVG(M))
    ALLOCATE(SST_SAVED(M,1:SSTGRD_N_PER_INTERVAL))
+! lwang added for SST mld assimilation
+   IF (SSTGRD_MLD)THEN
+      ALLOCATE(T_SAVED(M,KBM1,1:SSTGRD_N_PER_INTERVAL))
+      ALLOCATE(S_SAVED(M,KBM1,1:SSTGRD_N_PER_INTERVAL))
+      ALLOCATE(TT_AVG(M,KBM1))
+      ALLOCATE(SS_AVG(M,KBM1))
+      ALLOCATE(RHO_AVG(M,KBM1))
+      ALLOCATE(MLD_RHO(M))
+   END IF
+! lwang
 # if defined (ENKF)
    ALLOCATE(SST_AVG_ENKF(M,ENKF_NENS))
    ALLOCATE(SST_SAVED_ENKF(M,1:SSTGRD_N_PER_INTERVAL,ENKF_NENS))
@@ -1905,10 +1937,10 @@ CONTAINS !------------------------------------------------------------------!
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,YC,YCG)
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,VX,XG)
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,VY,YG)
-   IF(PAR)CALL MPI_BCAST(XCG,NGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(YCG,NGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(XG,MGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(YG,MGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
+   IF(PAR)CALL MPI_BCAST(XCG,NGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(YCG,NGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(XG,MGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(YG,MGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
 #  endif
 !# endif
 !  
@@ -1995,9 +2027,9 @@ CONTAINS !------------------------------------------------------------------!
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,AW0,AW0G)
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,AWX,AWXG)
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,AWY,AWYG)
-   IF(PAR)CALL MPI_BCAST(AW0G,(NGL+1)*3,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(AWXG,(NGL+1)*3,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(AWYG,(NGL+1)*3,MPI_F,0,MPI_COMM_WORLD,IERR)
+   IF(PAR)CALL MPI_BCAST(AW0G,(NGL+1)*3,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(AWXG,(NGL+1)*3,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(AWYG,(NGL+1)*3,MPI_F,0,MPI_FVCOM_GROUP,IERR)
 # endif
 !
 !--Close Current Observation Global File---------------------------------------!
@@ -2211,8 +2243,8 @@ CONTAINS !------------------------------------------------------------------!
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,ZZ,ZZ_G) 
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,H,HG) 
 
-   IF(PAR)CALL MPI_BCAST(ZZ_G,(MGL+1)*KB,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(HG,MGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
+   IF(PAR)CALL MPI_BCAST(ZZ_G,(MGL+1)*KB,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(HG,MGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
 #  endif
    DO I=1,N_ASSIM_CUR
      NLAY = CUR_OBS(I)%N_LAYERS
@@ -2492,6 +2524,7 @@ in:  DO WHILE(.TRUE.)
        ITIMEA  = CUR_OBS(I)%N_T_WEIGHT
        NLAY   = CUR_OBS(I)%N_LAYERS
        DO K=1,NLAY
+         IF(ABS(CUR_OBS(I)%UO(ITIMEA,K)) + ABS(CUR_OBS(I)%VO(ITIMEA,K)) >= .0001)THEN  !lwang added
          K1           = CUR_OBS(I)%S_INT(K,1)
          K2           = CUR_OBS(I)%S_INT(K,2)
          W1           = CUR_OBS(I)%S_WEIGHT(K,1)
@@ -2516,9 +2549,11 @@ in:  DO WHILE(.TRUE.)
          VCORR(J1,K2) = VCORR(J1,K2) + CORRECTION*WEIGHT2*WEIGHT2
 
 !        GEOFF NEW
-         IF(ABS(CUR_OBS(I)%UO(ITIMEA,K)) + ABS(CUR_OBS(I)%VO(ITIMEA,K)) < .0001)THEN
-           TWGHT(J1,K1) = 0.
-           TWGHT(J1,K2) = 0.
+! lwang modified at Jul 18, 2019
+!         IF(ABS(CUR_OBS(I)%UO(ITIMEA,K)) + ABS(CUR_OBS(I)%VO(ITIMEA,K)) < .0001)THEN
+!           TWGHT(J1,K1) = 0.
+!           TWGHT(J1,K2) = 0.
+! lwang
          END IF
        END DO
      END DO
@@ -2613,12 +2648,12 @@ in:  DO WHILE(.TRUE.)
    END IF
 #  if defined (MULTIPROCESSOR) 
 !QXU{
-   CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+   CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 !QXU}
-   CALL MPI_BCAST(UG,(NGL+1)*KB,MPI_F,0,MPI_COMM_WORLD,IERR)
-   CALL MPI_BCAST(VG,(NGL+1)*KB,MPI_F,0,MPI_COMM_WORLD,IERR)
+   CALL MPI_BCAST(UG,(NGL+1)*KB,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   CALL MPI_BCAST(VG,(NGL+1)*KB,MPI_F,0,MPI_FVCOM_GROUP,IERR)
 !QXU{
-   CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+   CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 !QXU}
 
    IF(PAR)THEN
@@ -2811,10 +2846,10 @@ in:  DO WHILE(.TRUE.)
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,YC,YCG)
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,VX,XG)
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,VY,YG)
-   IF(PAR)CALL MPI_BCAST(XCG,NGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(YCG,NGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(XG,MGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(YG,MGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
+   IF(PAR)CALL MPI_BCAST(XCG,NGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(YCG,NGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(XG,MGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(YG,MGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
 #  endif
 !# endif
 !  
@@ -2899,9 +2934,9 @@ in:  DO WHILE(.TRUE.)
      CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,AW0,AW0G)
      CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,AWX,AWXG)
      CALL ACOLLECT(MYID,MSRID,NPROCS,EMAP,AWY,AWYG)
-     CALL MPI_BCAST(AW0G,(NGL+1)*3,MPI_F,0,MPI_COMM_WORLD,IERR)
-     CALL MPI_BCAST(AWXG,(NGL+1)*3,MPI_F,0,MPI_COMM_WORLD,IERR)
-     CALL MPI_BCAST(AWYG,(NGL+1)*3,MPI_F,0,MPI_COMM_WORLD,IERR)
+     CALL MPI_BCAST(AW0G,(NGL+1)*3,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+     CALL MPI_BCAST(AWXG,(NGL+1)*3,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+     CALL MPI_BCAST(AWYG,(NGL+1)*3,MPI_F,0,MPI_FVCOM_GROUP,IERR)
    END IF
 #  endif     
 !
@@ -3111,8 +3146,8 @@ in:  DO WHILE(.TRUE.)
 #  if defined (MULTIPROCESSOR)   
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,ZZ,ZZ_G)
    IF(PAR)CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,H,HG) 
-   IF(PAR)CALL MPI_BCAST(ZZ_G,(MGL+1)*KB,MPI_F,0,MPI_COMM_WORLD,IERR)
-   IF(PAR)CALL MPI_BCAST(HG,MGL+1,MPI_F,0,MPI_COMM_WORLD,IERR)
+   IF(PAR)CALL MPI_BCAST(ZZ_G,(MGL+1)*KB,MPI_F,0,MPI_FVCOM_GROUP,IERR)
+   IF(PAR)CALL MPI_BCAST(HG,MGL+1,MPI_F,0,MPI_FVCOM_GROUP,IERR)
 #  endif
 
    DO I=1,N_ASSIM_TS
@@ -3334,6 +3369,11 @@ in:  DO WHILE(.TRUE.)
 #  if defined (PWP)
    INTEGER, ALLOCATABLE, DIMENSION(:) :: MLD_GLB
 #  endif
+
+   ! lwang added for OI-TS_limit_control  20190423
+   integer, allocatable, dimension(:,:) :: T_FLAG1 
+   ! lwang
+
 !==============================================================================|
 
    IF (DBG_SET(DBG_SBR)) WRITE(IPT,*) "START: TEMP_ASSIMILATION" 
@@ -3469,6 +3509,9 @@ in:  DO WHILE(.TRUE.)
 
    ALLOCATE(TWGHT_T(MGL,KBM1))   ; TWGHT_T = 0.
    ALLOCATE(TCORR(MGL,KBM1))     ; TCORR   = 0.
+   ! lwang added for OI-TS_limit_control  20190423
+   ALLOCATE(T_FLAG1(0:MGL,KB)) ; T_FLAG1 = 1
+   ! lwang
 
    IF(TS_NGASSIM)THEN
      DO I=1,N_ASSIM_TS_w
@@ -3484,6 +3527,19 @@ in:  DO WHILE(.TRUE.)
            W2             = TS_OBS(Id)%S_WEIGHT(K,2)
 
            DEFECT         = TS_OBS(Id)%TEMP(ITIMEA,K) - TINT(I,K)
+
+           ! lwang added for OI-TS_limit_control  20190423
+           U1 = TG(J1,TS_OBS(Id)%S_INT(K,1))
+           U2 = TG(J1,TS_OBS(Id)%S_INT(K,2))
+           if (DEFECT>0.) then
+             if (U1>=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,1))=0
+             if (U2>=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,2))=0
+           elseif (DEFECT<0.) then
+             if (U1<=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,1))=0
+             if (U2<=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,2))=0
+           endif
+           ! lwang
+
            IF(ABS(DEFECT) < 20.0_SP)THEN     !quality control
              WEIGHT1        = TS_OBS(Id)%T_WEIGHT*TS_OBS(Id)%X_WEIGHT(J)*W1
              WEIGHT2        = TS_OBS(Id)%T_WEIGHT*TS_OBS(Id)%X_WEIGHT(J)*W2
@@ -3540,6 +3596,22 @@ in:  DO WHILE(.TRUE.)
          W2             = TS_OBS(Id)%S_WEIGHT(K,2)
 
          DEFECT         = TS_OBS(Id)%TEMP(ITIMEA,K) - TINT(I,K)
+
+! lwang added for OI-TS_limit_control 
+         DO J=1,TS_OBS(Id)%N_INTPTS
+           J1 = TS_OBS(Id)%INTPTS(J)
+           U1 = TG(J1,TS_OBS(Id)%S_INT(K,1))
+           U2 = TG(J1,TS_OBS(Id)%S_INT(K,2))
+           if (DEFECT>0.) then
+             if (U1>=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,1))=0
+             if (U2>=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,2))=0
+           elseif (DEFECT<0.) then
+             if (U1<=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,1))=0
+             if (U2<=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,2))=0
+           endif
+         END DO
+! lwang
+
          IF(ABS(DEFECT) < 20.0)THEN     !quality control
            WEIGHT1        = TS_OBS(Id)%T_WEIGHT*W1
            WEIGHT2        = TS_OBS(Id)%T_WEIGHT*W2
@@ -3589,12 +3661,19 @@ in:  DO WHILE(.TRUE.)
          IF(DA_TS(I) == 1)THEN
 !QXU         TG(I,K) = TG(I,K) + TCORR1(I,K)
 !           TG(I,K) = TG(I,K) + TS_GALPHA*TCORR1(I,K)
-           TG(I,K) = TG(I,K) + TS_OIGALPHA*TCORR1(I,K)
+
+           ! lwang added for OI-TS_limit_control  20190423
+           !  TG(I,K) = TG(I,K) + TS_OIGALPHA*TCORR1(I,K)
+           TG(I,K) = TG(I,K) + TS_OIGALPHA*TCORR1(I,K)*T_FLAG1(I,K)
+           ! lwang
          END IF
        END DO
      END DO
 
      DEALLOCATE(TWGHT_T,TCORR,TINT,TCORR1)
+     ! lwang added for OI-TS_limit_control  20190423
+     DEALLOCATE(T_FLAG1)
+     ! lwang
    ELSE
      WRITE(IPT,*)'EITHER TS_NGASSIM OR TS_OIASSIM SHOULD BE TRUE'
      CALL PSTOP
@@ -3610,7 +3689,7 @@ in:  DO WHILE(.TRUE.)
      TF1(1:M,1:KBM1) = TG(1:M,1:KBM1)
    END IF
 #  if defined (MULTIPROCESSOR) 
-   CALL MPI_BCAST(TG,(MGL+1)*KB,MPI_F,0,MPI_COMM_WORLD,IERR)
+   CALL MPI_BCAST(TG,(MGL+1)*KB,MPI_F,0,MPI_FVCOM_GROUP,IERR)
    IF(PAR)THEN
      DO I=1,M
        TF1(I,1:KBM1) = TG(NGID(I),1:KBM1)
@@ -3920,7 +3999,7 @@ in:  DO WHILE(.TRUE.)
      SF1(1:M,1:KBM1) = SG(1:M,1:KBM1)
    END IF
 #  if defined (MULTIPROCESSOR) 
-   CALL MPI_BCAST(SG,(MGL+1)*KB,MPI_F,0,MPI_COMM_WORLD,IERR)
+   CALL MPI_BCAST(SG,(MGL+1)*KB,MPI_F,0,MPI_FVCOM_GROUP,IERR)
    IF(PAR)THEN
      DO I=1,M
        SF1(I,1:KBM1) = SG(NGID(I),1:KBM1)
@@ -4103,8 +4182,26 @@ in:  DO WHILE(.TRUE.)
       ! ADJUSMENT = MAX_WEIGHT * (TRUTH-CURRENT) * (WEIGHT_BY_TIME)
       ADJUSTMENT = SSTGRD_WEIGHT_MAX*(TRUTH-T1(i,1))*T_WEIGHT
       ! RESULT = CURRENT + DTI*TIMESCALE * ADJUSTMENT 
-      T1(I,1)=T1(I,1)+DTI*SSTGRD_TIMESCALE*ADJUSTMENT
-
+! lwang modified for sst assim order Jan 2, 2020 
+!      T1(I,1)=T1(I,1)+DTI*SSTGRD_TIMESCALE*ADJUSTMENT
+      TF1(I,1)=TF1(I,1)+DTI*SSTGRD_TIMESCALE*ADJUSTMENT
+! lwang Jan 2, 2020
+! lwang added for the SST mld assimilation
+      IF(SSTGRD_MLD)THEN
+!        MLD_OUT(I)=MLD_RHO(I)   ! Siqi Li for MLD_output @ 2019-05-01  ! Siqi Li, 20210809
+        DO K=1,KBM1
+          IF (-ZZ(I,K)*D(I)<=MLD_RHO(I))THEN
+! lwang modified for sst assim order Jan 2, 2020
+!            T1(I,K)=T1(I,1)
+            TF1(I,K)=TF1(I,1)
+! lwang Jan 2, 220
+!            MLD_Nsiglay(I)=K  ! Siqi Li for MLD_output @ 2019-05-01 ! @20210809
+          ELSE
+            EXIT
+          END IF
+        END DO
+      END IF
+! lwang
 #     if defined (PWP)
       IF(MLD(I)>0) THEN
         S_AVG = 0.0_SP
@@ -4113,7 +4210,10 @@ in:  DO WHILE(.TRUE.)
         ENDDO
         S1(I,1) = S_AVG
         DO K=2,MLD(I)
-          T1(I,K)=T1(I,1)
+! lwang modified for sst assim order Jan 2, 2020
+!          T1(I,K)=T1(I,1)
+          TF1(I,K)=TF1(I,1)
+! lwang Jan 2, 2020
           S1(I,K)=S_AVG
         END DO
       ENDIF
@@ -4124,6 +4224,10 @@ in:  DO WHILE(.TRUE.)
 #    if defined (MULTIPROCESSOR)
      IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,T1) !Interprocessor Exchange   !
      IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,S1)
+!---> Siqi Li for MLD_output @ 2019-05-01
+!     IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,MLD_OUT) ! Removed by Siqi Li, @20210809
+!     IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,MLD_Nsiglay) ! Removed by Siqi Li, @20210809
+!<--- Siqi
 #    endif
 
    
@@ -4205,6 +4309,7 @@ in:  DO WHILE(.TRUE.)
       ADJUSTMENT = SSHGRD_WEIGHT_MAX*(TRUTH-EL(i))*T_WEIGHT*F_SPATIAL
       ! RESULT = CURRENT + DTI*TIMESCALE * ADJUSTMENT 
       EL(I)=EL(I)+DTI*SSHGRD_TIMESCALE*ADJUSTMENT
+      EL(I)=EL(I)*RAMP
    ENDDO    
 
    
@@ -4469,9 +4574,16 @@ in:  DO WHILE(.TRUE.)
 !==============================================================================|
 !  SAVE INTERVAL-AVERAGAED SST DATA ON GRID TO USE AS OBSERVATION              | 
 !==============================================================================|
+! lwang added for SST mld assimilation
+USE EQS_OF_STATE
+! lwang
    IMPLICIT NONE
    INTEGER I
-   
+! lwang added for SST mld assimilation
+   INTEGER :: K
+   REAL(SP),PARAMETER :: PR = 0.0_SP
+   REAL(SP),ALLOCATABLE, DIMENSION(:,:)  :: RZU
+! lwang    
 !==============================================================================|
 
    IF(IntTime >= SST_SAVE_TIME) THEN
@@ -4485,6 +4597,12 @@ in:  DO WHILE(.TRUE.)
 !  Save Hourly SST on grid in Simulation running                               ! 
 !------------------------------------------------------------------------------!
       SST_SAVED(1:M,SST_SAVE_INDEX) = T1(1:M,1)
+! lwang added for SST mld assimilation
+      IF(SSTGRD_MLD)THEN
+         T_SAVED(1:M,1:KBM1,SST_SAVE_INDEX) = T1(1:M,1:KBM1)
+         S_SAVED(1:M,1:KBM1,SST_SAVE_INDEX) = S1(1:M,1:KBM1)
+      END IF
+! lwang
 # if defined (ENKF)
      SST_SAVED_ENKF(1:M,SST_SAVE_INDEX,ENKF_memberCONTR)=SST_SAVED(1:M,SST_SAVE_INDEX)
 # endif
@@ -4500,12 +4618,58 @@ in:  DO WHILE(.TRUE.)
          DO I=1,M
             SST_AVG(I) = SUM(SST_SAVED(I,1:SSTGRD_N_PER_INTERVAL))&
                  &/real(SSTGRD_N_PER_INTERVAL,SP)
+! lwang added for SST mld assimilation
+            IF(SSTGRD_MLD)THEN
+               TT_AVG(I,1:KBM1) = SUM(T_SAVED(I,1:KBM1,1:SSTGRD_N_PER_INTERVAL),2)&
+                    &/real(SSTGRD_N_PER_INTERVAL,SP)
+               SS_AVG(I,1:KBM1) = SUM(S_SAVED(I,1:KBM1,1:SSTGRD_N_PER_INTERVAL),2)&
+                    &/real(SSTGRD_N_PER_INTERVAL,SP)
+            END IF
+! lwang
 # if defined (ENKF)          
             SST_AVG_ENKF(I,ENKF_memberCONTR)=SST_AVG(I)
 # endif
 
          END DO
-         
+! lwang added for SST mld assimilation
+         IF(SSTGRD_MLD)THEN
+            SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
+            CASE(SW_DENS1)
+
+              ALLOCATE(RZU(M,KBM1))        ; RZU = -999.0_SP
+              DO I=1,M
+                DO K=1,KBM1
+                  RZU(I,K) = GRAV_N(I)*1.025_SP*(-ZZ(I,K)*D(I))*0.1_SP
+                END DO
+              END DO
+
+              CALL FOFONOFF_MILLARD(SS_AVG,TT_AVG,RZU,PR,RHO_AVG)
+              DEALLOCATE(RZU)
+
+            CASE(SW_DENS2)
+
+              CALL DENS2G(SS_AVG,TT_AVG,RHO_AVG)
+
+            CASE(SW_DENS3)
+
+              ALLOCATE(RZU(M,KBM1))        ; RZU = -999.0_SP
+              DO I=1,M
+                DO K=1,KBM1
+                  RZU(I,K) = GRAV_N(I)*1.025_SP*(-ZZ(I,K)*D(I))*0.01_SP
+                END DO
+              END DO
+
+              CALL JACKET_MCDOUGALL(SS_AVG,TT_AVG,RZU,RHO_AVG)
+              DEALLOCATE(RZU)
+            CASE DEFAULT
+              CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
+                   & "   "//TRIM(SEA_WATER_DENSITY_FUNCTION) )
+            END SELECT
+            ! Convert the rho into the unit kg/m3
+!            RHO_AVG=RHO_AVG*1000.+1000.
+
+         END IF
+! lwang         
       END IF
 
    END IF

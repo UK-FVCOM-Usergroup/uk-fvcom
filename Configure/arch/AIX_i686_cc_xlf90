@@ -1,0 +1,10 @@
+#--------------------------------------------------------------------------
+#  APPLE OS X/XLF Definitions (G5)
+#--------------------------------------------------------------------------
+         COMPILER = -DAIX
+         CPP      = /usr/bin/cpp
+         FC       =  /opt/ibmcmp/xlf/8.1/bin/xlf90 -qsuffix=f=f90
+         DEBFLGS  =  # -qcheck -C -g
+         OPT      = -O5 -qarch=g5 -qtune=g5  -qhot -qmaxmem=8096 -qunroll=yes -Wl,-stack_size,10000000
+#--------------------------------------------------------------------------
+

@@ -1,0 +1,386 @@
+wqm_alg.F:! WRITE DISTRIBUTION OF BIOMASS UPON MORTALITY
+wqm_alg.F:4020 FORMAT(/' DISTRIBUTION OF ALGAE UPON MORTALITY'//                       &
+wqm_alg_phyt_analsoln.F:! WRITE DISTRIBUTION OF BIOMASS UPON MORTALITY
+wqm_alg_phyt_analsoln.F:4020 FORMAT(/' DISTRIBUTION OF ALGAE UPON MORTALITY'//                       &
+wqm_inputs.F:   REAL(SP), ALLOCATABLE :: CTEMP_GL(:),CPOP_GL(:,:),CPON_GL(:,:),         &
+wqm_inputs.F:     SF_RPON = 0.0
+wqm_inputs.F:         READ (ICI,1030) (CPONI(JG),JG=1,3)
+wqm_inputs.F:             CPON(I,JG)  = CPONI(JG)
+wqm_inputs.F:	 ALLOCATE(CPON_GL(MGL,3));    CPON_GL      = 0.0
+wqm_inputs.F:              ((CPON_GL(I,J),I=1,MGL),J=1,3),                      &
+wqm_inputs.F:	   CPON      = CPON_GL     
+wqm_inputs.F:	     CPON(I,:)    = CPON_GL(NGID(I),:)     
+wqm_inputs.F:	     CPON(I+MLOC,:)    = CPON_GL(HN_LST(I),:)     
+wqm_inputs.F:         DEALLOCATE(CTEMP_GL,CPOP_GL,CPON_GL,CPOC_GL,CPOS_GL,PO4T2TM1S_GL)
+wqm_inputs.F:     APONSZ   = 0.0
+wqm_inputs.F:     APONLZ   = 0.0
+wqm_inputs.F:     ARPONSF = 0.0
+wqm_inputs.F:     ACPON = 0.0
+wqm_inputs.F:     AALGPON  = 0.0
+wqm_inputs.F:     AHDRPON  = 0.0
+wqm_inputs.F:     APONSAVW   = 0.0
+wqm_inputs.F:     APONEPI    = 0.0
+wqm_inputs.F:     ABAPON     = 0.0
+wqm_inputs.F:            5X,'LPON hydrolysis',T52,F6.1,T77,F6.3/                    &
+wqm_inputs.F:            5X,'RPON hydrolysis',T52,F6.1,T77,F6.3/                    &
+wqm_kin.F:   READ(ZOO,1030) FNH4SZ, FUREASZ, FLDONSZ, FRDONSZ, FLPONSZ,FRPONSZ
+wqm_kin.F:   READ(ZOO,1030) FNH4LZ, FUREALZ, FLDONLZ, FRDONLZ, FLPONLZ,FRPONLZ
+wqm_kin.F:   IF(MSR)WRITE(39,2060) FNH4SZ, FUREASZ, FLDONSZ, FRDONSZ, FLPONSZ,FRPONSZ
+wqm_kin.F:   IF(MSR)WRITE(39,2060) FNH4LZ, FUREALZ, FLDONLZ, FRDONLZ, FLPONLZ, FRPONLZ
+wqm_kin.F:                +ULPSZ*LPON(I,K)*LPOCASZ(I,K)/(LPOC(I,K)+1.0E-30)         & 
+wqm_kin.F:                +URPSZ*RPON(I,K)*RPOCASZ(I,K)/(RPOC(I,K)+1.0E-30))        &
+wqm_kin.F:       LPONSZ(I,K) = -FRL*LPON(I,K)/(LPOC(I,K)+1.0E-30)                   &
+wqm_kin.F:                   *RSZ(I,K)*SZ(I,K)+NRRATE*FLPONSZ         
+wqm_kin.F:       RPONSZ(I,K) = -FRR*RPON(I,K)/(RPOC(I,K)+1.0E-30)                   &
+wqm_kin.F:                   *RSZ(I,K)*SZ(I,K)+NRRATE*FRPONSZ         
+wqm_kin.F:                +ULLZ*LPON(I,K)*LPOCALZ(I,K)/(LPOC(I,K)+1.0E-30)          &
+wqm_kin.F:                +URLZ*RPON(I,K)*RPOCALZ(I,K)/(RPOC(I,K)+1.0E-30))         &
+wqm_kin.F:       LPONLZ(I,K) = -FRL*LPON(I,K)/(LPOC(I,K)+1.0E-30)*RLZ(I,K)*LZ(I,K)  &
+wqm_kin.F:                   +NRRATE*FLPONLZ         
+wqm_kin.F:       RPONLZ(I,K) = -FRR*RPON(I,K)/(RPOC(I,K)+1.0E-30)*RLZ(I,K)*LZ(I,K)  &
+wqm_kin.F:                   +NRRATE*FRPONLZ
+wqm_kin.F:   SUBROUTINE NITROG(DTNH4,DTNO3,DTLDON,DTRDON,DTLPON,DTRPON,FLXSPON)
+wqm_kin.F:   REAL ::    KLDON, KLPON, LPON1, LPON2, LPON3,                        &
+wqm_kin.F:   REAL :: FTN, RDON1, RDON2, RDON3, RPON1, RPON2, RPON3
+wqm_kin.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTNH4, DTNO3, DTLDON, DTRDON, DTLPON,  &
+wqm_kin.F:                                 DTRPON, FLXSPON
+wqm_kin.F:   DTLPON = 0.0
+wqm_kin.F:   DTRPON = 0.0
+wqm_kin.F:   FLXSPON = 0.0
+wqm_kin.F:       LPON1     = FNLP1*NP1+FNLPP*PR1(I,K)*ANC1
+wqm_kin.F:       LPON2     = FNLP2*NP2+FNLPP*PR2(I,K)*ANC2
+wqm_kin.F:       LPON3     = FNLP3*NP3+FNLPP*PR3(I,K)*ANC3
+wqm_kin.F:       RPON1     = FNRP1*NP1+FNRPP*PR1(I,K)*ANC1
+wqm_kin.F:       RPON2     = FNRP2*NP2+FNRPP*PR2(I,K)*ANC2
+wqm_kin.F:       RPON3     = FNRP3*NP3+FNRPP*PR3(I,K)*ANC3
+wqm_kin.F:       ALGPON(I,K) = LPON1+LPON2+LPON3+RPON1+RPON2+RPON3
+wqm_kin.F:       KLPON      = KLPN(I,K)+KLNALG(I,K)*ALGCAR*KHNAVG/(KHNAVG+NH4(I,K)+NO3(I,K))    
+wqm_kin.F:       HDRLPON(I,K) = RATOX(I,K)*KLPON*FTHDR(I,K)*LPON(I,K)
+wqm_kin.F:       HDRRPON(I,K) = RATOX(I,K)*KRPN(I,K)*FTHDR(I,K)*RPON(I,K)
+wqm_kin.F:       DTLDON(I,K) = (LDON1+LDON2+LDON3-MNLLDON(I,K)+HDRLPON(I,K)               &
+wqm_kin.F:                     +HDRRPON(I,K)+LDONSZ(I,K)+LDONLZ(I,K))/86400.
+wqm_kin.F:       DTLPON(I,K) = (LPON1+LPON2+LPON3-HDRLPON(I,K)                            &
+wqm_kin.F:                     +LPONSZ(I,K)+LPONLZ(I,K))/86400.
+wqm_kin.F:       DTRPON(I,K) = (RPON1+RPON2+RPON3-HDRRPON(I,K)                            &
+wqm_kin.F:                     +RPONSZ(I,K)+RPONLZ(I,K)+COAG)/86400.
+wqm_kin.F:     FLXSPON(I,1) = (WSL(I,1)*LPON(I,1)+WSR(I,1)*RPON(I,1))*V2(I,1)/(D(I)*DZ(1)*86400.)
+wqm_kin.F:     LPSETL = -WSL(I,1)*LPON(I,1)/(D(I)*DZ(1))
+wqm_kin.F:     RPSETL = -WSR(I,1)*RPON(I,1)/(D(I)*DZ(1))
+wqm_kin.F:     DTLPON(I,1) = DTLPON(I,1)+LPSETL/86400.
+wqm_kin.F:     DTRPON(I,1) = DTRPON(I,1)+RPSETL/86400.
+wqm_kin.F:       FLXSPON(I,K) = (WSL(I,K)*LPON(I,K)+WSR(I,K)*RPON(I,K))*V2(I,K)/(D(I)*DZ(K)*86400.)
+wqm_kin.F:       LPSETL = (WSL(I,K-1)*LPON(I,K-1)-WSL(I,K)*LPON(I,K))/(D(I)*DZ(K))
+wqm_kin.F:       RPSETL = (WSR(I,K-1)*RPON(I,K-1)-WSR(I,K)*RPON(I,K))/(D(I)*DZ(K))
+wqm_kin.F:       DTLPON(I,K) = DTLPON(I,K)+LPSETL/86400.
+wqm_kin.F:       DTRPON(I,K) = DTRPON(I,K)+RPSETL/86400.
+wqm_kin.F:       DTLPON(I,KBM1) = DTLPON(I,KBM1)+(WSL(I,KBM1)-WSLNET(I))       &
+wqm_kin.F:                        *LPON(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:       DTRPON(I,KBM1) = DTRPON(I,KBM1)+(WSR(I,KBM1)-WSRNET(I))       &
+wqm_kin.F:                        *RPON(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin.F:!JQI       DTLPON(B)  = DTLPON(B)+(LPONSAVW(B)+LPONEPI(B))/BL(B,3)/86400.
+wqm_kin.F:!JQI       DTRPON(B)  = DTRPON(B)+(RPONSAVW(B)+RPONEPI(B))/BL(B,3)/86400.
+wqm_kin.F:     PNFWS(I) = PNFWS(I)-WSL(I,KBM1)*LPON(I,KBM1)-WSR(I,KBM1)*RPON(I,KBM1)
+wqm_kin_phyt_analsoln.F:   READ(ZOO,1030) FNH4SZ, FUREASZ, FLDONSZ, FRDONSZ, FLPONSZ,FRPONSZ
+wqm_kin_phyt_analsoln.F:   READ(ZOO,1030) FNH4LZ, FUREALZ, FLDONLZ, FRDONLZ, FLPONLZ,FRPONLZ
+wqm_kin_phyt_analsoln.F:   IF(MSR)WRITE(39,2060) FNH4SZ, FUREASZ, FLDONSZ, FRDONSZ, FLPONSZ,FRPONSZ
+wqm_kin_phyt_analsoln.F:   IF(MSR)WRITE(39,2060) FNH4LZ, FUREALZ, FLDONLZ, FRDONLZ, FLPONLZ, FRPONLZ
+wqm_kin_phyt_analsoln.F:                +ULPSZ*LPON(I,K)*LPOCASZ(I,K)/(LPOC(I,K)+1.0E-30)         & 
+wqm_kin_phyt_analsoln.F:                +URPSZ*RPON(I,K)*RPOCASZ(I,K)/(RPOC(I,K)+1.0E-30))        &
+wqm_kin_phyt_analsoln.F:       LPONSZ(I,K) = -FRL*LPON(I,K)/(LPOC(I,K)+1.0E-30)                   &
+wqm_kin_phyt_analsoln.F:                   *RSZ(I,K)*SZ(I,K)+NRRATE*FLPONSZ         
+wqm_kin_phyt_analsoln.F:       RPONSZ(I,K) = -FRR*RPON(I,K)/(RPOC(I,K)+1.0E-30)                   &
+wqm_kin_phyt_analsoln.F:                   *RSZ(I,K)*SZ(I,K)+NRRATE*FRPONSZ         
+wqm_kin_phyt_analsoln.F:                +ULLZ*LPON(I,K)*LPOCALZ(I,K)/(LPOC(I,K)+1.0E-30)          &
+wqm_kin_phyt_analsoln.F:                +URLZ*RPON(I,K)*RPOCALZ(I,K)/(RPOC(I,K)+1.0E-30))         &
+wqm_kin_phyt_analsoln.F:       LPONLZ(I,K) = -FRL*LPON(I,K)/(LPOC(I,K)+1.0E-30)*RLZ(I,K)*LZ(I,K)  &
+wqm_kin_phyt_analsoln.F:                   +NRRATE*FLPONLZ         
+wqm_kin_phyt_analsoln.F:       RPONLZ(I,K) = -FRR*RPON(I,K)/(RPOC(I,K)+1.0E-30)*RLZ(I,K)*LZ(I,K)  &
+wqm_kin_phyt_analsoln.F:                   +NRRATE*FRPONLZ
+wqm_kin_phyt_analsoln.F:   SUBROUTINE NITROG(DTNH4,DTNO3,DTLDON,DTRDON,DTLPON,DTRPON,FLXSPON)
+wqm_kin_phyt_analsoln.F:   REAL ::    KLDON, KLPON, LPON1, LPON2, LPON3,                        &
+wqm_kin_phyt_analsoln.F:   REAL :: FTN, RDON1, RDON2, RDON3, RPON1, RPON2, RPON3
+wqm_kin_phyt_analsoln.F:   REAL,DIMENSION(MTLOC,KBM1) :: DTNH4, DTNO3, DTLDON, DTRDON, DTLPON,  &
+wqm_kin_phyt_analsoln.F:                                 DTRPON, FLXSPON
+wqm_kin_phyt_analsoln.F:   DTLPON = 0.0
+wqm_kin_phyt_analsoln.F:   DTRPON = 0.0
+wqm_kin_phyt_analsoln.F:   FLXSPON = 0.0
+wqm_kin_phyt_analsoln.F:       LPON1     = FNLP1*NP1+FNLPP*PR1(I,K)*ANC1
+wqm_kin_phyt_analsoln.F:       LPON2     = FNLP2*NP2+FNLPP*PR2(I,K)*ANC2
+wqm_kin_phyt_analsoln.F:       LPON3     = FNLP3*NP3+FNLPP*PR3(I,K)*ANC3
+wqm_kin_phyt_analsoln.F:       RPON1     = FNRP1*NP1+FNRPP*PR1(I,K)*ANC1
+wqm_kin_phyt_analsoln.F:       RPON2     = FNRP2*NP2+FNRPP*PR2(I,K)*ANC2
+wqm_kin_phyt_analsoln.F:       RPON3     = FNRP3*NP3+FNRPP*PR3(I,K)*ANC3
+wqm_kin_phyt_analsoln.F:       ALGPON(I,K) = LPON1+LPON2+LPON3+RPON1+RPON2+RPON3
+wqm_kin_phyt_analsoln.F:       KLPON      = KLPN(I,K)+KLNALG(I,K)*ALGCAR*KHNAVG/(KHNAVG+NH4(I,K)+NO3(I,K))    
+wqm_kin_phyt_analsoln.F:       HDRLPON(I,K) = RATOX(I,K)*KLPON*FTHDR(I,K)*LPON(I,K)
+wqm_kin_phyt_analsoln.F:       HDRRPON(I,K) = RATOX(I,K)*KRPN(I,K)*FTHDR(I,K)*RPON(I,K)
+wqm_kin_phyt_analsoln.F:       DTLDON(I,K) = (LDON1+LDON2+LDON3-MNLLDON(I,K)+HDRLPON(I,K)               &
+wqm_kin_phyt_analsoln.F:                     +HDRRPON(I,K)+LDONSZ(I,K)+LDONLZ(I,K))/86400.
+wqm_kin_phyt_analsoln.F:       DTLPON(I,K) = (LPON1+LPON2+LPON3-HDRLPON(I,K)                            &
+wqm_kin_phyt_analsoln.F:                     +LPONSZ(I,K)+LPONLZ(I,K))/86400.
+wqm_kin_phyt_analsoln.F:       DTRPON(I,K) = (RPON1+RPON2+RPON3-HDRRPON(I,K)                            &
+wqm_kin_phyt_analsoln.F:                     +RPONSZ(I,K)+RPONLZ(I,K)+COAG)/86400.
+wqm_kin_phyt_analsoln.F:     FLXSPON(I,1) = (WSL(I,1)*LPON(I,1)+WSR(I,1)*RPON(I,1))*V2(I,1)/(D(I)*DZ(1)*86400.)
+wqm_kin_phyt_analsoln.F:     LPSETL = -WSL(I,1)*LPON(I,1)/(D(I)*DZ(1))
+wqm_kin_phyt_analsoln.F:     RPSETL = -WSR(I,1)*RPON(I,1)/(D(I)*DZ(1))
+wqm_kin_phyt_analsoln.F:     DTLPON(I,1) = DTLPON(I,1)+LPSETL/86400.
+wqm_kin_phyt_analsoln.F:     DTRPON(I,1) = DTRPON(I,1)+RPSETL/86400.
+wqm_kin_phyt_analsoln.F:       FLXSPON(I,K) = (WSL(I,K)*LPON(I,K)+WSR(I,K)*RPON(I,K))*V2(I,K)/(D(I)*DZ(K)*86400.)
+wqm_kin_phyt_analsoln.F:       LPSETL = (WSL(I,K-1)*LPON(I,K-1)-WSL(I,K)*LPON(I,K))/(D(I)*DZ(K))
+wqm_kin_phyt_analsoln.F:       RPSETL = (WSR(I,K-1)*RPON(I,K-1)-WSR(I,K)*RPON(I,K))/(D(I)*DZ(K))
+wqm_kin_phyt_analsoln.F:       DTLPON(I,K) = DTLPON(I,K)+LPSETL/86400.
+wqm_kin_phyt_analsoln.F:       DTRPON(I,K) = DTRPON(I,K)+RPSETL/86400.
+wqm_kin_phyt_analsoln.F:       DTLPON(I,KBM1) = DTLPON(I,KBM1)+(WSL(I,KBM1)-WSLNET(I))       &
+wqm_kin_phyt_analsoln.F:                        *LPON(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:       DTRPON(I,KBM1) = DTRPON(I,KBM1)+(WSR(I,KBM1)-WSRNET(I))       &
+wqm_kin_phyt_analsoln.F:                        *RPON(I,KBM1)/(D(I)*DZ(KBM1))/86400.
+wqm_kin_phyt_analsoln.F:!JQI       DTLPON(B)  = DTLPON(B)+(LPONSAVW(B)+LPONEPI(B))/BL(B,3)/86400.
+wqm_kin_phyt_analsoln.F:!JQI       DTRPON(B)  = DTRPON(B)+(RPONSAVW(B)+RPONEPI(B))/BL(B,3)/86400.
+wqm_kin_phyt_analsoln.F:     PNFWS(I) = PNFWS(I)-WSL(I,KBM1)*LPON(I,KBM1)-WSR(I,KBM1)*RPON(I,KBM1)
+wqm_main.F:   LPON(:,:) = C2(:,:,18)
+wqm_main.F:   RPON(:,:) = C2(:,:,19)
+wqm_main.F:                +FLXTLPON(F)                                          &
+wqm_main.F:                +FLXTRPON(F)+ANC1*FLXT1(F)+ANC2*FLXT2(F)+ANC3         &
+wqm_main.F:     LPON(:,:) = C2(:,:,18)
+wqm_main.F:     RPON(:,:) = C2(:,:,19)
+wqm_main.F:             WRITE (SNP,3035) JG,SSNAME(3),(CPON(BB,JG),BB=1,MLOC)
+wqm_main.F:                       ((CPON(I,J),I=1,MLOC),J=1,3),                    &
+wqm_main.F:           ARPONSF = ARPONSF/AVGINT
+wqm_main.F:           ACPON = ACPON/AVGINT
+wqm_main.F:                       ((ACPON(B,J),B=1,MLOC),J=1,3),                   &
+wqm_main.F:                    ,(ARPOCSF(B),B=1,MLOC),(ARPONSF(B),B=1,MLOC)       &
+wqm_main.F:           ARPONSF = 0.0
+wqm_main.F:           ACPON = 0.0
+wqm_main.F:           AALGPON  = AALGPON/AVGINT
+wqm_main.F:           AHDRPON  = AHDRPON/AVGINT
+wqm_main.F:           APONSZ   = APONSZ /AVGINT
+wqm_main.F:           APONLZ   = APONLZ /AVGINT
+wqm_main.F:             ABAPON     = ABAPON/AVGINT
+wqm_main.F:           WRITE(KFL) AALGNH4,  AALGNO3,  AALGDON,  AALGPON,         &
+wqm_main.F:                      ANT,      ADENNO3,  AMNLDON,  AHDRPON,         &
+wqm_main.F:                      ANH4SZ, ADONSZ, APONSZ,  ANH4LZ,                &
+wqm_main.F:                      ADONLZ, APONLZ, APO4SZ,  ADOPSZ, APOPSZ,        &
+wqm_main.F:                        ABAPOC,   ABANH4,   ABANO3,   ABAPON,         &
+wqm_main.F:           AALGPON  = 0.0
+wqm_main.F:           AHDRPON  = 0.0
+wqm_main.F:           APONSZ   = 0.0
+wqm_main.F:           APONLZ   = 0.0
+wqm_main.F:           ABAPON     = 0.0
+wqm_main.F:             ((CPON(B,J),B=1,MLOC),J=1,3),                              &
+wqm_main.F:       ((CPON(B,J),B=1,MLOC),J=1,3),                                 &
+wqm_main_newK.F:   LPON(:,:) = C2(:,:,18)
+wqm_main_newK.F:   RPON(:,:) = C2(:,:,19)
+wqm_main_newK.F:                +FLXTLPON(F)                                          &
+wqm_main_newK.F:                +FLXTRPON(F)+ANC1*FLXT1(F)+ANC2*FLXT2(F)+ANC3         &
+wqm_main_newK.F:     LPON(:,:) = C2(:,:,18)
+wqm_main_newK.F:     RPON(:,:) = C2(:,:,19)
+wqm_main_newK.F:             WRITE (SNP,3035) JG,SSNAME(3),(CPON(BB,JG),BB=1,MLOC)
+wqm_main_newK.F:                       ((CPON(I,J),I=1,MLOC),J=1,3),                    &
+wqm_main_newK.F:           ARPONSF = ARPONSF/AVGINT
+wqm_main_newK.F:           ACPON = ACPON/AVGINT
+wqm_main_newK.F:                       ((ACPON(B,J),B=1,MLOC),J=1,3),                   &
+wqm_main_newK.F:                    ,(ARPOCSF(B),B=1,MLOC),(ARPONSF(B),B=1,MLOC)       &
+wqm_main_newK.F:           ARPONSF = 0.0
+wqm_main_newK.F:           ACPON = 0.0
+wqm_main_newK.F:           AALGPON  = AALGPON/AVGINT
+wqm_main_newK.F:           AHDRPON  = AHDRPON/AVGINT
+wqm_main_newK.F:           APONSZ   = APONSZ /AVGINT
+wqm_main_newK.F:           APONLZ   = APONLZ /AVGINT
+wqm_main_newK.F:             ABAPON     = ABAPON/AVGINT
+wqm_main_newK.F:           WRITE(KFL) AALGNH4,  AALGNO3,  AALGDON,  AALGPON,         &
+wqm_main_newK.F:                      ANT,      ADENNO3,  AMNLDON,  AHDRPON,         &
+wqm_main_newK.F:                      ANH4SZ, ADONSZ, APONSZ,  ANH4LZ,                &
+wqm_main_newK.F:                      ADONLZ, APONLZ, APO4SZ,  ADOPSZ, APOPSZ,        &
+wqm_main_newK.F:                        ABAPOC,   ABANH4,   ABANO3,   ABAPON,         &
+wqm_main_newK.F:           AALGPON  = 0.0
+wqm_main_newK.F:           AHDRPON  = 0.0
+wqm_main_newK.F:           APONSZ   = 0.0
+wqm_main_newK.F:           APONLZ   = 0.0
+wqm_main_newK.F:           ABAPON     = 0.0
+wqm_main_newK.F:             ((CPON(B,J),B=1,MLOC),J=1,3),                              &
+wqm_main_newK.F:       ((CPON(B,J),B=1,MLOC),J=1,3),                                 &
+wqm_modules.F:   SSNAME(3)  = 'Sediment PON        '  
+wqm_modules.F:   CNAME(18) =  'Labile PON'                 
+wqm_modules.F:   CNAME(19) =  'Refractory PON'      
+wqm_modules.F:     REAL,ALLOCATABLE,DIMENSION(:,:) :: CPOP, FLXPOP, CPON, FLXPON,    &
+wqm_modules.F:               FLXTLPON,   FLXTRPON,   FLXTPO4,        &
+wqm_modules.F:     REAL,ALLOCATABLE,DIMENSION(:,:) :: ACPOC, ACPON, ACPOP, ASFEED
+wqm_modules.F:              ,ARPONSF,    ARPOPSF,    ASSISF          &
+wqm_modules.F:               ABANO3, ABAPON, ABAPO4, ABAPOP,   &
+wqm_modules.F:               APONSAVW,  ANH4EPI,                           &
+wqm_modules.F:               ANO3EPI,   ADONEPI,   APONEPI,          &
+wqm_modules.F:               RPOC, NH4, NO3, LDON, LPON, RPON, PO4, LDOP, LPOP, RPOP,    &
+wqm_modules.F:!               DTLDOC, DTLPOC, DTRPOC, DTNH4, DTNO3, DTLDON, DTLPON,       &
+wqm_modules.F:!               DTRPON, DTPO4, DTLDOP, DTLPOP, DTRPOP, DTCOD, DTDO, DTSU,   &
+wqm_modules.F:     REAL,ALLOCATABLE,DIMENSION(:,:) :: FRPOP,   FRPON,   FRPOC
+wqm_modules.F:     REAL,ALLOCATABLE,DIMENSION(:,:) :: ALGNH4,  ALGNO3,   ALGDON,  ALGPON,   &
+wqm_modules.F:               DENNO3,  MNLLDON,  HDRLPON, HDRRPON,  &
+wqm_modules.F:          AALGNH4, AALGNO3, AALGDON, AALGPON,                                  &
+wqm_modules.F:          ANT, ADENNO3, AMNLDON, AHDRPON, ANFIX,                               &
+wqm_modules.F:               LPONSZ,  RPONSZ,   NH4LZ,   LDONLZ,   &
+wqm_modules.F:               LPONLZ,  RPONLZ,   PO4SZ,   LDOPSZ,   &
+wqm_modules.F:               ANH4SZ,  ADONSZ,   APONSZ,                 &
+wqm_modules.F:               ANH4LZ,  ADONLZ,   APONLZ,                 &
+wqm_modules.F:!                 (DTRDON(1),  DTC(1,17)),   (DTLPON(1),   DTC(1,18)),   &
+wqm_modules.F:!                 (DTRPON(1),  DTC(1,19)),   (DTPO4(1),    DTC(1,20)),   &
+wqm_modules.F:!                 (FLXTRDON(1),FLUXT(1,17)), (FLXTLPON(1), FLUXT(1,18)), &
+wqm_modules.F:!                 (FLXTRPON(1),FLUXT(1,19)), (FLXTPO4(1),  FLUXT(1,20)), &
+wqm_modules.F:!                 (FLXSPOC(1), FLUXS(1,5)),  (FLXSPON(1),  FLUXS(1,6)),  &
+wqm_modules.F:!                 (AFLXDIN(1), AFLUX(1,5)),  (AFLXPON(1),  AFLUX(1,6)),  &
+wqm_modules.F:                 FRDONSZ,FLPONSZ,FRPONSZ,FPO4SZ,FLDOPSZ,FRDOPSZ,FLPOPSZ, &
+wqm_modules.F:		 FLDONLZ,FRDONLZ,FLPONLZ,FRPONLZ,FPO4LZ,FLDOPLZ,FRDOPLZ, &
+wqm_modules.F:     REAL :: KPOP1,    KPOP2,     KPOP3,    KPON1,     KPON2,           &
+wqm_modules.F:             KPON3,    KPOC1,     KPOC2,    KPOC3 
+wqm_modules.F:     REAL,ALLOCATABLE,DIMENSION(:) :: PON1TM1S,  PON2TM1S,  PON3TM1S,        &
+wqm_modules.F:               ZW12NOM,    ZHTAPON1,   ZHTAPON2,         &
+wqm_modules.F:               ZHTAPON3,   ZHTAPOC1,   ZHTAPOC2,         &
+wqm_modules.F:               BAPON,     BAPOP
+wqm_modules.F:     REAL :: THTAPOP1,THTAPOP2,THTAPOP3,THTAPON1,THTAPON2,         &
+wqm_modules.F:             THTAPON3,THTAPOC1,THTAPOC2,THTAPOC3
+wqm_modules.F:                 (KPDIAG(3),KPOP3),    (KNDIAG(1),KPON1),               &
+wqm_modules.F:                 (KNDIAG(2),KPON2),    (KNDIAG(3),KPON3),               &
+wqm_modules.F:                 (DNTHTA(1),THTAPON1), (DNTHTA(2),THTAPON2),            &
+wqm_modules.F:                 (DNTHTA(3),THTAPON3), (DCTHTA(1),THTAPOC1),            &
+wqm_modules.F:     REAL :: PON1,PON1TM1,PON2,PON2TM1,PON3,PON3TM1,POC1,POC1TM1,    &
+wqm_modules.F:                 LDONSAVW, LPONSAVW, RPONSAVW, PO4SAVW,  LDOPSAVW, LPOPSAVW,&
+wqm_modules.F:                 NO3EPI,   LDONEPI,  LPONEPI,  RPONEPI,  PO4EPI,   LDOPEPI, &
+wqm_modules.F:                            ,SF_RPON, SF_RPOP, JNH4SF, JPO4SF        &
+wqm_modules.F:   ALLOCATE(LPON(0:MTLOC,KBM1));  LPON = 0.0
+wqm_modules.F:   ALLOCATE(RPON(0:MTLOC,KBM1));  RPON = 0.0
+wqm_modules.F:   ALLOCATE(LPONSZ(MTLOC,KBM1));       LPONSZ = 0.0
+wqm_modules.F:   ALLOCATE(RPONSZ(MTLOC,KBM1));       RPONSZ = 0.0
+wqm_modules.F:   ALLOCATE(LPONLZ(MTLOC,KBM1));       LPONLZ = 0.0
+wqm_modules.F:   ALLOCATE(RPONLZ(MTLOC,KBM1));       RPONLZ = 0.0
+wqm_modules.F:   ALLOCATE(ALGPON(MTLOC,KBM1));       ALGPON = 0.0
+wqm_modules.F:   ALLOCATE(HDRLPON(MTLOC,KBM1));      HDRLPON = 0.0
+wqm_modules.F:   ALLOCATE(HDRRPON(MTLOC,KBM1));      HDRRPON = 0.0
+wqm_modules.F:   ALLOCATE(PON1TM1S(MTLOC));          PON1TM1S = 0.0
+wqm_modules.F:   ALLOCATE(PON2TM1S(MTLOC));          PON2TM1S = 0.0
+wqm_modules.F:   ALLOCATE(PON3TM1S(MTLOC));          PON3TM1S = 0.0
+wqm_modules.F:   ALLOCATE(APONSZ(MTLOC,KBM1));       APONSZ = 0.0
+wqm_modules.F:   ALLOCATE(APONLZ(MTLOC,KBM1));       APONLZ = 0.0
+wqm_modules.F:   ALLOCATE(ABAPON(MTLOC));           ABAPON = 0.0
+wqm_modules.F:   ALLOCATE(ACPON(MTLOC,3));          ACPON = 0.0
+wqm_modules.F:   ALLOCATE(ARPONSF(MTLOC));          ARPONSF = 0.0
+wqm_modules.F:   ALLOCATE(AALGPON(MTLOC,KBM1));          AALGPON = 0.0
+wqm_modules.F:   ALLOCATE(AHDRPON(MTLOC,KBM1));          AHDRPON = 0.0
+wqm_modules.F:   ALLOCATE(APONSAVW(MTLOC));     APONSAVW = 0.0
+wqm_modules.F:   ALLOCATE(APONEPI(MTLOC));      APONEPI = 0.0
+wqm_modules.F:   ALLOCATE(FRPON(MTLOC,3));            FRPON = 0.0  
+wqm_modules.F:   ALLOCATE(CPON(MTLOC,3));             CPON   = 0.0
+wqm_modules.F:   ALLOCATE(FLXPON(MTLOC,3));           FLXPON = 0.0
+wqm_modules.F:   ALLOCATE(SF_RPON(MTLOC));            SF_RPON = 0.0
+wqm_modules.F:   ALLOCATE(BAPON(MTLOC));              BAPON = 0.0    
+wqm_modules.F:   ALLOCATE(LPONSAVW(MTLOC));           LPONSAVW  = 0.0
+wqm_modules.F:   ALLOCATE(RPONSAVW(MTLOC));           RPONSAVW  = 0.0
+wqm_modules.F:   ALLOCATE(LPONEPI(MTLOC));            LPONEPI   = 0.0
+wqm_modules.F:   ALLOCATE(RPONEPI(MTLOC));            RPONEPI   = 0.0
+wqm_modules.F:             CPONI(3),        CPOCI(3),         SFEEDI(10)
+wqm_sav.F:! WRITE DISTRIBUTION OF BIOMASS UPON MORTALITY
+wqm_sav.F:! WRITE DISTRIBUTION OF BIOMASS UPON MORTALITY
+wqm_sav.F:       LPONSAVW(I) = 0.
+wqm_sav.F:       RPONSAVW(I) = 0.
+wqm_sav.F:       LPONEPI(I) = 0.
+wqm_sav.F:       RPONEPI(I) = 0.
+wqm_sav.F:4020 FORMAT(/' DISTRIBUTION OF SAV UPON MORTALITY'/                         &
+wqm_sav.F:5030 FORMAT(/' DISTRIBUTION OF EPIPHYTES UPON MORTALITY'/                   &
+wqm_sav.F:     LPONSAVW(B) = 0.
+wqm_sav.F:     RPONSAVW(B) = 0.
+wqm_sav.F:     LPONEPI(B) = 0.
+wqm_sav.F:     RPONEPI(B) = 0.
+wqm_sav.F:!JQI       LPONSAVW(B) = LPONSAVW(B)+SAVFRAC(B,N)*FNLPSAV*ANCSAV     &
+wqm_sav.F:!JQI       RPONSAVW(B) = RPONSAVW(B)+SAVFRAC(B,N)*FNRPSAV*ANCSAV     &
+wqm_sav.F:!JQI       LPONEPI(B) = LPONEPI(B)+SAVFRAC(B,N)*                     &
+wqm_sav.F:!JQI       RPONEPI(B) = RPONEPI(B)+SAVFRAC(B,N)*                     &
+wqm_sed.F:!**   FRPON(NSED,3) Non-algal particulate organic nitrogen             **
+wqm_sed.F:!**   KNDIAG(3)     Reaction rates for PON G1, G2, and G3        /day  **
+wqm_sed.F:!**   DNTHTA(3)     Temperature thetas for PON G1, G2, and G3          **
+wqm_sed.F:   REAL     :: XKPOP1, XKPOP2, XKPOP3, XKPON1, XKPON2, XKPON3
+wqm_sed.F:   REAL     :: FRPON1, FRPOP1, FRPOC1, DFSOD
+wqm_sed.F:     READ(BFI,1040,ERR=10100) FRPOP(1,2),FRPOP(1,3),FRPON(1,2),        &
+wqm_sed.F:                              FRPON(1,3),FRPOC(1,2),FRPOC(1,3)
+wqm_sed.F:       FRPON(I,2)=FRPON(1,2)
+wqm_sed.F:       FRPON(I,3)=FRPON(1,3)
+wqm_sed.F:       READ(BFI,1040,ERR=10100) FRPOP(I,2),FRPOP(I,3),FRPON(I,2),    &
+wqm_sed.F:                                FRPON(I,3),FRPOC(I,2),FRPOC(I,3)
+wqm_sed.F:       FRPON(:,2) = RTMP13
+wqm_sed.F:       FRPON(:,3) = RTMP14
+wqm_sed.F:         FRPON(I,2) = RTMP13(NGID(I))
+wqm_sed.F:         FRPON(I,3) = RTMP14(NGID(I))
+wqm_sed.F:         FRPON(I+MLOC,2) = RTMP13(HN_LST(I))
+wqm_sed.F:         FRPON(I+MLOC,3) = RTMP14(HN_LST(I))
+wqm_sed.F:     WRITE(BFO,2070) ((CPON(I,JG),JG=1,3),I=1,MLOC)
+wqm_sed.F:     WRITE(BFO,2250) (I,FRPOP(I,2),FRPOP(I,3),FRPON(I,2),        &
+wqm_sed.F:                      FRPON(I,3),FRPOC(I,2),FRPOC(I,3),I=1,MLOC)
+wqm_sed.F:     PON1TM1S(I) = CPON(I,1)
+wqm_sed.F:     PON2TM1S(I) = CPON(I,2)
+wqm_sed.F:     PON3TM1S(I) = CPON(I,3)
+wqm_sed.F:     ISEDMN   = ISEDMN+(CPON(I,1)+CPON(I,2)+CPON(I,3)+CNH4(I)      &
+wqm_sed.F:     ZHTAPON1(JT) = KPON1*THTAPON1**TEMP20
+wqm_sed.F:     ZHTAPON2(JT) = KPON2*THTAPON2**TEMP20
+wqm_sed.F:     ZHTAPON3(JT) = KPON3*THTAPON3**TEMP20
+wqm_sed.F:     FLXPON(I,1) = FLX4WC*ANC1*FRNPH1(1)*B1(I,IWC)                       &
+wqm_sed.F:                   +FLX2WC*LPON(I,IWC)                                   &
+wqm_sed.F:     FLXPON(I,2) = FLX4WC*ANC1*FRNPH1(2)*B1(I,IWC)                       &
+wqm_sed.F:                   +FLX3WC*RPON(I,IWC)*FRPON(I,2)/                       &
+wqm_sed.F:                    (FRPON(I,2)+FRPON(I,3))                              &
+wqm_sed.F:     FLXPON(I,3) = FLX4WC*ANC1*FRNPH1(3)*B1(I,IWC)                       &
+wqm_sed.F:                   +FLX3WC*RPON(I,IWC)*FRPON(I,3)/                       &
+wqm_sed.F:                    (FRPON(I,2)+FRPON(I,3))                              &
+wqm_sed.F:                   +SF_RPON(I)                                           &  ! suspension feeders
+wqm_sed.F:     PNFWS(I)=-0.001*(FLXPON(I,1)+FLXPON(I,2)+FLXPON(I,3))
+wqm_sed.F:!JQI         FLXPON(B,J) = FLXPON(B,J)+1000.*SEDNSAV(B)*FRNSAV(J)
+wqm_sed.F:       AG3NFL(I) = AG3NFL(I)+FLXPON(I,3)*DLTS
+wqm_sed.F:     CPON(I,1) = PON1TM1S(I)
+wqm_sed.F:     CPON(I,2) = PON2TM1S(I)
+wqm_sed.F:     CPON(I,3) = PON3TM1S(I)
+wqm_sed.F:     PON1TM1  = PON1TM1S(I)
+wqm_sed.F:     PON2TM1  = PON2TM1S(I)
+wqm_sed.F:     PON3TM1  = PON3TM1S(I)
+wqm_sed.F:     XKPON1 = ZHTAPON1(ITEMP)*H2
+wqm_sed.F:     XKPON2 = ZHTAPON2(ITEMP)*H2
+wqm_sed.F:     XKPON3 = ZHTAPON3(ITEMP)*H2
+wqm_sed.F:     PON1 = (FLXPON(I,1)*DOH2+PON1TM1                      &
+wqm_sed.F:           )/(1.+(XKPON1+W2)*DOH2)
+wqm_sed.F:     IF(PON1 < 0.0)PON1=0.0
+wqm_sed.F:     PON2 = (FLXPON(I,2)*DOH2+PON2TM1                       &
+wqm_sed.F:           )/(1.+(XKPON2+W2)*DOH2)
+wqm_sed.F:!JQIcheckPON=PON2???????     IF(PON2 < 0.0)PON=0.0
+wqm_sed.F:     IF(PON2 < 0.0)PON2=0.0
+wqm_sed.F:     PON3 = (FLXPON(I,3)*DOH2+PON3TM1)/(1.+(XKPON3+W2)*DOH2)
+wqm_sed.F:     XJN = XKPON1*PON1+XKPON2*PON2+XKPON3*PON3             &
+wqm_sed.F:     BURIALN(I) = (PON1+PON2+PON3+NO3T2+NH4T2)*W2
+wqm_sed.F:       BAPON(I) = ANCB*(1.-FNIB)*(BMB(I)+PRB(I))*BBM(I)
+wqm_sed.F:       PON1 = PON1 + 1000. * BAPON(I)*FRNPHB(1)*DLTS/H2
+wqm_sed.F:       PON2 = PON2 + 1000. * BAPON(I)*FRNPHB(2)*DLTS/H2
+wqm_sed.F:       PON3 = PON3 + 1000. * BAPON(I)*FRNPHB(3)*DLTS/H2
+wqm_sed.F:     SEDMN = SEDMN+(PON1+PON2+PON3+NH4T2+NO3T2)*SFA(I)*H2/1.E6
+wqm_sed.F:     PON1TM1S(I)  = PON1
+wqm_sed.F:     PON2TM1S(I)  = PON2
+wqm_sed.F:     PON3TM1S(I)  = PON3
+wqm_sed.F:     CPON(I,1) = PON1TM1S(I)
+wqm_sed.F:     CPON(I,2) = PON2TM1S(I)
+wqm_sed.F:     CPON(I,3) = PON3TM1S(I)
+wqm_sed.F:     CPON(I,3) = AG3NFL(I)/(KNDIAG(3)*DNTHTA(3)**(ASDTMP(I)-20.)   &
+wqm_sf.F:        DTLPOC,DTLPOP,DTLPON,DTRPOC,DTRPOP,DTRPON,DTSSI,DTSU,DTSA,DTPO4)
+wqm_sf.F:                        SFLUXCX,SFLUXNX,SFLUXPX,SF_RPOCX,SF_RPONX,SF_RPOPX, & 
+wqm_sf.F:   REAL :: LOGICT,CLOGI,LPOCASF,LPONASF,LPOPASF
+wqm_sf.F:	   B1ASF, B2ASF, B3ASF, RPOCASF, RPONASF,  RPOPASF
+wqm_sf.F:        DTLPOC,DTLPOP,DTLPON,DTRPOC,DTRPOP,DTRPON,DTSSI,DTSU,DTSA,DTPO4
+wqm_sf.F:     SF_RPONX(I)=0.0
+wqm_sf.F:       SF_RPON(I)=0.0
+wqm_sf.F:     LPONASF = MAX(1.E-6,LPON(I,KBM1))          
+wqm_sf.F:     RPONASF = MAX(1.E-6,RPON(I,KBM1))
+wqm_sf.F:     NFILT = SF(I)*FILTCT*(B1ASF*ANC1+B2ASF*ANC2+B3ASF*ANC3+LPONASF+RPONASF)
+wqm_sf.F:          +SFA4X*LPONASF+SFA5X*RPONASF)
+wqm_sf.F:              +(1.-SFAN4)*LPONASF)
+wqm_sf.F:!MBM .       + (1.-SFAN5)*RPONASF ) 
+wqm_sf.F:     RNFECES = SF(I)*FILTCT*RELING * (1.-SFAN5)*RPONASF
+wqm_sf.F:     RNPSFEC=NPSFEC*RPONASF/(ANC1*B1ASF+ANC2*B2ASF+ANC3*B3ASF+LPONASF+RPONASF)
+wqm_sf.F:!        ALSO ASSUME THAT PREDATION LOSSES END UP IN LABILE POC,PON,POP POOLS
+wqm_sf.F:! LPON
+wqm_sf.F:! RPON
+wqm_sf.F:     SF_RPONX(I) = RNFECES + RNPSFEC
+wqm_sf.F:     DTLPON(I,KBM1) = DTLPON(I,KBM1) - ( FILTCT*SF(I)*LPONASF )               &
+wqm_sf.F:     DTRPON(I,KBM1) = DTRPON(I,KBM1) - ( FILTCT*SF(I)*RPONASF )               &
+wqm_sf.F:     SF_RPON(I)=SF_RPON(I)+SF_RPONX(I)

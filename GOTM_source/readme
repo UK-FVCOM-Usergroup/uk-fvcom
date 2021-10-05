@@ -1,0 +1,6 @@
+1> download the GOTM-dev (not GOTM-4.0) from http://www.gotm.net/index.php?go=software
+2> modify the path of GOTM_BASE in configure.sh
+3> modify the path of CMAKE_INSTALL_PREFIX in configure.sh
+4> run configure.sh
+5> find the paths of folders 'include' and 'lib' 
+6> set the paths of GOTMLIB and GOTMINCS accordingly

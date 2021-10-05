@@ -1,0 +1,8 @@
+Mock up of settling rates file for St. Johns River                      
+Created 15 August 2000, JLM ERDC WES; Modified 12-19-02 dht             
+                                                                        
+          SPVARM  PRINTM                                                
+        CONSTANT      NO
+                                                                        
+     BOX     WSS   WSLAB   WSREF     WS1     WS2     WS3     WSU        
+       1   0.250   0.250   0.250   0.000   0.100   0.100   0.250

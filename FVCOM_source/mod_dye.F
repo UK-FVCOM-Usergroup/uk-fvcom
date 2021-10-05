@@ -116,20 +116,20 @@ MODULE MOD_DYE
 !==============================================================================!
 !  ALLOCATE:                                                                   !
 !==============================================================================!
-   ALLOCATE(DYE(0:MT,KB))           ;DYE    = ZERO
+   ALLOCATE(DYE(0:MT,KB))           ;DYE     = ZERO
    ALLOCATE(DYEF(0:MT,KB))          ;DYEF    = ZERO
-# if defined (MPDATA)
-   !ALLOCATE(DYEMEAN(0:MT,KB))       ;DYEMEAN    = ZERO
-   ALLOCATE(DYE_S(0:MT,KB))          ;DYE_S    = ZERO
-   ALLOCATE(DYE_SF(0:MT,KB))          ;DYE_SF    = ZERO
+!   ALLOCATE(DYEMEAN(0:MT,KB))       ;DYEMEAN    = ZERO
+#  if defined (MPDATA)
+   ALLOCATE(DYE_S(0:MT,KB))         ;DYE_S   = ZERO
+   ALLOCATE(DYE_SF(0:MT,KB))        ;DYE_SF  = ZERO
    ALLOCATE(WWWS(0:MT,KB))          ;WWWS    = ZERO
-   ALLOCATE(WWWSF(0:MT,KB))          ;WWWSF    = ZERO
-   ALLOCATE(DTWWWS(0:MT))       ;DTWWWS    = ZERO
+   ALLOCATE(WWWSF(0:MT,KB))         ;WWWSF   = ZERO
+   ALLOCATE(DTWWWS(0:MT))           ;DTWWWS  = ZERO
 
-   ALLOCATE(zzzflux(0:MT,KB))          ;zzzflux    = ZERO
-   ALLOCATE(beta(0:MT,KB))       ;beta    = ZERO
-   ALLOCATE(betain(0:MT,KB))       ;betain    = ZERO
-   ALLOCATE(betaout(0:MT,KB))       ;betaout    = ZERO
+   ALLOCATE(zzzflux(0:MT,KB))       ;zzzflux = ZERO 
+   ALLOCATE(beta(0:MT,KB))          ;beta    = ZERO  
+   ALLOCATE(betain(0:MT,KB))        ;betain  = ZERO
+   ALLOCATE(betaout(0:MT,KB))       ;betaout = ZERO
 # endif
 
 !   add convert time
@@ -257,6 +257,9 @@ MODULE MOD_DYE
 #  if defined (SEMI_IMPLICIT)
    USE MOD_SEMI_IMPLICIT
 #  endif
+#  if defined (TVD)
+   USE MOD_TVD
+#  endif
 
    IMPLICIT NONE
    REAL(SP), DIMENSION(0:MT,KB)     :: XFLUX,XFLUX_ADV
@@ -283,6 +286,13 @@ MODULE MOD_DYE
    REAL(SP), DIMENSION(3*(NT),KBM1) :: UVN1
    REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ1
 #  endif
+# if defined (TVD)
+   REAL(SP) :: S_upstreamA,S_upstreamB
+   REAL(SP) :: A_limiter,B_limiter,smoothrA,smoothrB
+#  endif
+#  if defined (MPDATA)
+   REAL(SP), DIMENSION(0:MT,KB)     :: OFFS     !! Offset to run the simulation in single precision
+#  endif
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: adv_dye"
 !------------------------------------------------------------------------------!
@@ -298,6 +308,12 @@ MODULE MOD_DYE
      CALL FATAL_ERROR("UNKNOW HORIZONTAL MIXING TYPE:",&
           & TRIM(HORIZONTAL_MIXING_TYPE) )
   END SELECT
+
+# if defined (MPDATA)
+  ! Adding offset to force FVCOM not to crash when dyes approach zero
+      OFFS = 1.0_SP
+      DYE  = DYE+OFFS
+# endif
 
 !
 !--Initialize Fluxes and dyef----------------------------------------------------------!
@@ -461,6 +477,7 @@ MODULE MOD_DYE
 !!$       DYB=YI-VY(IB)
 !!$#      endif
 
+# if !defined (TVD)
        FIJ1=DYE(IA,K)+DLTXNCVE(I,1)*PDYEPX(IA)+DLTYNCVE(I,1)*PDYEPY(IA)
        FIJ2=DYE(IB,K)+DLTXNCVE(I,2)*PDYEPX(IB)+DLTYNCVE(I,2)*PDYEPY(IB)
 
@@ -477,6 +494,37 @@ MODULE MOD_DYE
        IF(FIJ2 < S2MIN) FIJ2=S2MIN
        IF(FIJ2 > S2MAX) FIJ2=S2MAX
 
+# else
+! ------------------------------------------------------------------------------------------ !
+!                                     Drawing the TVD scheme
+! ------------------------------------------------------------------------------------------ !
+!     If A is upstream of B
+       S_upstreamA=DYE(Anear_node(I),K)+PDYEPX(Anear_node(I))*XUAdist(I)+PDYEPY(Anear_node(I))*YUAdist(I)
+!     If B is upstream of A
+       S_upstreamB=DYE(Bnear_node(I),K)+PDYEPX(Bnear_node(I))*XUBdist(I)+PDYEPY(Bnear_node(I))*YUBdist(I)                
+
+!     Smoothness-parameter
+       IF (DYE(IA,K).EQ.DYE(IB,K)) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+       ELSE IF (DYE(IA,K).LT.1.E-10.AND.DYE(IB,K).LT.1.E-10) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+       ELSE
+          smoothrA    = (DYE(IA,K)-S_upstreamA)/(DYE(IB,K)-DYE(IA,K))
+          smoothrB    = (DYE(IB,K)-S_upstreamB)/(DYE(IA,K)-DYE(IB,K))
+       END IF
+
+!     Flux-limiter
+!     (superbee) - Feel free to use other limiters!
+       A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
+       B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
+
+!     Estimating the dye at the cellwall in-betweem IA and IB
+       FIJ1     = DYE(IA,K)+0.5_SP*A_LIMITER*(DYE(IB,K)-DYE(IA,K))
+       FIJ2     = DYE(IB,K)+0.5_SP*B_LIMITER*(DYE(IA,K)-DYE(IB,K))
+
+# endif
        UN=UVN(I,K)
 #      if defined (SEMI_IMPLICIT)
        UN1=UVN1(I,K)
@@ -584,7 +632,7 @@ MODULE MOD_DYE
    DO K=1,KBM1
      DO I=1,M
        IF(ISONB(I) == 2) THEN
-         XFLUX(I,K)=0.
+         XFLUX(I,K)=0._SP
        ENDIF
      ENDDO
    ENDDO
@@ -642,10 +690,19 @@ MODULE MOD_DYE
         ZZZFLUX(I,K)= TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
         XXXX= ZZZFLUX(I,K)*DT(I)/DTFA(I)+DYE(I,K)-DYE(I,K)*DT(I)/DTFA(I) 
 
-        BETA(I,K)=0.5*(1.-SIGN(1.,XXXX)) * (SMAX-DYE(I,K))/(ABS(XXXX)+1.E-10) &
-                 +0.5*(1.-SIGN(1.,-XXXX)) * (DYE(I,K)-SMIN)/(ABS(XXXX)+1.E-10)
+        ! Added by Akvaplan 2018 to avoid single precision-crash
+        IF((ABS(XXXX).LT.ABS(SMAX-DYE(I,K))).AND.(XXXX.LT.0.0_SP)) THEN
+          DYE_SF(I,K) = DYE(I,K)-XXXX
+        ELSE IF((ABS(XXXX).LT.ABS(SMIN-DYE(I,K))).AND.(XXXX.GT.0.0_SP)) THEN 
+          DYE_SF(I,K) = DYE(I,K)-XXXX
+        ELSE IF(XXXX.EQ.0) THEN
+          DYE_SF(I,K) = DYE(I,K)
+        ELSE
+          BETA(I,K)=0.5*(1.-SIGN(1.,XXXX)) * (SMAX-DYE(I,K))/(ABS(XXXX)+1.E-10) &
+                   +0.5*(1.-SIGN(1.,-XXXX)) * (DYE(I,K)-SMIN)/(ABS(XXXX)+1.E-10)
 
-         DYE_SF(I,K)=DYE(I,K)-MIN(1.,BETA(I,K))*XXXX
+          DYE_SF(I,K)=DYE(I,K)-MIN(1.,BETA(I,K))*XXXX
+        END IF
 
 #    if defined (WET_DRY)
        END IF
@@ -768,6 +825,9 @@ MODULE MOD_DYE
 !--------------------------------------------------------------------------
 ! End of smolarkiewicz upwind loop
 !--------------------------------------------------------------------------
+
+      DYE = DYE - OFFS
+      DYE_SF = DYE_SF - OFFS
 !--------------------------------------------------------------------------
 #  endif
 
@@ -893,11 +953,10 @@ MODULE MOD_DYE
           
 
 #      if !defined (SEMI_IMPLICIT)
-
             DYEF(I,K)=(DYE(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
-!           TF1(I,K)=(T1(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      else
-            DYEF(I,K)=(DYE(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+!            DYEF(I,K)=(DYE(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+            DYEF(I,K)=(TSC(I,K)-RK_TS(STAGE)*XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      endif
         
           
@@ -910,7 +969,8 @@ MODULE MOD_DYE
 #      if !defined (SEMI_IMPLICIT)
             DYEF(I,K)=DYE(I,K)
 #      else
-            DYEF(I,K)=DYE(I,K)
+!            DYEF(I,K)=DYE(I,K)
+            DYEF(I,K)=TSC(I,K)
 #      endif
          END DO
       END IF
@@ -924,10 +984,11 @@ MODULE MOD_DYE
 #      if !defined (SEMI_IMPLICIT)
        DYEF(I,K)=(DYE(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      else
-       DYEF(I,K)=(DYE(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+!       DYEF(I,K)=(DYE(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+       DYEF(I,K)=(TSC(I,K)-RK_TS(STAGE)*XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      endif
 #    else
-       DYEF(I,K)=DYE(I,K)
+       DYEF(I,K)=DYE_SF(I,K)
 #    endif              
 
     END DO
@@ -952,6 +1013,302 @@ MODULE MOD_DYE
 
    RETURN
    END SUBROUTINE ADV_DYE
+!==============================================================================|
+
+!==============================================================================|
+!   Calculate Advection and Horizontal Diffusion Terms for DYE                 |
+!==============================================================================|
+
+   SUBROUTINE ADV_DYE_RK(DYEB)               
+
+!------------------------------------------------------------------------------|
+
+   USE ALL_VARS
+   USE MOD_UTILS
+   USE BCS
+   USE MOD_OBCS
+   USE MOD_PAR
+   USE MOD_WD
+   USE MOD_SPHERICAL
+   USE MOD_NORTHPOLE
+#  if defined (TVD)
+   USE MOD_TVD
+#  endif
+
+   IMPLICIT NONE
+   REAL(SP), DIMENSION(0:MT,KB)     :: XFLUX,XFLUX_ADV,DYEB
+   REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY  
+   REAL(SP), DIMENSION(M)           :: PDYEPX,PDYEPY,PDYEPXD,PDYEPYD,VISCOFF
+   REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ 
+   REAL(SP), DIMENSION(3*(NT),KBM1) :: UVN
+   REAL(SP) :: UTMP,VTMP,SITAI,FFD,FF1 
+   REAL(SP) :: DXA,DYA,DXB,DYB,FIJ1,FIJ2,UN
+   REAL(SP) :: TXX,TYY,FXX,FYY,VISCOF,EXFLUX,TEMP,STPOINT
+   REAL(SP) :: FACT,FM1
+   REAL(SP) :: s1min, s1max, s2min, s2max,SMIN,SMAX,xxxx
+   INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,K,JTMP,JJ,KK,IP,II
+#  if defined (WET_DRY)
+   INTEGER :: N_NTVE
+#  endif
+# if defined (TVD)
+   REAL(SP) :: S_upstreamA,S_upstreamB
+   REAL(SP) :: A_limiter,B_limiter,smoothrA,smoothrB
+#  endif
+
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: adv_dye_rk"
+!------------------------------------------------------------------------------!
+
+  SELECT CASE(HORIZONTAL_MIXING_TYPE)
+  CASE ('closure')
+     FACT = 1.0_SP
+     FM1  = 0.0_SP
+  CASE('constant')
+     FACT = 0.0_SP
+     FM1  = 1.0_SP
+  CASE DEFAULT
+     CALL FATAL_ERROR("UNKNOW HORIZONTAL MIXING TYPE:",&
+          & TRIM(HORIZONTAL_MIXING_TYPE) )
+  END SELECT
+
+!
+!--Initialize Fluxes and dyef----------------------------------------------------------!
+!
+   XFLUX     = 0.0_SP
+   XFLUX_ADV = 0.0_SP
+   DYEF      = 0.0_SP
+!
+!--Loop Over Control Volume Sub-Edges And Calculate Normal Velocity------------!
+!
+   DO I=1,NCV
+     I1=NTRG(I)
+     DO K=1,KBM1
+       DTIJ(I,K)=DT1(I1)*DZ1(I1,K)
+       UVN(I,K) = V(I1,K)*DLTXE(I) - U(I1,K)*DLTYE(I)
+     END DO
+   END DO
+!
+!--Calculate the Advection and Horizontal Diffusion Terms----------------------!
+!
+
+   DO K=1,KBM1
+      PDYEPX  = 0.0_SP 
+      PDYEPY  = 0.0_SP 
+      PDYEPXD = 0.0_SP 
+      PDYEPYD = 0.0_SP
+     DO I=1,M
+       DO J=1,NTSN(I)-1
+         I1=NBSN(I,J)
+         I2=NBSN(I,J+1)
+
+#    if defined (WET_DRY)
+         IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1)THEN
+          FFD=0.5_SP*(DYE(I,K)+DYE(I2,K))!-DYEMEAN(I,K)-DYEMEAN(I2,K))
+          FF1=0.5_SP*(DYE(I,K)+DYE(I2,K))
+	 ELSE IF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0)THEN
+          FFD=0.5_SP*(DYE(I1,K)+DYE(I,K))!-DYEMEAN(I1,K)-DYEMEAN(I,K))
+          FF1=0.5_SP*(DYE(I1,K)+DYE(I,K))
+	 ELSE IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0)THEN
+          FFD=0.5_SP*(DYE(I,K)+DYE(I,K))!-DYEMEAN(I,K)-DYEMEAN(I,K))
+          FF1=0.5_SP*(DYE(I,K)+DYE(I,K))
+	 ELSE
+          FFD=0.5_SP*(DYE(I1,K)+DYE(I2,K))!-DYEMEAN(I1,K)-DYEMEAN(I2,K))
+          FF1=0.5_SP*(DYE(I1,K)+DYE(I2,K))
+	 END IF 
+#    else	 
+         FFD=0.5_SP*(DYE(I1,K)+DYE(I2,K))!-DYEMEAN(I1,K)-DYEMEAN(I2,K))
+         FF1=0.5_SP*(DYE(I1,K)+DYE(I2,K))
+#    endif
+
+         PDYEPX(I)=PDYEPX(I)+FF1*DLTYTRIE(i,j)
+         PDYEPY(I)=PDYEPY(I)+FF1*DLTXTRIE(i,j)
+         PDYEPXD(I)=PDYEPXD(I)+FFD*DLTYTRIE(i,j)
+         PDYEPYD(I)=PDYEPYD(I)+FFD*DLTXTRIE(i,j)
+
+       END DO
+       PDYEPX(I)=PDYEPX(I)/ART2(I)
+       PDYEPY(I)=PDYEPY(I)/ART2(I)
+       PDYEPXD(I)=PDYEPXD(I)/ART2(I)
+       PDYEPYD(I)=PDYEPYD(I)/ART2(I)
+     END DO
+          
+     IF(K == KBM1)THEN
+       DO I=1,M
+         PFPXB(I) = PDYEPX(I)
+         PFPYB(I) = PDYEPY(I)
+       END DO
+     END IF
+
+     DO I=1,M
+       VISCOFF(I)=VISCOFH(I,K)
+     END DO
+
+     IF(K == KBM1) THEN
+       AH_BOTTOM(1:M) = (FACT*VISCOFF(1:M) + FM1)*NN_HVC(1:M)
+    END IF
+
+
+     DO I=1,NCV_I
+       IA=NIEC(I,1)
+       IB=NIEC(I,2)
+
+# if !defined (TVD)
+       FIJ1=DYE(IA,K)+DLTXNCVE(I,1)*PDYEPX(IA)+DLTYNCVE(I,1)*PDYEPY(IA)
+       FIJ2=DYE(IB,K)+DLTXNCVE(I,2)*PDYEPX(IB)+DLTYNCVE(I,2)*PDYEPY(IB)
+
+       S1MIN=MINVAL(DYE(NBSN(IA,1:NTSN(IA)-1),K))
+       S1MIN=MIN(S1MIN, DYE(IA,K))
+       S1MAX=MAXVAL(DYE(NBSN(IA,1:NTSN(IA)-1),K))
+       S1MAX=MAX(S1MAX, DYE(IA,K))
+       S2MIN=MINVAL(DYE(NBSN(IB,1:NTSN(IB)-1),K))
+       S2MIN=MIN(S2MIN, DYE(IB,K))
+       S2MAX=MAXVAL(DYE(NBSN(IB,1:NTSN(IB)-1),K))
+       S2MAX=MAX(S2MAX, DYE(IB,K))
+       IF(FIJ1 < S1MIN) FIJ1=S1MIN
+       IF(FIJ1 > S1MAX) FIJ1=S1MAX
+       IF(FIJ2 < S2MIN) FIJ2=S2MIN
+       IF(FIJ2 > S2MAX) FIJ2=S2MAX
+
+# else
+! ------------------------------------------------------------------------------------------ !
+!                                     Drawing the TVD scheme
+! ------------------------------------------------------------------------------------------ !
+!     If A is upstream of B
+       S_upstreamA=DYE(Anear_node(I),K)+PDYEPX(Anear_node(I))*XUAdist(I)+PDYEPY(Anear_node(I))*YUAdist(I)
+!     If B is upstream of A
+       S_upstreamB=DYE(Bnear_node(I),K)+PDYEPX(Bnear_node(I))*XUBdist(I)+PDYEPY(Bnear_node(I))*YUBdist(I)                
+
+!     Smoothness-parameter
+       IF (DYE(IA,K).EQ.DYE(IB,K)) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+       ELSE IF (DYE(IA,K).LT.1.E-10.AND.DYE(IB,K).LT.1.E-10) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+       ELSE
+          smoothrA    = (DYE(IA,K)-S_upstreamA)/(DYE(IB,K)-DYE(IA,K))
+          smoothrB    = (DYE(IB,K)-S_upstreamB)/(DYE(IA,K)-DYE(IB,K))
+       END IF
+
+!     Flux-limiter
+!     (superbee) - Feel free to use other limiters!
+       A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
+       B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
+
+!     Estimating the dye at the cellwall in-betweem IA and IB
+       FIJ1     = DYE(IA,K)+0.5_SP*A_LIMITER*(DYE(IB,K)-DYE(IA,K))
+       FIJ2     = DYE(IB,K)+0.5_SP*B_LIMITER*(DYE(IA,K)-DYE(IB,K))
+
+# endif
+       UN=UVN(I,K)
+
+       ! David moved HPRNU and added VHC
+        VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) +  &
+	        FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
+
+       TXX=0.5_SP*(PDYEPXD(IA)+PDYEPXD(IB))*VISCOF
+       TYY=0.5_SP*(PDYEPYD(IA)+PDYEPYD(IB))*VISCOF
+
+       FXX=-DTIJ(I,K)*TXX*DLTYE(I)
+       FYY= DTIJ(I,K)*TYY*DLTXE(I)
+
+       EXFLUX=-UN*DTIJ(I,K)* &
+          ((1.0_SP+SIGN(1.0_SP,UN))*FIJ2+(1.0_SP-SIGN(1.0_SP,UN))*FIJ1)*0.5_SP+FXX+FYY
+
+       XFLUX(IA,K)=XFLUX(IA,K)+EXFLUX
+       XFLUX(IB,K)=XFLUX(IB,K)-EXFLUX
+
+       XFLUX_ADV(IA,K)=XFLUX_ADV(IA,K)+(EXFLUX-FXX-FYY)
+       XFLUX_ADV(IB,K)=XFLUX_ADV(IB,K)-(EXFLUX-FXX-FYY)
+     END DO
+
+#    if defined (SPHERICAL)
+!       CALL ADV_DYE_XY(XFLUX,XFLUX_ADV,PDYEPX,PDYEPY,PDYEPXD,PDYEPYD,VISCOFF,K,0.0_SP)
+#    endif  
+
+  END DO !!SIGMA LOOP
+
+
+!
+!-Accumulate Fluxes at Boundary Nodes
+!
+# if defined (MULTIPROCESSOR)
+  IF(PAR)CALL NODE_MATCH(0,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,XFLUX,XFLUX_ADV)
+# endif
+
+  DO K=1,KBM1
+     IF(IOBCN > 0) THEN
+       DO I=1,IOBCN
+         I1=I_OBC_N(I)
+         XFLUX_OBC(I,K)=XFLUX_ADV(I1,K)
+       END DO
+     END IF
+  ENDDO
+
+!--------------------------------------------------------------------
+!   The central difference scheme in vertical advection
+!--------------------------------------------------------------------
+
+   DO I=1,M
+#    if defined (WET_DRY)
+      IF(ISWETN(I)*ISWETNT(I) == 1) THEN
+#    endif
+         
+      DO K=1, KBM1
+         
+         IF(K == 1) THEN
+            TEMP=-WTS(I,K+1)*(DYE(I,K)*DZ(I,K+1)+DYE(I,K+1)*DZ(I,K))/  &
+                 (DZ(I,K)+DZ(I,K+1))
+         ELSE IF(K == KBM1) THEN
+            TEMP= WTS(I,K)*(DYE(I,K)*DZ(I,K-1)+DYE(I,K-1)*DZ(I,K))/    &
+                 (DZ(I,K)+DZ(I,K-1))
+         ELSE
+            TEMP= WTS(I,K)*(DYE(I,K)*DZ(I,K-1)+DYE(I,K-1)*DZ(I,K))/    &
+                 (DZ(I,K)+DZ(I,K-1))-&
+                 WTS(I,K+1)*(DYE(I,K)*DZ(I,K+1)+DYE(I,K+1)*DZ(I,K))/  &
+                 (DZ(I,K)+DZ(I,K+1))
+         END IF
+         
+         IF(ISONB(I) == 2) THEN
+            XFLUX(I,K)=TEMP*ART1(I)    !/DZ(K)
+         ELSE
+            XFLUX(I,K)=XFLUX(I,K)+TEMP*ART1(I)    !/DZ(K)
+         END IF
+      END DO
+
+#    if defined (WET_DRY)
+      END IF
+#    endif
+   END DO  !! SIGMA LOOP
+
+!
+!--Update Dye-------------------------------------------------------------!
+!
+
+#  if defined (WET_DRY)
+   DO I=1,M
+     IF(ISWETN(I)*ISWETNT(I) == 1 )THEN
+       DO K=1,KBM1
+         DYEF(I,K)=(DYEB(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+       END DO
+     ELSE  
+       DO K=1,KBM1
+         DYEF(I,K)=DYEB(I,K)
+       END DO
+     END IF
+   END DO
+#  else  
+!NOT WET DRY
+   DO I=1,M
+     DO K=1,KBM1
+       DYEF(I,K)=(DYEB(I,K)-XFLUX(I,K)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+     END DO
+   END DO
+#  endif
+
+  IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: adv_dye_rk"
+
+   RETURN
+   END SUBROUTINE ADV_DYE_RK
 !==============================================================================|
 
 
@@ -1309,8 +1666,8 @@ MODULE MOD_DYE
 !!$!   close(78)
 !!$
 !!$!! broadcast to all processors
-!!$!   call mpi_bcast(temp_dye,kb*(mgl+1), mpi_f,0,mpi_comm_world,ierr)
-!!$!   call mpi_bcast(temp_dyemean,kb*(mgl+1), mpi_f,0,mpi_comm_world,ierr)
+!!$!   call mpi_bcast(temp_dye,kb*(mgl+1), mpi_f,0,MPI_FVCOM_GROUP,ierr)
+!!$!   call mpi_bcast(temp_dyemean,kb*(mgl+1), mpi_f,0,MPI_FVCOM_GROUP,ierr)
 !!$
 !!$!! transform to local arrays 
 !!$!   if(serial)then

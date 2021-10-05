@@ -901,7 +901,7 @@
        DEALLOCATE(N32_TMP)
        END IF    
 
-!JQI       IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+!JQI       IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 #      endif
 
 !       print*,"U10=",U10,"WDIC=",WDIC
@@ -935,7 +935,7 @@
 !JQI         DEALLOCATE(AC2_TMP)
 !JQI       END IF    	  
 
-!JQI       IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+!JQI       IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 !JQI#      endif
       ! if(msr)print*,'after ********'
 
@@ -1095,7 +1095,7 @@
          DEALLOCATE(AC2_TMP)
        END IF    	  
 
-!JQI       IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+!JQI       IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 #      endif
 
        CALL ACTION_DEALLO

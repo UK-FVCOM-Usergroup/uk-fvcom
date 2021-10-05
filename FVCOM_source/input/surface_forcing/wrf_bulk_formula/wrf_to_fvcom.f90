@@ -6,15 +6,6 @@
 !
 !==========================================================================
 !! This program read a WRF netcdf file and create forcing data for fvcom 
-!  Pierre Cazenave (Plymouth Marine Laboratory):
-!  version 0.15             2015/12/07
-!  Add better conversion of precipitation which supports non-hourly
-!  outputs from WRF. This change requires the main FVCOM mod_time
-!  module.
-!  version 0.14             2015/10/26
-!  Undo the change converting from Pa to mb to output Pa for SLP (FVCOM
-!  wants Pa not mb anyway). Also add new argument to specify latitude for
-!  surface forcing (-latitude); if omitted, defaults to +42N.
 !! version 0.13             2007/06/15
 !! updated using  coare26sn
 !! version 0.12             2007/06/14
@@ -41,7 +32,6 @@
 !   -forecast : flag for forecast data
 !   -hindcast : flag for hindcast data
 !   -noglobal : don't save global attributes   
-!   -latitude : latitude for heat flux calculations
 !
 !==========================================================================
 !
@@ -68,14 +58,12 @@
 	program wrf2fvcom 
 
 	use netcdf
-	use Mod_Time
-
 	implicit none
 	include 'netcdf.inc'
 
 !--------------Variable for reading input netcdf file--------------------------------------------------------------------------------------
 	integer                                             :: cdfid                       ! id of input file
-	integer                                             :: rcall                       ! status code for netcdf
+	real                                                :: rcall                       ! status code for netcdf
 	character (len=200)                                 :: attname                     ! name of attributes
 	integer                                             :: ndims, nvars, natts         ! number of dims, var and att in file
 	integer                                             :: south_north,west_east       ! dimension of horizontal grids
@@ -158,7 +146,7 @@
 !------------for read arguments part------------------------------------------------------------------------------------------------------------
 	logical                                             :: noglobal                    ! for global attributes
 	logical                                             :: debug                       ! for debug
-	logical                                             :: small=.FALSE.               ! for save small meteorological data
+	logical                                             :: small                       ! for save small meteorological data
 	logical                                             :: output                      ! for output of forcing
 
 !----------------------forcing---------coare2.6 part-----------------------------------------------------------------------------
@@ -166,10 +154,6 @@
         character (len=80)                                  :: output_M                       ! forcing file name
         character (len=200), allocatable, dimension(:)      :: M_vars                      ! variables to forcing
 	integer                                             :: time_index                  ! time dimension
-	integer                                             :: status                      ! for checking the read_datetime result
-	type(time)                                          :: time_one, time_two          ! times for WRF output increment (numeric)
-	character (len=19)                                  :: timestr_one, timestr_two    ! times for WRF output increment (strings)
-	real                                                :: wrf_interval                ! the WRF input time increment
 	integer,dimension(3)                                :: force3m                     ! forcing file dimension
 	integer,dimension(2)                                :: force2m                     ! forcing file dimension
 	integer,dimension(2)                                :: force1m                     ! forcing file dimension
@@ -193,14 +177,14 @@
 !--------------------for coare 2.6 bulk-------------------------------------------------------------------------------------------
 	real                                                :: urxx,taxx,paxx,tsxx,zuxx,ztxx,zqxx,rh_valxx
 	real                                                :: dswxx, dlwxx, tauxx,hsbxx, hlbxx
-	real                                                :: theta, AG, gb_lat=42., gb_zi
+	real                                                :: theta, AG, gb_lat,gb_zi
 !-----------------END OF VARIABLE DEFINITION---------------------------------------------------------------------------------------
 
 
 
 !-------------Generate source information-----------------------------------------------------------
 	call date_and_time(gti)
-        source ="wrf2fvcom version 0.14 (2015-10-26) (Bulk method: COARE 2.6SN)"
+        source ="wrf2fvcom version 0.13 (2007-06-27) (Bulk method: COARE 2.6SN)"
 	institute = "School of Marine Science and Technology, UMASSD, at time of "//trim(gti) 
         write(*,*) "  "
         write(*,*) "================================================ "
@@ -211,7 +195,7 @@
 
 ! GET INPUT FILE AND OUTPUT CASE NAME FOR COMMAND LINE
 	if (debug) write(*,*) "READ arguments from command line "
-	call read_args(input_file,case,debug,small,output,save_file,history,noglobal,gb_lat)
+	call read_args(input_file,case,debug,small,output,save_file,history,noglobal)
 
 !! OPEN THE INPUT FILE
 	if (debug) write(*,*) "OPENING netcdf input file "//trim(input_file)
@@ -278,7 +262,9 @@
         if (debug) write(*,*)
         if (debug) write(*,*) "Variable:",idvar,"out of",nVars
         if (debug) write(*,*) "DEALING with variable: ", trim(varnam)
-        if (.not. debug ) write(*,'("   Variable ",i3," :  ",A10,$)') idvar,varnam
+	do i=1,idm
+	enddo
+        if (.not. debug ) write(*,'("   Variable ",i2," :  ",A10,$)') idvar,varnam
         if (.not. debug .and. idm .gt. 2 ) write(*,*) " (*)"
         if (.not. debug .and. idm .le. 2 ) write(*,*) "    "
 
@@ -305,21 +291,30 @@
            allocate (times(dims(1), dims(2)))
            rcall = nf_get_var_text(cdfid, idvar, times)
            ntimes = dims(2)
+	write(*,*)dims(1),dims(2)
 
         ENDIF
 
         IF (varnam == 'XLAT'  ) THEN
            allocate (xlat(dims(1), dims(2), dims(3), dims(4)))
+	write(*,*) trim(varnam)
+	write(*,*) dims(1),dims(2),dims(3),dims(4)
            rcall = nf_get_var_real(cdfid, idvar, xlat)
         ENDIF
 
 
         IF (varnam == 'XLONG'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
+
            allocate (xlong(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, xlong)
         ENDIF
 
         IF (varnam == 'P'  ) THEN          !! save the lowest P to ptemp
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
+
            allocate (p(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, p)
 
@@ -346,6 +341,8 @@
 
 
         IF (varnam == 'PB'  ) THEN  !! save the lowest PB to pbtemp
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (pb(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, pb)
 
@@ -366,16 +363,22 @@
 
 
         IF (varnam == 'Q2'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (q2(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, q2)
         ENDIF
 
         IF (varnam == 'SST'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (sst(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, sst)
         ENDIF
 
         IF (varnam == 'TSK'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (tsk(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, tsk)
         ENDIF
@@ -384,12 +387,16 @@
 
 
         IF (varnam == 'SWDOWN'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (swdown(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, swdown)
         ENDIF
 
 
         IF (varnam == 'GLW'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (glw(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, glw)
         ENDIF
@@ -397,23 +404,31 @@
 
 
         IF (varnam == 'T2'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (t2(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, t2)
         ENDIF
 
 
         IF (varnam == 'U10'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (u10(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, u10)
         ENDIF
 
 
         IF (varnam == 'V10'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (v10(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, v10)
         ENDIF
 
         IF (varnam == 'RAINC'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (rainc(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, rainc)
         ENDIF
@@ -421,6 +436,8 @@
 
 
         IF (varnam == 'RAINNC'  ) THEN
+        write(*,*) trim(varnam)
+        write(*,*) dims(1),dims(2),dims(3),dims(4)
            allocate (rainnc(dims(1), dims(2), dims(3), dims(4)))
            rcall = nf_get_var_real(cdfid, idvar, rainnc)
         ENDIF
@@ -647,8 +664,8 @@
 	
 	urxx=sqrt(u10(i,j,k,1)**2+v10(i,j,k,1)**2)	! wind speed	
         taxx=t2(i,j,k,1)-273.16                         ! air temperature
-        pressure_slp(i,j,k)=(pbtemp(i,j,k,1)+ptemp(i,j,k,1))          ! pressure(Pa)
-        paxx=pressure_slp(i,j,k)/100.                   ! pressure(mb)
+        paxx=(pbtemp(i,j,k,1)+ptemp(i,j,k,1))/100.      ! pressure(mb)
+	pressure_slp(i,j,k)=paxx
         tsxx=sst(i,j,k,1)-273.16                        ! sst
         zuxx=10.                                        ! wind height (10m)
 	ztxx=2.                                         ! air t height (2m)
@@ -667,6 +684,7 @@
 
 
 ! -------------calculate wind stress and heat flux
+	gb_lat=42.          ! for latitude of Georges Bank regions
 	gb_zi=600.          ! default for PBL height
 
 	call coare26sn(urxx,zuxx,taxx,ztxx,rh_valxx,zqxx,paxx,tsxx,dswxx,dlwxx,gb_lat,gb_zi,tauxx,hsbxx,hlbxx)
@@ -739,28 +757,9 @@
 
 !----------precipitation and evaportion (Units: m/s)
        if(k==1)then
-         precipitation(i,j,k)=0.
-         ! To convert units from mm to m/s, we need to know the output frequency
-         ! from the WRF output and divide by that (in seconds), then convert to
-         ! metres. We're using RAINC (ACCUMULATED TOTAL CUMULUS
-         ! PRECIPITATION, units mm). Turns out, getting the increment between
-         ! time steps in FORTRAN is a pain. We'll use FVCOM's approach with the
-         ! julian library.
-         if(i==1 .and. j==1) then
-           if (debug) write(*,*) 'FIND: time increment from WRF time strings.'
-           do jjj=1,19
-               timestr_one(jjj:jjj) = Times(jjj,k)
-               timestr_two(jjj:jjj) = Times(jjj,k+1)
-           enddo
-           time_one = READ_DATETIME(trim(timestr_one),'YMD','UTC',status)
-           time_two = READ_DATETIME(trim(timestr_two),'YMD','UTC',status)
-           ! Inverval in seconds (from days)
-           wrf_interval = days(time_two-time_one)*(24.*60.*60.)
-         endif
+       precipitation(i,j,k)=0.
        else
-         ! Divide by wrf_interval to get instantaneous values. Divide by 1000
-         ! to go from mm  to m. Final units are m/s.
-         precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))/1000./wrf_interval
+       precipitation(i,j,k)=(rainc(i,j,k,1)+rainnc(i,j,k,1)-rainc(i,j,k-1,1)-rainnc(i,j,k-1,1))*1000./3600.            ! units (m/s)
        endif
 
        evaporation(i,j,k)=hlbxx/ ((2.501-0.00237*(sst(i,j,k,1)-273.16))/(1.0E-9))  ! units(m/s)
@@ -823,13 +822,13 @@
        rcall=nf90_copy_att(cdfid,temp_id,'units',nc_ofid,v10_id)
        rcall=nf90_copy_att(cdfid,temp_id,'coordinates',nc_ofid,v10_id)
   
-       rcall = nf90_def_var(nc_ofid,"uwind_stress",nf90_float,force3m,stress_u_id)
+       rcall = nf90_def_var(nc_ofid,"Stress_U",nf90_float,force3m,stress_u_id)
        rcall=nf90_put_att(nc_ofid,stress_u_id,"description","U Wind stress at sea surface, westward is negative")
        rcall=nf90_put_att(nc_ofid,stress_u_id,"units","Pa")
        rcall=nf90_put_att(nc_ofid,stress_u_id,"coordinates","XLONG XLAT")
   
   
-       rcall = nf90_def_var(nc_ofid,"vwind_stress",nf90_float,force3m,stress_v_id)
+       rcall = nf90_def_var(nc_ofid,"Stress_V",nf90_float,force3m,stress_v_id)
        rcall=nf90_put_att(nc_ofid,stress_v_id,"description","V Wind stress at sea surface, southward is negative")
        rcall=nf90_put_att(nc_ofid,stress_v_id,"units","Pa")
        rcall=nf90_put_att(nc_ofid,stress_v_id,"coordinates","XLONG XLAT")
@@ -871,15 +870,17 @@
        rcall=nf90_put_att(nc_ofid,prec_id,"units","m s-1")
        rcall=nf90_put_att(nc_ofid,prec_id,"coordinates","XLONG XLAT")
 
-       rcall = nf90_def_var(nc_ofid,"air_pressure",nf90_float,force3m,pressure_slp_id)
+       rcall = nf90_def_var(nc_ofid,"SLP",nf90_float,force3m,pressure_slp_id)
        rcall=nf90_put_att(nc_ofid,pressure_slp_id,"description","Sea level pressure only for ocean")
-       rcall=nf90_put_att(nc_ofid,pressure_slp_id,"units","Pa")
+       rcall=nf90_put_att(nc_ofid,pressure_slp_id,"units","mb")
        rcall=nf90_put_att(nc_ofid,pressure_slp_id,"coordinates","XLONG XLAT")
 
        rcall = nf90_def_var(nc_ofid,"RH",nf90_float,force3m,rh_gen_id)
        rcall=nf90_put_att(nc_ofid,rh_gen_id,"description","Relative Humidity (generated from Qv)")
        rcall=nf90_put_att(nc_ofid,rh_gen_id,"units","percent")
        rcall=nf90_put_att(nc_ofid,rh_gen_id,"coordinates","XLONG XLAT")
+
+
 
        rcall=nf90_def_var(nc_ofid,"Times",nf90_char,force1m,time_id)
        rcall=nf90_put_att(nc_ofid,time_id,"description","GMT time")
@@ -959,7 +960,6 @@
   print*," -forecast : flag for forecast data"
   print*," -hindcast : flag for hindcast data"
   print*," -noglobal : don't save global attributes"
-  print*," -latitude : the heat flux calculation latitude (+42N by default)"
   STOP
 
   end subroutine help_info
@@ -967,7 +967,7 @@
 
 
 !------------------------------------------------------------------------------
-  subroutine read_args(input_file,case,debug,small,output,save_file,history,noglobal,gb_lat)
+  subroutine read_args(input_file,case,debug,small,output,save_file,history,noglobal)
 
   implicit none
   character (len=200)   :: input_file,save_file,history
@@ -976,10 +976,9 @@
   logical               :: small
   logical               :: output
   logical               :: noglobal
-  integer, intrinsic    :: iargc
+  integer, external     :: iargc
   integer               :: numarg, i
   character (len=80)    :: dummy
-  real                  :: gb_lat
 
 
 ! set up some defaults first
@@ -1021,14 +1020,6 @@
                save_file = dummy
           CASE ("-debug")
                debug = .TRUE.
-          CASE ("-latitude")
-               i = i+1
-               call getarg(i,dummy)         ! read latitude for heat flux
-               read(dummy,*) gb_lat ! convert to real
-               if ((gb_lat .lt. -90.) .or. (gb_lat .gt. 90.)) then
-                    write(*,*) "ERROR: specified value for -latitude is invalid:", gb_lat
-                    STOP
-               endif
 	  CASE ("-forecast")
 		history = "Output from WRF 2.2 Forecast"
 	  CASE ("-hindcast")
@@ -1055,7 +1046,7 @@
       subroutine handle_err(message,nf_status)
       include "netcdf.inc"
       integer                 :: nf_status
-      character (len=*)      :: message
+      character (len=80)      :: message
       if (nf_status .ne. nf_noerr) then
          write(*,*)  'ERROR: ', trim(message)
          STOP
@@ -1087,7 +1078,7 @@
 !    ts = water temperature (degC)
 !    Rs = downward shortwave radiation (W/m^2) (default = 150)
 !    Rl = downward longwave radiation (W/m^2) (default = 370)
-!   lat = latitude (default = +42 N)
+!   lat = latitude (default = +45 N)
 !    zi = PBL height (m) (default = 600m)
 !
 ! Output:  A = [usr,tau,qsen,qlat,Cd,Ch,Ce,L,zet,dter,tkt] where
@@ -1133,13 +1124,9 @@
 ! Code history:
 !
 ! 1. 12/14/05 - coare26sn.m created based on J. Edson's 12/2004 Matlab code and
-!    B. Weller's UOP 10/3/2003 Fortran code with additional input from J. Edson
-!    and C. Fairall. coare26sn differs from these earlier codes in the following
-!    ways:
-!        a) the number of computation loop iterations nits increased from 3 to
-!        6 for better convergence
-!        b) the net longwave radiation flux Rln is updated during the iteration 
-!        loop to improve the cool-skin depression temperature.
+!    B. Weller's UOP 10/3/2003 Fortran code with additional input from J. Edson %    and C. Fairall. coare26sn differs from these earlier codes in the following %    ways: a) the number of computation loop iterations nits increased from 3 to %    6 for better convergence and b) the net longwave radiation flux Rln is
+!    updated during the iteration loop to improve the cool-skin depression
+!    temperature.
 ! 2. 12/21/05 - sign error in psiu_26 corrected.
 
 
@@ -1149,14 +1136,10 @@
 	real rns,rnl
 	real qsat26sea,qsat26air,grv,ts,p,t,rs,rl,zu,zt,rh,zq,tau,qsen,qlat
 	real DU,DT,DQ,TA,UG,DTER,UT,U10,USR,ZO10,CD10,CH10,CT10,ZOT10
-	real CD,CT,CC,RIBCU,RIBU,ZETU,L10,PSIU_26,TSR,PSIT_26,QSR,TKT,CHARN
+	real CD,CT,CC,RIBCU,RIBU,ZETU,L10,NITS,PSIU_26,TSR,PSIT_26,QSR,TKT,CHARN
 	real ZET, ZO, RR, L, ZOQ, ZOT, BF, HSB, HLB, QOUT, DELS, QCOL, ALQ, XLAMX, DQER
 	real ch,ce
-	integer i, nits
-	! ---- new : Karsten Lettmann , Jan. 2018 --------
-	real :: epsi = 1.0e-16   ! small value to stabilize the code
-	! -------- end new -------------------------------
-
+	integer i
 
 !------------------------------------------------------------------------------
 
@@ -1250,7 +1233,7 @@
         zetu = CC*Ribu*(1.+27./9.*Ribu/CC) ! stable
      endif
      L10 = zu/zetu
-     nits=3
+     nits=6
      if (zetu>50) then ! stable with very thin M-O length relative to zu
         nits=1
      endif
@@ -1258,7 +1241,7 @@
      tsr = -(dt-dter*jcool)*von*fdg/(log(zt/zot10)-psit_26(zt/L10))
      qsr = -(dq-wetc*dter*jcool)*von*fdg/(log(zq/zot10)-psit_26(zq/L10))
      tkt = 0.001  ! cool skin thickness (m)
-     charn = 0.011  ! charnock parameter
+     charn = 0.011
      if (ut>10)then
         charn = 0.011+(ut-10)/(18-10)*(0.018-0.011)
      endif
@@ -1278,15 +1261,13 @@
 
 
    do i=1,nits
-     zet=von*grav*zu*(tsr*(1.+0.61*q)+0.61*ta*qsr)/(ta*(usr*usr)*(1.+0.61*q) + epsi)
-     zo=charn*usr*usr/grav+0.11*visa/(usr+epsi) ! surface roughness
-
+     zet=von*grav*zu/ta*(tsr +0.61*ta*qsr)/(usr**2)
+     zo=charn*usr**2/grav+0.11*visa/usr ! surface roughness
      rr=zo*usr/visa
-     L=zu/(zet+epsi)
+     L=zu/zet
      zoq=min(1.15e-4,5.5e-5/rr**0.6) ! mositure roughness
      zot=zoq                        ! temperature roughness
      usr=ut*von/(log(zu/zo)-psiu_26(zu/L))
-     usr=max(epsi,usr)
      tsr=-(dt-dter*jcool)*von*fdg/(log(zt/zot)-psit_26(zt/L))
      qsr=-(dq-wetc*dter*jcool)*von*fdg/(log(zq/zoq)-psit_26(zq/L))
      Bf=-grav/ta*usr*(tsr+0.61*ta*qsr)
@@ -1302,15 +1283,15 @@
      hsb=-rhoa*cpa*usr*tsr ! flux out
      hlb=-rhoa*Le*usr*qsr  ! flux out
      qout=Rnl+hsb+hlb
-     dels=Rns*(0.065+11.0*tkt-6.6e-5/tkt*(1.0-exp(-tkt/8.0e-4)))
+     dels=Rns*(0.065+11*tkt-6.6e-5/tkt*(1-exp(-tkt/8.0e-4)))
      qcol=qout-dels
      alq=Al*qcol+be*hlb*cpw/Le
      if (alq>0) then
-        xlamx=6./(1.+(bigc*alq/(usr+epsi)**4)**0.75)**0.333
-        tkt=xlamx*visw/(sqrt(rhoa/rhow)*(usr+epsi))
+        xlamx=6./(1.+(bigc*alq/usr**4)**0.75)**0.333
+        tkt=xlamx*visw/(sqrt(rhoa/rhow)*usr)
      else
         xlamx=6.0
-        tkt=min(0.01, xlamx*visw/(sqrt(rhoa/rhow)*(usr+epsi)))
+        tkt=min(0.01, xlamx*visw/(sqrt(rhoa/rhow)*usr))
      endif
      dter=qcol*tkt/tcw
      dqer=wetc*dter
