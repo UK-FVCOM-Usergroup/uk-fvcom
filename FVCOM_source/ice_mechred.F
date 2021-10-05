@@ -288,9 +288,6 @@
       dvirdgdt (:,:) = c0i
       opening  (:,:) = c0i
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do j = jlo, jhi
       do i = ilo, ihi
 
@@ -337,9 +334,6 @@
 
       do niter = 1, nitermax    ! iteration counter
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do j = jlo, jhi
       do i = ilo, ihi
 
@@ -373,9 +367,6 @@
       ! would be removed.  Reduce the opening rate proportionately.
       !-----------------------------------------------------------------
       do ni = 1, ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do j = jlo, jhi
          do i = ilo, ihi
 
@@ -453,9 +444,6 @@
 
       asum_error = .false. 
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do j = jlo, jhi
       do i = ilo, ihi
 
@@ -570,9 +558,6 @@
          if (krdg_redist==0) then ! Hibler redistribution function
 
             do ni = 1, ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
                do j = jlo, jhi
                do i = ilo, ihi
 
@@ -591,9 +576,6 @@
          elseif (krdg_redist==1) then  ! exponential function
 
             do ni = 1, ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
                do j = jlo, jhi
                do i = ilo, ihi
 
@@ -612,9 +594,6 @@
 
          endif                  ! krdg_redist
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do j = jlo, jhi
          do i = ilo, ihi
 
@@ -719,9 +698,6 @@
 
       Gsum(:,:,-1) = c0i
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do j = jlo, jhi
       do i = ilo, ihi
          if (aice0(i,j) > puny) then
@@ -733,9 +709,6 @@
       enddo
 
       do ni = 1, ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do j = jlo, jhi
          do i = ilo, ihi
             if (aicen(i,j,ni) > puny) then
@@ -752,9 +725,6 @@
       worka(:,:) = c1i / Gsum(:,:,ncat)
 
       do ni = 0, ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do j = jlo, jhi
          do i = ilo, ihi
             Gsum(i,j,ni) = Gsum(i,j,ni) * worka(i,j)
@@ -810,9 +780,6 @@
          xtmp = c1i / (c1i-exp(-astari))
  
          do ni = -1, ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do j = jlo, jhi
             do i = ilo, ihi
                Gsum(i,j,ni) = exp(-Gsum(i,j,ni)*astari) * xtmp
@@ -823,9 +790,6 @@
          ! compute apartic
 
          do ni = 0, ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do j = jlo, jhi
             do i = ilo, ihi
                apartic(i,j,ni) = Gsum(i,j,ni-1) - Gsum(i,j,ni)
@@ -1050,9 +1014,6 @@
 
       neg_aice0 = .false.
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do j = jlo, jhi
       do i = ilo, ihi
          aice0(i,j) = aice0(i,j)                               &
@@ -1122,9 +1083,6 @@
 
          large_ardg = .false.
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -1195,9 +1153,6 @@
       !-----------------------------------------------------------------
 
          do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, icells
                i = indxi(ij)
                j = indxj(ij)
@@ -1311,9 +1266,6 @@
       ! category n2.
       !-----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, icells
                i = indxi(ij)
                j = indxj(ij)
@@ -1330,9 +1282,6 @@
       ! Transfer ice energy to category n2
       !-----------------------------------------------------------------
             do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
                do ij = 1, icells
                   i = indxi(ij)
                   j = indxj(ij)
@@ -1408,9 +1357,6 @@
       !-----------------------------------------------------------------
 
       do ni = 1, ncat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do j = jlo, jhi
          do i = ilo, ihi
             asum(i,j) = asum(i,j) + aicen(i,j,ni)

@@ -39,6 +39,9 @@ SUBROUTINE INTERNAL_STEP
   USE MOD_ICE
   USE MOD_ICE2D
   USE MOD_NORTHPOLE
+! lwang added for SST mld assimilation
+  USE MOD_MLD_RHO
+! lwang
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
@@ -106,6 +109,11 @@ SUBROUTINE INTERNAL_STEP
   REAL(SP) :: SPDAYS
 # endif
   integer :: i1,i2
+
+  REAL(SP), ALLOCATABLE :: TB1(:,:),SB1(:,:),Q2B(:,:),Q2LB(:,:),UB(:,:),VB(:,:)
+  REAL(SP), ALLOCATABLE :: DYEB(:,:)
+  REAL(SP) :: RCOFT
+  INTEGER :: ITER
 !------------------------------------------------------------------------------|
 
   if(dbg_set(dbg_sbr)) write(ipt,*)&
@@ -631,6 +639,7 @@ SUBROUTINE INTERNAL_STEP
 
     CALL VISCOF_H        ! Calculate horizontal diffusion coefficient scalars !
   
+  IF(.NOT. RK_3D_ON)THEN
 #   if defined (GCN)
     CALL ADV_UV_EDGE_GCN ! Horizontal Advect/Diff + Vertical Advection        !
 #   else
@@ -687,6 +696,53 @@ SUBROUTINE INTERNAL_STEP
     CALL GEN_POISSON
     CALL UPDATE_QUVW
 #   endif
+
+  ELSE
+   ALLOCATE(UB(0:NT,KB))      ; UB = 0.0_SP
+   ALLOCATE(VB(0:NT,KB))      ; VB = 0.0_SP
+   UB = U
+   VB = V
+   RCOFT = 0.5_SP
+   DO ITER = 1,2
+#   if defined (GCN)
+    CALL ADV_UV_EDGE_GCN_RK(UB,VB) ! Horizontal Advect/Diff + Vertical Advection        !
+#   else
+    CALL ADV_UV_EDGE_GCY ! Horizontal Advect/Diff + Vertical Advection        !
+#   endif
+
+     CALL VDIF_UV         ! Implicit Integration of Vertical Diffusion of U/V  !
+
+    IF(ADCOR_ON) THEN
+      CALL ADCOR
+      CALL VDIF_UV         ! Implicit Integration of Vertical Diffusion of U/V  !
+    ENDIF
+
+#   if defined (WET_DRY)
+    DO I=1,N
+      IF(H1(I) <= STATIC_SSH_ADJ ) THEN
+        DO K=1,KBM1
+           UF(I,K)=UA(I)
+           VF(I,K)=VA(I)
+        END DO
+      END IF
+    END DO
+#   endif
+
+#   if defined (GCN)
+    CALL BCOND_GCN(3,0)    ! Boundary Condition on U/V At River Input
+#   else
+    CALL BCOND_GCY(3,0)    ! Boundary Condition on U/V At River Input
+#   endif
+
+    U = UF
+    V = VF
+    IF(ITER /= 2)THEN
+      U = RCOFT*U+(1.0_SP-RCOFT)*UB
+      V = RCOFT*V+(1.0_SP-RCOFT)*VB
+    END IF
+   END DO
+   DEALLOCATE(UB,VB)
+  END IF
 
 #   if !defined (NH)
     IF(NESTING_ON )THEN
@@ -926,7 +982,7 @@ SUBROUTINE INTERNAL_STEP
     CALL UPDATES_SEMI
     DO I=1,IOBCN            ! do linear T/S case, must redo this part, carefule!
       J=I_OBC_N(I)
-      UARD_OBCN(I)=-(EL(J)-ET(J))*ART1(J)/DTI-XFLUX_OBCN(I) ! this over writes the UARD_OBCN values set in external_Step! RJT2015
+      UARD_OBCN(I)=-(EL(J)-ET(J))*ART1(J)/DTI-XFLUX_OBCN(I)
     END DO
 
 #  endif
@@ -975,8 +1031,6 @@ SUBROUTINE INTERNAL_STEP
      
      ! There is a bug in the advection of turbulent kinetic energy
      ! when using the GOTM MODULE
-! RJT It does indeed crash after a few iterations. Not having advection of
-! turbulence quantities limits the usability of GOTM with fvcom...
      
      !     CALL ADV_Q(TKE,TKEF)     !!Advection of Tubulent Kinetic Energy
      !     CALL ADV_Q(TEPS,TEPSF)   !!Advection of Turbulent Dissipation Rate 
@@ -990,6 +1044,7 @@ SUBROUTINE INTERNAL_STEP
      
 #   else     
      !===================Original FVCOM MY-2.5/Galperin 1988 Model=============!
+   IF(.NOT. RK_3D_ON)THEN  
 #    if defined (SEMI_IMPLICIT)     
      Q2C  = Q2
      Q2LC = Q2L 
@@ -1039,8 +1094,38 @@ SUBROUTINE INTERNAL_STEP
 #    if defined (SEMI_IMPLICIT)
      ENDDO
 #    endif
+  ELSE
+    ALLOCATE(Q2B(0:MT,KB))      ;  Q2B = 0.0_SP
+    ALLOCATE(Q2LB(0:MT,KB))     ;  Q2LB = 0.0_SP
+    Q2B  = Q2
+    Q2LB = Q2L
+    RCOFT = 0.5_SP
+    DO ITER = 1,2
+     CALL ADV_Q_RK(Q2,Q2B,Q2F)       !!Advection of Q2 
+     CALL ADV_Q_RK(Q2L,Q2LB,Q2LF)
+#    if defined(MULTIPROCESSOR)
+     IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,Q2F)
+     IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,Q2LF)
 #    endif
 
+     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_Q2             !Conservation Correction   !
+     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_Q2L            !Conservation Correction   !
+
+     CALL VDIF_Q                  !! Solve Q2,Q2*L eqns for KH/KM/KQ 
+#    if defined (MULTIPROCESSOR)
+     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,Q2F,Q2LF,L) !Interprocessor Exchange !
+#    endif
+      Q2  = Q2F
+      Q2L = Q2LF
+
+      IF(ITER /= 2)THEN
+        Q2 = RCOFT*Q2+(1.0_SP-RCOFT)*Q2B
+        Q2L = RCOFT*Q2L+(1.0_SP-RCOFT)*Q2LB
+      END IF
+    END DO
+    DEALLOCATE(Q2B,Q2LB) 
+  END IF
+# endif
 ! end if defined(GOTM)
   CASE('constant')
      KM = UMOL
@@ -1055,8 +1140,8 @@ SUBROUTINE INTERNAL_STEP
   CALL N2E3D(KM,KM1)
 
 # if defined (WAVE_CURRENT_INTERACTION)
-     !U=U-U_STOKES_3D
-     !V=V-V_STOKES_3D
+!     U=U-U_STOKES_3D
+!     V=V-V_STOKES_3D
 # endif
 
 
@@ -1109,7 +1194,10 @@ SUBROUTINE INTERNAL_STEP
   !==============================================================================!
   !    UPDATE TEMPERATURE IN NON-BAROTROPIC CASE                                 !
   !==============================================================================!
-  IF(TEMPERATURE_ACTIVE)THEN 
+  IF(TEMPERATURE_ACTIVE)THEN
+# if !defined (SEMI_IMPLICIT)
+  IF(.NOT. RK_3D_ON)THEN
+# endif 
      
 #    if defined (SEMI_IMPLICIT)
      TSC  = T1
@@ -1148,6 +1236,41 @@ SUBROUTINE INTERNAL_STEP
 #   endif
      CALL BCOND_TS(1)                               !Boundary Conditions       !
 
+# if !defined (SEMI_IMPLICIT)
+  ELSE
+    ALLOCATE(TB1(0:MT,KB))        ; TB1 = 0.0_SP
+    TB1 = T1
+    RCOFT = 0.5_SP
+    DO ITER = 1,2
+     CALL ADV_T_RK(TB1)                                     !Advection                 !
+#    if defined(MULTIPROCESSOR)
+     IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,TF1)
+#    endif
+
+     !#                                                   if !defined !(DOUBLE_PRECISION)
+     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_T            !Conservation Correction   !
+     !#                                                   endif
+
+     IF(CASENAME(1:3) == 'gom')THEN
+        CALL VDIF_TS_GOM(1,TF1)
+     ELSE
+        CALL VDIF_TS(1,TF1)                            !Vertical Diffusion
+     END IF
+
+#   if defined (MULTIPROCESSOR)
+     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,TF1) !Interprocessor Exchange   !
+#   endif
+     CALL BCOND_TS(1)                               !Boundary Conditions       !
+     
+     T1 = TF1
+     IF(ITER /= 2)THEN
+       T1 = RCOFT*T1+(1.0_SP-RCOFT)*TB1
+     END IF
+    END DO
+    DEALLOCATE(TB1)
+  ENDIF
+# endif
+
      IF(NESTING_ON )THEN
        CALL SET_VAR(intTime,T1=TF1)
      END IF
@@ -1179,6 +1302,13 @@ SUBROUTINE INTERNAL_STEP
 #    endif
 
 #    if defined (DATA_ASSIM)
+!---> Siqi, SST_improved
+     IF(SST_ASSIM .OR. SSTGRD_ASSIM)THEN
+!    IF(ASSIM_FLAG==0) CALL SST_SAVE
+    IF(ASSIM_FLAG==1) CALL SSTGRD_NUDGE
+  END IF
+!<--- Siqi
+
      IF(TS_NGASSIM .OR. (TS_OIASSIM .AND. MOD(IINT,TS_NSTEP_OI) == 0))THEN
       IF(ASSIM_FLAG==0 .AND. (.NOT.SST_ASSIM .AND. .NOT.SSTGRD_ASSIM .AND. &
          .NOT.SSHGRD_ASSIM .AND. .NOT.TSGRD_ASSIM))CALL TEMP_ASSIMILATION
@@ -1193,7 +1323,7 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (ONE_D_MODEL)
 !J. Ge for tracer advection
-     IF(BACKWARD_ADVECTION .eqv. .TRUE.)THEN
+     IF(BACKWARD_ADVECTION .EQV. .TRUE.)THEN
        IF(BACKWARD_STEP==1)THEN
         T0 = T1
        ELSEIF(BACKWARD_STEP==2)THEN
@@ -1217,7 +1347,11 @@ SUBROUTINE INTERNAL_STEP
   !    UPDATE SALINITY IN NON-BAROTROPIC CASE                                    !
   !==============================================================================!
 
-  IF(SALINITY_ACTIVE)THEN                            !                          !   
+  IF(SALINITY_ACTIVE)THEN
+# if !defined (SEMI_IMPLICIT)
+  IF(.NOT. RK_3D_ON)THEN
+# endif                   
+
 #    if defined (SEMI_IMPLICIT)
      TSC  = S1
      DO STAGE = 1, KSTAGE_TS
@@ -1256,6 +1390,42 @@ SUBROUTINE INTERNAL_STEP
 
      CALL BCOND_TS(2)                               !Boundary Conditions       !
 
+# if !defined (SEMI_IMPLICIT)
+  ELSE
+    ALLOCATE(SB1(0:MT,KB))         ; SB1 = 0.0_SP
+    SB1 = S1
+    RCOFT = 0.5_SP
+    DO ITER = 1,2
+     CALL ADV_S_RK(SB1)                                     !Advection                 !
+#    if defined(MULTIPROCESSOR)
+     IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,SF1)
+#    endif
+
+     !#                                                   if !defined     !(DOUBLE_PRECISION)
+     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_S       !Conservation Correction   !
+     !#                                                   endif
+
+     IF(CASENAME(1:3) == 'gom')THEN
+        CALL VDIF_TS_GOM(2,SF1)
+     ELSE
+        CALL VDIF_TS(2,SF1)                            !Vertical Diffusion
+     END IF
+
+#   if defined (MULTIPROCESSOR)
+     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,SF1) !Interprocessor Exchange   !
+#   endif
+
+     CALL BCOND_TS(2)                               !Boundary Conditions       !
+
+     S1 = SF1
+     IF(ITER /= 2)THEN
+       S1 = RCOFT*S1+(1.0_SP-RCOFT)*SB1
+     END IF
+    END DO
+    DEALLOCATE(SB1)
+  END IF
+# endif
+
      IF(NESTING_ON )THEN
        CALL SET_VAR(intTime,S1=SF1)
      END IF
@@ -1290,7 +1460,7 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (ONE_D_MODEL)
 !J. Ge for tracer advection
-     IF(BACKWARD_ADVECTION .eqv. .TRUE.)THEN
+     IF(BACKWARD_ADVECTION .EQV. .TRUE.)THEN
        IF(BACKWARD_STEP==1)THEN
         S0 = S1
        ELSEIF(BACKWARD_STEP==2)THEN
@@ -1317,14 +1487,21 @@ SUBROUTINE INTERNAL_STEP
   !    UPDATE DYE IN NON-BAROTROPIC CASE                                         !
   !==============================================================================!
   !     IF(DYE_ON.AND.IINT.GE.IINT_SPE_DYE_B) THEN     !                          !                          !
-  IF(DYE_ON) THEN     !                          !                          !
+  IF(DYE_ON) THEN     !
+   IF(.NOT. RK_3D_ON)THEN                          !                          !
+#    if defined (SEMI_IMPLICIT)
+     TSC  = DYE
+     DO STAGE = 1, KSTAGE_TS
+#    endif
      CALL ADV_DYE                                   !Advection                 !
-     
      
 #     if defined(MULTIPROCESSOR)
      IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,DYEF)
 #     endif
      
+#    if defined (SEMI_IMPLICIT)
+     DYE = TSC
+#    endif
      
 #     if !defined (DOUBLE_PRECISION)
      !     IF(TS_FCT) CALL AVER_DYE                      !Conservation Correction   !
@@ -1342,7 +1519,35 @@ SUBROUTINE INTERNAL_STEP
      CALL BCOND_DYE                                 !Boundary Conditions       !
      DYE = DYEF                                     !Update to new time level  !
      
-     !!     IF(MSR) WRITE(IPT,*) 'CALL Dye_on--iint=',iint,IINT_SPE_DYE_B
+#    if defined (SEMI_IMPLICIT)
+     ENDDO
+#    endif
+
+      !!     IF(MSR) WRITE(IPT,*) 'CALL Dye_on--iint=',iint,IINT_SPE_DYE_B
+   ELSE
+     ALLOCATE(DYEB(0:MT,KB))     ; DYEB=0.0_SP
+     DYEB = DYE
+     RCOFT = 0.5_SP
+     DO ITER = 1,2
+     CALL ADV_DYE_RK(DYEB)                                   !Advection                 !
+#    if defined(MULTIPROCESSOR)
+     IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,DYEF)
+#    endif
+
+     CALL VDIF_DYE(DYEF)                            !Vertical Diffusion        !
+
+#    if defined (MULTIPROCESSOR)
+     IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,DYEF) !Interprocessor Exchange   !
+#    endif
+     CALL BCOND_DYE                                 !Boundary Conditions       !
+     DYE = DYEF                                     !Update to new time level  !
+
+     IF(ITER /= 2)THEN
+       DYE = RCOFT*DYE+(1.0_SP-RCOFT)*DYEB
+     ENDIF
+    END DO
+    DEALLOCATE(DYEB)
+   END IF
   END IF                                         !                          !
   !==================================================================================!
 #   endif  
@@ -1387,7 +1592,16 @@ SUBROUTINE INTERNAL_STEP
 
   IF(SST_ASSIM .OR. SSTGRD_ASSIM)THEN
     IF(ASSIM_FLAG==0) CALL SST_SAVE
-    IF(ASSIM_FLAG==1) CALL SSTGRD_NUDGE
+! lwang added for SST mld assimilation
+    IF(SSTGRD_ASSIM .AND. SSTGRD_MLD .AND. IntTime%MuSOD==0)THEN
+      IF(MSR) write(ipt,*) 'RUN MLD_RHO CALCULATION', IntTime%MJD,IntTime%MuSOD
+!---> Siqi Li, @20210809
+!      CALL MLD_RHO_CAL(RHO_AVG,MLD_RHO)
+      CALL MLD_RHO_CAL(M, KBM1, RHO_AVG,MLD_RHO)
+!<--- Siqi Li, @20210809
+    END IF
+! lwang
+!    IF(ASSIM_FLAG==1) CALL SSTGRD_NUDGE   ! Siqi, SST_improved
   END IF
 
   IF(SSHGRD_ASSIM) THEN
@@ -1513,8 +1727,7 @@ SUBROUTINE INTERNAL_STEP
 !  END IF
 !==============================================================================!
 # endif
-  
-  
+
 # if !defined (TWO_D_MODEL)
   !==============================================================================!
   !     UPDATE VELOCITY FIELD (NEEDED TO WAIT FOR SALINITY/TEMP/TURB/TRACER)     |
@@ -1544,6 +1757,18 @@ SUBROUTINE INTERNAL_STEP
      CALL AEXCHANGE(NC,MYID,NPROCS,VISCOFH)
   END IF
 #   endif
+
+!---> Siqi Li, @20210809  
+  IF (NC_MLD) THEN
+    IF (abs(NC_DAT%FTIME%NEXT_IO -IntTime)<0.1_SP*IMDTI) THEN
+      CALL MLD_RHO_CAL(M, KBM1, RHO1(1:M,:), MLD_OUT(1:M)) 
+#   if defined (MULTIPROCESSOR)
+      IF (PAR) CALL AEXCHANGE(NC,MYID,NPROCS,MLD_OUT) 
+#   endif
+    END IF
+  END IF
+!<--- 
+
   !==============================================================================!
   !     PERFORM DATA EXCHANGE FOR WATER QUALITY VARIABLES                        |
   !==============================================================================!

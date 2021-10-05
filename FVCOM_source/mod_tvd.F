@@ -1,3 +1,29 @@
+! -----------------------------------------------------------------------------
+! The TVD option for FVCOM was developed by Akvaplan-niva in 2018.
+! Preliminary results suggest that TVD advection achieves less numerical
+! diffusion and better shape preserving properties than the standard scheme. 
+!
+! This scheme is also 2nd order accurate, the difference to the standard
+! scheme lies in how we interpolate values to the control-volume walls.
+!
+! We recommend those interested in a deeper understanding of TVD schemes can be
+! applied for unstructured mesh models to have a look at Zhang et. al. (2015), 
+! Zhang et. al. (2016) and Darwish and Moukalled (2003) 
+!
+! Zhang, Di, et al. "A refined r‐factor algorithm for TVD schemes on arbitrary 
+! unstructured meshes." 
+! International Journal for Numerical Methods in Fluids 80.2 (2016): 105-139.
+!
+! Zhang, Zhuo, et al. "A new r‐ratio formulation for TVD schemes for 
+! vertex‐centered FVM on an unstructured mesh." 
+! International Journal for Numerical Methods in Fluids 81.12 (2016): 741-764.
+!
+! Darwish, M. S., and F. Moukalled. "TVD schemes for unstructured grids." 
+! International Journal of heat and mass transfer 46.4 (2003): 599-611.
+!
+! - Håvard Espenes, Ole Anders Nøst
+! -----------------------------------------------------------------------------
+
 MODULE MOD_TVD
 
    USE MOD_PREC
@@ -34,26 +60,27 @@ CONTAINS
 
   ! --------------------- Calculate TVD parameters ----------------------------- !
   DO I=1,NCV
-      IA = NIEC(I,1) ! Noden til venstre for kontrollvolum-kanten
-      IB = NIEC(I,2) ! Noden til høyre for kontrollvolum-kanten
+      IA = NIEC(I,1) ! The node to the left of the controllvolume-edge
+      IB = NIEC(I,2) ! The node to the right of the controllvolume-edge
 
-      LX = VX(IB)-VX(IA) ! X-avstanden mellom IA og IB
-      LY = VY(IB)-VY(IA) ! Y-avstanden mellom IA og IB
+      LX = VX(IB)-VX(IA) ! X-distance between IA and IB
+      LY = VY(IB)-VY(IA) ! Y-distance between IA and IB
 
-  ! Om A er oppstrøm
-      XUA(I) = VX(IA)-LX ! x-lokasjonen oppstrøm for IA
-      YUA(I) = VY(IA)-LY ! y-lokasjonen oppstrøm for IA
+  ! If A is upstream
+      XUA(I) = VX(IA)-LX ! x-location upstream of IA
+      YUA(I) = VY(IA)-LY ! y-location upstream of IA
 
-  ! Om B er oppstrøm
-      XUB(I) = VX(IB)+LX ! x-lokasjonen oppstrøm for IB
-      YUB(I) = VY(IB)+LY ! y-lokasjonen oppstrøm for IB
+  ! If B is upstream
+      XUB(I) = VX(IB)+LX ! x-location upstream of IB
+      YUB(I) = VY(IB)+LY ! y-location upstream of IB
  
-  ! Finner avstanden mellom oppstrøms-punktene og alle nodene i domenet
+  ! Finding the distance between the upstream-points and all nodes in the domain
          DO I2=1,M
           dstA(I2)=SQRT((VX(I2)-XUA(I))**2.0_SP+(VY(I2)-YUA(I))**2.0_SP)
           dstB(I2)=SQRT((VX(I2)-XUB(I))**2.0_SP+(VY(I2)-YUB(I))**2.0_SP)
          END DO
 
+  ! Choosing the node closest to the imaginary upstream node
          minA = MINVAL(dstA)
          minB = MINVAL(dstB)
 
@@ -66,13 +93,13 @@ CONTAINS
            end if
          END DO
 
-  ! Lagrer avstanden fra oppstrømsnoden til den nærmeste noden
+  ! Storing the distance from the upstreamnode to the nearest node
   ! ------------------------------------------------------------
-  ! A-noden oppstrøm
+  ! A-node is upstream
       XUAdist(I) = XUA(I) - VX(Anear_node(I))
       YUAdist(I) = YUA(I) - VY(Anear_node(I))
 
-  ! B-noden oppstrøm
+  ! B-node is upstream
       XUBdist(I) = XUB(I) - VX(Bnear_node(I))
       YUBdist(I) = YUB(I) - VY(Bnear_node(I))
   END DO 

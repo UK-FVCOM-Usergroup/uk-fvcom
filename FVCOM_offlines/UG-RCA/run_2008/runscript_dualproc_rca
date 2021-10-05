@@ -1,0 +1,47 @@
+#!/bin/sh
+### WRITE NOTHING ABOVE THIS LINE: PBS MUST COME FIRST!
+###=====================================================#
+###=====================================================#
+###  The following lines are not just comments, they are
+###  commands needed to run your job. Edit the user name,
+###  job name, output file and number of nodes as needed!
+###=====================================================#
+###
+###=====================================================#
+### Set the username     [Example: #PBS -u qxu ]
+#PBS -u rtian
+###=====================================================#
+### Set job name         [Example: #PBS -N gom3 ]
+#PBS -N MWRA
+###=====================================================#
+### Set output file name [Example: #PBS -o fvcom.log ]
+###                                #PBS -e fvcom.err
+#PBS -e rca.err
+#PBS -o rca.log
+###=====================================================#
+### DUALCORE [Example: 8 nodes, 2 cores = 16 processors ]
+#PBS -l nodes=2:ppn=2:dualproc:ib
+###=====================================================#
+###=====================================================#
+### Declare job non-rerunable
+#PBS -r n
+###=====================================================#
+
+###=====================================================#
+# This job's working directory
+echo Working directory is $PBS_O_WORKDIR
+
+### MAKE SURE THE PATH DOES NOT INCLUDE '/hosts/hydra/'
+echo Modified Working dir is: `echo $PBS_O_WORKDIR | sed 's_/hosts/hydra/_/_'`
+cd `echo $PBS_O_WORKDIR | sed 's_/hosts/hydra/_/_'`
+###=====================================================#
+
+###=====================================================#
+#
+### THIS IS YOUR RUN COMMAND EDIT IT AS NEEDED!
+#
+mpiexec -kill ../code/rca_eutro
+###=====================================================#
+
+echo Tada! `date`
+### END

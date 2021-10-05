@@ -390,7 +390,7 @@ module mod_boundschk
 
     !shutdown
 #   if defined(MULTIPROCESSOR)
-    call mpi_barrier(mpi_comm_world,ierr)
+    call mpi_barrier(MPI_FVCOM_GROUP,ierr)
 #   endif
     call pstop
 

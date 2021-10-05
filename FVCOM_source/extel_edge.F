@@ -44,10 +44,6 @@
    USE MOD_BALANCE_2D
 #  endif
 
-#  if defined (WET_DRY)
-   USE MOD_WD
-#  endif
-
 !  ggao 0903/2007
 #  if defined (ICE)
    use mod_ice,only : isicen  !,fresh,RHOW
@@ -91,11 +87,7 @@
      I1  = NTRG(I)
      IA  = NIEC(I,1)
      IB  = NIEC(I,2)
-#    if defined (WET_DRY)
-     DIJ = D1(I1)-DELF1(I1)
-#    else
      DIJ = D1(I1)
-#    endif
 
      UIJ = UA(I1)
      VIJ = VA(I1)

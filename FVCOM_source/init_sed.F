@@ -133,7 +133,7 @@
   ! store the fraction at bed surface
   !------------------------------------------------------
   !do ised=1,nst
-  !   sed(ised)%frac(1:m,1:nbed)=sedbed%bed_frac(1:m,1:nbed,ised) ! sedbed is only present in CSTMS 
+  !   sed(ised)%frac(1:m,1:nbed)=sedbed%bed_frac(1:m,1:nbed,ised)
   !end do
 
   !--------------------------------------------------

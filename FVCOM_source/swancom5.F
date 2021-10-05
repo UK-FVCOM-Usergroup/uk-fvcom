@@ -119,8 +119,8 @@
 !
   INTEGER :: IC,IS,ID,I,INDX
   REAL    :: NN(1:MSC), ND(1:MSC)                                    
-  REAL    :: DEP2(MT),KWAVEL(1),CGOL(1)
-  REAL    :: DEPLOC,SPCSIGL(1)
+  REAL    :: DEP2(MT),KWAVEL,CGOL
+  REAL    :: DEPLOC,SPCSIGL
 
   DEPLOC = (DEP2(NV(I,1))+DEP2(NV(I,2))+DEP2(NV(I,3)))/3.0
   IF(DEPLOC <= DEPMIN)THEN
@@ -130,7 +130,7 @@
   ELSE
 !   *** call KSCIP1 to compute KWAVE and CGO ***
     SPCSIGL = SPCSIG(IS)
-    CALL KSCIP1(1,SPCSIGL,DEPLOC,KWAVEL,CGOL,NN,ND) ! RJT Errors with inconsistencies between assumed shapes of arguments                            
+    CALL KSCIP1(1,SPCSIGL,DEPLOC,KWAVEL,CGOL,NN,ND)                                 
   END IF
 
   RETURN

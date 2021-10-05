@@ -1,0 +1,274 @@
+                                Control file for WQM
+
+
+TITLE C ................................TITLE...................................
+Example 1 for connecting EFDC to LSJR
+Set up for COLD START !
+See also /sjr/beodata/models/cequal_icm/efdc_interface/example2
+    and /sjr/beodata/models/efdc/efdc_sjrwmd/example2
+This code version was used for LSJR TMDL
+A tide channel with 2 layers
+
+GEOM DEFINE  MGL     NGL      KB   NOBTY  
+           25551   50000       4      51   
+
+TIME CON  TMSTRT   TMEND  YEARSTRT   DTI
+             0.0    20.0    1995  300.00 
+
+# DLT       NDLT
+               1
+
+DLT DAY     DLTD    DLTD    DLTD    DLTD    DLTD    DLTD    DLTD    DLTD    DLTD
+             0.0
+
+DLT VAL   DLTVAL  DLTVAL  DLTVAL  DLTVAL  DLTVAL  DLTVAL  DLTVAL  DLTVAL  DLTVAL
+            300.
+
+DLT MAX   DLTMAX  DLTMAX  DLTMAX  DLTMAX  DLTMAX  DLTMAX  DLTMAX  DLTMAX  DLTMAX
+           3600.
+
+DLT FTN   DLTFTN  DLTFTN  DLTFTN  DLTFTN  DLTFTN  DLTFTN  DLTFTN  DLTFTN  DLTFTN
+            0.95
+
+HM DLT    AHMDLT  FILGTH
+          3600.0  1095.0
+
+SNAPSHOT    SNPC    NSNP
+              ON       1
+  
+SNAP DAY    SNPD    SNPD    SNPD    SNPD    SNPD    SNPD    SNPD    SNPD    SNPD
+             0.0
+
+SNAP FRQ    SNPF    SNPF    SNPF    SNPF    SNPF    SNPF    SNPF    SNPF    SNPF
+           365.0
+
+PLOT        PLTC   QPLTC   SPLTC SAVPLTC    NPLT
+              ON      ON      ON     OFF       1
+
+PLOT DAY    PLTD    PLTD    PLTD    PLTD    PLTD    PLTD    PLTD    PLTD    PLTD
+             0.5    90.0   120.0
+
+PLOT FREQ   PLTF    PLTF    PLTF    PLTF    PLTF    PLTF    PLTF    PLTF    PLTF
+             1.0    30.4
+
+AV PLOT    APLTC    NAPL
+              ON       1
+
+AVPLT DAY  APLTD   APLTD   APLTD   APLTD   APLTD   APLTD   APLTD   APLTD   APLTD
+             0.0   151.0   243.0   516.0   608.0   881.0   973.0
+             
+AVPLT FREQ  APLF    APLF    APLF    APLF    APLF    APLF    APLF    APLF    APLF
+            30.4   365.0   365.0   365.0   365.0   365.0   365.0   365.0
+
+TRAN FLUX   TFLC    NTFL
+              ON       1
+
+FLUX DAY    TFLD    TFLD    TFLD    TFLD    TFLD    TFLD    TFLD    TFLD    TFLD
+              0.
+
+FLUX FREQ   TFLF    TFLF    TFLF    TFLF    TFLF    TFLF    TFLF    TFLF    TFLF
+            30.4
+
+KIN FLUX    KFLC    NKFL
+              ON       1
+
+FLUX DAY    KFLD    KFLD    KFLD    KFLD    KFLD    KFLD    KFLD    KFLD    KFLD
+              0.    90.0   120.0
+
+FLUX FREQ   KFLF    KFLF    KFLF    KFLF    KFLF    KFLF    KFLF    KFLF    KFLF
+            30.4  0.0417     1.0
+
+OXY PLOT    OPLC    NOPL   NOINT
+             OFF       1       8
+
+OXY INT     OINT    OINT    OINT    OINT    OINT    OINT    OINT    OINT    OINT
+            -1.0     1.0     2.0     3.0     4.0     5.0     8.0    16.0
+
+OXY DAY     OPLD    OPLD    OPLD    OPLD    OPLD    OPLD    OPLD    OPLD    OPLD
+              1.
+
+OXY FREQ    OPLF    OPLF    OPLF    OPLF    OPLF    OPLF    OPLF    OPLF    OPLF
+              5.
+
+MASS BAL    MBLC    NMBL
+             OFF       1
+
+MBL DAY     MBLD    MBLD    MBLD    MBLD    MBLD    MBLD    MBLD    MBLD    MBLD
+             0.0
+
+MBL FREQ    MBLF    MBLF    MBLF    MBLF    MBLF    MBLF    MBLF    MBLF    MBLF
+              1.
+
+DIAGNSTCS   DIAC    NDIA
+              ON       1
+
+DIA DAY     DIAD    DIAD    DIAD    DIAD    DIAD    DIAD    DIAD    DIAD    DIAD
+               0.
+
+DIA FREQ    DIAF    DIAF    DIAF    DIAF    DIAF    DIAF    DIAF    DIAF    DIAF
+            30.0
+
+RESTART     RSOC    NRSO    RSIC
+             OFF       1     OFF
+
+RST DAY     RSOD    RSOD    RSOD    RSOD    RSOD    RSOD    RSOD    RSOD    RSOD
+            360.
+
+HYD SOLTN    SLC   CONSC      TH MINSTEP
+        QUICKEST    MASS     1.0    10.0
+
+CONTROLS    SEDC   AUTOC     VBC    BFOC    STLC    ICIC    ICOC   SAVMC
+             OFF      ON      ON     OFF      ON UNIFORM      ON     OFF
+              ON                              ON
+CONTROLS  SUSFDC  DEPFDC    LOXC
+             OFF     OFF      ON
+                              ON
+DEAD SEA     FLC   XYDFC    ZDFC
+              ON      ON      ON
+
+HDIFF       XYDF  ZDFMUL  ZDFBCK  ZDFMAX
+             1.0     1.0  0.0001     0.1
+
+HDIFFTYPE  XYDFU
+              ON
+	       
+CST INPUT    BCC     S1C     S2C     S3C     MDC     BFC    ATMC   SAVLC
+              ON     OFF     OFF     OFF     OFF     OFF     OFF     OFF
+
+NUTR RED  REDS1C  REDS1N  REDS1P  REDS2C  REDS2N  REDS2P  REDS3C  REDS3N  REDS3P
+             1.0     1.0     1.0     1.0     1.0     1.0     1.0     1.0     1.0
+
+NUTR RED  REDCBC  REDCBN  REDCBP  
+             1.0     1.0     1.0  
+
+BOUNDARY   BNDTC
+          INTERP
+
+ACT CST      ACC     ACC     ACC     ACC     ACC     ACC     ACC     ACC     ACC
+              ON      ON     OFF      ON     OFF     OFF     OFF     OFF      ON
+              ON      ON      ON      ON      ON      ON      ON      ON      ON
+              ON      ON      ON      ON      ON      ON      ON     OFF      ON
+             OFF     OFF     OFF     OFF     OFF
+              
+# FILES    NHYDF   NTVDF
+               4       4
+
+MAP FILE................................MAPFN...................................
+        inputs/icm_map_file.npt
+
+GEO FILE................................GEOFN...................................
+        inputs/icm_geo_file.npt 
+
+ICI FILE................................ICIFN....(was benthos)..................
+        inputs/initial_conditions.into_3_yr_11
+
+AGR FILE................................AGRFN...................................
+        inputs/wqm_algae.3_yr_7
+
+ZOO FILE................................ZOOFN...................................
+        inputs/zooplankton.npt   NOT USED
+
+SUS FILE................................ZOOFN...................................
+        inputs/susp_feeder.npt   NOT USED
+
+STL FILE................................STLFN...................................
+        inputs/settling.10_yr_3
+
+MRL FILE................................MRLFN...................................
+        inputs/mineralization.3_yr_8
+
+EXT FILE................................EXTFN...................................
+        inputs/wqm_kei_102003.npt
+
+MET FILE................................METFN...................................
+        inputs/meteorologic.npt
+        inputs/meteorologic.npt
+        inputs/meteorologic.npt
+        inputs/meteorologic.npt
+
+S1  FILE................................S1FN....................................
+        inputs/s1_load.npt   NOT USED
+        inputs/s1_load.npt
+        inputs/s1_load.npt
+        inputs/s1_load.npt
+
+S2  FILE................................S2FN....................................
+        inputs/s2_load.npt   NOT USED
+        inputs/s2_load.npt
+        inputs/s1_load.npt
+        inputs/s1_load.npt
+
+S3  FILE................................S3FN....................................
+        inputs/s3_load.npt   NOT USED
+        inputs/s3_load.npt
+        inputs/s1_load.npt
+        inputs/s1_load.npt
+
+ATM FILE................................ATMFN...................................
+        inputs/atmospheric.npt   NOT USED
+        inputs/atmospheric.npt
+        inputs/s1_load.npt
+        inputs/s1_load.npt
+
+SVI FILE................................SAVFN...................................
+        inputs/sav.npt   NOT USED
+        inputs/sav.npt
+        inputs/sav.npt
+        inputs/sav.npt
+
+BFI FILE................................BFIFN...................................
+        inputs/sediment.3_yr_7
+        inputs/sediment.npt
+        inputs/sediment.npt
+        inputs/sediment.npt
+
+CBC FILE................................CBCFN...................................
+        inputs/wqm_cbc.w_iss
+        inputs/wqm_cbc.w_iss
+        inputs/wqm_cbc.w_iss
+        inputs/wqm_cbc.w_iss
+ 
+ICO FILE................................ICOFN...................................
+        outputs/initial_conditions.3_yr_11
+
+SNP FILE................................SNPFN...................................
+        outputs/snapshot.3_yr_11
+        
+RSO FILE................................RSOFN...................................
+        outputs/restart.3_yr_11
+
+PLT FILE................................PLTFN...................................
+        outputs/plot.3_yr_11
+
+APL FILE................................APLFN...................................
+        outputs/avg_plot.3_yr_11
+
+DIA FILE................................DIAFN...................................
+        outputs/diagnostics.3_yr_11
+
+TFL FILE................................TFLFN...................................
+        outputs/transport_flux.3_yr_11
+
+KFL FILE................................KFLFN...................................
+        outputs/kinetics.3_yr_11
+
+OPL FILE................................OPLFN...................................
+        outputs/oxygen_plot.3_yr_11
+
+MBL FILE................................MBLFN...................................
+        outputs/mass_balance.3_yr_11
+
+ALO FILE................................ALOFN...................................
+        outputs/algae.3_yr_11
+
+ZFO FILE................................ZFOFN...................................
+        outputs/zooplankton.3_yr_11
+
+BFO FILE................................BFOFN...................................
+        outputs/benthic_flux.3_yr_11
+
+SVO FILE................................SVOFN...................................
+        outputs/sav.3_yr_11
+
+SUD FILE................................SUDFN...................................
+        outputs/suspension_feeders.3_yr_11

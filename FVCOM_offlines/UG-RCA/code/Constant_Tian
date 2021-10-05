@@ -1,0 +1,233 @@
+New    State variables    Old
+    (1) Salinity          (1)
+    (2) Phyto winter      (2)
+    (3) Phyto summer      (3)
+    (4) Phyto fall        (26)
+    (5) RPOP              (4)
+    (6) LPOP              (5)
+    (7) RDOP              (6)
+    (8) LDOP              (7)
+    (9) PO4               (8)
+    (10) RPON             (9)
+    (11) LPON             (10)
+    (12) RDON             (11)
+    (13) LDON             (12)
+    (14) NH4              (13)
+    (15) NO23             (14)
+    (16) BSi              (15)
+    (17) SiO3             (16)
+    (18) RPOC             (17)
+    (19) LPOC             (18)
+    (20) RDOC             (19)
+    (21) LDOC             (20)
+    (22) ExDOC            (22)
+    (23) RePOC            (25)   !zero
+    (24) ReDOC            (21)
+    (25) EqDO             (23)
+    (26) DO               (24)
+ 
+ Old variables
+        1 - SALINITY (SAL)                                          PPT
+C
+C        2 - PHYTOPLANKTON - WINTER DIATOMS (PHYT1)               MG C/L
+C        3 - PHYTOPLANKTON - SUMMER ASSEMBLAGE (PHYT2)            MG C/L
+C
+C        4 - PARTICULATE ORGANIC PHOSPHOROUS - REFRACTORY (RPOP)  MG P/L
+C        5 - PARTICULATE ORGANIC PHOSPHOROUS - LABILE (LPOP)      MG P/L
+C        6 - DISSOLVED ORGANIC PHOSPHOROUS - REFRACTORY (RDOP)    MG P/L
+C        7 - DISSOLVED ORGANIC PHOSPHOROUS - LABILE (LDOP)        MG P/L
+C        8 - TOTAL DISSOLVED INORGANIC PHOSPHOROUS (PO4T)         MG P/L
+C
+C        9 - PARTICULATE ORGANIC NITROGEN - REFRACTORY (RPON)     MG N/L
+C       10 - PARTICULATE ORGANIC NITROGEN - LABILE (LPON)         MG N/L
+C       11 - DISSOLVED ORGANIC NITROGEN - REFRACTORY (RDON)       MG N/L
+C       12 - DISSOLVED ORGANIC NITROGEN - LABILE (LDON)           MG N/L
+C       13 - TOTAL AMMONIA (NH3T)                                 MG N/L
+C       14 - NITRITE + NITRATE (NO23)                             MG N/L
+C
+C       15 - BIOGENIC SILICA - UNAVAILABLE (BSI)                 MG SI/L
+C       16 - TOTAL SILICA - AVAILABLE (SIT)                      MG SI/L
+C
+C       17 - PARTICULATE ORGANIC CARBON - REFRACTORY (RPOC)       MG C/L
+C       18 - PARTICULATE ORGANIC CARBON - LABILE (LPOC)           MG C/L
+C       19 - DISSOLVED ORGANIC CARBON - REFRACTORY (RDOC)         MG C/L
+C       20 - DISSOLVED ORGANIC CARBON - LABILE (LDOC)             MG C/L
+C       21 - DISSOLVED ORGANIC CARBON - REACTIVE (REDOC)          MG C/L
+C       22 - DISSOLVED ORGANIC CARBON - ALGAL EXUDATE (EXDOC)     MG C/L
+C
+C       23 - O2*  - AQUEOUS SOD (O2EQ)                           MG O2/L
+C       24 - DISSOLVED OXYGEN (DO)                               MG O2/L
+C 
+C       25 - TOTAL ACTIVE METAL (TAM)                             MMOL/L
+C       26 - PHYTOPLANKTON - FALL DIATOMS (PHYT3)                 MG C/L    
+    
+                        
+    
+     (CONST(1),AGMOPT)  
+     (CONST(2),ACTALG)
+     (CONST(3),KAOPT)
+     (CONST(4),KEOPT)
+     (CONST(5),OPTION5)
+     (CONST(6),OPTION6)
+     
+     (CONST(9),TOPT1)
+     (CONST(10),K1BETA1)
+     (CONST(11),K1BETA2)
+     (CONST(12),K1C)
+     (CONST(13),K1T)
+     (CONST(14),IS1)
+     (CONST(15),KMN1)
+     (CONST(16),KMP1)
+     (CONST(17),KMS1)
+     (CONST(18),K1RB)
+     (CONST(19),K1RT)
+     (CONST(20),K1RG)
+     (CONST(21),K1GRZC)
+     (CONST(22),K1GRZT)
+     (CONST(23),CCHL1)
+     (CONST(24),CRBP11)
+     (CONST(25),CRBP12)
+     (CONST(26),CRBP13)
+     (CONST(27),CRBN11)
+     (CONST(28),CRBN12)
+     (CONST(29),CRBN13)
+     (CONST(30),CRBS11)
+     (CONST(31),CRBS12)
+     (CONST(32),CRBS13)
+     (CONST(33),XKC1)
+     (CONST(34),VSBAS1)
+     (CONST(35),VSNTR1)
+
+     (CONST(41),TOPT2)
+     (CONST(42),K2BETA1)
+     (CONST(43),K2BETA2)
+     (CONST(44),K2C)
+     (CONST(45),K2T)
+     (CONST(46),IS2)
+     (CONST(47),KMN2)
+     (CONST(48),KMP2)
+     (CONST(49),KMS2)
+     (CONST(50),K2RB)
+     (CONST(51),K2RT)
+     (CONST(52),K2RG)
+     (CONST(53),K2GRZC)
+     (CONST(54),K2GRZT)
+     (CONST(55),CCHL2)
+     (CONST(56),CRBP21)
+     (CONST(57),CRBP22)
+     (CONST(58),CRBP23)
+     (CONST(59),CRBN21)
+     (CONST(60),CRBN22)
+     (CONST(61),CRBN23)
+     (CONST(62),CRBS21)
+     (CONST(63),CRBS22)
+     (CONST(64),CRBS23)
+     (CONST(65),XKC2)
+     (CONST(66),VSBAS2)
+     (CONST(67),VSNTR2)
+
+     (CONST(73),TOPT3)
+     (CONST(74),K3BETA1)
+     (CONST(75),K3BETA2)
+     (CONST(76),K3C)
+     (CONST(77),K3T)
+     (CONST(78),IS3)
+     (CONST(79),KMN3)
+     (CONST(80),KMP3)
+     (CONST(81),KMS3)
+     (CONST(82),K3RB)
+     (CONST(83),K3RT)
+     (CONST(84),K3RG)
+     (CONST(85),K3GRZC)
+     (CONST(86),K3GRZT)
+     (CONST(87),CCHL3)
+     (CONST(88),CRBP31)
+     (CONST(89),CRBP32)
+     (CONST(90),CRBP33)
+     (CONST(91),CRBN31)
+     (CONST(92),CRBN32)
+     (CONST(93),CRBN33)
+     (CONST(94),CRBS31)
+     (CONST(95),CRBS32)
+     (CONST(96),CRBS33)
+     (CONST(97),XKC3)
+     (CONST(98),VSBAS3)
+     (CONST(99),VSNTR3)
+
+     (CONST(105),KMPHYT)
+     (CONST(106),FRPOP)
+     (CONST(107),FLPOP)
+     (CONST(108),FRDOP)
+     (CONST(109),FLDOP)
+     (CONST(110),FPO4)
+     (CONST(111),FRPON)
+     (CONST(112),FLPON)
+     (CONST(113),FRDON)
+     (CONST(114),FLDON)
+     (CONST(115),FNH4)
+     (CONST(116),FRPOC)
+     (CONST(117),FLPOC)
+     (CONST(118),FRDOC)
+     (CONST(119),FLDOC)
+     (CONST(120),K57C)
+     (CONST(121),K57T)
+     (CONST(122),K68C)
+     (CONST(123),K68T)
+     (CONST(124),K710C) 
+     (CONST(125),K710T)
+     (CONST(126),K89C) 
+     (CONST(127),K89T)
+     (CONST(128),K1012C)
+     (CONST(129),K1012T)
+     (CONST(130),K1113C)
+     (CONST(131),K1113T)
+     (CONST(132),K1214C)
+     (CONST(133),K1214T)
+     (CONST(134),K1314C)
+     (CONST(135),K1314T)
+     (CONST(136),K1415C)
+     (CONST(137),K1415T)
+     (CONST(138),KNIT)
+     (CONST(139),K150C)
+     (CONST(140),K150T)
+     (CONST(141),KNO3)
+     (CONST(142),K1617C)
+     (CONST(143),K1617T)
+     (CONST(144),K1820C)
+     (CONST(145),K1820T)
+     (CONST(146),K1921C)
+     (CONST(147),K1921T)
+     (CONST(148),K200C)
+     (CONST(149),K200T)
+     (CONST(150),K210C)
+     (CONST(151),K210T)
+     (CONST(152),KMLDOC)
+     (CONST(153),KDOC)
+     (CONST(154),K220C)
+     (CONST(155),K220T)
+     (CONST(156),FLOCEX)
+     (CONST(157),K2324C)
+     (CONST(158),K2324T)
+     (CONST(159),K240C)
+     (CONST(160),K240T)
+     (CONST(161),CTOPCSO)
+     (CONST(162),CTONCSO)
+     (CONST(163),K250C)
+     (CONST(164),K250T)
+     (CONST(165),KO2EQ)
+     (CONST(166),KLMIN)
+     (CONST(167),DIFUS)
+     (CONST(168),KAT)
+     (CONST(169),VSBAST)
+     (CONST(170),VSPOM)
+     (CONST(171),VSPMT)
+     (CONST(172),VSSEDT)
+     (CONST(173),BVCSO)
+     (CONST(174),CRCSO)
+     (CONST(175),VMINCSO)
+     (CONST(176),VMAXCSO)
+     (CONST(177),KADPO4)
+     (CONST(178),KADSI)
+     (CONST(179),VSPIM)
+     (CONST(180),KECONST)
+

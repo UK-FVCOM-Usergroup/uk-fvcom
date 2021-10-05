@@ -46,7 +46,7 @@ SUBROUTINE CNTRL_PRMTRS
 
   IF (MSR) USE_PROJ = HAVE_PROJ(PROJECTION_REFERENCE)
 # if defined (MULTIPROCESSOR)
-  IF(PAR) CALL MPI_BCAST(USE_PROJ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
+  IF(PAR) CALL MPI_BCAST(USE_PROJ,1,MPI_LOGICAL,0,MPI_FVCOM_GROUP,ierr)
 # endif
   IF (USE_PROJ) THEN
      if(dbg_set(dbg_log)) write(IPT,*) "! PROJ 4 CARTOGRAPHIC PROJECTION ENABLED!"
@@ -198,7 +198,8 @@ SUBROUTINE CNTRL_PRMTRS
         ZETA2=0.0_SP
      END IF
 #    endif     
-     
+
+     IF(.not. NESTING_ON)THEN    ! Siqi Li    
      IF( .not. OBC_ON .or. .not. OBC_ELEVATION_FORCING_ON) THEN
         IF (OBC_LONGSHORE_FLOW_ON) THEN
            CALL FATAL_ERROR &
@@ -206,6 +207,8 @@ SUBROUTINE CNTRL_PRMTRS
                 &WITHOUT OPEN BOUNDARY ELEVATION FORCING!")
         END IF
      END IF
+     END IF        ! Siqi Li
+
      
      ! SET DEFAULT RUN MODE - DATA ASSIMILATION IS OFF
      FVCOM_RUN_MODE = FVCOM_PURE_SIM
@@ -229,14 +232,6 @@ SUBROUTINE CNTRL_PRMTRS
   ! TEST FOR IDEALIZED MODEL CASE
   if (timezone == 'none' .or. timezone == "NONE" .or.&
        & timezone == "None") use_real_world_time = .FALSE.
-  !By Jadon Ge for realistic tidal forcing
-  if(use_real_world_time)then
-     read(start_date,"(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)")iyear&
-          &,imonth,iday,ihour,imin,isec
-     if(DBG_SET(dbg_log))write(ipt,"(a16,i4,a1,i2,a1,i2,a1,i2,a1,i2,a1&
-          &,i2)")' ! initial date:',iyear,'-',imonth,'-',iday,' ',ihour&
-          &,':',imin,':',isec
-  end if
 
 
   ! CHECK FOR VALID TIME ZONE

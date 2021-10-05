@@ -1,0 +1,21 @@
+#--------------------------------------------------------------------------
+#  Intel Compiler Definitions
+#--------------------------------------------------------------------------
+         CPP      = /usr/bin/cpp
+         COMPILER = -DIFORT
+         FC       = ifort
+         CC       = icc
+         CXX      = icc
+         CFLAGS   = -O3
+         DEBFLGS  = #-check all
+# Use 'OPT = -O0 -g' for fast compile to test the make
+# Use 'OPT = -xP' for fast run on em64t (Hydra and Guppy)
+# Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
+#         OPT      = -O0 -g
+#         OPT      = -xP
+
+# Do not set static for use with visit!
+#         VISOPT   = -Wl,--export-dynamic
+#         LDFLAGS  = $(VISITLIBPATH)
+#--------------------------------------------------------------------------
+

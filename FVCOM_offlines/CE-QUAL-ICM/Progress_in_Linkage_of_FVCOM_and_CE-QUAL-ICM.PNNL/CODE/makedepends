@@ -1,0 +1,33 @@
+mod_prec.o : mod_prec.F 
+mod_types.o : mod_types.F mod_prec.o 
+mod_utils.o : mod_utils.F 
+mod_par.o : mod_par.F mod_var.o mod_utils.o mod_types.o 
+mod_var.o : mod_var.F mod_types.o mod_prec.o 
+mod_ncd.o : mod_ncd.F mod_prec.o 
+mod_obcs.o : mod_obcs.F mod_par.o mod_var.o mod_prec.o 
+wqm_modules.o : wqm_modules.F mod_var.o mod_prec.o 
+wqm_alg.o : wqm_alg.F mod_par.o mod_var.o wqm_modules.o wqm_modules.o 
+wqm_sed.o : wqm_sed.F mod_par.o mod_var.o wqm_modules.o wqm_modules.o 
+wqm_inputs.o : wqm_inputs.F mod_par.o wqm_sed.o wqm_alg.o wqm_modules.o wqm_modules.o mod_var.o wqm_modules.o 
+wqm_kin.o : wqm_kin.F mod_par.o wqm_modules.o mod_var.o wqm_modules.o 
+wqm_owq.o : wqm_owq.F mod_var.o wqm_modules.o 
+wqm_sav.o : wqm_sav.F mod_var.o wqm_modules.o wqm_modules.o 
+wqm_sf.o : wqm_sf.F mod_var.o wqm_modules.o 
+wqm_main.o : wqm_main.F mod_var.o mod_var.o mod_par.o wqm_sed.o wqm_alg.o wqm_modules.o wqm_modules.o wqm_modules.o mod_var.o 
+hydro.o : hydro.F wqm_modules.o wqm_modules.o 
+tvds.o : tvds.F mod_par.o wqm_modules.o wqm_modules.o 
+ncdio.o : ncdio.F mod_par.o mod_var.o wqm_modules.o wqm_modules.o mod_var.o mod_var.o mod_ncd.o 
+utilities.o : utilities.F 
+tge.o : tge.F mod_obcs.o mod_par.o mod_var.o 
+cell_area.o : cell_area.F mod_var.o 
+pdomdec.o : pdomdec.F wqm_modules.o mod_par.o mod_var.o 
+bcmap.o : bcmap.F mod_obcs.o wqm_modules.o mod_par.o mod_var.o 
+domdec.o : domdec.F mod_var.o 
+genmap.o : genmap.F wqm_modules.o mod_par.o mod_var.o mod_var.o 
+adv_wqm.o : adv_wqm.F mod_par.o wqm_modules.o wqm_modules.o mod_var.o 
+vdif_wqm.o : vdif_wqm.F wqm_modules.o mod_var.o 
+vertvl.o : vertvl.F wqm_modules.o mod_var.o 
+viscofh.o : viscofh.F mod_obcs.o mod_par.o mod_var.o 
+bcond_wqm.o : bcond_wqm.F mod_obcs.o wqm_modules.o mod_var.o mod_var.o 
+bcs_force.o : bcs_force.F mod_par.o mod_utils.o mod_var.o mod_var.o wqm_modules.o 
+bracket.o : bracket.F mod_types.o 

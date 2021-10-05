@@ -177,7 +177,7 @@ MODULE MOD_MEANFLOW
   END IF
 
 #  if defined (MULTIPROCESSOR)
-   IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+   IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 #  endif
 !--------------------------------------Jianzhong----------------------
    WRITE(IPT,*)'NMFCELL_I=',NMFCELL_I,'NMFCELL=',NMFCELL,'IN THREAD:',MYID

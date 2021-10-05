@@ -1,0 +1,20 @@
+      SUBROUTINE FMTER
+
+      USE ALL_VARS,ONLY : MSR
+      USE MOD_RCA, ONLY : IN,OUT
+      IMPLICIT NONE
+      SAVE
+!JQI      INTEGER :: IN,OUT
+      CHARACTER(LEN=80) :: CRDIM
+!JQI      COMMON   IN,OUT
+      READ(IN,'(A)') CRDIM
+      IF(MSR) WRITE(OUT,1200)   IN,CRDIM
+ 1200 FORMAT(/////1X,27('*'),5X,'DATA CARD ERROR',5X,27('*')//     &
+       18X,'ENCOUNTERED WHEN READING INPUT FILE NUMBER',I3/        &
+       18X,'CARD IMAGE OF NEXT INPUT RECORD AFTER ERROR IS'/       &
+       1X,9('0'),10('1'),10('2'),10('3'),10('4'),10('5'),10('6'),  &
+       10('7'),'8'/1X,8('1234567890')/1X,A80//1X,26('*'),5X,       &
+       'PROGRAM TERMINATED',5X,26('*')///)
+!      CALL EXIT
+       CALL PSTOP
+      END

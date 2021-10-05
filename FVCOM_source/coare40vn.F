@@ -28,8 +28,8 @@
 
 !------------------------------------------------------------------------------
 # if defined (HEATING_CALCULATED)
-  subroutine coare40vn(u,zu,t,zt,rh,zq,P,ts,Rl,Rs,tau,hsb,hlb,lat,zi,rain,cp,sigH,fmiss,USR,DTER)
-
+  subroutine coare40vn(u,zu,t,zt,rh,zq,PA,ts,Rl,Rs,tau,hsb,hlb,lat,zi,rain,cp,sigH,fmiss,USR,DTER,Cdn_10) ! Siqi Li, 2021-01-27
+!subroutine coare40vn(u,zu,t,zt,rh,zq,P,ts,Rl,Rs,tau,hsb,hlb,lat,zi,rain,cp,sigH,fmiss,USR,DTER)
 ! No-vectorized verion - Revised from the vectorized of coare40vn.m
 ! Zhongxiang Wu
 ! 4/8/2016
@@ -68,7 +68,10 @@
 !    zt = height of temperature measurement (m)
 !    rh = relative humidity (%) at height zq
 !    zq = height of relative humidity measurement (m)
-!     P = surface air pressure (mb) (default = 1015)
+!---> Siqi Li, 2021-01-27
+!     P = surface air pressure (mb) (default = 1015)   (removed)
+!     P = surface air pressure (Pa) (default = 101500)
+!<--- Siqi Li, 2021-01-27
 !    ts = water temperature (degC) see jcool below
 !    Rs = downward shortwave radiation (W/m^2) (default = 150) 
 !    Rl = downward longwave radiation (W/m^2) (default = 370)
@@ -161,6 +164,7 @@
     implicit none
 	
     real :: u,zu,t,zt,rh,zq,P,ts,Rs,Rl,tau,hsb,hlb,lat,zi,rain,cp,sigH,fmiss
+    real :: PA    ! Siqi Li, 2021-01-27
     real :: Pdef,Rsdef,Rldef,Latdef,Zidef
     real :: us,Qs,Q,Pv
     real :: zref,Beta,von,fdg,tdk,grav
@@ -183,7 +187,9 @@
     integer :: i,nits,jcool
     integer :: waveage,seastate
     data Pdef,Rsdef,Rldef,Latdef,Zidef/ &
-         1030,150,  370,  45,    600/
+         101300,150,  370,  45,    600/             ! Siqi Li, 2021-01-27
+!         1030,150,  370,  45,    600/
+
         
 ! convert input to column vectors
 !u=u(:);t=t(:);rh=rh(:);P=P(:);ts=ts(:);
@@ -200,23 +206,35 @@
     if(abs(Lat-fmiss) < 0.00001) Lat=Latdef
     if(abs(Zi-fmiss)  < 0.00001) Zi =Zidef
         
+
+    P = PA/100. ! Siqi Li, 2021-01-27
+
+
+
     waveage=0
     seastate=0
-    if(abs(cp) > 0.0) then
+!---> Siqi Li, 2021-01-27
+    if(abs(cp) > 1.0E-6) then
       waveage=1
-      if(abs(sigh) > 0.0) seastate=1
+      if(abs(sigh) > 1.0E-6) seastate=1
     endif
+!    if(abs(cp) > 0.0) then
+!      waveage=1
+!      if(abs(sigh) > 0.0) seastate=1
+!    endif
+!<--- Siqi Li, 2021-01-27
 
 !************************************************************************
 ! Check on which parameterization you are using.  You can remove the 
 ! pause once you are familiar with how the code selects the 
 ! appropriate parameterization based on the input variables.
 !************************************************************************
-
-    if (waveage.eq.1 .and. seastate.eq.1)  &
-       print *,' Use the seastate dependent parameterization.'
-    if (waveage.eq.1 .and. seastate.eq.0)  &
-       print *, ' Use the waveage dependent parameterization.'
+!---> Siqi Li, 2021-01-27
+!    if (waveage.eq.1 .and. seastate.eq.1)  &
+!       print *,' Use the seastate dependent parameterization.'
+!    if (waveage.eq.1 .and. seastate.eq.0)  &
+!       print *, ' Use the waveage dependent parameterization.'
+!<--- Siqi Li, 2021-01-27
 
 ! input variable u is assumed relative wind speed (magnitude of difference
 ! between wind and surface current vectors). to follow orginal Fairall code, set
@@ -225,9 +243,9 @@
     us = 0
 ! convert rh to specific humidity
     IF(.NOT. HEATING_FRESHWATER)THEN
-      Qs = qsat26sea(ts,P)/1000    ! surface water specific humidity (g/kg)
+      Qs = qsat26sea(ts,P)/1000    ! surface water specific humidity (g/kg) ! Siqi Li, 2021-01-27: I think the unit is kg/kg
     ELSE 
-      Qs = qsat26lake(ts,P)/1000    ! surface water specific humidity (g/kg)
+      Qs = qsat26lake(ts,P)/1000    ! surface water specific humidity (g/kg) ! Siqi Li, 2021-01-27: I think the unit is kg/kg
     END IF  
 
     call qsat26air(t,P,rh,Q,Pv)   ! specific humidity of air (g/kg)
@@ -383,6 +401,16 @@
       endif
       L=zu/zet
       zo=charn*usr*usr/grav+0.11*visa/usr ! surface roughness
+
+!---> Siqi Li, 2021-01-17
+! Add the upper and lower limits for zo based on Davis et al. 2008.
+! Only when wave is considered.
+      if (waveage == 1) then
+        zo = MAX(zo, 0.125E-6)
+        zo = MIN(zo, 2.850E-3)
+      end if
+!<--- Siqi Li, 2021-01-17
+
       rr=zo*usr/visa
       zoq=min(1.6e-4,6e-3/rr**1.6) !These thermal roughness lengths give
       zot=zoq                   !Stanton and Dalton numbers for COARE 4.0
@@ -483,10 +511,15 @@
     Ce=-usr*qsr/(dq-dqer*jcool)/ut
 
 !***  compute 10-m neutral coeff relative to ut (output if needed) ************
-    Cdn_10=1000*von**2./log(10./zo)**2
-    Chn_10=1000*von**2*fdg/log(10./zo)/log(10./zot)
-    Cen_10=1000*von**2*fdg/log(10./zo)/log(10./zoq)
-        
+!---> Siqi Li, 2021-01-27 : there is no need to time 1000.
+    Cdn_10=von**2./log(10./zo)**2  
+    Chn_10=von**2*fdg/log(10./zo)/log(10./zot)
+    Cen_10=von**2*fdg/log(10./zo)/log(10./zoq)
+!    Cdn_10=1000*von**2./log(10./zo)**2 
+!    Chn_10=1000*von**2*fdg/log(10./zo)/log(10./zot)
+!    Cen_10=1000*von**2*fdg/log(10./zo)/log(10./zoq)
+!<--- Siqi Li, 2021-01-27
+
 !***  compute 10-m neutral coeff relative to ut (output if needed) ************
 !  Find the stability functions
 !********************************

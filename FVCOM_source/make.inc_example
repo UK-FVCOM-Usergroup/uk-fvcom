@@ -58,8 +58,8 @@
             INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -P -C -traditional 
-#            DEF_FLAGS     = -P -traditional 
+#            DEF_FLAGS     = -P -C -traditional 
+            DEF_FLAGS     = -P -traditional 
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -94,11 +94,15 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS      
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
+#            FLAG_USE_NETCDF4     = -DUSE_NETCDF4
+#            FLAG_USE_COMPRESSION = -DUSE_COMPRESSION
              IOLIBS       =  -lnetcdff -lnetcdf #-lhdf5_hl -lhdf5 -lz -lcurl -lm
 #             IOLIBS       =  -lnetcdf #-L/hosts/mao/usr/medm/install/netcdf/3.6.3/em64t/lib -lnetcdf
              IOINCS       =  #-I/hosts/mao/usr/medm/install/netcdf/3.6.3/em64t/include
 #             IOLIBS       =  -L/usr/local/install/netcdf/gcc_ifort/3.6.2/lib  -lnetcdf
 #             IOINCS       =  -I/usr/local/install/netcdf/gcc_ifort/3.6.2/include
+##             IOLIBS       = -L/usr/local/install/netcdf-4.4.1.1-with-fortran/lib -lnetcdff -lnetcdf
+##             IOINCS       = -I/usr/local/install/netcdf-4.4.1.1-with-fortran/include
 #--------------------------------------------------------------------------
 
 
@@ -271,6 +275,15 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
 #            FLAG_14 = -DRIVER_FLOAT
+
+#--------------------------------------------------------------------------
+#        The TVD (total variational diminishing) option for FVCOM was developed by 
+#        Akvaplan-niva (Håvard Espenes and Ole Anders Nøst) in 2018 (see mod_tvd.F).
+#        Preliminary results suggest that TVD advection achieves less numerical
+#        diffusion and better shape preserving properties than the standard scheme. 
+#--------------------------------------------------------------------------
+
+#            FLAG_44 = -DTVD
 
 #--------------------------------------------------------------------------
 #        Using A fully multidimensional positive definite advection
@@ -478,6 +491,13 @@ dashL= $(empty) -L
 #             FLAG_105 = -DDEVELOP5
 
 #--------------------------------------------------------------------------
+#    PARALLEL OUTPUT
+#       FOR A PARALLEL NETCDF VERSION -- improved by Jingkun Chen @ SYSU CHINA
+#--------------------------------------------------------------------------
+
+#             FLAG_80 = -DPIO
+
+#--------------------------------------------------------------------------
 #        SELECT COMPILER/PLATFORM SPECIFIC DEFINITIONS
 #          SELECT FROM THE FOLLOWING PLATFORMS OR USE "OTHER" TO DEFINE
 #          THE FOLLOWING VARIABLES:
@@ -614,9 +634,10 @@ dashL= $(empty) -L
    $(FLAG_31) $(FLAG_32) $(FLAG_33) $(FLAG_34) \
    $(FLAG_35) $(FLAG_36) $(FLAG_37) $(FLAG_38) \
    $(FLAG_39) $(FLAG_40) $(FLAG_41) $(FLAG_42) \
-   $(FLAG_43) $(FLAG_LAM)\
+   $(FLAG_43) $(FLAG_44) $(FLAG_80)$(FLAG_LAM)\
    $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)\
-   $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261) $(FLAG_262)
+   $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261) $(FLAG_262)\
+   $(FLAG_USE_NETCDF4) $(FLAG_USE_COMPRESSION)
 #--------------------------------------------------------------------------
 #  Libraries           
 #--------------------------------------------------------------------------

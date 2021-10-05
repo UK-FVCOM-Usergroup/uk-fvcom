@@ -527,7 +527,11 @@
 !
 !     MMT     input    number of frequency points
 !
-      INTEGER   MMT
+
+      ! ------- new Karsten Lettmann, 2016, March ----
+      ! INTEGER   MMT  ! original line
+      INTEGER, INTENT(IN) ::   MMT 
+      ! ---------- end new ---------------------------
 !
 !     CG      output   group velocity
 !     D       input    local depth
@@ -537,8 +541,14 @@
 !     SIG     input    rel. frequency for which wave parameters
 !                      must be determined
 !
-      REAL      CG(MMT), D,                                    &
-                K(MMT), N(MMT), ND(MMT), SIG(MMT)
+
+!     -------- new : Karsten Lettmann, 2016 march ---------------
+!      REAL      CG(MMT), D,                                    &
+!                & K(MMT), N(MMT), ND(MMT), SIG(MMT)
+      REAL, INTENT(OUT) :: CG(MMT), K(MMT), N(MMT), ND(MMT)
+      REAL, INTENT(IN)  :: D, SIG(MMT)
+!     --------- end new -----------------------------------------
+
 !
 !  6. Local variables
 !
@@ -1560,18 +1570,45 @@
       END IF    
 !-------------------WAVE_SPARSE_TIMESERIES-----yzhang&jqi---
 
+      ! ------- estimate significant wave height ----------
       DO IG = 1, MT
           INDX = IG    !KGRPNT(IX,IY)
 !          IF ( HSIBC(INDX) .GT. 1.E-25 ) THEN
 !           *** compute Hs for boundary point (without tail) ***
             ETOT  = 0.
             DO ID = 1, MDC
-              DO IS = 1, MSC                                              
-                ETOT = ETOT + SPCSIG(IS)**2 * AC2(ID,IS,INDX) 
-              ENDDO
+              ! ------ new Karsten Lettmann, Nov. 2018 ----              
+              ! original Rieman method
+              ! here, the logarithmic spaced sigma are used:
+              ! see Eq. (3.77) in Swan tech manual
+              !DO IS = 1, MSC                                              
+              !  ETOT = ETOT + SPCSIG(IS)**2 * AC2(ID,IS,INDX) 
+              !ENDDO
+              
+              ! use trapezoidal rule with first integration method
+              ! see Eq. (3.73) in Swan tech manual with adding DDIR
+              DO IS=2,MSC
+                DS=SPCSIG(IS)-SPCSIG(IS-1)                              
+                EDI = 0.5*(SPCSIG(IS)*AC2(ID,IS,IG)+              &
+                           SPCSIG(IS-1)*AC2(ID,IS-1,IG))*DS*DDIR        
+                ETOT = ETOT + EDI
+              END DO
+              ! ------ end new: trapezoidal rule ------------
+              
+              ! ----- new: Karsten Lettmann, 2018 Okt ---------
+              ! add the high frequency tail for Hsig in output
+              !AC2(ID,MSC,IG) = 1e-4   ! for testing           
+              EHFR = AC2(ID,MSC,IG) * SPCSIG(MSC)
+              EFTAIL = 1. / (PWTAIL(1) - 1.)
+              ETOT = ETOT + DDIR * EHFR * SPCSIG(MSC) * EFTAIL
+              ! -----------------------------------------------                
             ENDDO
+
             IF (ETOT .GT. 1.E-8) THEN
-              HSC = 4. * SQRT(ETOT*FRINTF*DDIR)
+              ! ---- new Karsten Lettmann, 2018 Okt -----
+              !HSC = 4. * SQRT(ETOT*FRINTF*DDIR) ! original line with Rieman
+              HSC = 4. * SQRT(ETOT)  ! this corresponds to trapez rule
+              ! -----------------------------------------
             ELSE
               HSC = 0.
             ENDIF
@@ -1579,7 +1616,8 @@
 
 	    HSC1(IG) = HSC
 	   
-!--------
+            !--- end of Hsig calculation ---------------
+
             ETOT = 0.
             EEX  = 0.
             EEY  = 0.
@@ -1689,7 +1727,7 @@
          END IF
 
          WLEN(IG) = WLMEAN
-	 
+
 !	   if(mod(it,12) == 0)write(400,*) vx(ig),vy(ig),HSC,it
 !	   write(400+myid,*) vx(ig),vy(ig),HSC
             HSREL = ABS(HSIBC(INDX) - HSC) / HSIBC(INDX)                  

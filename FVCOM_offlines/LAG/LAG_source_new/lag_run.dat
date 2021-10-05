@@ -1,0 +1,53 @@
+!=========================================================================================!
+! INPUT FILE FOR PARAMETERS CONTROLLING EXECUTION OF OFF-LINE PARTICLE TRACKING           !
+! DESCRIPTION OF VARIABLES AND SUGGESTED PARAMETERS CAN BE FOUND AT BOTTOM                !
+!                                                                                         !
+!        FORMAT:			                                                  !
+!       1.) VARIABLE  = VALUE  (EQUAL SIGN MUST BE USED)                                  !
+!       2.) FLOATING POINT VARIABLES MUST CONTAIN A PERIOD "." EX: 1.3, 2.,etc            !
+!       3.) BLANK LINES ARE IGNORED AS ARE LINES BEGINNING WITH ! (F90 COMMENT)           !
+!       4.) COMMENTS CAN FOLLOW VALUES IF MARKED BY !                                     !
+!       5.) ORDER OF VARIABLES IS NOT IMPORTANT                                           !
+!       6.) FOR MULTIPLE VALUE VARIABLES FIRST ENTRY IS NUMBER OF VARIABLES               !
+!           TO FOLLOW (OR 0 IF NONE)                                                      !
+!       7.) DO NOT USE COMMAS TO SEPARATE VARIABLES                                       !
+!       8.) DO NOT EXCEED EIGHTY CHARACTERS PER LINE                                      !
+!       9.) FOR LINE CONTINUATION ADD \\ TO END OF LINE TO FORCE CONTINUE                 !
+!           TO NEXT LINE.  MAXIMUM 4 CONTINUATIONS                                        !
+!       10.) TRUE = T, FALSE = F                                                          !
+!                                                                                         !    
+!=========================================================================================!
+
+!=========Parameters Controlling Time Integration==========================================
+
+DTI      = 120.0 ! Time step for scheme resolution (second). mod(INSTP/DTI) should be 0
+INSTP    = 3600  ! INPUT time step (second). 
+DTOUT    = 1     ! output time step in hour
+TDRIFT   = 240 ! Drift duration (hour)
+
+!=========Parameters Controlling Starting Tracking Date====================================
+
+YEARLAG   = 2006 ! Year of tracking start
+MONTHLAG  = 6    ! Month of tracking start
+DAYLAG    = 1    ! Day of tracking start
+HOURLAG   = 1    ! Hour of tracking start
+
+!=========Parameters Controlling Input/Output LOCATION=====================================
+
+INPDIR   = INPDIR
+GEOAREA  = gom
+OUTDIR   = OUTDIR
+INFOFILE = screen
+LAGINI   = particle_NS   ! Input file with particle location
+
+!=========Parameters Controlling SIGMA/CARTESIAN===========================================
+
+F_DEPTH  = T              ! Cartesian depth is kept constant if T.
+P_SIGMA  = F              ! Input particle depth in sigma if T. 
+OUT_SIGMA  = F            ! Output particle depth in sigma if T.
+
+!=========Parameters Controlling Random Walk===============================================
+
+IRW   = 0   ! IRW (0-w/o rw; 1-hor rw; 2-vert rw; 3:hor+vert rw)
+DHOR  = 20. ! DHOR (horizontal diff coeff m^2/s, miller 10^6m^2/day~11.57m^2/s)
+DTRW  = 6.  ! time step (s) for RW (from the visser's criterion). mod(DTI/DTRW) should be 0 

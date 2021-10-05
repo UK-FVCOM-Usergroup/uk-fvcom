@@ -1,0 +1,245 @@
+      SUBROUTINE RCA07
+! 
+!        RCA07 READS THE INITIAL CONDITIONS
+! 
+      USE ALL_VARS, ONLY : MSR,ZZ,CARAY,CDARAY,MT,SERIAL,PAR,M
+      USE MOD_RCA
+# if defined (MULTIPROCESSOR)
+      USE MOD_PAR
+# endif            
+      IMPLICIT NONE
+      SAVE
+!      INCLUDE  'RCACM'
+      REAL :: CARAYSL(NXY,NSL),SIGDEPTH(NXY,NZ)
+      REAL :: CSTD(NSL),CSIGMA(NZ)
+      CHARACTER COMMENT*80
+      INTEGER IBNRYRDOPT,ICOPT,NLVLS
+      INTEGER I,j,k
+      REAL :: CARAY_TMP(NXY,NZ,NOSYS)
+      REAL :: CARAY_TMP1(0:NXY,NZ)      
+
+      IF(MSR) WRITE(OUT,'(////1X,119("*")//)') 
+      IF(MSR) WRITE(OUT,'(42X,"I N I T I A L   C O N D I T I O N S"//)') 
+
+      READ(IN,'(A)')  COMMENT
+      IF(MSR) WRITE(OUT,'(A)')  COMMENT
+      READ(IN,'(A40,I10)')  ICFILNA,IBNRYRDOPT
+      WRITE(OUT,'(A40,I10)')ICFILNA,IBNRYRDOPT
+      IF(ICFILNA == 'NULL' .OR. ICFILNA == 'null' .OR. ICFILNA == 'Null') THEN
+       ICFILNA='NULL'
+       IF(MSR) WRITE(OUT,'(/36X,"USER DID NOT SPECIFY AN INITIAL FILE TO BE READ")')
+       GO TO 183
+      ENDIF
+      IF(IBNRYRDOPT == 0) THEN
+       OPEN(38,FILE=ICFILNA,FORM='FORMATTED')
+        
+      ELSE
+       OPEN(38,FILE=ICFILNA,FORM='UNFORMATTED')
+   
+      ENDIF
+
+      IF(CYCLE == 0) THEN
+
+!     READ SIGMA-LEVEL/STANDARD LEVEL OPTION
+      IF(IBNRYRDOPT == 0) THEN
+       READ(38,'(A)')  COMMENT
+       READ(38,'(I10)',ERR=938)  ICOPT
+      ELSE
+!       READ(38)  ICOPT  !For 2008
+     ICOPT=0           !For 2009 or later      
+      ENDIF
+      IF(ICOPT == 0) THEN
+!      SIGMA-LEVEL INPUT
+       DO ISYS=1,NOSYS 
+        IF(MSR)THEN
+	 WRITE(OUT,'(/44X,"INITIAL CONDITIONS FOR SYSTEM",I3)') ISYS
+         WRITE(OUT,'(41X,11("-"),3X,A8,3X,11("-")/)') SYNAME(ISYS)
+	END IF 
+        IF(IBNRYRDOPT == 0) READ(38,'(A)')  COMMENT
+        DO IZ=1,NZ
+         IF(IBNRYRDOPT == 0) THEN
+          READ(38,'(10X,7F10.0)',ERR=940)   (CARAY_TMP(IXY,IZ,ISYS),IXY=1,NXY) 	  
+         ELSE
+ !         READ(38)   (CARAY_TMP(IXY,IZ,ISYS),IXY=1,NXY)  !For cold-Start
+ !         READ(38)   CARAY_TMP(:,:,ISYS)                 !For hot-Start 2009 or later
+
+         ENDIF
+        END DO
+
+!       IF(IBNRYRDOPT == 1) THEN
+!           READ(38)   CARAY_TMP1                 !For hot-Start 2009 or later
+!           CARAY_TMP(:,:,ISYS)= CARAY_TMP1(:,:)
+!	 IF(MSR) write(88,*)ISYS,CARAY_TMP1 
+!	END IF
+	
+       END DO
+
+       IF(IBNRYRDOPT == 1) THEN
+!          ! READ(38)   CARAY_TMP1                 !For hot-Start 2009 or later
+           READ(38)CARAY_TMP
+	END IF
+
+      ELSE
+
+!      STANDARD LEVEL INPUT
+       DO 170 ISYS=1,NOSYS
+        IF(MSR) WRITE(OUT,'(/44X,"INITIAL CONDITIONS FOR SYSTEM",I3)')   ISYS
+        IF(MSR) WRITE(OUT,'(41X,11("-"),3X,A8,3X,11("-")/)')   SYNAME(ISYS)
+!       READ STANDARD LEVEL DEPTHS
+        IF(IBNRYRDOPT == 0) THEN
+         READ(38,'(A)')  COMMENT
+         READ(38,'(I10)',ERR=938)  NLVLS
+         IF(NLVLS > NSL) GO TO 970
+         READ(38,'(A)')  COMMENT
+         READ(38,'(10X,7F10.0)',ERR=938)  (SLDEPTH(I,ISYS),I=1,NLVLS)
+        ELSE
+         READ(38)  NLVLS
+         IF(NLVLS > NSL) GO TO 970
+         READ(38)  (SLDEPTH(I,ISYS),I=1,NLVLS)
+        ENDIF
+        IF(LIST(5) == 1 .AND. MSR) WRITE(OUT,1300)  ISYS,          &
+              (I,I=1,10),(SLDEPTH(I,ISYS),I=1,NLVLS)
+ 1300   FORMAT(42X,'STANDARD LEVEL DEPTHS FOR SYSTEM',I3/          &
+              17X,10(I2,8X)/(11X,10F10.2))
+        DO I=1,NLVLS
+         SLDEPTH(I,ISYS) = -SLDEPTH(I,ISYS)
+        END DO
+
+        IF(LIST(5) == 1 .AND. MSR) WRITE(OUT,1350)   (I,I=1,10)
+ 1350   FORMAT(/43X,'CONCENTRATIONS AT STANDARD LEVELS'/           &
+              2X,'ROW COL',8X,10(I2,8X))
+
+        DO IZ=1,NLVLS
+         IF(IBNRYRDOPT == 0) THEN
+          READ(38,'(10X,7F10.0)',ERR=945)  (CARAYSL(IXY,IZ),IXY=1,NXY)
+	  
+         ELSE
+          READ(38)  (CARAYSL(IXY,IZ),IXY=1,NXY)
+         ENDIF
+         IF(LIST(5) == 1) CALL RCAPRNT(CARAYSL(1,1),IZ,IZ,NXY)
+        END DO
+
+        DO IXY=1,NXY
+         DO IZ=1,NZ
+          SIGDEPTH(IXY,IZ) = -ZZ(IXY,IZ)*HBAR(IXY)
+          CSIGMA(IZ) = 0.0
+         END DO
+         DO IZ=1,NLVLS
+          CSTD(IZ) = CARAYSL(IXY,IZ)
+         END DO
+
+         CALL SINTER(SLDEPTH(1,ISYS),CSTD,SIGDEPTH,CSIGMA,NLVLS,NZ)
+
+         DO IZ=1,NZ
+          CARAY(IXY,IZ,ISYS) = CSIGMA(IZ)
+         END DO
+        END DO
+
+  170  CONTINUE
+      ENDIF
+
+      ELSE
+
+        READ(15)  CARAY
+        REWIND(15)
+
+      ENDIF
+
+      IF(ICOPT == 1 .AND. MSR) WRITE(OUT,       & 
+         '(//33X,"INITIAL CONDITIONS AFTER TRANSFORMATION TO SIGMA-LEVELS"/)')
+
+      IF(LIST(5) == 1)THEN
+       DO ISYS=1,NOSYS
+        IF(MSR)THEN
+	 WRITE(OUT,'(/44X,"INITIAL CONDITIONS FOR SYSTEM",I3)')   ISYS
+         WRITE(OUT,'(41X,11("-"),3X,A8,3X,11("-")/)')   SYNAME(ISYS)
+	END IF 
+        CALL RCAPRNT(CARAY_TMP(1,1,ISYS),1,NZ,NXY)
+       END DO
+      ENDIF
+
+      IF(SERIAL) CARAY(1:NXY,1:NZ,1:NOSYS) = CARAY_TMP(1:NXY,1:NZ,1:NOSYS)
+
+# if defined (MULTIPROCESSOR)
+      IF(PAR)THEN
+       DO IXY = 1,M
+        CARAY(IXY,1:NZ,1:NOSYS) = CARAY_TMP(NGID(IXY),1:NZ,1:NOSYS)
+       END DO
+       DO IXY = 1,NHN
+        CARAY(IXY+M,1:NZ,1:NOSYS) = CARAY_TMP(HN_LST(IXY),1:NZ,1:NOSYS)
+       END DO
+      END IF 		
+# endif
+ 
+ 183  CONTINUE
+!      DO 185 ISYS=1,NOSYS
+!       DO 185 IZ=1,NZ
+!        DO 185 IXY=1,MT	
+!         IF(FSM(IXY) == 0.) CARAY(IXY,IZ,ISYS)=0.0
+!         IF(FSM(IXY) == -1. .OR. FSM(IXY) == -2.) THEN
+!          IF(NOBC(ISYS) == 0) THEN
+!           CARAY(IXY,IZ,ISYS)=0.0
+!          ELSE
+!           DO I=1,NOBC(ISYS)
+!            IF(IXY == IBC(1,I,ISYS) .AND. IZ == IBC(2,I,ISYS))GO TO 185
+!           ENDDO
+!           CARAY(IXY,IZ,ISYS)=0.0
+!          ENDIF
+!         ENDIF	 
+!  185 CONTINUE
+
+!     MOVE BOUNDARY CONDITIONS TO -CARAY-
+      DO ISYS=1,NOSYS
+       IF(NOBC(ISYS) /= 0)THEN
+        DO I=1,NOBC(ISYS)
+         CARAY(IBC(1,I,ISYS),IBC(2,I,ISYS),ISYS)=BBC(I,ISYS)
+        END DO	
+       END IF	
+      END DO
+
+      READ(IN,'(A)')  COMMENT
+      READ(IN,'(10X,7F10.0)',ERR=950)   (CMAX(I),I=1,NOSYS)
+      READ(IN,'(A)')  COMMENT
+      READ(IN,'(10X,7F10.0)',ERR=950)   (CMIN(I),I=1,NOSYS) 
+      IF(MSR) WRITE(OUT,3000)   (I,CMAX(I),CMIN(I),I=1,NOSYS) 
+ 3000 FORMAT(///32X,'STABILITY AND ACCURACY CRITERIA FOR NUMERICAL SOLUTION',  &
+             //33X,'SYSTEM   MAXIMUM CONCENTRATION',10X,'EPSILON'/             & 
+             (34X,I3,10X,E10.4,14X,E10.4))
+
+      RETURN
+
+!JQI  940 IF(MOD(NX,7).EQ.0)  THEN
+!JQI        LINES = 2+(ISYS-1)*NZ*(NY*(NX/7)+1)+(IY)*(NX/7)+1
+!JQI        LINEE = 2+(ISYS-1)*NZ*(NY*(NX/7)+1)+(IY+1)*(NX/7)+1
+!JQI      ELSE
+!JQI        LINES = 2+(ISYS-1)*NZ*(NY*(NX/7+1)+1)+(IY)*(NX/7+1)+1
+!JQI        LINEE = 2+(ISYS-1)*NZ*(NY*(NX/7+1)+1)+(IY+1)*(NX/7+1)+1
+!JQI      ENDIF
+!JQI      WRITE(OUT,9400)   ICFILNA,ISYS,LINES,LINEE
+  940 IF(MSR) WRITE(OUT,9400)   ICFILNA,ISYS
+ 9400 FORMAT(///                                                             &
+       25X,'ERROR ... ENCOUNTERED READING INITIAL CONDITIONS FILE ',A40/     &
+       30X,'ERROR ENCOUNTERED READING INITIAL CONDITIONS FOR SYSTEM',I3/     &
+       30X,'BETWEEN INPUT RECORDS',I6,' AND',I6)
+      IN=38
+      GO TO 950
+!JQI  945 IF(MOD(NX,7).EQ.0)  THEN
+!JQI        LINES = 2+(ISYS-1)*NLVLS*(NY*(NX/7)+1)+(IY)*(NX/7)+1
+!JQI        LINEE = 2+(ISYS-1)*NLVLS*(NY*(NX/7)+1)+(IY+1)*(NX/7)+1
+!JQI      ELSE
+!JQI        LINES = 2+(ISYS-1)*NLVLS*(NY*(NX/7+1)+1)+(IY)*(NX/7+1)+1
+!JQI        LINEE = 2+(ISYS-1)*NLVLS*(NY*(NX/7+1)+1)+(IY+1)*(NX/7+1)+1
+!JQI      ENDIF
+!JQI  WRITE(OUT,9400)   ICFILNA,ISYS,LINES,LINEE
+  945 IF(MSR) WRITE(OUT,9400)   ICFILNA,ISYS
+  938 IN=38
+  950 CALL FMTER
+!JQI      CALL EXIT 
+      CALL PSTOP('rca07_222 ')
+  970 IF(MSR) WRITE(OUT,9700)  
+ 9700 FORMAT(//11X,'ERROR...USER REQUESTING MORE STANDARD LEVELS THAN ',    &
+            'DIMENSIONED FOR IN -RCACM-'/11X,'RCA TERMINATED'//)
+!JQI      CALL EXIT 
+      CALL PSTOP('rca07_227 ')
+
+      END SUBROUTINE RCA07

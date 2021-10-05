@@ -1,0 +1,52 @@
+312,335c312,313
+< /*
+<  *void PARTITION(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+<  *{
+<  *Partition(nprocsin,nein,nnin,nv,proc);
+<  *}
+<  *void PARTITION_(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+<  *{
+<  *Partition(nprocsin,nein,nnin,nv,proc);
+<  *}
+<  *void partition_(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+<  *{
+<  *Partition(nprocsin,nein,nnin,nv,proc);
+<  *}
+<  *void PARTITION__(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+<  *{
+<  *Partition(nprocsin,nein,nnin,nv,proc);
+<  *}
+<  *void partition__(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+<  *{
+<  *Partition(nprocsin,nein,nnin,nv,proc);
+<  *}
+<  */
+<   void partition(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+<   {
+---
+> void PARTITION(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+> {
+337c315,335
+<   }
+---
+> }
+> void PARTITION_(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+> {
+>   Partition(nprocsin,nein,nnin,nv,proc);
+> }
+> void partition(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+> {
+>   Partition(nprocsin,nein,nnin,nv,proc);
+> }
+> void partition_(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+> {
+>   Partition(nprocsin,nein,nnin,nv,proc);
+> }
+> void PARTITION__(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+> {
+>   Partition(nprocsin,nein,nnin,nv,proc);
+> }
+> void partition__(int* nprocsin, int* nein, int* nnin, int* nv[], int* proc[])
+> {
+>   Partition(nprocsin,nein,nnin,nv,proc);
+> }

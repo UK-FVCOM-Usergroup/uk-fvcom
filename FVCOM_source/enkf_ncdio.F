@@ -1040,6 +1040,7 @@ SUBROUTINE NCD_WRITE(INFILE,NPTS,TIME,LABEL,INDOMAIN,XP,YP,ZP,UP,VP,WP,EP,HP,INW
   INTEGER                             :: IERR
   INTEGER                             :: TIME_DID,TIME_VID,NLAG_DID,IND_VID,LAB_VID
   INTEGER                             :: X_VID,Y_VID,Z_VID,U_VID,V_VID,W_VID
+  INTEGER                             :: EL_VID,INW_VID,DEPTH_VID
   INTEGER                             :: DYNMTIME(1)
   INTEGER                             :: STAT1D(1),DYNM1D(2)
   REAL(SP), ALLOCATABLE, DIMENSION(:) :: TEMP
@@ -1048,7 +1049,11 @@ SUBROUTINE NCD_WRITE(INFILE,NPTS,TIME,LABEL,INDOMAIN,XP,YP,ZP,UP,VP,WP,EP,HP,INW
   IF(NT == 1)THEN
 
      !--Create File --> nc_fid (modified by JHC 4/07 to allow for input of file into MATLAB)
-	 IERR = NF90_CREATE(TRIM(INFILE) ,NF90_CLOBBER, NC_FID)
+# if defined (USE_NETCDF4)
+     IERR = NF90_CREATE(TRIM(INFILE) ,NF90_NETCDF4, NC_FID)
+# else
+     IERR = NF90_CREATE(TRIM(INFILE) ,NF90_CLOBBER, NC_FID)
+# endif
      IF(IERR /=NF90_NOERR)THEN
         WRITE(*,*)'error creating',TRIM(INFILE)
         WRITE(*,*)TRIM(NF90_STRERROR(IERR))
@@ -1079,60 +1084,97 @@ SUBROUTINE NCD_WRITE(INFILE,NPTS,TIME,LABEL,INDOMAIN,XP,YP,ZP,UP,VP,WP,EP,HP,INW
      IERR = NF90_DEF_VAR(NC_FID,"time",NF90_FLOAT,DYNMTIME,TIME_VID)
      IERR = NF90_PUT_ATT(NC_FID,TIME_VID,"long_name","time")
      IERR = NF90_PUT_ATT(NC_FID,TIME_VID,"units","seconds")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, TIME_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
      !!=====label==============================================!
      IERR = NF90_DEF_VAR(NC_FID,"label",NF90_FLOAT,STAT1D,LAB_VID)
      IERR = NF90_PUT_ATT(NC_FID,LAB_VID,"long_name","particle label")
      IERR = NF90_PUT_ATT(NC_FID,LAB_VID,"units","")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, LAB_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
      !!=====indomain=================================================!
      IERR = NF90_DEF_VAR(NC_FID,"indomain",NF90_FLOAT,DYNM1D,IND_VID)
      IERR = NF90_PUT_ATT(NC_FID,IND_VID,"long_name","particle indomain (1)")
      IERR = NF90_PUT_ATT(NC_FID,IND_VID,"units","")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, IND_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
+
      !!=====x=================================================!
      IERR = NF90_DEF_VAR(NC_FID,"x",NF90_FLOAT,DYNM1D,X_VID)
      IERR = NF90_PUT_ATT(NC_FID,X_VID,"long_name","particle x position")
      IERR = NF90_PUT_ATT(NC_FID,X_VID,"units","m")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, X_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
      !!=====y=================================================!
      IERR = NF90_DEF_VAR(NC_FID,"y",NF90_FLOAT,DYNM1D,Y_VID)
      IERR = NF90_PUT_ATT(NC_FID,Y_VID,"long_name","particle y position")
      IERR = NF90_PUT_ATT(NC_FID,Y_VID,"units","m")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, Y_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
      !!=====z=================================================!
      IERR = NF90_DEF_VAR(NC_FID,"z",NF90_FLOAT,DYNM1D,Z_VID)
      IERR = NF90_PUT_ATT(NC_FID,Z_VID,"long_name","particle z position")
      IERR = NF90_PUT_ATT(NC_FID,Z_VID,"units","m")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, Z_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
      !!=====u=================================================!
      IERR = NF90_DEF_VAR(NC_FID,"u",NF90_FLOAT,DYNM1D,U_VID)
      IERR = NF90_PUT_ATT(NC_FID,U_VID,"long_name","particle u velocity")
      IERR = NF90_PUT_ATT(NC_FID,U_VID,"units","cm/s")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, U_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
      !!=====v=================================================!
      IERR = NF90_DEF_VAR(NC_FID,"v",NF90_FLOAT,DYNM1D,V_VID)
      IERR = NF90_PUT_ATT(NC_FID,V_VID,"long_name","particle v velocity")
      IERR = NF90_PUT_ATT(NC_FID,V_VID,"units","cm/s")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, V_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
      !!=====w=================================================!
      IERR = NF90_DEF_VAR(NC_FID,"omega",NF90_FLOAT,DYNM1D,W_VID)
      IERR = NF90_PUT_ATT(NC_FID,W_VID,"long_name","particle w velocity")
      IERR = NF90_PUT_ATT(NC_FID,W_VID,"units","mm/s")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, W_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
  !   ADDED BY JCH 04/07 TO OUTPUT SURFACE ELEVATION AND BOTTOM DEPTH
      !!=====elev=============================================!
-     IERR = NF90_DEF_VAR(NC_FID,"elev",NF90_FLOAT,DYNM1D,W_VID)
-     IERR = NF90_PUT_ATT(NC_FID,W_VID,"long_name","surface elevation above particle")
-     IERR = NF90_PUT_ATT(NC_FID,W_VID,"units","m")
+     IERR = NF90_DEF_VAR(NC_FID,"elev",NF90_FLOAT,DYNM1D,EL_VID)
+     IERR = NF90_PUT_ATT(NC_FID,EL_VID,"long_name","surface elevation above particle")
+     IERR = NF90_PUT_ATT(NC_FID,EL_VID,"units","m")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, EL_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
       !!=====depth============================================!
-     IERR = NF90_DEF_VAR(NC_FID,"depth",NF90_FLOAT,DYNM1D,W_VID)
-     IERR = NF90_PUT_ATT(NC_FID,W_VID,"long_name","bottom depth at particle")
-     IERR = NF90_PUT_ATT(NC_FID,W_VID,"units","m")
+     IERR = NF90_DEF_VAR(NC_FID,"depth",NF90_FLOAT,DYNM1D,DEPTH_VID)
+     IERR = NF90_PUT_ATT(NC_FID,DEPTH_VID,"long_name","bottom depth at particle")
+     IERR = NF90_PUT_ATT(NC_FID,DEPTH_VID,"units","m")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, DEPTH_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
 
  !   ADDED BY JCH 07/07 TO OUTPUT INWATER	
-     IERR = NF90_DEF_VAR(NC_FID,"inwater",NF90_FLOAT,DYNM1D,IND_VID)
-     IERR = NF90_PUT_ATT(NC_FID,IND_VID,"long_name","particle inwater (1)")
-     IERR = NF90_PUT_ATT(NC_FID,IND_VID,"units","")
+     IERR = NF90_DEF_VAR(NC_FID,"inwater",NF90_FLOAT,DYNM1D,INW_VID)
+     IERR = NF90_PUT_ATT(NC_FID,INW_VID,"long_name","particle inwater (1)")
+     IERR = NF90_PUT_ATT(NC_FID,INW_VID,"units","")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     IERR = NF90_DEF_VAR_DEFLATE(NC_FID, INW_VID, shuffle=1, deflate=1, deflate_level=9)
+#    endif
   
 
 

@@ -264,8 +264,8 @@ CONTAINS
 
           ! Start averaging data at Next_IO
           IF(NC_AVG%FTIME%NEXT_IO < IntTime) CALL ADD_AVERAGE
-          write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO
-          write(*,*) '             IntTime=',IntTime
+!          write(*,*) 'NC_AVG%FTIME%NEXT_IO=',NC_AVG%FTIME%NEXT_IO    ! Siqi Li
+!          write(*,*) '             IntTime=',IntTime                 ! Siqi Li
           
           ! When average interval is complete - write to file
           IF((NC_AVG%FTIME%NEXT_IO + NC_AVG%FTIME%INTERVAL)  == IntTime)THEN
@@ -549,18 +549,7 @@ CONTAINS
           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,VELOCITY_FILE_OBJECT() )
        END IF
-! RJT 2015 Opens the OFFLINE NC object to store the variables needed for offline forcing of sediments and fabm
-       IF(NC_OFFLINE) THEN
-          NCF2 => OFFLINE_FILE_OBJECT()
-          NCF => ADD(NCF,NCF2)
-! Add temperature and salinity objects. Elevation is always in the output for some reason.
-! Wetting and drying is always written if the model runs with wet and dry
-         IF(.not. NC_SALT_TEMP) THEN
-            NCF2 => SALT_TEMP_FILE_OBJECT()
-            NCF => ADD(NCF,NCF2)
-         END IF
-       END IF
-
+       
        IF(NC_VERTICAL_VEL) THEN
           NCF2 => VERTICAL_VEL_FILE_OBJECT()
           NCF => ADD(NCF,NCF2)
@@ -731,7 +720,22 @@ CONTAINS
           !-----------------------------------------------------------------
        END IF
 # endif
-       
+      
+!!# if defined (DATA_ASSIM)  removed by Siqi Li, @20210809 
+! lwang added for mld_output Jul 09, 2019
+       IF(NC_MLD) THEN
+          NCF => ADD(NCF,MLD_FILE_OBJECT() )
+          NCF => ADD(NCF,DENSITY_FILE_OBJECT())
+       END IF
+! lwang added for ERSEM offline Aug 26, 2019
+       IF(NC_UARD_OBCN) THEN
+          !-----------------------------------------------------------------
+          NCF => ADD(NCF,UARD_OBCN_FILE_OBJECT() )
+          !-----------------------------------------------------------------
+       END IF
+! lwang
+!!# endif removed by Siqi Li, @20210809
+ 
        IF (STARTUP_TYPE /= "crashrestart") THEN
 
           ! IF CRASH RESTART - OVER RIDE THE STKCNT
@@ -981,16 +985,6 @@ CONTAINS
        NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$       NC_AVG_DATA => ADD(NC_AVG_DATA,VELOCITY_FILE_OBJECT() )
     END IF
-! RJT 2015       
-       IF(NCAV_OFFLINE) THEN
-          NCF_TMP => OFFLINE_FILE_OBJECT()
-          NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
-!!$       NC_AVG_DATA => ADD(NC_AVG_DATA,VELOCITY_FILE_OBJECT() )
-         IF(.not. NCAV_SALT_TEMP) THEN
-           NCF_TMP => SALT_TEMP_FILE_OBJECT()
-           NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
-         END IF
-       END IF
 
     IF(NCAV_VERTICAL_VEL) THEN
        NCF_TMP => VERTICAL_VEL_FILE_OBJECT()
@@ -1885,7 +1879,7 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:H")
        h = 0.0_SP
        
-!# if defined(UCF)
+# if defined(UCF)
        allocate(zz1(NGL,KB),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ZZ1")
        zz1 = 0.0_SP
@@ -1897,7 +1891,7 @@ CONTAINS
        allocate(h1(NGL),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORcY ON IO PROC FOR OUTPUT DATA:H1")
        h1 = 0.0_SP
-!# endif
+# endif
 
        
     END IF
@@ -2019,7 +2013,7 @@ CONTAINS
 
 #  if defined (MULTIPROCESSOR)
     ! PARTITION
-    ALLOCATE(partition(G%NT)); partition=myid
+    IF(.not. IOPROC .or. .not. IOPROC_ALLOCATED) ALLOCATE(partition(G%NT)); partition=myid
     VAR  => NC_MAKE_PVAR(name='partition',values=partition,DIM1=DIM_nele)
     NULLIFY(PARTITION)
     ! THIS CAN CREATE A MEMORY LEAK - BE CAREFUL!
@@ -2200,7 +2194,7 @@ CONTAINS
        NCF  => ADD(NCF,VAR)
     END IF
 
-!# if defined(UCF)
+# if defined(UCF)
     ! ADD SIGMA VALUE AT CELL CENTERS!
     IF (ALLOCATED(zz1)) THEN
        ! siglay
@@ -2291,9 +2285,7 @@ CONTAINS
 
        NCF  => ADD(NCF,VAR)
     END IF
-
-
-!# endif
+# endif
 
     IF (ALLOCATED(h)) THEN
        ! h (if morphodynamics is on, dump time-dependent bathymetry)
@@ -2470,6 +2462,155 @@ CONTAINS
   END FUNCTION GRID_FILE_OBJECT
 
 !=============================================================  
+  FUNCTION GRID_FILE_OBJECT_NCNEST(G) RESULT(NCF)
+    USE MOD_CLOCK
+    USE MOD_FORCE
+    IMPLICIT NONE
+    
+    TYPE(GRID) :: G
+    INTEGER, POINTER :: partition(:)
+    INTEGER :: status, I
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START GRID_FILE_OBJECT_NCNEST"
+    
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+
+       ! MGL AND NGL ARE THE BIGEST THING GOING - USE THEM TO MAKE
+       ! SURE WE DON'T GET A SIG SEV - MULTIPLE FILE GRIDS MAY USE
+       ! THESE POINTERS!
+       IOPROC_ALLOCATED = .true.
+
+!# if defined(UCF)
+       allocate(zz1(NGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ZZ1")
+       zz1 = 0.0_SP
+
+       allocate(z1(NGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:Z1")
+       z1 = 0.0_SP
+
+       allocate(h1(NGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORcY ON IO PROC FOR OUTPUT DATA:H1")
+       h1 = 0.0_SP
+!# endif
+
+       
+    END IF
+
+    ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+    ! ADD THE VARIABLES
+
+!# if defined(UCF)
+    ! ADD SIGMA VALUE AT CELL CENTERS!
+    IF (ALLOCATED(zz1)) THEN
+       ! siglay
+       VAR  => NC_MAKE_AVAR(name='siglay_center',&
+            & values=zz1,&
+            & DIM1= DIM_nele,&
+            & DIM2= DIM_siglay )
+       
+       ATT  => NC_MAKE_ATT(name='long_name',values='Sigma Layers') 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='standard_name',values='ocean_sigma/general_coordinate') 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='positive',values='up') 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='valid_min',values=-1.0_SPA) 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='valid_max',values=0.0_SPA) 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='formula_terms',values='sigma: siglay_center eta: zeta_center depth: h_center') 
+       VAR  => ADD(VAR,ATT)
+       
+       NCF  => ADD(NCF,VAR)
+    END IF
+
+    IF (ALLOCATED(Z1)) THEN
+       ! siglev
+       VAR  => NC_MAKE_AVAR(name='siglev_center',&
+            & values=z1, DIM1= DIM_nele, DIM2= DIM_siglev )
+       
+       ATT  => NC_MAKE_ATT(name='long_name',values='Sigma Levels') 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='standard_name',values='ocean_sigma/general_coordinate') 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='positive',values='up') 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='valid_min',values=-1.0_SPA) 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='valid_max',values=0.0_SPA) 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='formula_terms',values='sigma:siglay_center eta: zeta_center depth: h_center') 
+       VAR  => ADD(VAR,ATT)
+       
+       NCF  => ADD(NCF,VAR)
+    END IF
+
+    IF (ALLOCATED(h1)) THEN
+       ! h1  (if morphodynamics is on, dump time-dependent bathymetry)
+# if defined(SEDIMENT)
+       IF(MORPHO_MODEL)THEN
+         VAR  => NC_MAKE_AVAR(name='h_center',values=h1, DIM1= DIM_nele, DIM2= DIM_time)
+       ELSE
+         VAR  => NC_MAKE_AVAR(name='h_center',values=h1, DIM1= DIM_nele)
+       ENDIF
+# else
+       VAR  => NC_MAKE_AVAR(name='h_center',values=h1, DIM1= DIM_nele)
+# endif
+
+       ATT  => NC_MAKE_ATT(name='long_name',values='Bathymetry') 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='standard_name',values='sea_floor_depth_below_geoid') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='units',values='m')
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='positive',values='down') 
+       VAR  => ADD(VAR,ATT)
+       
+       ATT  => NC_MAKE_ATT(name='grid',values='grid1 grid3') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='coordinates',values='latc lonc') 
+       VAR  => ADD(VAR,ATT)
+
+       ATT  => NC_MAKE_ATT(name='grid_location',values='center') 
+       VAR  => ADD(VAR,ATT)
+
+       NCF  => ADD(NCF,VAR)
+    END IF
+!# endif
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END GRID_FILE_OBJECT_NCNEST"
+
+
+  END FUNCTION GRID_FILE_OBJECT_NCNEST
+
+!=============================================================  
   FUNCTION GRID_FILE_OBJECT_SURFACE(G) RESULT(NCF)
     USE MOD_CLOCK
     USE MOD_FORCE
@@ -2538,11 +2679,11 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:H")
        h = 0.0_SP
        
-!# if defined(UCF)
+# if defined(UCF)
        allocate(h1(NGL),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORcY ON IO PROC FOR OUTPUT DATA:H1")
        h1 = 0.0_SP
-!# endif
+# endif
 
        
     END IF
@@ -2785,7 +2926,7 @@ CONTAINS
        NCF  => ADD(NCF,VAR)
     END IF
 
-!# if defined(UCF)
+# if defined(UCF)
     IF (ALLOCATED(h1)) THEN
        ! h1  (if morphodynamics is on, dump time-dependent bathymetry)
 # if defined(SEDIMENT)
@@ -2823,7 +2964,7 @@ CONTAINS
     END IF
 
 
-!# endif
+# endif
 
     IF (ALLOCATED(h)) THEN
        ! h (if morphodynamics is on, dump time-dependent bathymetry)
@@ -3566,240 +3707,6 @@ CONTAINS
 
   END FUNCTION VELOCITY_FILE_OBJECT
 !=============================================================  
-  FUNCTION OFFLINE_FILE_OBJECT() RESULT(NCF)
-    USE MOD_OBCS, ONLY: UARD_OBCN
-    USE BCS, ONLY: IOBCN
-    IMPLICIT NONE
-
-    INTEGER :: status
-    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
-    TYPE(NCFILE), POINTER :: NCF
-    TYPE(NCVAR),  POINTER :: VAR
-    TYPE(NCATT),  POINTER :: ATT
-
-    character(len=100)    :: timestamp, temp, netcdf_convention
-
-    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START OFFLINE_FILE_OBJECT"
-    
-    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
-    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
-    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
-    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
-
-       IOPROC_ALLOCATED = .true.
-
-       allocate(U(NGL,KB),stat=status)
-       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:U")
-       U = 0.0_sp
-
-       allocate(V(NGL,KB),stat=status)
-       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:V")
-       V = 0.0_sp
-
-       allocate(KH(MGL,KB),stat=status)
-       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:KH")
-       KH = 0.0_SP
-
-       allocate(WTS(MGL,KB),stat=status)
-       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WTS")
-       WTS = 0.0_SP
-
-       ALLOCATE(UARD_OBCN(IOBCN),stat=status)
-       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UARD_OBCN")
-       UARD_OBCN = 0.0_SP
-    END IF
-
-
-  ! ALLOCATE THE NEW FILE OBJECT
-    NCF => NEW_FILE()
-
-
-    ! U
-    VAR  => NC_MAKE_AVAR(name='u',&
-         & values=U, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
-
-# if defined(UCF)
-    ATT  => NC_MAKE_ATT(name='long_name',values='East Velocity Component') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='standard_name',values='eastward_sea_water_velocity') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='units',values='m s-1') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid',values='grid5') 
-    VAR  => ADD(VAR,ATT)
-
-!!$    ATT  => NC_MAKE_ATT(name='grid_location',values='center') 
-    ATT  => NC_MAKE_ATT(name='location',values='face') 
-    VAR  => ADD(VAR,ATT)
-
-!!$    ATT  => NC_MAKE_ATT(name='coordinates',values='latc lonc siglay_center') 
-    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
-    VAR  => ADD(VAR,ATT)
-
-# else
-    ATT  => NC_MAKE_ATT(name='long_name',values='Eastward Water Velocity') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='standard_name',values='eastward_sea_water_velocity') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='location',values='face') 
-    VAR  => ADD(VAR,ATT)
-# endif
-
-    NCF  => ADD(NCF,VAR)
-
-
-
-    ! V
-    VAR  => NC_MAKE_AVAR(name='v',&
-         & values=V, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
-
-# if defined(UCF)
-    ATT  => NC_MAKE_ATT(name='long_name',values='North Velocity Component') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='standard_name',values='Northward_sea_water_velocity') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='units',values='m s-1') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid',values='grid5') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid_location',values='center') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='coordinates',values='latc lonc siglay_center') 
-    VAR  => ADD(VAR,ATT)
-
-# else
-    ATT  => NC_MAKE_ATT(name='long_name',values='Northward Water Velocity') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='standard_name',values='Northward_sea_water_velocity') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='location',values='face') 
-    VAR  => ADD(VAR,ATT)
-# endif
-
-    NCF  => ADD(NCF,VAR)
-
-    ! KH
-    VAR  => NC_MAKE_AVAR(name='kh',&
-         & values=kh, DIM1= DIM_node, DIM2= DIM_siglev, DIM3 = DIM_time)
-
-    ATT  => NC_MAKE_ATT(name='long_name',values='Turbulent Eddy Viscosity For Scalars') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
-    VAR  => ADD(VAR,ATT)
-    
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
-    VAR  => ADD(VAR,ATT)
-
-    NCF  => ADD(NCF,VAR)
-
-    ! WTS
-    VAR  => NC_MAKE_AVAR(name='omega',&
-         & values=WTS, DIM1= DIM_node, DIM2= DIM_siglev, DIM3 = DIM_time)
-
-    ATT  => NC_MAKE_ATT(name='long_name',values='Vertical Sigma Coordinate Velocity') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='units',values='s-1') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
-    VAR  => ADD(VAR,ATT)
-
-    NCF  => ADD(NCF,VAR)
-
-    ! WW
-    VAR  => NC_MAKE_AVAR(name='ww',&
-         & values=WW, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
-
-    ATT  => NC_MAKE_ATT(name='long_name',values='Upward Water Velocity') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
-    VAR  => ADD(VAR,ATT)
-
-    NCF  => ADD(NCF,VAR)
-
-    ! UARD_OBCN
-    VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
-         & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
-
-    ATT  => NC_MAKE_ATT(name='long_name',values='Normal Velocity at boundaries') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='type',values='data') 
-    VAR  => ADD(VAR,ATT)
-
-    NCF  => ADD(NCF,VAR)
-
-
-
-    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END VELOCITY_FILE_OBJECT"
-
-  END FUNCTION OFFLINE_FILE_OBJECT
   FUNCTION VORTICITY_FILE_OBJECT() RESULT(NCF)
     IMPLICIT NONE
 
@@ -4569,6 +4476,8 @@ CONTAINS
        WTSURF_watts = 0.0_SP
 
 #      if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+!       IF(HEATING_FRESHWATER)THEN
+       
        allocate(HSENS_WATTS(MGL),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:HSENS")
        HSENS_watts = 0.0_SP
@@ -4580,6 +4489,8 @@ CONTAINS
        allocate(LWRAD_WATTS(MGL),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:LWRAD")
        LWRAD_watts = 0.0_SP
+       
+!       END IF
 #      endif
 
     END IF
@@ -4646,6 +4557,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
 #   if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+!    IF(HEATING_FRESHWATER)THEN
+    
     !EJA edit to add Sensible, Latent, and Longwave radiation to output - 05/03/2016
     ! HSENS
     VAR  => NC_MAKE_AVAR(name='sensible_heat_flux',&
@@ -4730,6 +4643,8 @@ CONTAINS
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
+    
+!    END IF
 #   endif
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END SURFACE_HEATING_FILE_OBJECT"
@@ -4922,6 +4837,12 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WVSURF")
        WVSURF_save = 0.0_SP
 
+       ! Siqi Li, 2021-01-27
+       allocate(Cd(NGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:Cd")
+       Cd = 0.0_sp
+
+
     END IF
 
 
@@ -4972,7 +4893,26 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
 
+    !  Cd        Siqi Li, 2021-01-27
+    VAR  => NC_MAKE_AVAR(name='Cd',&
+         & values=Cd, DIM1= DIM_nele, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Drag coefficient')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='1')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END WIND_STRESS_FILE_OBJECT"
+
     
   END FUNCTION WIND_STRESS_FILE_OBJECT
 !=============================================================  
@@ -5434,6 +5374,12 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ISWETCE")
        ISWETCE = 0
 
+!qxu{for inundation maps
+       allocate(INUNDATION_MAPS(NGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:INUNDATION_MAPS")
+       INUNDATION_MAPS = 0
+!qxu}
+
 
     END IF
 
@@ -5553,6 +5499,22 @@ CONTAINS
 
     NCF  => ADD(NCF,VAR)
 
+!qxu{for inundation maps
+    ! INUNDATION CELLS
+    VAR  => NC_MAKE_AVAR(name='inundation_cells',&
+         & values=INUNDATION_MAPS, DIM1= DIM_nele, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Inundation_Cells')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+!qxu}
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END WET_DRY_FILE_OBJECT"
     
@@ -5961,7 +5923,8 @@ CONTAINS
     NCF => NEW_FILE()
 
     ! W4ZT
-    VAR  => NC_MAKE_AVAR(name='w4zt',&
+!    VAR  => NC_MAKE_AVAR(name='w4zt',&    ! Siqi
+    VAR  => NC_MAKE_AVAR(name='W4ZT',&
          & values=W4ZT, DIM1= DIM_node, DIM2= DIM_siglev, DIM3 = DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Temp Vertical Velocity in Z')
@@ -5979,7 +5942,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQDRX
-    VAR  => NC_MAKE_AVAR(name='nhqdrx',&
+!    VAR  => NC_MAKE_AVAR(name='nhqdrx',&   ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQDRX',&
          & values=NHQDRX, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient XCor')
@@ -5997,7 +5961,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQDRY
-    VAR  => NC_MAKE_AVAR(name='nhqdry',&
+!    VAR  => NC_MAKE_AVAR(name='nhqdry',&  ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQDRY',&
          & values=NHQDRY, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient YCor')
@@ -6015,7 +5980,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQDRZ
-    VAR  => NC_MAKE_AVAR(name='nhqdrz',&
+!    VAR  => NC_MAKE_AVAR(name='nhqdrz',&   ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQDRZ',&
          & values=NHQDRZ, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient ZCor')
@@ -6033,7 +5999,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQ2DX
-    VAR  => NC_MAKE_AVAR(name='nhq2dx',&
+!    VAR  => NC_MAKE_AVAR(name='nhq2dx',&   ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQ2DX',&
          & values=NHQ2DX, DIM1= DIM_nele, DIM2= DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient XCor 2D')
@@ -6051,7 +6018,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQ2DY
-    VAR  => NC_MAKE_AVAR(name='nhq2dy',&
+!    VAR  => NC_MAKE_AVAR(name='nhq2dy',&   ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQ2DY',&
          & values=NHQ2DY, DIM1= DIM_nele, DIM2= DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient YCor 2D')
@@ -7329,7 +7297,7 @@ CONTAINS
 
   END  FUNCTION WAVE_PARA1_FILE_OBJECT 
 
- FUNCTION WAVE_STRESS_FILE_OBJECT() RESULT(NCF)
+  FUNCTION WAVE_STRESS_FILE_OBJECT() RESULT(NCF)
 
    USE SWCOMM3
    USE VARS_WAVE
@@ -7517,7 +7485,6 @@ CONTAINS
 # if defined (FLUID_MUD)
   FUNCTION FLUID_MUD_FILE_OBJECT() RESULT(NCF)
     USE MOD_SED
-    USE Mod_Fluid_Mud
     IMPLICIT NONE
    INTEGER :: status
    LOGICAL, SAVE :: IOPROC_ALLOCATED1 = .FALSE.
@@ -7862,30 +7829,32 @@ CONTAINS
 # if defined(MULTIPROCESSOR)
   IF(USE_MPI_IO_MODE) THEN
 
-     IF(MSR) THEN
+!!$     IF(MSR) THEN
+     IF(MYID_IOGROUP ==1) THEN
         DEST = IOPROCID - 1
-        CALL MPI_SEND(NSED,1,MPI_INTEGER,DEST,TAG,MPI_COMM_WORLD,IERR)
+        CALL MPI_SEND(NSED,1,MPI_INTEGER,DEST,TAG,MPI_IO_GROUP,IERR)
 
 
         DO II = 1,nsed
            
            len = len_trim(sed(ii)%sname)
-           CALL MPI_SEND(len,1,MPI_INTEGER,DEST,TAG_I+II,MPI_COMM_WORLD,IERR)
+           CALL MPI_SEND(len,1,MPI_INTEGER,DEST,TAG_I+II,MPI_IO_GROUP,IERR)
            
-           CALL MPI_SEND(sed(ii)%sname(1:len),len,MPI_CHARACTER,DEST,TAG_C+II,MPI_COMM_WORLD,IERR)
+           CALL MPI_SEND(sed(ii)%sname(1:len),len,MPI_CHARACTER,DEST,TAG_C+II,MPI_IO_GROUP,IERR)
            
         END DO
 
         
 
      ELSEIF(IOPROC) THEN
-        SOURCE = MSRID -1
-        CALL MPI_RECV(NSED,1,MPI_INTEGER,SOURCE,TAG,MPI_COMM_WORLD,STAT,IERR)
+!!$        SOURCE = MSRID -1
+        SOURCE = 0
+        CALL MPI_RECV(NSED,1,MPI_INTEGER,SOURCE,TAG,MPI_IO_GROUP,STAT,IERR)
 
         DO II = 1,nsed
-           CALL MPI_RECV(len,1,MPI_INTEGER,SOURCE,TAG_I+II,MPI_COMM_WORLD,STAT,IERR)
+           CALL MPI_RECV(len,1,MPI_INTEGER,SOURCE,TAG_I+II,MPI_IO_GROUP,STAT,IERR)
            
-           CALL MPI_RECV(sed(ii)%sname,len,MPI_CHARACTER,SOURCE,TAG_C+II,MPI_COMM_WORLD,STAT,IERR)
+           CALL MPI_RECV(sed(ii)%sname,len,MPI_CHARACTER,SOURCE,TAG_C+II,MPI_IO_GROUP,STAT,IERR)
            
            sed(ii)%sname = sed(ii)%sname(1:len)
            
@@ -7900,30 +7869,32 @@ CONTAINS
 # if defined(MULTIPROCESSOR)
   IF(USE_MPI_IO_MODE) THEN
 
-     IF(MSR) THEN
+!!$     IF(MSR) THEN
+     IF(MYID_IOGROUP == 1) THEN
         DEST = IOPROCID - 1
-        CALL MPI_SEND(NSED,1,MPI_INTEGER,DEST,TAG,MPI_COMM_WORLD,IERR)
+        CALL MPI_SEND(NSED,1,MPI_INTEGER,DEST,TAG,MPI_IO_GROUP,IERR)
 
 
         DO II = 1,nsed
 
            len = len_trim(sed(ii)%sname2)
-           CALL MPI_SEND(len,1,MPI_INTEGER,DEST,TAG_I+II,MPI_COMM_WORLD,IERR)
+           CALL MPI_SEND(len,1,MPI_INTEGER,DEST,TAG_I+II,MPI_IO_GROUP,IERR)
 
-           CALL MPI_SEND(sed(ii)%sname2(1:len),len,MPI_CHARACTER,DEST,TAG_C+II,MPI_COMM_WORLD,IERR)
+           CALL MPI_SEND(sed(ii)%sname2(1:len),len,MPI_CHARACTER,DEST,TAG_C+II,MPI_IO_GROUP,IERR)
 
         END DO
 
 
 
      ELSEIF(IOPROC) THEN
-        SOURCE = MSRID -1
-        CALL MPI_RECV(NSED,1,MPI_INTEGER,SOURCE,TAG,MPI_COMM_WORLD,STAT,IERR)
+!!$        SOURCE = MSRID -1
+        SOURCE = 0
+        CALL MPI_RECV(NSED,1,MPI_INTEGER,SOURCE,TAG,MPI_IO_GROUP,STAT,IERR)
 
         DO II = 1,nsed
-           CALL MPI_RECV(len,1,MPI_INTEGER,SOURCE,TAG_I+II,MPI_COMM_WORLD,STAT,IERR)
+           CALL MPI_RECV(len,1,MPI_INTEGER,SOURCE,TAG_I+II,MPI_IO_GROUP,STAT,IERR)
 
-           CALL MPI_RECV(sed(ii)%sname2,len,MPI_CHARACTER,SOURCE,TAG_C+II,MPI_COMM_WORLD,STAT,IERR)
+           CALL MPI_RECV(sed(ii)%sname2,len,MPI_CHARACTER,SOURCE,TAG_C+II,MPI_IO_GROUP,STAT,IERR)
 
            sed(ii)%sname2 = sed(ii)%sname2(1:len)
 
@@ -7981,7 +7952,7 @@ CONTAINS
   END DO
 
     if(nsed>1)then
-      VAR  => NC_MAKE_AVAR(name='total_ssc', &
+      VAR  => NC_MAKE_AVAR(name='todal_ssc', &
           & values=csed, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
 
       ATT  => NC_MAKE_ATT(name='long_name',values=TRIM('Total Suspended Sed &
@@ -8144,16 +8115,16 @@ CONTAINS
     VAR  => NC_MAKE_AVAR(name='DYE',&
          & values=DYE, DIM1= DIM_node, DIM2= DIM_siglay, DIM3=DIM_time)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Dye') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Water Surface Elevation') 
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='-') 
+    ATT  => NC_MAKE_ATT(name='units',values='meters') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='positive',values='up') 
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='standard_name',values='tracer') 
+    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_surface_height_above_geoid') 
     VAR  => ADD(VAR,ATT)
 
 # if defined(UCF)
@@ -8184,6 +8155,147 @@ CONTAINS
   END FUNCTION DYE_FILE_OBJECT
 # endif
 
+!!# if defined (DATA_ASSIM)  ! Siqi Li, @20210809
+! lwang added for mld_output Jul 09, 2019
+  FUNCTION MLD_FILE_OBJECT() RESULT(NCF)
+
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START MLD_FILE_OBJECT"
+
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+
+       ALLOCATE(MLD_OUT(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:MLD_OUT")
+       MLD_OUT = 0.0_SP
+!---> Removed by Siqi Li, @20210809
+!       ALLOCATE(MLD_Nsiglay(MGL),stat=status)
+!       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:MLD_Nsiglay")
+!       MLD_Nsiglay = 0
+!<---
+
+    END IF
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+   ! Mixed layer depth
+    VAR  => NC_MAKE_AVAR(name='MLD',&  ! MLD_Depth to MLD, Siqi Li, @20210809
+         & values=MLD_OUT, DIM1= DIM_node, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Mixed Layer Depth')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+! Removed by Siqi Li, @20210809
+!   ! Mixed Layer Nsiglay
+!    VAR  => NC_MAKE_AVAR(name='ML_Nsiglay',&
+!         & values=MLD_Nsiglay, DIM1= DIM_node, DIM2 = DIM_time)
+!
+!    ATT  => NC_MAKE_ATT(name='long_name',values='Mixed Layer Depth Siglay')
+!    VAR  => ADD(VAR,ATT)
+!
+!    ATT  => NC_MAKE_ATT(name='units',values='none')
+!    VAR  => ADD(VAR,ATT)
+!
+!    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+!    VAR  => ADD(VAR,ATT)
+!
+!    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+!    VAR  => ADD(VAR,ATT)
+!
+!    ATT  => NC_MAKE_ATT(name='type',values='data')
+!    VAR  => ADD(VAR,ATT)
+!
+!    NCF  => ADD(NCF,VAR)
+!<---
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END MLD_FILE_OBJECT"
+
+  END FUNCTION MLD_FILE_OBJECT
+! lwang added for ERSEM offline Aug 26, 2019
+
+  FUNCTION UARD_OBCN_FILE_OBJECT() RESULT(NCF)
+    USE MOD_OBCS, ONLY: UARD_OBCN
+    USE BCS, ONLY: IOBCN
+
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START UARD_OBCN_FILE_OBJECT"
+
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+       ALLOCATE(UARD_OBCN(IOBCN),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UARD_OBCN")
+       UARD_OBCN = 0.0_SP
+
+    END IF
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+   ! UARD_OBCN
+    VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
+         & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Normal Velocity at boundaries')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END UARD_OBCN_FILE_OBJECT"
+
+  END FUNCTION UARD_OBCN_FILE_OBJECT
+! lwang
+!# endif  ! Siqi Li, @20210809
 !=============================================================  
 
 SUBROUTINE UPDATE_IODATA(NCF,NOW)
@@ -8420,9 +8532,10 @@ SUBROUTINE GENMAP_SUBDOMAIN(EID_L,NID_L,LG)
   LG%KBM1 = KBM1
 
   ! SET FOR IOPROC!
-  SENDER = MSRID -1
-  CALL MPI_BCAST(LG%MGL,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
-  CALL MPI_BCAST(LG%NGL,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
+!!$  SENDER = MSRID -1
+  SENDER = 0
+  CALL MPI_BCAST(LG%MGL,1,MPI_INTEGER,SENDER,MPI_IO_GROUP,IERR)
+  CALL MPI_BCAST(LG%NGL,1,MPI_INTEGER,SENDER,MPI_IO_GROUP,IERR)
 
 
   IF(.NOT. IOPROC) THEN
@@ -9123,17 +9236,21 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 !=============================================================  
 !=============================================================  
 !=============================================================      
-  SUBROUTINE SETUP_MPI_IO_MODE(TF,COMMGRP) 
+  SUBROUTINE SETUP_MPI_IO_MODE(TF,COMMGRP,IOGROUP) 
     !===================================================================================|
     !  INITIALIZE MPI ENVIRONMENT                                                       |
     !===================================================================================|
+    IMPLICIT NONE
     LOGICAL, INTENT(INOUT) :: TF
     INTEGER, INTENT(OUT)   :: COMMGRP
-    INTEGER :: total_group  
-    INTEGER :: fvcom_group
-    INTEGER :: SBUF,RBUF, trueval, i
+    INTEGER, INTENT(OUT)   :: IOGROUP
+    INTEGER  IO_PROCS_REAL
+!!$    INTEGER :: total_group  
+!!$    INTEGER :: fvcom_group
+    INTEGER :: SBUF,RBUF, trueval, i, j, k
     INTEGER, allocatable :: fvcom_subset(:)
     INTEGER IERR
+    INTEGER rest, av_procs, latter
 
 
     if(DBG_SET(dbg_sbr)) &
@@ -9148,57 +9265,98 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
     end if
 
     IF (TF) THEN
-
+       ! THE VALUE OF IO_PROCESSORS CAN"T BE SET TOO LARGE OR MINUS
+       IO_PROCS_REAL = IO_PROCESSORS
+       IF (IO_PROCS_REAL .LE. 0 ) IO_PROCS_REAL = 1
+       IF ( IO_PROCS_REAL .GE. NPROCS-IO_PROCS_REAL) THEN
+         IO_PROCS_REAL = NPROCS-IO_PROCS_REAL
+         IF(NPROCS-IO_PROCS_REAL .LT. 3) THEN
+           IO_PROCS_REAL = 1
+         ENDIF
+       ENDIF
+       	  	   
 # if defined (MULTIPROCESSOR)
        ! MODIFY CONTROL VARIABLE EFFECTED BY THE USE OF MPI IO MODE
        NULLIFY(NPROCS_TOTAL)
        ALLOCATE(NPROCS_TOTAL)
        NPROCS_TOTAL = NPROCS
 
-       IOPROCID = NPROCS
+!!$       IOPROCID = NPROCS
 
        IOPROC=.FALSE.
-       IF(MYID==NPROCS) IOPROC=.TRUE.
+!!$       IF(MYID==NPROCS) IOPROC=.TRUE.
+       IF(MYID .GT. NPROCS-IO_PROCS_REAL) IOPROC=.TRUE.
 
-       ! NOW REDUCE THE NUMBER OF PROCESSORS BY ONE
-       NPROCS= NPROCS - 1
+!!$       ! NOW REDUCE THE NUMBER OF PROCESSORS BY ONE
+!!$       NPROCS= NPROCS - 1
+       ! NOW REDUCE THE NUMBER OF PROCESSORS BY IO_PROCS_REAL
+       NPROCS= NPROCS - IO_PROCS_REAL
 
-       ! RETURN HANDLE TO LIST OF GROUPS
-       call mpi_comm_group(mpi_comm_world,total_group,ierr)
+!!$       ! RETURN HANDLE TO LIST OF GROUPS
+!!$       call mpi_comm_group(MPI_FVCOM_GROUP,total_group,ierr)
 
        !first: define subset
-       !comp procs will have process_id/myid:  0-->(nprocs-1)/1-->nprocs
-       !mr_printy  will have process_id/myid:  nprocs/nprocs_tot
-       allocate(fvcom_subset(nprocs)) ; fvcom_subset = 0
-       do i=1,nprocs
-          fvcom_subset(i) = i-1
+       allocate(fvcom_subset(nprocs_total)) ; fvcom_subset = 0
+       do i=1,nprocs_total
+          if (i .LE. NPROCS) then
+             fvcom_subset(i) = 0
+          else	     
+             fvcom_subset(i) = 1
+          endif	     
        end do
-       call mpi_group_incl(total_group,nprocs,fvcom_subset,fvcom_group,ierr)
-       call mpi_comm_create(mpi_comm_world,fvcom_group,COMMGRP,ierr)
+       
+
+!!$       call mpi_group_incl(total_group,nprocs,fvcom_subset,fvcom_group,ierr)
+!!$       call mpi_comm_create(MPI_FVCOM_GROUP,fvcom_group,COMMGRP,ierr)
+       CALL MPI_comm_split(mpi_comm_fvcom, fvcom_subset(myid),myid,COMMGRP,ierr)
+       CALL MPI_comm_size(COMMGRP,NPROCS_FVCOM,ierr)
+       CALL MPI_comm_rank(COMMGRP,myid_fgroup,ierr)
+       myid_fgroup = myid_fgroup + 1
+ 
+       rest=mod(NPROCS,IO_PROCS_REAL)
+       av_procs=NPROCS/IO_PROCS_REAL
+       k=1
+       latter=0
+       do i=1,IO_PROCS_REAL
+          do j=1,av_procs+min(rest,1)
+             fvcom_subset(j+latter) = k
+          enddo
+          fvcom_subset(i+NPROCS) = k
+          latter = j+latter-1
+          if (rest .gt. 0) rest = rest-1
+          k = k+1
+       enddo          
+       CALL MPI_comm_split(mpi_comm_fvcom, fvcom_subset(myid),myid,IOGROUP,ierr)
+       CALL MPI_comm_size(IOGROUP,nprocs_io,ierr)
+       CALL MPI_comm_rank(IOGROUP,myid_iogroup,ierr)
+       myid_iogroup = myid_iogroup+1
+       IOPROCID = nprocs_io
+       allocate(NIO_LIST(nprocs_io))
+       CALL MPI_allgather(MYID,1,MPI_INTEGER,NIO_LIST,1,MPI_INTEGER,IOGROUP,ierr)
        deallocate(fvcom_subset)
 
 
-       call mpi_barrier(mpi_comm_world,ierr)
+       call mpi_barrier(MPI_COMM_FVCOM,ierr)
 
-       IF(.not. IOPROC) then
-          sbuf = myid
-          rbuf = 0
-          call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,COMMGRP,ierr)
+!!$       IF(.not. IOPROC) then
+       sbuf = myid_fgroup
+       rbuf = 0
+       call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,COMMGRP,ierr)
 
-          trueval = 0
-          do i=1,nprocs
-             trueval = trueval + i
-          end do
+       trueval = 0
+       do i=1,nprocs_fvcom
+          trueval = trueval + i
+       end do
           
-          if( trueval .NE. rbuf) &
-               & CALL FATAL_ERROR("TESTING GROUP COMMUNICATION FOR MPI &
-               &IO MODE FAILED")
-       END IF
+       if( trueval .NE. rbuf) &
+           & CALL FATAL_ERROR("TESTING GROUP COMMUNICATION FOR MPI &
+           &IO MODE FAILED")
+!!$       END IF
        
        
        sbuf = myid 
        rbuf = 0
-       call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,MPI_COMM_WORLD,ierr)
+       call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,MPI_COMM_FVCOM,ierr)
 
        trueval = 0
        do i=1,nprocs_total
@@ -9218,11 +9376,34 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
        ! MUST SET INTENT(OUT) COMMGRP
 # if defined (MULTIPROCESSOR)
        ! IF MULTIPROCESSOR BUT NOT MPI IO SET IT TO COMM WORLD!
-       COMMGRP = MPI_COMM_WORLD
+       COMMGRP = MPI_COMM_FVCOM
+       IOGROUP = MPI_COMM_FVCOM
+       NPROCS_IO = NPROCS
+       MYID_IOGROUP = MYID
+       MYID_FGROUP = MYID
+       IOPROCID = 1
+       NPROCS_TOTAL = NPROCS
+       NPROCS_FVCOM = NPROCS
+       ALLOCATE(NIO_LIST(NPROCS_IO))
+       DO I = 1, NPROCS_IO
+         NIO_LIST(I) = I
+       END DO
+       IOPROC = .FALSE.	 
 # else
        ! IF NOT MULTIPROCESSOR SET A DUMMY VALUE
        COMMGRP = -999
-
+       IOGROUP = -999
+       NPROCS_IO = NPROCS
+       MYID_IOGROUP = MYID
+       MYID_FGROUP = MYID
+       IOPROCID = 1
+       NPROCS_TOTAL = NPROCS
+       NPROCS_FVCOM = NPROCS
+       ALLOCATE(NIO_LIST(NPROCS_IO))
+       DO I = 1, NPROCS_IO
+         NIO_LIST(I) = I
+       END DO
+       IOPROC = .FALSE.	 
 # endif
 
 
@@ -9251,7 +9432,7 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
     IN_MPI_IO_LOOP = .TRUE.
 
-    if (MYID .NE. IOPROCID) then
+    if (MYID_IOGROUP .NE. IOPROCID) then
        IF(DBG_SET(DBG_LOG))THEN
           WRITE(IPT,*) "!++++++++++++++++++++++++++++++++++"
           WRITE(IPT,*) "! I AM NOT THE IO PROC:"
@@ -9286,9 +9467,9 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
        STAT=0
 !       SOURCE = MPI_ANY_SOURCE ! ALLOW ANY PROCESSOR TO COMMUNICATE WITH THE IO PROC
-       SOURCE = 0 ! ONLY THE MASTER CAN COMMMUNCATE WITH IO PROC
+       SOURCE = 0 ! ONLY THE MASTER OF IO_GROUP CAN COMMMUNCATE WITH IO PROC
        CALL MPI_RECV(RBUF,1,MPI_INTEGER,SOURCE&
-            &,SYNC_TAG,MPI_COMM_WORLD,STAT,IERR)
+            &,SYNC_TAG,MPI_IO_GROUP,STAT,IERR)
 
        select case(RBUF)
        case(EXT_CODE)
@@ -9303,7 +9484,7 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
           IF(DBG_SET(DBG_IO)) write(IPT,*) "OTHER PROCS WAITING FOR ME:"
 
-          Call mpi_barrier(mpi_comm_world,ierr)
+          Call mpi_barrier(MPI_IO_GROUP,ierr)
 
           IF(DBG_SET(DBG_IO)) write(IPT,*) "FINISHED WRITING LAST FILE: GO"
 
@@ -9311,7 +9492,7 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
           IF(DBG_SET(DBG_IO)) write(IPT,*) "IO PROC GOT GO FOR CALL:",RBUF
 
-          Call mpi_barrier(mpi_comm_world,ierr)
+          Call mpi_barrier(MPI_IO_GROUP,ierr)
 
           IF(DBG_SET(DBG_IO)) write(IPT,*) "IO PROC SINKED FOR GO"
 
@@ -9342,7 +9523,7 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
 
 
-    IF (MYID .EQ. IOPROCID) CALL FATAL_ERROR("IO PROC SHOULD NEVER&
+    IF (MYID_IOGROUP .EQ. IOPROCID) CALL FATAL_ERROR("IO PROC SHOULD NEVER&
          & BE IN MPI_IO_SYNCHRONIZE")
 
 
@@ -9351,35 +9532,35 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
     select CASE(CODE)
     case(WAIT_CODE)
 
-       if (MYID==1) then
+       if (MYID_IOGROUP==1) then
           IF(DBG_SET(DBG_IO)) write(IPT,*) "MASTER SENDING: WAIT_CODE"
           CALL MPI_SEND(CODE,1,MPI_INTEGER,IOPROCID-1,SYNC_TAG&
-               &,MPI_COMM_WORLD,IERR)
+               &,MPI_IO_GROUP,IERR)
        else
           IF(DBG_SET(DBG_IO)) write(IPT,*) "WAITING FOR IO PROC"
        end if
 
-       call mpi_barrier(mpi_comm_world,ierr)
+       call mpi_barrier(MPI_IO_GROUP,ierr)
 
        IF(DBG_SET(DBG_IO)) write(IPT,*) "IO PROC HAS FINISHED LAS&
             &T WRITE COMMAND"
 
     case default
 
-       if (MYID==1) then
+       if (MYID_IOGROUP==1) then
           IF(DBG_SET(DBG_IO)) write(IPT,*) "MASTER SENDING GO CODE:",CODE
-          CALL MPI_SEND(CODE,1,MPI_INTEGER,IOPROCID-1,SYNC_TAG,MPI_COMM_WORLD,IERR)
+          CALL MPI_SEND(CODE,1,MPI_INTEGER,IOPROCID-1,SYNC_TAG,MPI_IO_GROUP,IERR)
        else
           IF(DBG_SET(DBG_IO)) write(IPT,*) "WAITING FOR IO PROC"
        end if
 
-       call mpi_barrier(mpi_comm_world,ierr)
+       call mpi_barrier(MPI_IO_GROUP,ierr)
 
-          call CALL_FUNC(CODE,status)
-          IF (status/=0) call fatal_error("MPI_IO_SYNCHRONIZE: Bad go code",&
-               & "Could not retrieve valid function pointer?")
+       call CALL_FUNC(CODE,status)
+       IF (status/=0) call fatal_error("MPI_IO_SYNCHRONIZE: Bad go code",&
+           & "Could not retrieve valid function pointer?")
 
-          IF(DBG_SET(DBG_IO)) write(IPT,*) "FINISHED MPI_IO CALL!"
+       IF(DBG_SET(DBG_IO)) write(IPT,*) "FINISHED MPI_IO CALL!"
 
     end select
 

@@ -1,0 +1,164 @@
+OPTION: IATMOPT=1 constnat =2 varying; IATMPWLOPT = 0 step function =1 interpolationOB
+         2         0          IATMOPT --- definition of input structure
+First time of river loading
+                   0      DAYS
+No salinity loading 
+         0                1, 1--Yes, 0--NO (if Yes, next two lines: scale & load)
+No phjyto1 loading
+         0                2
+No phyto2 loading
+         0                3
+No phyto3 loading
+         0                4
+No RPOP loading
+         0                5
+No LPOP loading
+         0                6
+No RDOP loading
+         0                7
+YES LDOP loadging
+         1                8               yes
+SCALE for LDOP loading
+       1.0                8               scale
+LDOP loading
+0.1345E-07                8               load
+PO4 loading
+         1                9
+PO4 scale
+       1.0                9
+PO4 loading
+0.1644E-07                9
+No RPON Loading
+         0                10
+No LPON loading
+         0                11
+No RDON loading
+         0                12
+Yes LDON loading
+         1                13
+LDON scale
+       1.0                13
+LDON Loading
+0.5710E-06                13
+Yes NH4 loading
+         1                14
+NH4 scale
+       1.0                14
+NH4 loading
+0.7563E-06                14
+Yes NO3 laoding
+         1                15
+NO3 scale
+       1.0                15
+NO3 loading
+0.2859E-05                15
+No BSi loading          
+         0                16
+NO SiO3 loading
+         0                17
+No LPOC loading
+         0                18
+No LPOC loading
+         0                19
+No RDOC loading
+         0                20
+Yes LDOC laoding
+         1                21
+LDOC scale   
+       1.0                21
+LDOC loading
+0.5085E-05                21
+No ExDOC loading
+         0                22
+No RePOC loading
+         0                23
+No ReDOC loading
+         0                24
+No EqDO loading
+         0                25
+No DO loading
+         0                26
+      TIME        31
+          0.1679E-07
+          0.2052E-07
+          0.6977E-06
+          0.8566E-06
+          0.3114E-05
+          0.6505E-05
+     TIME         59
+          0.1189E-07
+          0.1454E-07
+          0.5121E-06
+          0.7097E-06
+          0.2740E-05
+          0.4425E-05
+     TIME         90
+          0.1073E-07
+          0.1311E-07
+          0.4679E-06
+          0.6747E-06
+          0.2651E-05
+          0.3929E-05
+     TIME        120
+          0.1858E-07
+          0.2271E-07
+          0.7655E-06
+          0.9102E-06
+          0.3251E-05
+          0.7264E-05
+     TIME        151
+          0.3117E-07
+          0.3810E-07
+          0.1243E-05
+          0.1288E-05
+          0.4212E-05
+          0.1261E-04
+     TIME        181
+          0.7697E-08
+          0.9408E-08
+          0.3530E-06
+          0.5838E-06
+          0.2420E-05
+          0.2642E-05
+     TIME        212
+          0.9951E-08
+          0.1216E-07
+          0.4384E-06
+          0.6514E-06
+          0.2592E-05
+          0.3599E-05
+     TIME        243
+          0.9252E-08
+          0.1131E-07
+          0.4119E-06
+          0.6304E-06
+          0.2539E-05
+          0.3302E-05
+     TIME        273
+          0.1547E-07
+          0.1891E-07
+          0.6476E-06
+          0.8170E-06
+          0.3013E-05
+          0.5944E-05
+     TIME        304
+          0.5055E-08
+          0.6178E-08
+          0.2528E-06
+          0.5045E-06
+          0.2218E-05
+          0.1519E-05
+     TIME        334
+          0.5443E-08
+          0.6653E-08
+          0.2675E-06
+          0.5162E-06
+          0.2248E-05
+          0.1684E-05
+     TIME        367
+          0.5443E-08
+          0.6653E-08
+          0.2675E-06
+          0.5162E-06
+          0.2248E-05
+          0.1684E-05

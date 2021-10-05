@@ -1,0 +1,95 @@
+Sediment File from C. Cerco 4/13/01: Based on SENS55 April 11, 2001             
+Net settling of organics = 0.1.  P settling not linked to solids                
+Close to final.  Split TF4 into left and right Modified 11-20-02                
+            HSED  INTSED                                                        
+            10.0       1                                                        
+    0.0018                                        difft                         
+      1.00       1.0                           saltsw,SALTND                    
+      0.65     0.255     0.095                 FRPPH1                           
+      0.65     0.255     0.095                 FRPPH2                           
+      0.65     0.255     0.095                 FRPPH3                           
+      0.65     0.255     0.095                 FRPPHB                           
+      0.65     0.300     0.050                 FRNPH1                           
+      0.65     0.300     0.050                 FRNPH2                           
+      0.65     0.300     0.050                 FRNPH3                           
+      0.65     0.300     0.050                 FRNPHB                           
+      0.60     0.200     0.200                 FRCPH1                           
+      0.60     0.200     0.200                 FRCPH2                           
+      0.60     0.200     0.200                 FRCPH3                           
+      0.60     0.200     0.200                 FRCPHB                           
+     0.035      1.10    0.0018     1.150   0.00000      1.17    pop1 diag rates 
+     0.035      1.10    0.0018     1.150   0.00000      1.17    pon1 diag rates 
+     0.035      1.10    0.0018     1.150   0.00000      1.17    poc1 diag rates 
+     0.500      1.10                                            pos diag rates  
+                                                                                
+              m1      m2  thtaDP  thtaDd                                        
+             0.3     0.3   1.117    1.08                                        
+old          0.5     0.5                                                        
+         kapnh4f KAPNH4s  pienh4 thtanh4   kmnh4 kmnh4o2                        
+           0.140   0.140     1.0    1.08   1500.    1.00                        
+                                                                                
+         kapno3f KAPNO3s   k2no3 thtano3                                        
+             0.3   0.125    0.25    1.08                                        
+                                                                                
+          kappd1  kappp1   pie1s   pie2s thtapd1 kmmhso2                        
+             0.2     0.4    100.    100.    1.08     4.0                        
+                                                                                
+          csisat  pie1si  pie2si   kmpsi                                        
+          40000.    10.0    100. 5.0E+07                                        
+                                                                                
+        O2CRITSI JSIDETR                                                        
+             1.0     0.0                                       Jsidetr was 100. 
+                                                                                
+         pi1po4f PI1PO4S  pi2po4  o2crit  kmo2Dp                                
+            300.    300.    500.      2.     4.0                                
+old         500.    500.    166.                                                
+        tempbnth kbntstr  KLBNTH   DPMIN                                        
+            10.0    0.03    00.0  3.0E-6                                        
+                                                                                
+         kappch4 thtach4 kmch4o2   kmso4                                        
+             0.2    1.08     0.2    1.08                                        
+                                                                                
+           xkmi0      i0  thtai0       r   thtar    beta  thbeta                
+DEPF1     1.0000   175.0    1.08   0.015   1.080  1.0e-4    1.24                
+                                                                                
+            amcn    amcp       a      aa   xkmg1   xkmg2                        
+DEPF2     5.6700   45.00    0.80    0.25  1.0e+5  1.0e+6                        
+                                                                                
+           xkbo2     tdd   dolow   DFDOh   DFDOq                                
+DEPF3     2.2500   14.00    1.00    1.75    1.50                                
+                                                                                
+           BALGC                                                                
+             OFF                                                                
+                                                                                
+             PMB    ANCB    APCB   KTGB1   KTGB2     TMB                        
+            300.   0.167  0.0167   0.004   0.006     20.                        
+                                                                                
+           ALPHB   CCHLB   KESED  KEBALG    KHNB    KHPB    KHRB                
+            4.25    75.0     0.5    0.01    0.01   0.001     0.5                
+                                                                                
+            BMRB    BPRB    KTBB     TRB BALGMIN                                
+            0.01    0.01   0.069     20.    0.01                                
+                                                                                
+            FNIB    FPIB                                                        
+             0.0     0.0                                                        
+                                                                                
+          SPVARS  PRINTS                                                        
+        CONSTANT      NO
+                                                                                
+     BOX  WSSNET  WSLNET  WSRNET  WSCNET  WSDNET  WSGNET  WSUNET                
+                                                                                
+       1   0.025   0.250   0.250   0.000   0.100   0.100   0.250
+old        0.100                                           0.010                
+          SPVARS  PRINTS                                                        
+        CONSTANT      NO
+                                                                                
+     BOX    VSED   VPMIX   VDMIX                                                
+                                                                                
+       1   0.100 0.00012 0.00100
+old        0.25                                                                 
+          SPVARS  PRINTS                                                        
+        CONSTANT      NO
+                                                                                
+     BOX   FRG2P   FRG3P   FRG2N   FRG3N   FRG2C   FRG3C                        
+                                                                                
+       1   0.255   0.095   0.300   0.050   0.240   0.160
