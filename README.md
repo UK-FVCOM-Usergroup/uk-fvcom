@@ -5,18 +5,18 @@ The main FVCOM website is http://fvcom.smast.umassd.edu/fvcom.
 
 This repository is for the UK FVCOM Users' code development.
 
-Current version has been updated to include the official 4.3 version from http://code.fvcom.org/medm/fvcom43
-
+This branch is a work in progress merging of FVCOM441 from http://code.fvcom.org/medm/fvcom441 
 
 Register
 --------
 
-Users of FVCOM must [register first](http://fvcom.smast.umassd.edu/wp-login.php?action=register) with Dr Changsheng Chen at the University of Massachusetts School of Marine Science. Users must agree to the [licence terms](FVCOM_source/LICENCE).
+Users of FVCOM are encouraged to  [register first](http://fvcom.smast.umassd.edu/wp-login.php?action=register) with Dr Changsheng Chen at the University of Massachusetts School of Marine Science. Users must agree to the [licence terms](FVCOM_source/LICENCE).
 
 Download
 --------
 
-Once registered, the official releases of FVCOM are available for download from http://fvcom.smast.umassd.edu/download.
+Once registered, the official releases of FVCOM are available for download from http://code.fvcom.org/medm
+
 
 Support
 -------
@@ -27,6 +27,13 @@ The examples bundled with the official FVCOM release can be found in this gitlab
 ```bash 
 git clone git@gitlab.ecosystem-modelling.pml.ac.uk:fvcom/fvcom-examples.git ./fvcom-examples
 ```
+
+
+History
+----------
+2021-10-05 - Initial upload to branch FVCOM441
+2021-10-05 - compilation check in Ceto (PML HPC) : No changes done to code. Make.inc copied directly from FVCOM43 code. Libs compiled in Ceto from code in FVCOM43 from 2016. It required addition of NML_ML in namelist file and USE_NETCDF4 flag. 
+2021-10-05 - test simulation of Lake Erie setup
 
 
 
