@@ -460,14 +460,6 @@ SUBROUTINE ADV_S
        S_upstreamB=S1(Bnear_node(I),K)+PSPX(Bnear_node(I))*XUBdist(I)+PSPY(Bnear_node(I))*YUBdist(I)                
 
 !     Smoothness-parameter
-!       IF (S1(IA,K).EQ.S1(IB,K)) THEN
-!          smoothrA    = 0.0_SP
-!          smoothrB    = 0.0_SP
-!         ELSE
-!     S_upstreamA if far upstream, and S1(IA,K) is upstream of S1(IB,K)
-!          smoothrA    = (S1(IA,K)-S_upstreamA)/(S1(IB,K)-S1(IA,K))
-!          smoothrB    = (S1(IB,K)-S_upstreamB)/(S1(IA,K)-S1(IB,K))
-!       END IF
 
        IF (S1(IA,K).EQ.S1(IB,K)) THEN
           smoothrA    = 0.0_SP
@@ -600,8 +592,14 @@ SUBROUTINE ADV_S
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
   !
 # if defined (MPDATA)
+  ! Known problems:
+  ! - Performance (cost)
 
-  !   S. HU
+  ! Possible improvements:
+  ! - Performance...
+  ! - Find a better way to solve the precipitation-conundrum?
+
+  !   S. Hu
   !   Using smolarkiewicz, P. K; A fully multidimensional positive definite advection
   !   transport algorithm with small implicit diffusion, Journal of Computational
   !   Physics, 54, 325-362, 1984
@@ -733,8 +731,8 @@ SUBROUTINE ADV_S
            IF(K == 1)THEN
               SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
-              SMAX = MAX(SMAX,S1(I,K+1),S1(I,K),S1_FRESH(I,K))
-              SMIN = MIN(SMIN,S1(I,K+1),S1(I,K),S1_FRESH(I,K))
+              SMAX = MAX(SMAX,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K))
+              SMIN = MIN(SMIN,S1(I,K+1),S1m(I,K),S1_FRESHm(I,K))
            ELSEIF(K == KBM1) THEN
               SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),K))
               SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),K))
@@ -808,11 +806,14 @@ SUBROUTINE ADV_S
         WWWS(I,1)=0.0_SP
      END DO
 
+! When K = 1
+! ----------
      DO I=1,M
-        SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),1))
-        SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),1))
-        SMAX = MAX(SMAX,S1(I,2),S1(I,1),S1_FRESH(I,1))
-        SMIN = MIN(SMIN,S1(I,2),S1(I,1),S1_FRESH(I,1))
+        ! Vadj = (D(I)*DZ(I,1)-(QPREC(I)+QEVAP(I))*DTI*ROFVROS)/(D(I)*DZ(I,1)) 
+        SMAX = MAXVAL(S1(NBSN(I,1:NTSN(I)),1)) !*Vadj)
+        SMIN = MINVAL(S1(NBSN(I,1:NTSN(I)),1)) !*Vadj) 
+        SMAX = MAX(SMAX,S1(I,2),S1m(I,1),S1_FRESHm(I,1))
+        SMIN = MIN(SMIN,S1(I,2),S1m(I,1),S1_FRESHm(I,1))
 
         TEMP=0.5*((WWWS(I,2)+ABS(WWWS(I,2)))*S1_S(I,2))*(DTI/DTFA(I))/DZ(I,1)
         BETAIN(I,1)=(SMAX-S1_S(I,1))/(TEMP+1.E-10)
