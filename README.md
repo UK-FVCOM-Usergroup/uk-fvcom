@@ -37,10 +37,10 @@ The ERSEM biogeochemical model can be requested from the Shelf Seas Biogeochemis
 ## Todo list:
 
 - [x] Remove vectorised advection from FABM coupler 
-- [ ] Enable combined nesting and OBC approach
-- [ ] Look at river_dilution behaviour (non conservation when non dilution is active)
+- [x ] Enable combined nesting and OBC approach
+- [x] Look at river_dilution behaviour (non conservation when non dilution is active)
 - [ ] Enable interaction between sediments and spectrally resolved light
-- [ ] Remove any hard coded links between sediments and FABM that are domain specific
+- [x ] Remove any hard coded links between sediments and FABM that are domain specific
 - [ ] Identify and solve offline conservation issues on first time step. 
 
 ## Fixes Log:

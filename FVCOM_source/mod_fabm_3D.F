@@ -10,6 +10,8 @@ MODULE MOD_FABM_3D
   USE ALL_VARS
   USE MOD_UTILS
   USE MOD_WD
+  USE MOD_SPHERICAL
+  USE MOD_NORTHPOLE
 ! for accessing global node id in error reporting
   USE MOD_PAR
 
@@ -166,6 +168,7 @@ MODULE MOD_FABM_3D
    END SUBROUTINE FABM_FVCOM_INITIALIZE
 
    SUBROUTINE FABM_ALLOCATE()
+    USE MOD_NESTING
     INTEGER :: IFABM,II
 !RJT for fix ERSEM variable
    CHARACTER(LEN=256) :: NAME_
@@ -289,6 +292,7 @@ MODULE MOD_FABM_3D
     IFABMadv = size(model%interior_state_variables) - COUNT(DISABLE_TRANSPORT) ! get the number of advecting variables 
 ! Build map of advectable variables in model%interior_state_variables    
     ALLOCATE(IFABMadv_idx(IFABMadv))
+    if (NESTING_ON.AND.FABM_NESTING_ON)  ALLOCATE(IFABMnest_idx(IFABMadv))
     II = 1
     DO IFABM=1,SIZE(model%interior_state_variables)
        IF (.not. DISABLE_TRANSPORT(IFABM)) THEN
@@ -572,6 +576,11 @@ SUBROUTINE FABM_UPDATE
      END DO
 #   endif
 
+!-----------syshi 20191013--------------
+#   if defined(SEMI_IMPLICIT)
+     FABM_ALL=TSC_FABM_ALL
+#   endif
+!-----------syshi 20191013--------------
      IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
      ! Remove the impact of FABM_ADV on the open boundary nodes that experience inflow.
      ! For those, we want to run water column simulations that only include sources, residual vertical movement and vertical mixing.
@@ -605,6 +614,11 @@ SUBROUTINE FABM_UPDATE
      IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
             CALL SET_VAR(intTime,FABM_ALL=FABM_F)
      END IF
+!-----------syshi 20191013--------------
+#   if defined(SEMI_IMPLICIT)
+      ENDDO
+#   endif
+!-----------syshi 20191013--------------
 # if defined (MULTIPROCESSOR)
      IF(PAR)CALL FABM_EXCHANGE(FABM_F)
 # endif
@@ -1012,12 +1026,15 @@ Subroutine SETTLE_FLUX_FABM(n,c,dx,wset,deltat)
 
 
 SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
+  
+  USE MOD_NESTING
      REAL(SP), INTENT(IN) :: DELTA_T
      INTEGER :: I,K,IFABM
      REAL(SP), DIMENSION(M,KBM1,size(model%interior_state_variables)) :: w_ct
      REAL(SP), DIMENSION(KBM1-1,size(model%interior_state_variables)) :: w_if, flux_if
      REAL(SP), DIMENSION(KBM1,  size(model%interior_state_variables)) :: flux_ct
      REAL(SP), PARAMETER :: max_courant = 0.99_SP
+     LOGICAL :: IN_NESTING
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: FABM_VERTICAL_MOVEMENT :"
 
@@ -1030,9 +1047,27 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
 #  if defined (WET_DRY)
        IF(ISWETN(I) == 1) THEN
 #  endif
+!         IF(FABM_NESTING_ON) THEN
+          IF(NESTING_ON) THEN
+           IN_NESTING=.FALSE.
+           DO II = 1, NESTING_GRID%MT
+             I_TMP = NESTING_GRID%NLID_X(II)
+             IF(I_TMP==I)THEN
+               IN_NESTING=.TRUE.
+               w_ct(I,:,:)=0.0_SP
+               EXIT
+             END IF
+           END DO
+           IF(IN_NESTING)EXIT
+         END IF
          ! Linearly interpolate to velocities at the interfaces between layers
          ! TODO: account for differences in layer heights (now we simply use the unweighted average of center velocities)
-         w_if(1:KBM1-1,:) = (w_ct(I,1:KBM1-1,:)+w_ct(I,2:KBM1,:))/2
+         !w_if(1:KBM1-1,:) = (w_ct(I,1:KBM1-1,:)+w_ct(I,2:KBM1,:))/2
+         DO K=1,KBM1-1
+             w_if(K,:) = (w_ct(I,K,:)*DZ(I,K+1)*D(I)+w_ct(I,K+1,:)*DZ(I,K)*D(I))/((DZ(I,K+1)+DZ(I,K))*D(I))
+             !IF(-D(I)*Z(I,K+1)>1000.0_SP)w_if(K,:)=0.0_SP !zero vertical velocity in the deep canyon by J. Ge
+         END DO
+         !IF(D(I)>1000.0_SP)w_if(K,:) = 0.0_SP
 !         write (*,*) 'Vertical velocities    ',maxval(w_if(1:KBM1-1,:)),minval(w_if(1:KBM1-1,:))         
          ! Convert velocities in m s-1 to mass fluxes (e.g., mol m-2 s-1) - both at interfaces between layers.
          DO IFABM=1,SIZE(model%interior_state_variables)
@@ -1327,6 +1362,9 @@ END SUBROUTINE FABM_MIXING
   USE MOD_OBCS
   USE MOD_PAR
   USE MOD_WD
+  USE MOD_SPHERICAL  !syshi 20191013
+  USE MOD_NORTHPOLE  !syshi 20191013
+  USE MOD_NESTING
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
@@ -1372,6 +1410,9 @@ END SUBROUTINE FABM_MIXING
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: BETAOUT !! temporary beta coefficient in corrected part
   REAL(SP), DIMENSION(0:MT,KB)     :: FABM_FRESH    !! for source term which also bring mass volume
+!lwang for MPDATA 0316
+  REAL(SP), DIMENSION(0:MT,KB)     :: OFFS    !! Offset to WQM field to avoid values less than zero.
+!lwang
   INTEGER ITERA, NTERA
 #  endif
    REAL(SP) :: FABM_MEAN
@@ -1395,16 +1436,16 @@ END SUBROUTINE FABM_MIXING
           & TRIM(HORIZONTAL_MIXING_TYPE) )
   END SELECT
 
-# if defined (SPHERICAL)
-    CALL FATAL_ERROR("SPHERICAL OPTION NOT IMPLEMENTED IN FABM_ADV")
-# endif
+!# if defined (SPHERICAL)
+!    CALL FATAL_ERROR("SPHERICAL OPTION NOT IMPLEMENTED IN FABM_ADV")
+!# endif
 # if defined (THIN_DAM)
     CALL FATAL_ERROR("THIN_DAM OPTION NOT IMPLEMENTED IN FABM_ADV")
 # endif
 # if !defined(MPDATA)
-#   if defined (SEMI_IMPLICIT)
-      CALL FATAL_ERROR("SEMI_IMPLICIT OPTION NOT IMPLEMENTED IN FABM_ADV")
-#   endif
+!#   if defined (SEMI_IMPLICIT)
+!      CALL FATAL_ERROR("SEMI_IMPLICIT OPTION NOT IMPLEMENTED IN FABM_ADV")
+!#   endif
 #   if defined (NH)
       CALL FATAL_ERROR("NH OPTION NOT IMPLEMENTED IN FABM_ADV")
 #   endif
@@ -1413,6 +1454,11 @@ END SUBROUTINE FABM_MIXING
 #   endif
 # endif
 
+!lwang for MPDATA 0316
+# if defined (MPDATA)
+  OFFS = 5.0_SP
+# endif
+!lwang
   !
   !--Initialize Fluxes-----------------------------------------------------------!
   !
@@ -1442,6 +1488,12 @@ END SUBROUTINE FABM_MIXING
   !
 
  DO IFABM=1,size(model%interior_state_variables)
+!lwang for MPDATA 0316
+#  if defined (MPDATA)
+   ! Adding offset to avoid less-than-zero problems
+     FABM_ALL(:,:,IFABM) = FABM_ALL(:,:,IFABM)+OFFS(:,:)
+#  endif
+!lwang
   DO K=1,KBM1
      PFPX  = 0.0_SP
      PFPY  = 0.0_SP
@@ -1503,7 +1555,18 @@ END SUBROUTINE FABM_MIXING
      END DO
 
      IF(K == KBM1) THEN
-        AH_BOTTOM(1:M) = (FACT*VISCOFF(1:M) + FM1)*NN_HVC(1:M)
+ !       AH_BOTTOM(1:M) = (FACT*VISCOFF(1:M) + FM1)*NN_HVC(1:M)
+ !********************Jadon**************************************
+     DO I = 1,M
+       AH_BOTTOM(i) = (FACT*VISCOFF(i) + FM1) * NN_HVC(i)
+       if (h(i)>800.0) then
+       elseif (h(i)<200.0) then
+         AH_BOTTOM(i)=AH_BOTTOM(i)*0.05
+       else
+         AH_BOTTOM(i)=AH_BOTTOM(i)*(1-(800.0-h(i))/600.0*0.95) 
+      endif
+     END DO
+!********************************************************************
      END IF
 
 
@@ -1581,8 +1644,16 @@ END SUBROUTINE FABM_MIXING
         !VISCOF=HORCON*(FACT*(VISCOFF(IA)+VISCOFF(IB))*0.5_SP + FM1)
         
         ! David moved HPRNU and added HVC
-        VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
-        
+       ! VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
+!*******************************Jadon*************************************
+       VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
+     if (min(h(ia),h(ib))>800.0) then
+     elseif (min(h(ia),h(ib))<200.0) then
+       VISCOF=VISCOF*0.05
+     else
+       VISCOF=VISCOF*(1-(800.0-min(h(ia),h(ib)))/600.0*0.95) 
+     endif
+!*****************************************************************************
         TXX=0.5_SP*(PFPXD(IA)+PFPXD(IB))*VISCOF
         TYY=0.5_SP*(PFPYD(IA)+PFPYD(IB))*VISCOF
 
@@ -1611,6 +1682,13 @@ END SUBROUTINE FABM_MIXING
 
      END DO
 
+#    if defined (SPHERICAL)
+#    if !defined (SEMI_IMPLICIT)
+       CALL ADV_S_XY(XFLUX(:,:,IFABM),XFLUX_ADV(:,:,IFABM),PFPX,PFPY,PFPXD,PFPYD,VISCOFF,K,0.0_SP)
+#    else
+       CALL ADV_S_XY(XFLUX(:,:,IFABM),XFLUX_ADV(:,:,IFABM),PFPX,PFPY,PFPXD,PFPYD,VISCOFF,K,IFCETA)
+#    endif
+#    endif
 
   END DO !!SIGMA LOOP
  END DO !to size(model%interior_state_variables)
@@ -1654,37 +1732,42 @@ END SUBROUTINE FABM_MIXING
   FABM_FRESH=FABM_ALL(:,:,IFABM)
 
 
-  IF(RIVER_TS_SETTING == 'calculated') THEN
-     IF(RIVER_INFLOW_LOCATION == 'node') THEN
-        IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-              JJ=INODEQ(J)
-              STPOINT=FABMDIS(J,IFABM)
-              DO K=1,KBM1
-                 FABM_FRESH(JJ,K)=FABMDIS(J,IFABM)
-                 XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
-              END DO
-           END DO
-        END IF
-     ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
-        IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-              J1=N_ICELLQ(J,1)
-              J2=N_ICELLQ(J,2)
-              STPOINT=FABMDIS(J,IFABM)!!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
-              DO K=1,KBM1
-                 FABM_FRESH(J1,K)=FABMDIS(J,IFABM)
-                 FABM_FRESH(J2,K)=FABMDIS(J,IFABM)
-                 XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-  &
-                      QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
-                 XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-  &
-                      QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
-              END DO
-           END DO
-        END IF
-     END IF
-  END IF
-  !
+  IF (.NOT. model%interior_state_variables(IFABM)%no_river_dilution) THEN
+      IF(RIVER_TS_SETTING == 'calculated') THEN
+         IF(RIVER_INFLOW_LOCATION == 'node') THEN
+            IF(NUMQBC > 0) THEN
+               DO J=1,NUMQBC
+                  JJ=INODEQ(J)
+                  STPOINT=FABMDIS(J,IFABM)+OFFS(1,1)
+                  DO K=1,KBM1
+                     FABM_FRESH(JJ,K)=FABMDIS(J,IFABM) ! Not sure this is correct
+                     XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
+                  END DO
+               END DO
+            END IF
+         ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+            IF(NUMQBC > 0) THEN
+               DO J=1,NUMQBC
+                  J1=N_ICELLQ(J,1)
+                  J2=N_ICELLQ(J,2)
+                  STPOINT=FABMDIS(J,IFABM)+OFFS(1,1)!!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+                  DO K=1,KBM1
+                     FABM_FRESH(J1,K)=FABMDIS(J,IFABM)
+                     FABM_FRESH(J2,K)=FABMDIS(J,IFABM)
+                     XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-  &
+                          QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
+                     XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-  &
+                          QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
+                  END DO
+               END DO
+            END IF
+         END IF
+      END IF
+    ELSE
+        ! we don't want this variable to be diluted with 0 concentration
+        IF (DBG_SET(DBG_VRB)) WRITE (IPT,*) "FABM Variable "//TRIM(model%interior_state_variables(IFABM)%name)//" is not in river forcing file and will not be diluted"
+    END IF
+ !
 
 
   ! The horizontal term of advection is neglected here for Open boundary locations
@@ -1750,11 +1833,22 @@ END SUBROUTINE FABM_MIXING
            ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
            XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_ALL(I,K,IFABM)-FABM_ALL(I,K,IFABM)*DT(I)/DTFA(I) 
 
+!lwang for MPDATA 0318
+           ! Added by Akvaplan 2018 to avoid single precision-crash
+         IF((ABS(XXXX).LT.ABS(WQMMAX-FABM_ALL(I,K,IFABM))).AND.(XXXX.LT.0.0_SP)) THEN
+            WQM_SF(I,K) = FABM_ALL(I,K,IFABM)-XXXX
+         ELSE IF((ABS(XXXX).LT.ABS(WQMMIN-FABM_ALL(I,K,IFABM))).AND.(XXXX.GT.0.0_SP)) THEN 
+            WQM_SF(I,K) = FABM_ALL(I,K,IFABM)-XXXX
+         ELSE IF(XXXX.EQ.0) THEN
+            WQM_SF(I,K) = FABM_ALL(I,K,IFABM)
+         ELSE
+!lwang
            BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (WQMMAX-FABM_ALL(I,K,IFABM))/(ABS(XXXX)+1.E-10) &
                 +0.5*(1.-SIGN(1._SP,-XXXX)) * (FABM_ALL(I,K,IFABM)-WQMMIN)/(ABS(XXXX)+1.E-10)
 
            WQM_SF(I,K)=FABM_ALL(I,K,IFABM)-MIN(1.,BETA(I,K))*XXXX
 
+         END IF
 #    if defined (WET_DRY)
         END IF
 #    endif
@@ -1790,7 +1884,7 @@ END SUBROUTINE FABM_MIXING
      DO I=1,M
         WQMMAX = MAXVAL(FABM_ALL(NBSN(I,1:NTSN(I)),1,IFABM))
         WQMMIN = MINVAL(FABM_ALL(NBSN(I,1:NTSN(I)),1,IFABM))
-        WQMMAX = MAX(WQMMAX,FABM_ALL(I,2,IFABM),FABM_ALL(I,1,IFABM),FABM_FRESH(I,1))
+        WQMMAX = MAX(WQMMAX,FABM_ALL(I,2,IFABM),FABM_ALL(I,1,IFABM),FABM_FRESH(I,1)) ! What if I is a river node?
         WQMMIN = MIN(WQMMIN,FABM_ALL(I,2,IFABM),FABM_ALL(I,1,IFABM),FABM_FRESH(I,1))
 
         TEMP=0.5*((WWWS(I,2)+ABS(WWWS(I,2)))*WQM_S(I,2))*(DTI/DTFA(I))/DZ(I,1)
@@ -1876,6 +1970,10 @@ END SUBROUTINE FABM_MIXING
   !--------------------------------------------------------------------------
   ! End of smolarkiewicz upwind loop
   !--------------------------------------------------------------------------
+!lwang for MPDATA 0316
+  FABM_ALL(:,:,IFABM) = FABM_ALL(:,:,IFABM)-OFFS(:,:)
+  WQM_SF = WQM_SF-OFFS
+!lwang
 #  endif ! MPDATA IF
 
 
@@ -1933,36 +2031,63 @@ END SUBROUTINE FABM_MIXING
   !
   !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
   !
-  IF(RIVER_TS_SETTING == 'calculated') THEN
-     IF(RIVER_INFLOW_LOCATION == 'node') THEN
-        IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-              JJ=INODEQ(J)
-              STPOINT=FABMDIS(J,IFABM)
-              DO K=1,KBM1
-                 !             XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT/DZ(JJ,K)
-                 XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
-              END DO
-           END DO
-        END IF
-     ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
-        IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-              J1=N_ICELLQ(J,1)
-              J2=N_ICELLQ(J,2)
-              STPOINT=FABMDIS(J,IFABM) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
-              DO K=1,KBM1
-                 !             XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-   &
-                 !                         QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT/DZ1(J1,K)
-                 !             XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-   &
-                 !                         QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT/DZ1(J2,K)
-                 XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
-                 XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
-              END DO
-           END DO
-        END IF
-     END IF
+  ! Check if variable will dilute
+  IF (.NOT. model%interior_state_variables(IFABM)%no_river_dilution) THEN
+      IF(RIVER_TS_SETTING == 'calculated') THEN
+         IF(RIVER_INFLOW_LOCATION == 'node') THEN
+            IF(NUMQBC > 0) THEN
+               DO J=1,NUMQBC
+                  JJ=INODEQ(J)
+                  STPOINT=FABMDIS(J,IFABM) ! river concentration in original units mass/vol
+                  DO K=1,KBM1
+                     !             XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT/DZ(JJ,K)
+                     XFLUX(JJ,K,IFABM)=XFLUX(JJ,K,IFABM) - QDIS(J)*VQDIST(J,K)*STPOINT
+                  END DO
+               END DO
+            END IF
+         ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+            IF(NUMQBC > 0) THEN
+               DO J=1,NUMQBC
+                  J1=N_ICELLQ(J,1)
+                  J2=N_ICELLQ(J,2)
+                  STPOINT=FABMDIS(J,IFABM) !! river concentration in original units M/L3
+                  DO K=1,KBM1
+                     !             XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-   &
+                     !                         QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT/DZ1(J1,K)
+                     !             XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-   &
+                     !                         QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT/DZ1(J2,K)
+                     XFLUX(J1,K,IFABM)=XFLUX(J1,K,IFABM)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
+                     XFLUX(J2,K,IFABM)=XFLUX(J2,K,IFABM)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
+                  END DO
+               END DO
+            END IF
+         END IF
+      END IF
+  ELSE
+    ! we don't want this variable to be diluted with 0 concentration
+    IF (DBG_SET(DBG_VRB)) WRITE (IPT,*) "FABM Variable "//TRIM(model%interior_state_variables(IFABM)%name)//" is not in river forcing file and will not be diluted"
   END IF
+! lwang added for groundwater calculated method
+  !
+  !--Set Boundary Conditions-For ground water
+  !Flux--------------------------------!
+  ! Uncomment when added to namelist
+!RJT  IF(GROUNDWATER_FABM_SETTING == 'calculated') THEN
+!RJT      DO J=1,M
+!RJT         IF (BFWDIS(J) /= 0.0_SP) THEN     
+!RJT            IF (BFWFABM(J,IFABM)>0.0_SP) THEN
+!RJT               STPOINT=BFWFABM(J,IFABM)
+!RJT                DO K=1,KBM1
+!RJT                    XFLUX(J,K,IFABM)=XFLUX(J,K,IFABM)-BFWDIS(J)*STPOINT*BFWFRAC(K) ! 1029
+!RJT                END DO
+!RJT!LWANG            ELSE 
+!RJT!LWANG               STPOINT=FABM_ALL(J,KBM1,IFABM)
+!RJT!LWANG               XFLUX(J,KBM1,IFABM)=XFLUX(J,KBM1,IFABM)-BFWDIS(J)*STPOINT
+!RJT            END IF
+!RJT         END IF
+!RJT      END DO
+!RJT  END IF
+! lwang
 !---------------------------------------------------------------------
 # endif
 
@@ -1982,6 +2107,7 @@ END SUBROUTINE FABM_MIXING
 #      endif
 
 #      else
+           FABM_F(I,K,IFABM)=(TSC_FABM_ALL(I,K,IFABM)-RK_FABM(STAGE)*XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I)) !syshi 20191013
 #      endif
 #    else
            FABM_F(I,K,IFABM)=WQM_SF(I,K)
@@ -1993,6 +2119,7 @@ END SUBROUTINE FABM_MIXING
 #      if !defined (SEMI_IMPLICIT)
            FABM_F(I,K,IFABM)=FABM_ALL(I,K,IFABM)
 #      else
+           FABM_F(I,K,IFABM)=TSC_FABM_ALL(I,K,IFABM) !syshi 20191013
 #      endif
         END DO
      END IF
@@ -2012,6 +2139,7 @@ END SUBROUTINE FABM_MIXING
 #      endif
 
 #      else
+        FABM_F(I,K,IFABM)=(TSC_FABM_ALL(I,K,IFABM)-RK_FABM(STAGE)*XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I)) !syshi 20191013
 #      endif
 #    else
         FABM_F(I,K,IFABM)=WQM_SF(I,K)
@@ -2025,8 +2153,10 @@ END SUBROUTINE FABM_MIXING
   END DO !do IFABM=1,size(model%interior_state_variables)
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_ADV"
-
+# endif ! End if Semi-implicit
 END SUBROUTINE FABM_ADV
+
+! FABM_ADV_VEC
 !==============================================================================|
 
   SUBROUTINE FABM_BCOND_PREPARE()
@@ -2073,36 +2203,58 @@ END SUBROUTINE FABM_ADV
 ! FABMDIS is initialised to zero so we don't need a mask. Not-read values will be zero
 !--SET CONDITIONS FOR FRESH WATER INFLOW for SPECIFIED CASE!!---------------------------------|
 !
-   IF(RIVER_TS_SETTING == 'specified') THEN
-     ! Impact of rivers is accounted for by OVERWRITING concentrations at inflow nodes with
-     ! the concentrations in the river. Note: the alternative RIVER_TS_SETTING=='calculated'
-     ! updates the concentration at the inflow nodes by taking into account their volume, the
-     ! local concentration, the river concentration and the river flow rate. This scenario is
-     ! handled in FABM_ADV.
-     IF(NUMQBC > 0) THEN
-       IF(RIVER_INFLOW_LOCATION == 'node') THEN
-         DO I=1,NUMQBC
-           J11=INODEQ(I)
-           DO K=1,KBM1
-             DO IFABM=1,size(model%interior_state_variables)
-               FABM_F(J11,K,IFABM) = FABMDIS(I,IFABM)
+ 
+      IF(RIVER_TS_SETTING == 'specified') THEN
+         ! Impact of rivers is accounted for by OVERWRITING concentrations at inflow nodes with
+         ! the concentrations in the river. Note: the alternative RIVER_TS_SETTING=='calculated'
+         ! updates the concentration at the inflow nodes by taking into account their volume, the
+         ! local concentration, the river concentration and the river flow rate. This scenario is
+         ! handled in FABM_ADV.
+         IF(NUMQBC > 0) THEN
+           IF(RIVER_INFLOW_LOCATION == 'node') THEN
+             DO I=1,NUMQBC
+               J11=INODEQ(I)
+               DO K=1,KBM1
+                 DO IFABM=1,size(model%interior_state_variables)
+                  IF (.NOT. model%interior_state_variables(IFABM)%no_river_dilution) THEN
+                     FABM_F(J11,K,IFABM) = FABMDIS(I,IFABM)
+                  END IF
+                 END DO
+               END DO
              END DO
-           END DO
-         END DO
-       ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
-         DO I=1,NUMQBC
-           J11=N_ICELLQ(I,1)
-           J22=N_ICELLQ(I,2)
-           DO K=1,KBM1
-             DO IFABM=1,size(model%interior_state_variables)
-               FABM_F(J11,K,IFABM)=FABMDIS(I,IFABM)
-               FABM_F(J22,K,IFABM)=FABMDIS(I,IFABM)
+           ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+             DO I=1,NUMQBC
+               J11=N_ICELLQ(I,1)
+               J22=N_ICELLQ(I,2)
+               DO K=1,KBM1
+                 DO IFABM=1,size(model%interior_state_variables)
+                   IF (.NOT. model%interior_state_variables(IFABM)%no_river_dilution) THEN
+                     FABM_F(J11,K,IFABM)=FABMDIS(I,IFABM)
+                     FABM_F(J22,K,IFABM)=FABMDIS(I,IFABM)
+                   END IF
+                 END DO
+               END DO
              END DO
-           END DO
-         END DO
-       END IF
-     END IF
-   END IF
+           END IF ! IF RIVER_INFLOW_LOCATION
+         END IF ! If NUMQBC > 0
+      END IF ! If RIVER_TS == specified
+
+   ! lwang added for fabm point source
+   ! Update concentrations at point source nodes.
+!   IF(GROUNDWATER_ON) THEN
+!      IF (GROUNDWATER_FABM_SETTING == 'specified') THEN
+!         DO I=1,MT
+!            IF (BFWDIS(I) /= 0.0_SP) THEN
+!               DO IFABM=1,size(model%state_variables)
+!                  IF (BFWFABM(I,IFABM)>0) THEN
+!                     FABM_F(I,KBM1,IFABM)=BFWFABM(I,IFABM)
+!                  END IF
+!               END DO
+!            END IF
+!         END DO
+!      END IF
+!   END IF
+   ! lwang
 
    ! Update concentrations at open boundary nodes, if nudging to boundary state is active.
    IF(OBC_FABM_NUDGING) CALL UPDATE_OBC_FABM(IntTime,FABM_OBC)
@@ -2143,7 +2295,10 @@ END SUBROUTINE FABM_ADV
            TMP=XFLUX2D+T2D*UARD_OBCN(I)
 
            ! Forecast depth-averaged tracer at the boundary based on previous value and flux TMP.
-           T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
+!lwang
+!lwang           T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
+                 T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/DTFA(J)
+!lwang
 
            ! For the new depth-explicit value at the boundary, combine the forecast depth-averaged value
            ! with the differences from the the depth-averaged value as forecast for the neighbouring node.
