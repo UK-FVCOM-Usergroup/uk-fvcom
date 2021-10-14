@@ -44,7 +44,7 @@ The ERSEM biogeochemical model can be requested from the Shelf Seas Biogeochemis
 - [ ] Identify and solve offline conservation issues on first time step. 
 
 ## Fixes Log:
-
+14/10/2021 39b5f64a36a0ec20c Addition of Spherical and semi-implicit options to FABM coupler. 
 21/09/2020 e7eceb0e621b3eb565737027f6991d2a4959342c Remove option for vectorised advection in FABM coupler as we have not seen performance benefits yet. If it needs bringing back with newer chips it can be rescued from FABM-ERSEM_v4.3 branch. 
 
 14/07/2020 aafa66ee0f5ccbbcfccf8d5f325a983b9dde7090 Last update towards FABM v1 compatibililty
