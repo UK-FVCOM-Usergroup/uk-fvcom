@@ -549,7 +549,18 @@ CONTAINS
           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,VELOCITY_FILE_OBJECT() )
        END IF
-       
+! RJT 2015 Opens the OFFLINE NC object to store the variables needed for offline forcing of sediments and fabm
+       IF(NC_OFFLINE) THEN
+          NCF2 => OFFLINE_FILE_OBJECT()
+          NCF => ADD(NCF,NCF2)
+! Add temperature and salinity objects. Elevation is always in the output for some reason.
+! Wetting and drying is always written if the model runs with wet and dry
+         IF(.not. NC_SALT_TEMP) THEN
+            NCF2 => SALT_TEMP_FILE_OBJECT()
+            NCF => ADD(NCF,NCF2)
+         END IF
+       END IF
+
        IF(NC_VERTICAL_VEL) THEN
           NCF2 => VERTICAL_VEL_FILE_OBJECT()
           NCF => ADD(NCF,NCF2)
@@ -638,7 +649,15 @@ CONTAINS
 !!$          NCF => ADD(NCF,BIO_FILE_OBJECT() )
        END IF
        END IF
-#   endif      
+#   endif    
+
+#   if defined (FABM)
+       IF(NC_FABM)THEN
+          NCF2 => FABM_FILE_OBJECT(1)
+          NCF => ADD(NCF,NCF2)
+!!$          NCF => ADD(NCF,BIO_FILE_OBJECT() )
+       END IF
+#   endif  
        
 #   if defined (WATER_QUALITY)
        IF(NC_WQM)THEN
@@ -985,6 +1004,16 @@ CONTAINS
        NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$       NC_AVG_DATA => ADD(NC_AVG_DATA,VELOCITY_FILE_OBJECT() )
     END IF
+! RJT 2015       
+       IF(NCAV_OFFLINE) THEN
+          NCF_TMP => OFFLINE_FILE_OBJECT()
+          NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+!!$       NC_AVG_DATA => ADD(NC_AVG_DATA,VELOCITY_FILE_OBJECT() )
+         IF(.not. NCAV_SALT_TEMP) THEN
+           NCF_TMP => SALT_TEMP_FILE_OBJECT()
+           NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+         END IF
+       END IF
 
     IF(NCAV_VERTICAL_VEL) THEN
        NCF_TMP => VERTICAL_VEL_FILE_OBJECT()
@@ -1070,7 +1099,15 @@ CONTAINS
 !!$      NC_AVG_DATA => ADD(NC_AVG_DATA,BIO_FILE_OBJECT() )
     END IF
     END IF
-#   endif      
+#   endif   
+
+#   if defined (FABM)
+    IF(NCAV_FABM)THEN
+      NCF_TMP => FABM_FILE_OBJECT(2)
+      NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+!!$      NC_AVG_DATA => ADD(NC_AVG_DATA,BIO_FILE_OBJECT() )
+    END IF
+#   endif   
 
 #   if defined (WATER_QUALITY)
     IF(NCAV_WQM)THEN
@@ -1503,6 +1540,12 @@ CONTAINS
 !!$    NC_RST => ADD(NC_RST,BIO_FILE_OBJECT() )
     END IF
 #   endif      
+
+#   if defined (FABM)
+    NC_RST2 => FABM_FILE_OBJECT(3)
+    NC_RST => ADD(NC_RST,NC_RST2)
+!!$    NC_RST => ADD(NC_RST,BIO_FILE_OBJECT() )
+#   endif
 
 #   if defined (WATER_QUALITY)
     NC_RST2 => WQM_FILE_OBJECT()
@@ -3707,6 +3750,289 @@ CONTAINS
 
   END FUNCTION VELOCITY_FILE_OBJECT
 !=============================================================  
+  FUNCTION OFFLINE_FILE_OBJECT() RESULT(NCF)
+
+    USE MOD_OBCS, ONLY: UARD_OBCN
+    USE BCS, ONLY: IOBCN
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START OFFLINE_FILE_OBJECT"
+    
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+
+       allocate(U(NGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:U")
+       U = 0.0_sp
+
+       allocate(V(NGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:V")
+       V = 0.0_sp
+
+       allocate(VISCOFH(MGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:VISCOFH")
+       VISCOFH = 0.0_SP
+       
+       allocate(KH(MGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:KH")
+       KH = 0.0_SP
+
+       allocate(WTS(MGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WTS")
+       WTS = 0.0_SP
+! RJT for FABM OFFLINE but should be useful for the other offline submodels
+       IF (OBC_ON) THEN
+          ALLOCATE(UARD_OBCN(IOBCN),stat=status)
+          IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UARD_OBCN")
+          UARD_OBCN = 0.0_SP
+       END IF
+! RJT 03/2020 for FABM OFFLINE but should be useful for the other offline submodels
+       ALLOCATE(DTFA(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:DTFA")
+       DTFA = 0.0_SP
+    END IF
+
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+
+    ! U
+    VAR  => NC_MAKE_AVAR(name='u',&
+         & values=U, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+# if defined(UCF)
+    ATT  => NC_MAKE_ATT(name='long_name',values='East Velocity Component') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='eastward_sea_water_velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='grid5') 
+    VAR  => ADD(VAR,ATT)
+
+!!$    ATT  => NC_MAKE_ATT(name='grid_location',values='center') 
+    ATT  => NC_MAKE_ATT(name='location',values='face') 
+    VAR  => ADD(VAR,ATT)
+
+!!$    ATT  => NC_MAKE_ATT(name='coordinates',values='latc lonc siglay_center') 
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
+    VAR  => ADD(VAR,ATT)
+
+# else
+    ATT  => NC_MAKE_ATT(name='long_name',values='Eastward Water Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='eastward_sea_water_velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='face') 
+    VAR  => ADD(VAR,ATT)
+# endif
+
+    NCF  => ADD(NCF,VAR)
+
+
+
+    ! V
+    VAR  => NC_MAKE_AVAR(name='v',&
+         & values=V, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+# if defined(UCF)
+    ATT  => NC_MAKE_ATT(name='long_name',values='North Velocity Component') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='Northward_sea_water_velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='grid5') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid_location',values='center') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values='latc lonc siglay_center') 
+    VAR  => ADD(VAR,ATT)
+
+# else
+    ATT  => NC_MAKE_ATT(name='long_name',values='Northward Water Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='standard_name',values='Northward_sea_water_velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values='time siglay latc lonc') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='mesh',values='fvcom_mesh') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='location',values='face') 
+    VAR  => ADD(VAR,ATT)
+# endif
+
+    NCF  => ADD(NCF,VAR)
+
+    ! VISCOFH
+    VAR  => NC_MAKE_AVAR(name='viscofh',&
+         & values=viscofh, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Horizontal Turbulent Eddy Viscosity For Scalars') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+    ! KH
+    VAR  => NC_MAKE_AVAR(name='kh',&
+         & values=kh, DIM1= DIM_node, DIM2= DIM_siglev, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Turbulent Eddy Viscosity For Scalars') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+    VAR  => ADD(VAR,ATT)
+    
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! WTS
+    VAR  => NC_MAKE_AVAR(name='omega',&
+         & values=WTS, DIM1= DIM_node, DIM2= DIM_siglev, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Vertical Sigma Coordinate Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! WW
+    VAR  => NC_MAKE_AVAR(name='ww',&
+         & values=WW, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Upward Water Velocity') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='meters s-1') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! UARD_OBCN RJT FOR FABM OFFLINE BUT SHOULD BE USED MORE WIDERLY
+    IF (OBC_ON) THEN
+      VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
+           & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
+
+      ATT  => NC_MAKE_ATT(name='long_name',values='Normal Velocity at boundaries') 
+      VAR  => ADD(VAR,ATT)
+
+      ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1') 
+      VAR  => ADD(VAR,ATT)
+
+      ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+      VAR  => ADD(VAR,ATT)
+
+      ATT  => NC_MAKE_ATT(name='type',values='data') 
+      VAR  => ADD(VAR,ATT)
+
+      NCF  => ADD(NCF,VAR)
+    END IF
+    ! DTFA RJT 03/2020
+    VAR  => NC_MAKE_AVAR(name='DTFA',&
+         & values=DTFA, DIM1= DIM_node, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Adjusted depth for mass conservation') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data') 
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END VELOCITY_FILE_OBJECT"
+
+  END FUNCTION OFFLINE_FILE_OBJECT
   FUNCTION VORTICITY_FILE_OBJECT() RESULT(NCF)
     IMPLICIT NONE
 
@@ -6920,6 +7246,155 @@ CONTAINS
   END FUNCTION BIO_FILE_OBJECT
 # endif
 !=============================================================
+# if defined (FABM)
+  FUNCTION FABM_FILE_OBJECT(iset) RESULT(NCF)
+   USE MOD_FABM_DATA
+   USE fabm_types, ONLY: output_none
+   IMPLICIT NONE
+
+   INTEGER,INTENT(IN) :: iset
+   INTEGER :: status
+   LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+   TYPE(NCFILE), POINTER :: NCF
+   TYPE(NCVAR),  POINTER :: VAR
+   TYPE(NCATT),  POINTER :: ATT
+   INTEGER :: II
+   REAL(SP), POINTER :: pdata(:,:), pdata_hz(:)
+
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START FABM_FILE_OBJECT"
+
+   IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+     IOPROC_ALLOCATED = .true.
+
+     ALLOCATE(FABM_ALL(MGL,KB,size(model%interior_state_variables)),STAT=STATUS)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL")
+     FABM_ALL = 0.0_SP
+
+     ALLOCATE(FABM_ALL_BT(MGL,size(model%bottom_state_variables)),STAT=STATUS)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_BT")
+     FABM_ALL_BT = 0.0_SP
+
+     ALLOCATE(FABM_ALL_SF(MGL,size(model%surface_state_variables)),STAT=STATUS)
+     IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL_SF")
+     FABM_ALL_SF = 0.0_SP
+
+   END IF
+
+  ! ALLOCATE THE NEW FILE OBJECT
+   NCF => NEW_FILE()
+
+   DO II=1,size(model%interior_state_variables)
+   ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+   ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+   ! SHOULD HAVE THE SAME NAME A THOSE USED ON THE OTHER PROCESSORS!
+     IF (model%interior_state_variables(II)%output/=output_none.or.ISET==3) THEN
+       pdata => FABM_ALL(1:M,1:KB,II)
+       VAR => ADD_FABM_VARIABLE(model%interior_state_variables(II),pdata=pdata)
+       NCF  => ADD(NCF,VAR)
+     END IF
+   END DO
+
+   DO II=1,size(model%bottom_state_variables)
+     IF (model%bottom_state_variables(II)%output/=output_none.or.ISET==3) THEN
+       pdata_hz => FABM_ALL_BT(1:M,II)
+       VAR => ADD_FABM_VARIABLE(model%bottom_state_variables(II),pdata_hz=pdata_hz)
+       NCF  => ADD(NCF,VAR)
+     END IF
+   END DO
+
+   DO II=1,size(model%surface_state_variables)
+     IF (model%surface_state_variables(II)%output/=output_none.or.ISET==3) THEN
+       pdata_hz => FABM_ALL_SF(1:M,II)
+       VAR => ADD_FABM_VARIABLE(model%surface_state_variables(II),pdata_hz=pdata_hz)
+       NCF  => ADD(NCF,VAR)
+     END IF
+   END DO
+
+   IF (ISET/=3.AND.FABM_DIAG_OUT) THEN
+      ! Normal output, not restart, so include diagnostics.
+      DO II=1,size(model%interior_diagnostic_variables)
+        IF (model%interior_diagnostic_variables(II)%save) THEN
+          VAR => ADD_FABM_VARIABLE(model%interior_diagnostic_variables(II),pdata=model%get_interior_diagnostic_data(II))
+          NCF  => ADD(NCF,VAR)
+        END IF
+      END DO
+
+      DO II=1,size(model%horizontal_diagnostic_variables)
+        IF (model%horizontal_diagnostic_variables(II)%save) THEN
+          VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=model%get_horizontal_diagnostic_data(II))
+          NCF  => ADD(NCF,VAR)
+        END IF
+      END DO
+   END IF
+
+   IF (ISET/=2.AND.FABM_DIAG_OUT) THEN
+      DO II=1,size(model%conserved_quantities)
+        VAR  => NC_MAKE_AVAR(name=TRIM(model%conserved_quantities(II)%name),       &
+           & values=FABM_TOTALS(II), DIM1=DIM_time)
+        ATT  => NC_MAKE_ATT(name='long_name',values=TRIM(model%conserved_quantities(II)%long_name)) 
+        VAR  => ADD(VAR,ATT)
+        ATT  => NC_MAKE_ATT(name='units',values=TRIM(model%conserved_quantities(II)%units)//'*m3')
+        VAR  => ADD(VAR,ATT)
+        NCF  => ADD(NCF,VAR)
+      END DO
+   END IF
+
+   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END FABM_FILE_OBJECT"
+
+  END FUNCTION FABM_FILE_OBJECT
+
+  FUNCTION ADD_FABM_VARIABLE(variable,pdata,pdata_hz,pdata3) result(VAR)
+     USE fabm 
+     class (type_fabm_variable),intent(in) :: variable
+
+     REAL(SP), POINTER, OPTIONAL :: pdata3(:,:,:)
+     REAL(SP), POINTER, OPTIONAL :: pdata(:,:)
+     REAL(SP), POINTER, OPTIONAL :: pdata_hz(:)
+     TYPE(NCVAR),  POINTER :: VAR
+     TYPE(NCATT),  POINTER :: ATT
+
+     if (present(pdata)) then
+       VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
+           & values=pdata, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
+     elseif (present(pdata3)) then
+       VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
+           & values=pdata3, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
+      elseif (present(pdata_hz)) then
+       VAR  => NC_MAKE_PVAR(name=TRIM(variable%name),       &
+           & values=pdata_hz, DIM1= DIM_node, DIM2=DIM_time)
+     else
+        CALL FATAL_ERROR("ADD_FABM_VARIABLE: pdata/pdata_hz not provided")
+     end if
+
+     ATT  => NC_MAKE_ATT(name='long_name',values=TRIM(variable%long_name)) 
+     VAR  => ADD(VAR,ATT)
+
+!    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_water_temperature') 
+!    VAR  => ADD(VAR,ATT)
+
+     ATT  => NC_MAKE_ATT(name='units',values=TRIM(variable%units) )
+     VAR  => ADD(VAR,ATT)
+
+     ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid') 
+     VAR  => ADD(VAR,ATT)
+
+     ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar) 
+     VAR  => ADD(VAR,ATT)
+
+     ATT  => NC_MAKE_ATT(name='type',values='data') 
+     VAR  => ADD(VAR,ATT)    
+
+#if defined DOUBLE_PRECISION && SINGLE_OUTPUT
+     ATT  => NC_MAKE_ATT(name='_FillValue',values=REAL(variable%missing_value,SPA))
+#else
+     ATT  => NC_MAKE_ATT(name='_FillValue',values=variable%missing_value)
+#endif
+!     ATT  => NC_MAKE_ATT(name='_FillValue',values=variable%missing_value)
+     VAR  => ADD(VAR,ATT)
+  END FUNCTION
+# endif
+!=============================================================
 # if defined (WATER_QUALITY)
   FUNCTION WQM_FILE_OBJECT() RESULT(NCF)
     USE CONTROL, ONLY : NB, WQM_NAME
@@ -7485,6 +7960,7 @@ CONTAINS
 # if defined (FLUID_MUD)
   FUNCTION FLUID_MUD_FILE_OBJECT() RESULT(NCF)
     USE MOD_SED
+    USE Mod_Fluid_Mud
     IMPLICIT NONE
    INTEGER :: status
    LOGICAL, SAVE :: IOPROC_ALLOCATED1 = .FALSE.
@@ -7952,7 +8428,7 @@ CONTAINS
   END DO
 
     if(nsed>1)then
-      VAR  => NC_MAKE_AVAR(name='todal_ssc', &
+      VAR  => NC_MAKE_AVAR(name='total_ssc', &
           & values=csed, DIM1= DIM_node, DIM2= DIM_siglay, DIM3 = DIM_time)
 
       ATT  => NC_MAKE_ATT(name='long_name',values=TRIM('Total Suspended Sed &
@@ -8115,16 +8591,16 @@ CONTAINS
     VAR  => NC_MAKE_AVAR(name='DYE',&
          & values=DYE, DIM1= DIM_node, DIM2= DIM_siglay, DIM3=DIM_time)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='Water Surface Elevation') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='Dye') 
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='units',values='meters') 
+    ATT  => NC_MAKE_ATT(name='units',values='-') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='positive',values='up') 
     VAR  => ADD(VAR,ATT)
 
-    ATT  => NC_MAKE_ATT(name='standard_name',values='sea_surface_height_above_geoid') 
+    ATT  => NC_MAKE_ATT(name='standard_name',values='tracer') 
     VAR  => ADD(VAR,ATT)
 
 # if defined(UCF)

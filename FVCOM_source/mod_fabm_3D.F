@@ -1029,7 +1029,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
   
   USE MOD_NESTING
      REAL(SP), INTENT(IN) :: DELTA_T
-     INTEGER :: I,K,IFABM
+     INTEGER :: I,K,IFABM, II, I_TMP
      REAL(SP), DIMENSION(M,KBM1,size(model%interior_state_variables)) :: w_ct
      REAL(SP), DIMENSION(KBM1-1,size(model%interior_state_variables)) :: w_if, flux_if
      REAL(SP), DIMENSION(KBM1,  size(model%interior_state_variables)) :: flux_ct
@@ -1047,7 +1047,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
 #  if defined (WET_DRY)
        IF(ISWETN(I) == 1) THEN
 #  endif
-!         IF(FABM_NESTING_ON) THEN
+         IF(FABM_NESTING_ON) THEN
           IF(NESTING_ON) THEN
            IN_NESTING=.FALSE.
            DO II = 1, NESTING_GRID%MT
@@ -1059,7 +1059,8 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
              END IF
            END DO
            IF(IN_NESTING)EXIT
-         END IF
+          END IF
+        END IF
          ! Linearly interpolate to velocities at the interfaces between layers
          ! TODO: account for differences in layer heights (now we simply use the unweighted average of center velocities)
          !w_if(1:KBM1-1,:) = (w_ct(I,1:KBM1-1,:)+w_ct(I,2:KBM1,:))/2
@@ -1532,7 +1533,7 @@ END SUBROUTINE FABM_MIXING
            PFPYD(I)=PFPYD(I)+FFD*DLTXTRIE(i,j)
            
 
-        END DO
+        END DO ! J- Loop
 
 # if !defined (THIN_DAM)
         PFPX(I)=PFPX(I)/ART2(I)
@@ -1541,7 +1542,7 @@ END SUBROUTINE FABM_MIXING
         PFPYD(I)=PFPYD(I)/ART2(I)
 # endif
 
-     END DO
+     END DO ! M loop
 
      IF(K == KBM1)THEN
         DO I=1,M
@@ -1680,7 +1681,7 @@ END SUBROUTINE FABM_MIXING
         XFLUX_ADV(IA,K,IFABM)=XFLUX_ADV(IA,K,IFABM)+(EXFLUX-FXX-FYY)
         XFLUX_ADV(IB,K,IFABM)=XFLUX_ADV(IB,K,IFABM)-(EXFLUX-FXX-FYY)
 
-     END DO
+     END DO ! I, NCV_I loop
 
 #    if defined (SPHERICAL)
 #    if !defined (SEMI_IMPLICIT)
@@ -1690,7 +1691,7 @@ END SUBROUTINE FABM_MIXING
 #    endif
 #    endif
 
-  END DO !!SIGMA LOOP
+  END DO !!SIGMA LOOP K, KBM1
  END DO !to size(model%interior_state_variables)
 
   !
@@ -1763,10 +1764,10 @@ END SUBROUTINE FABM_MIXING
             END IF
          END IF
       END IF
-    ELSE
+  ELSE
         ! we don't want this variable to be diluted with 0 concentration
         IF (DBG_SET(DBG_VRB)) WRITE (IPT,*) "FABM Variable "//TRIM(model%interior_state_variables(IFABM)%name)//" is not in river forcing file and will not be diluted"
-    END IF
+  END IF
  !
 
 
@@ -1829,8 +1830,9 @@ END SUBROUTINE FABM_MIXING
               WQMMIN = MIN(WQMMIN,FABM_ALL(I,K+1,IFABM),FABM_ALL(I,K-1,IFABM),FABM_ALL(I,K,IFABM),FABM_FRESH(I,K))
            END IF
 
-
+         ! Total (horizontal + vertical) flux to the cell
            ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
+         ! Updated variable without limiter minus current variable
            XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+FABM_ALL(I,K,IFABM)-FABM_ALL(I,K,IFABM)*DT(I)/DTFA(I) 
 
 !lwang for MPDATA 0318
@@ -1846,13 +1848,13 @@ END SUBROUTINE FABM_MIXING
            BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (WQMMAX-FABM_ALL(I,K,IFABM))/(ABS(XXXX)+1.E-10) &
                 +0.5*(1.-SIGN(1._SP,-XXXX)) * (FABM_ALL(I,K,IFABM)-WQMMIN)/(ABS(XXXX)+1.E-10)
 
-           WQM_SF(I,K)=FABM_ALL(I,K,IFABM)-MIN(1.,BETA(I,K))*XXXX
+           WQM_SF(I,K)=FABM_ALL(I,K,IFABM)-MIN(1._SP,BETA(I,K))*XXXX
 
          END IF
 #    if defined (WET_DRY)
         END IF
 #    endif
-     END DO
+     END DO !! M LOOP
   END DO  !! SIGMA LOOP
 
   !----------------------------------------------------------------------------------------
@@ -1873,12 +1875,12 @@ END SUBROUTINE FABM_MIXING
            WWWS(I,K)=TEMP*(WQM_S(I,K-1)-WQM_S(I,K))/(ABS(WQM_S(I,K-1))+ABS(WQM_S(I,K))+1.E-14)
 
            IF(TEMP < 0.0_SP .OR. WQM_S(I,K) == 0.0_SP)THEN 
-              WWWS(I,K)=0. 
+              WWWS(I,K)=0._SP 
            END IF
         END DO
      END DO
      DO I=1,M
-        WWWS(I,1)=0.
+        WWWS(I,1)=0._SP
      END DO
 
      DO I=1,M
@@ -1973,6 +1975,7 @@ END SUBROUTINE FABM_MIXING
 !lwang for MPDATA 0316
   FABM_ALL(:,:,IFABM) = FABM_ALL(:,:,IFABM)-OFFS(:,:)
   WQM_SF = WQM_SF-OFFS
+  ! RJT Should we consider FABM_MEAN here too?
 !lwang
 #  endif ! MPDATA IF
 
@@ -2089,7 +2092,7 @@ END SUBROUTINE FABM_MIXING
 !RJT  END IF
 ! lwang
 !---------------------------------------------------------------------
-# endif
+# endif ! End of ! defined(MPDATA)
 
   !--Update Variables------------------------------------------------------------!
   !
@@ -2097,8 +2100,8 @@ END SUBROUTINE FABM_MIXING
   DO I=1,M
      IF(ISWETN(I)*ISWETNT(I) == 1 )THEN
         DO K=1,KBM1
-#    if !defined (MPDATA)     
-           !       FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
+#    if !defined (MPDATA)      ! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021
+           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
 #      if !defined (THIN_DAM)
@@ -2106,10 +2109,10 @@ END SUBROUTINE FABM_MIXING
 #      else
 #      endif
 
-#      else
+#      else  ! Semi-implicit part
            FABM_F(I,K,IFABM)=(TSC_FABM_ALL(I,K,IFABM)-RK_FABM(STAGE)*XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I)) !syshi 20191013
 #      endif
-#    else
+#    else ! If using MPDATA
            FABM_F(I,K,IFABM)=WQM_SF(I,K)
 #    endif              
         END DO
@@ -2129,10 +2132,10 @@ END SUBROUTINE FABM_MIXING
 
   DO I=1,M
      DO K=1,KBM1
-#    if !defined (MPDATA)     
-        !       FABM_F((I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/DT(I)))*(DT(I)/DTFA(I))
+#    if !defined (MPDATA)  ! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021   
+        FABM_F((I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
-
+! nothing happens if not SEMI-IMPLICIT? 
 #      if !defined (THIN_DAM)
         FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      else
@@ -2148,12 +2151,11 @@ END SUBROUTINE FABM_MIXING
 
   END DO
 
-# endif
+# endif ! WET-DRY
 
   END DO !do IFABM=1,size(model%interior_state_variables)
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_ADV"
-# endif ! End if Semi-implicit
 END SUBROUTINE FABM_ADV
 
 ! FABM_ADV_VEC

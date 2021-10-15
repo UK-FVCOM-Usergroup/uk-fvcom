@@ -80,21 +80,21 @@
    CALL QSAT26(TS,P,QSAT26S)
 
    IF(.NOT. HEATING_FRESHWATER)THEN
-     QS=0.98_SP*QSAT26S/1000._SP
+     QS=0.98_SP*QSAT26S/1000._SP ! and convert to KG/KG
    ELSE 
      QS=QSAT26S/1000._SP !MDR, don't apply 0.98 for freshwater
    END IF  
 
 !  SPECIFIC HUMIDITY OF AIR (G/KG)  
    CALL QSAT26(T,P,QSAT26S)
-   Q=(0.01_SP*RH)*QSAT26S/1000._SP
+   Q=(0.01_SP*RH)*QSAT26S/1000._SP ! and convert to KG/KG / original line
 
 !   SET RAIN TO ZERO RAIN=0*U
 !   SET RAIN RATE (MM/HR) - KEEP AS OPTION
 
 !  ***********SET LOCAL CONSTANTS *********
 !    PBL HEIGHT (M)
-   ZI=600._SP
+   ZI=600.0_SP
 !     LATITUDE (DEG,N=+)- GEORGES BANK
 !        LAT=42.
 ! ************SET CONSTANTS **************
@@ -354,12 +354,23 @@
 
 !-----------------------------------------------------------
    SUBROUTINE QSAT26(T,P,QS)
-! computes saturation specific humidity
+   ! computes saturation specific humidity in g/kg
+   !
+   ! For Literature see e.g.:
+   !     - https://en.wikipedia.org/wiki/Clausius%E2%80%93Clapeyron_relation
+   !     - Jacobsen, Fundamentals of atmospheric modelling, page 28-33, 45
+   !       QS follows from eq (2.32) and p_d = P - ES
+
+   ! Input variables are:
+   ! T  : Temperature in °C
+   ! P  : total air pressure in hPa = mbar
    USE MOD_PREC
    
    IMPLICIT NONE
    REAL(SP) :: T,P,QS,ES
-   
+
+   ! first, calulate the saturation water pressure ES in hPa
+   ! Using a modified form of the August-Roche-Magnus formula
    ES=6.112_SP*EXP(17.502_SP*T/(T+241.0_SP))     &
       *(1.0007_SP+3.46_SP*0.000001_SP*P)
    QS=ES*622/(P-.378_SP*ES)

@@ -232,6 +232,14 @@ SUBROUTINE CNTRL_PRMTRS
   ! TEST FOR IDEALIZED MODEL CASE
   if (timezone == 'none' .or. timezone == "NONE" .or.&
        & timezone == "None") use_real_world_time = .FALSE.
+  !By Jadon Ge for realistic tidal forcing
+  if(use_real_world_time)then
+     read(start_date,"(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)")iyear&
+          &,imonth,iday,ihour,imin,isec
+     if(DBG_SET(dbg_log))write(ipt,"(a16,i4,a1,i2,a1,i2,a1,i2,a1,i2,a1&
+          &,i2)")' ! initial date:',iyear,'-',imonth,'-',iday,' ',ihour&
+          &,':',imin,':',isec
+  end if
 
 
   ! CHECK FOR VALID TIME ZONE

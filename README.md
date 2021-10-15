@@ -5,7 +5,12 @@ The main FVCOM website is http://fvcom.smast.umassd.edu/fvcom.
 
 This repository is for the UK FVCOM Users' code development.
 
-Current version has been updated to include the official 4.3 version from http://code.fvcom.org/medm/fvcom43
+Current version has been updated to include the official 4.42 version from http://code.fvcom.org/medm/fvcom441
+There are a number of changes in 441, particularly with respect to advection schemes that require some additions to the namelists. 
+There is a new RK for 3D solution. This has not been implemented in FABM. A movement in that direction would require testing the MPDATA/TVD, Semi-implicit,  standard scheme and the RK_3D option to determine a cost-benefit analysis. 
+Other updates: [for a more in-depth list check the Doc folder]
+SST Assimilation treatment of MLD
+Updates to MPI IO (maybe now it works!)
 
 
 Register
@@ -43,6 +48,8 @@ We always aim to maintain this branch in sink with the latest FVCOM release. FVC
 
 LOG
 -------
-14-10-2021 Starting to merge with FABMv1_v43 to transfer uk-fvcom changes and FABM coupler. 
+15-10-2021 	Nullifying and initialising all variables that weren't included in the latest version
+15-10-2021 	Updates to include FABM on bcond_gcn/bcond_gcy, internal_step, mod_main, mod_input, mod_force,  cntrl_prmtrs(real time used in tidal forcing), left out Karsten H changes to COARE26z, WET_DRY on extel_edge.F,  
+14-10-2021 f3e3840ba96cc7 Starting to merge with FABMv1_v43 to transfer uk-fvcom changes and FABM coupler. 
 
 
