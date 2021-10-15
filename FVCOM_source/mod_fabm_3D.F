@@ -1029,7 +1029,7 @@ SUBROUTINE FABM_VERTICAL_MOVEMENT(DELTA_T)
   
   USE MOD_NESTING
      REAL(SP), INTENT(IN) :: DELTA_T
-     INTEGER :: I,K,IFABM
+     INTEGER :: I,K,IFABM,  II, I_TMP
      REAL(SP), DIMENSION(M,KBM1,size(model%interior_state_variables)) :: w_ct
      REAL(SP), DIMENSION(KBM1-1,size(model%interior_state_variables)) :: w_if, flux_if
      REAL(SP), DIMENSION(KBM1,  size(model%interior_state_variables)) :: flux_ct
@@ -2153,7 +2153,6 @@ END SUBROUTINE FABM_MIXING
   END DO !do IFABM=1,size(model%interior_state_variables)
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: FABM_ADV"
-# endif ! End if Semi-implicit
 END SUBROUTINE FABM_ADV
 
 ! FABM_ADV_VEC
