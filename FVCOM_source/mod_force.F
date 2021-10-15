@@ -13910,6 +13910,7 @@ CONTAINS
          LATIT = LAT(I)
          LONGI = LON(I)
          IF(LONGI > 180.0) LONGI = 360.0 - LONGI
+         IF(LONGI < 0.0) LONGI = ABS(LONGI)
 #        endif
 
          TANUM = T_AIR(I)
@@ -14163,9 +14164,6 @@ CONTAINS
        UISN(1:NT) = SQRT(U(1:NT,1)*U(1:NT,1)+V(1:NT,1)*V(1:NT,1))
        UISROTN(1:NT) = U(1:NT,1)*COSW - V(1:NT,1)*SINW	!! rotate u taking into account the Ekman layer
        VISROTN(1:NT) = U(1:NT,1)*SINW + V(1:NT,1)*COSW	!! rotate v taking into account the Ekman layer
-# endif
-
-# if defined (OBSICE)
        DO I = 1,M
            IF(ICE_COV(I) > 0.5_SP) THEN
            	UIS = 0.0_SP
