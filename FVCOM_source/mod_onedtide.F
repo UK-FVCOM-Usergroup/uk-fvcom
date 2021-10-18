@@ -118,12 +118,14 @@ MODULE MOD_ONEDTIDE
      PSTY_TM = 0.0_SP
      !***************  INITIALIZATION   ***************
      IF (IINT == 1) THEN
-        ALLOCATE(PERIOD(NTIDECOMPS))
-        PERIOD(1:nTideComps)=tide_period(1:nTideComps)
+        IF NOT ALLOCATED(PERIOD) THEN ! RJT 2021
+          ALLOCATE(PERIOD(NTIDECOMPS))
+          PERIOD(1:nTideComps)=tide_period(1:nTideComps)
+        END IF
         DO K=1,KBM1
            DO I=1,NT
               DO J=1,nTideComps    !6
-                 TIME_FLT = SECONDS(TIME_ELAPSED * PI2/PERIOD(J))
+                 TIME_FLT = SECONDS(TIME_ELAPSED) * PI2/PERIOD(J)
                  PSTX_TM(I,K) = PSTX_TM(I,K)-UMAX(J)/DTI*  &
                       SIN(TIME_FLT-PMAX(J))
                  PSTY_TM(I,K) = PSTY_TM(I,K)-UMAX(J)/DTI*  &
@@ -138,8 +140,8 @@ MODULE MOD_ONEDTIDE
         DO K=1,KBM1
            DO I=1,NT
               DO J=1,nTideComps    !6
-                 TIME_FLT = SECONDS(TIME_ELAPSED * PI2/PERIOD(J))
-                 TIME_PRV = SECONDS(TIME_PREVIOUS * PI2/PERIOD(J))
+                 TIME_FLT = SECONDS(TIME_ELAPSED) * PI2/PERIOD(J)
+                 TIME_PRV = SECONDS(TIME_PREVIOUS) * PI2/PERIOD(J)
                  PSTX_TM(I,K) = PSTX_TM(I,K)-UMAX(J)/DTI*  &
                       (SIN(TIME_FLT-PMAX(J))-SIN(TIME_PRV-PMAX(J)))
                  PSTY_TM(I,K) = PSTY_TM(I,K)-UMAX(J)/DTI*  &
