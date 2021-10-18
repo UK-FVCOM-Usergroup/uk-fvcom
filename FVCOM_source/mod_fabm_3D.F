@@ -526,7 +526,9 @@ MODULE MOD_FABM_3D
 SUBROUTINE FABM_UPDATE
      USE MOD_PAR
      USE MOD_NESTING
-
+# if defined (SEMI_IMPLICIT)
+     USE MOD_SEMI_IMPLICIT
+# endif
      INTEGER :: IFABM
      LOGICAL :: VALID
      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE" 
@@ -554,6 +556,13 @@ SUBROUTINE FABM_UPDATE
 ! RJT just to check this is needed...
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
 # endif
+
+!-----------syshi 20191013--------------
+#   if defined(SEMI_IMPLICIT)
+    TSC_FABM_ALL=FABM_ALL
+    DO STAGE = 1,KSTAGE_FABM
+#   endif
+!-----------syshi 20191013--------------
 
      ! Advection and horizontal diffusion
      CALL FABM_ADV  ! This applies advection and horizontal diffusion operators to FABM_ALL to compute forecast field FABM_F
@@ -1977,7 +1986,8 @@ END SUBROUTINE FABM_MIXING
   WQM_SF = WQM_SF-OFFS
   ! RJT Should we consider FABM_MEAN here too?
 !lwang
-#  endif ! MPDATA IF
+#  endif 
+! MPDATA IF
 
 
 # if ! defined(MPDATA)
@@ -2092,27 +2102,29 @@ END SUBROUTINE FABM_MIXING
 !RJT  END IF
 ! lwang
 !---------------------------------------------------------------------
-# endif ! End of ! defined(MPDATA)
+# endif 
+! End of ! defined(MPDATA)
 
   !--Update Variables------------------------------------------------------------!
   !
-#  if defined (WET_DRY)
+# if defined (WET_DRY)
   DO I=1,M
      IF(ISWETN(I)*ISWETNT(I) == 1 )THEN
         DO K=1,KBM1
-#    if !defined (MPDATA)      ! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021
+#    if !defined (MPDATA)      
+! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021
            FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
-#      if !defined (THIN_DAM)
+#        if !defined (THIN_DAM)
            FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
-#      else
-#      endif
+#        else
+#        endif
 
-#      else  ! Semi-implicit part
+#      else  
            FABM_F(I,K,IFABM)=(TSC_FABM_ALL(I,K,IFABM)-RK_FABM(STAGE)*XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I)) !syshi 20191013
 #      endif
-#    else ! If using MPDATA
+#    else 
            FABM_F(I,K,IFABM)=WQM_SF(I,K)
 #    endif              
         END DO
@@ -2128,18 +2140,20 @@ END SUBROUTINE FABM_MIXING
      END IF
   END DO
 
-# else
+# else 
+! WET-DRY
 
   DO I=1,M
      DO K=1,KBM1
-#    if !defined (MPDATA)  ! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021   
+#    if !defined (MPDATA)  
+! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021   
         FABM_F((I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 ! nothing happens if not SEMI-IMPLICIT? 
-#      if !defined (THIN_DAM)
-        FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
-#      else
-#      endif
+#        if !defined (THIN_DAM)
+           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+#        else
+#        endif
 
 #      else
         FABM_F(I,K,IFABM)=(TSC_FABM_ALL(I,K,IFABM)-RK_FABM(STAGE)*XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I)) !syshi 20191013
@@ -2151,7 +2165,8 @@ END SUBROUTINE FABM_MIXING
 
   END DO
 
-# endif ! WET-DRY
+# endif 
+! WET-DRY
 
   END DO !do IFABM=1,size(model%interior_state_variables)
 
