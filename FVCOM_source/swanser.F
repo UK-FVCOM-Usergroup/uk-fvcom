@@ -350,7 +350,7 @@
 !
     INTEGER   IVAL
     REAL      RVAL
-    CHARACTER FORM*20
+    CHARACTER(*) FORM ! RJT changed from CHARACTER FORM*20
 !
 !  6. Local variables
 !

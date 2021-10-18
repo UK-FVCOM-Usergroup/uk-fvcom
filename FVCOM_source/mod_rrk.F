@@ -2401,6 +2401,12 @@ write(myid+2000,*) seof
 !!$    NCF => ADD(NCF,BIO_FILE_OBJECT() )
 #   endif      
 
+#   if defined (FABM)
+    NCF2 => FABM_FILE_OBJECT(3)
+    NCF => ADD(NCF,NCF2)
+!!$    NCF => ADD(NCF,FABM_FILE_OBJECT(3) )
+#   endif
+
 #   if defined (WATER_QUALITY)
     NCF2 => WQM_FILE_OBJECT()
     NCF => ADD(NCF,NCF2)

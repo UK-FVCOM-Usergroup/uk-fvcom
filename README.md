@@ -11,7 +11,7 @@ There is a new RK for 3D solution. This has not been implemented in FABM. A move
 Other updates: [for a more in-depth list check the Doc folder]
 SST Assimilation treatment of MLD
 Updates to MPI IO (maybe now it works!)
-
+Use Netcdf4 without compression.
 
 Register
 --------
@@ -48,8 +48,17 @@ We always aim to maintain this branch in sink with the latest FVCOM release. FVC
 
 LOG
 -------
-15-10-2021 	Nullifying and initialising all variables that weren't included in the latest version
-15-10-2021 	Updates to include FABM on bcond_gcn/bcond_gcy, internal_step, mod_main, mod_input, mod_force,  cntrl_prmtrs(real time used in tidal forcing), left out Karsten H changes to COARE26z, WET_DRY on extel_edge.F,  
+18-10-2021 Akvaplan elevation gradient in wetting and drying treatment. rho_pmean.F (double precission broadcasting)
+18-10-2021  mod_obcs.F to include Jianzhong Ge fixes for real time surface tidal elevations with eleven harmonics. Updates from Jianzhong to CSTMS original (bed thickness limits, thresholds to erodability, vertical settling options [i.e. hindered], semi_implicit for FABM. Kept spatially variable CBCMIN from Jianzhong Ge. 
+15-10-2021 f3e3840ba96cc Nullifying and initialising all variables that weren't included in the latest version
+15-10-2021 be7cb30853f7d Updates to include FABM on bcond_gcn/bcond_gcy, internal_step, mod_main, mod_input, mod_force,  cntrl_prmtrs(real time used in tidal forcing), left out Karsten H changes to COARE26z, WET_DRY on extel_edge.F,  
 14-10-2021 f3e3840ba96cc7 Starting to merge with FABMv1_v43 to transfer uk-fvcom changes and FABM coupler. 
 
 
+
+TO CHECK
+----------
+That corrections in mod_onetide.F make sense. 
+SEDIMENT MIXING RATIO... 
+Original CSTMS --- addition of thickness threshold and Fixed layer proximity factor. 
+heat flux parameters from ROSA and intertidal areas (in vdif_ts.F) have not been transferred across to this version. 

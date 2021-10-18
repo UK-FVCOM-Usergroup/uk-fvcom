@@ -42,6 +42,8 @@ MODULE MOD_WD
    INTEGER , ALLOCATABLE :: ISWETNT(:)          !!NODE POROSITY AT NODES FOR TIME N-1 INTERNAL
    INTEGER , ALLOCATABLE :: ISWETCT(:)          !!CELL POROSITY AT CELLS FOR TIME N-1 INTERNAL
    INTEGER , ALLOCATABLE :: ISWETCE(:)          !!CELL POROSITY AT CELLS FOR TIME N-1 EXTERNAL
+   REAL(SP), ALLOCATABLE :: DELF(:)         
+   REAL(SP), ALLOCATABLE :: DELF1(:)
 
 !qxu{for inundation maps
    INTEGER , ALLOCATABLE :: INUNDATION_MAPS(:)         !!is flooding cell for Time N
@@ -179,6 +181,8 @@ MODULE MOD_WD
 
    memcnt = memcnt + 3*NT + 2*MT + NT
 
+   ALLOCATE(DELF(0:MT))           ; DELF       = ZERO  
+   ALLOCATE(DELF1(0:NT))          ; DELF1       = ZERO
 !!   ALLOCATE(US(0:NT,KB))         ;US    = ZERO   !!X-VELOCITY FOR MASS CONSERVATION
 !!   ALLOCATE(VS(0:NT,KB))         ;VS    = ZERO   !!Y-VELOCITY FOR MASS CONSERVATION
 
@@ -207,6 +211,7 @@ MODULE MOD_WD
    USE MOD_PAR
    IMPLICIT NONE
    REAL(SP) :: DTMP
+   REAL(SP) :: TMP(0:MT),TMP1(0:NT)
    INTEGER  :: ITA_TEMP
    INTEGER  :: I,IL,IA,IB,K1,K2,K3,K4,K5,K6
 
@@ -264,13 +269,22 @@ MODULE MOD_WD
 !
 !--Adjust Water Surface So It Does Not Go Below Minimum Depth------------------!
 !
+   TMP = ELF
    ELF = MAX(ELF,-H + MIN_DEPTH)
+   DELF = ELF - TMP
+   DO I=1,M
+     IF(ELF(I)-DELF(I)+H(I)<0.0_SP) THEN
+       DELF(I)=H(I)+ELF(I)
+     END IF
+   END DO
 
 !
 !--Recompute Element Based Depths----------------------------------------------!
 !
+   TMP1 = ELF1
    DO I = 1, N
      ELF1(I) = ONE_THIRD*(ELF(NV(I,1))+ELF(NV(I,2))+ELF(NV(I,3)))
+     DELF1(I) = ELF1(I)-TMP1(I)
    END DO
 
 !qxu{for inundation maps
@@ -289,6 +303,8 @@ MODULE MOD_WD
 
 !JQI     CALL AEXCHANGE(EC,MYID,NPROCS,ISWETC)
      CALL AEXCHANGE(NC,MYID,NPROCS,ISWETN)
+     CALL AEXCHANGE(EC,MYID,NPROCS,DELF1)
+     CALL AEXCHANGE(NC,MYID,NPROCS,DELF)
 !qxu{for inundation maps
      CALL AEXCHANGE(EC,MYID,NPROCS,INUNDATION_MAPS)
 !qxu}

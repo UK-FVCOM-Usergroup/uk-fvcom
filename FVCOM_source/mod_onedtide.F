@@ -85,7 +85,11 @@ MODULE MOD_ONEDTIDE
 
 
     IF(NUMTIDES > nTideComps)THEN
-      CALL FATAL_ERROR("NUMBER OF TIDAL CONSTITUTES IS GREATER THAN nTideComps IN 1D MODULE")
+      if(nTideComps==0)then
+        nTideComps = NUMTIDES
+      else
+        CALL FATAL_ERROR("NUMBER OF TIDAL CONSTITUTES IS GREATER THAN nTideComps IN 1D MODULE")
+      endif
     END IF
       
     CLOSE(NMLUNIT)
@@ -96,49 +100,62 @@ MODULE MOD_ONEDTIDE
 !
 !===========================================================================!        
    SUBROUTINE ONEDTIDE(PSTX_TM,PSTY_TM)
-   USE ALL_VARS
-   USE BCS
-   IMPLICIT NONE
-   TYPE(TIME):: TIME_ELAPSED
-   INTEGER :: I,J,K
-   REAL(SP) :: PSTX_TM(0:NT,KB),PSTY_TM(0:NT,KB),TIME1
-   REAL(DP):: TIME_FLT
-!**************     EXECUTABLE     ***************
-!   TIME1 = TIME * 86400.0_SP
-!   TIME_ELAPSED = RKTime - SpecTime
-    TIME_ELAPSED = IntTime - SpecTime
-   
-   PSTX_TM = 0.0_SP
-   PSTY_TM = 0.0_SP
-!***************  INITIALIZATION   ***************
-   IF (IINT == 1) THEN
-     DO K=1,KBM1
-       DO I=1,NT
-         DO J=1,6
-           PSTX_TM(I,K) = PSTX_TM(I,K)+UMAX(J)/SQRT(2._SP)/DTI
-         END DO
-       END DO
-     END DO
-   END IF 
+     USE ALL_VARS
+     USE BCS
+     IMPLICIT NONE
+     TYPE(TIME):: TIME_ELAPSED,TIME_PREVIOUS
+     INTEGER :: I,J,K
+     REAL(SP) :: PSTX_TM(0:NT,KB),PSTY_TM(0:NT,KB),TIME1
+     REAL(DP):: TIME_FLT,TIME_PRV
+     REAL(SP),dimension(8) :: tide_period 
 
-!***************  COMPUTATION   ***************
-   DO K=1,KBM1
-     DO I=1,NT
-       DO J=1,nTideComps    !6
-!Michael Dunphy (Michael.Dunphy@dfo-mpo.gc.ca)
-!         TIME_FLT = SECONDS(TIME_ELAPSED * PI2/PERIOD(J))
-         TIME_FLT = SECONDS(TIME_ELAPSED) * PI2/PERIOD(J)
-!Michael Dunphy
-         PSTX_TM(I,K) = PSTX_TM(I,K)-UMAX(J)*PI2/(PERIOD(J)*SQRT(2.0_SP))*  &
-	                SIN(TIME_FLT-PMAX(J))
-!	                SIN(PI2/PERIOD(J)*TIME1-PMAX(J))
-       END DO
-       PSTX_TM(I,K) = PSTX_TM(I,K)*DT1(I)
-       PSTY_TM(I,K) = PSTX_TM(I,K)
-     END DO
-   END DO
-			
-   RETURN
+     DATA tide_period /44712, 43200, 45570, 43082, 86164, 86637, 92950, 96726/
+     !**************     EXECUTABLE     ***************
+     !   TIME1 = TIME * 86400.0_SP
+     TIME_ELAPSED   = IntTime - SpecTime
+     TIME_PREVIOUS  = IntTime - SpecTime - IMDTI
+     PSTX_TM = 0.0_SP
+     PSTY_TM = 0.0_SP
+     !***************  INITIALIZATION   ***************
+     IF (IINT == 1) THEN
+        IF NOT ALLOCATED(PERIOD) THEN ! RJT 2021
+          ALLOCATE(PERIOD(NTIDECOMPS))
+          PERIOD(1:nTideComps)=tide_period(1:nTideComps)
+        END IF
+        DO K=1,KBM1
+           DO I=1,NT
+              DO J=1,nTideComps    !6
+                 TIME_FLT = SECONDS(TIME_ELAPSED) * PI2/PERIOD(J)
+                 PSTX_TM(I,K) = PSTX_TM(I,K)-UMAX(J)/DTI*  &
+                      SIN(TIME_FLT-PMAX(J))
+                 PSTY_TM(I,K) = PSTY_TM(I,K)-UMAX(J)/DTI*  &
+                      COS(TIME_FLT-PMAX(J))
+                 PSTX_TM(I,K) = PSTX_TM(I,K)*(D1(I)*DZ1(I,K))
+                 PSTY_TM(I,K) = PSTY_TM(I,K)*(D1(I)*DZ1(I,K))
+              END DO
+           END DO
+        END DO
+     ELSE
+        !***************  COMPUTATION   ***************
+        DO K=1,KBM1
+           DO I=1,NT
+              DO J=1,nTideComps    !6
+                 TIME_FLT = SECONDS(TIME_ELAPSED) * PI2/PERIOD(J)
+                 TIME_PRV = SECONDS(TIME_PREVIOUS) * PI2/PERIOD(J)
+                 PSTX_TM(I,K) = PSTX_TM(I,K)-UMAX(J)/DTI*  &
+                      (SIN(TIME_FLT-PMAX(J))-SIN(TIME_PRV-PMAX(J)))
+                 PSTY_TM(I,K) = PSTY_TM(I,K)-UMAX(J)/DTI*  &
+                      (COS(TIME_FLT-PMAX(J))-COS(TIME_PRV-PMAX(J)))
+                 PSTX_TM(I,K) = PSTX_TM(I,K)*(D1(I)*DZ1(I,K))
+                 PSTY_TM(I,K) = PSTY_TM(I,K)*(D1(I)*DZ1(I,K))
+              END DO
+           END DO
+        END DO
+     END IF
+
+
+
+     RETURN
    END SUBROUTINE ONEDTIDE
 !===========================================================================!
 !

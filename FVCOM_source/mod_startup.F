@@ -49,6 +49,11 @@ MODULE MOD_STARTUP
   USE MOD_BIO_3D
 # endif
 
+# if defined (FABM)
+  USE MOD_FABM_DATA
+  USE MOD_FABM_3D
+# endif
+
 # if defined (NH)
 !  USE NON_HYDRO, ONLY: W4ZT, NHQDRX, NHQDRY, NHQDRZ, NHQ2DX, NHQ2DY
   USE NON_HYDRO, ONLY: W4ZT, NHQDRX, NHQDRY, NHQDRZ, NHQ2DX, NHQ2DY, QP, RHS  ! Siqi
@@ -357,6 +362,35 @@ CONTAINS
 
 #   endif
 
+#   if defined (FABM)
+    IF (FABM_MODEL) THEN
+
+      if (dbg_set(dbg_log)) write(ipt,*) &
+         & "! INITIALIZING FABM VARIABLES"
+
+      CALL FABM_ALLOCATE
+
+! SET STARTUP VALUES FOR FABM VARIABLES
+      SELECT CASE(STARTUP_FABM_TYPE)
+      CASE(STARTUP_TYPE_OBSERVED) 
+        CALL FATAL_ERROR("STARTUP_FABM_TYPE='observed' is not supported.")
+      CASE(STARTUP_TYPE_LINEAR)
+        CALL FATAL_ERROR("STARTUP_FABM_TYPE='linear' is not supported.")
+      CASE(STARTUP_TYPE_CONSTANT)
+        CALL FABM_INITIALIZE_STATE
+      CASE(STARTUP_TYPE_DEFAULT)
+        CALL FATAL_ERROR("STARTUP_FABM_TYPE='default' is not supported.")
+      CASE(STARTUP_TYPE_SETVALUES)
+        CALL FABM_INITIALIZE_STATE
+        CALL READ_FABM
+      CASE DEFAULT
+        CALL FATAL_ERROR("UNKNOWN STARTUP_FABM_TYPE")
+      END SELECT
+      CALL FABM_INITIALIZE_DIAGNOSTICS
+      CALL FABM_UPDATE_SALINITY
+    ENDIF
+#   endif
+
     ! ONCE WE HAVE STARTED THE MODEL POINT THE START FILE OBJECT TO
     ! ITS OWN OUTPUT TO RELOAD OLD TIME STATES
     IF(.not. associated(NC_START,NC_RST)) THEN
@@ -483,9 +517,13 @@ CONTAINS
     !----------------------------------------------------------------
 #   if defined(SEDIMENT)
     IF(MORPHO_MODEL .and. SED_HOT_START)THEN
+#   if defined(ORIG_SED)
     VAR => FIND_VAR(NC_START,'h',FOUND)
+#   elif defined(CSTMS_SED)
+    VAR => FIND_VAR(NC_START,'h_morpho',FOUND)
+#   endif
     IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'h'&
-         & IN THE HOTSTART FILE OBJECT")
+         & or 'h_morpho' IN THE HOTSTART FILE OBJECT")
     CALL NC_CONNECT_AVAR(VAR, h)
     CALL NC_READ_VAR(VAR,STKCNT)
     ENDIF
@@ -1643,7 +1681,7 @@ CONTAINS
     REAL(SP),SAVE, POINTER :: TMP(:),TMP2(:,:)
     LOGICAL :: FOUND
     INTEGER :: STKCNT
-    INTEGER :: II
+    INTEGER :: II,NN
 
     STKCNT = NC_START%FTIME%PREV_STKCNT
 
@@ -1654,6 +1692,41 @@ CONTAINS
          & TRIM(sed(ii)%sname)//" IN THE HOTSTART FILE OBJECT")
       CALL NC_CONNECT_AVAR(VAR, sed(ii)%conc)
       CALL NC_READ_VAR(VAR,STKCNT)
+!  READ ALSO THE BED_FRAC RJT 
+! It is possible that what we need here is sedbed%bed_frac and not sed%frac but who the F* knows... 
+! what I do know is that reading sed%frac makes  no difference whatsoever
+      TMP => sed(ii)%frac(1:m,1)
+     VAR  => FIND_VAR(NC_START,TRIM(sed(ii)%sname)//'_bedfrac',FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(sed(ii)%sname)//'_bedfrac'//" IN THE HOTSTART FILE OBJECT")
+      CALL NC_CONNECT_PVAR(VAR, TMP)
+      CALL NC_READ_VAR(VAR,STKCNT)
+      NULLIFY(TMP)
+! populate all of the bed fractions with the active laye fraction. Probably not ideal. 
+! We should save all of the layers in the restart file not only the active layer.
+! And bed_frac should be read from a parameter file rather than from the restart file
+    DO NN=1,NBED
+      sed(ii)%frac(1:m,nn) = sed(ii)%frac(1:m,1)
+! we also need to update mass in generic sediment code as in CSTMS code
+! update bed_mass here too to be consistant with init_sed
+# if defined (ORIG_SED)
+       sed(ii)%mass(1:m,nn)=init_bed_thickness(nn)*sed(ii)%Srho&
+            &*(1.0-init_bed_porosity)*sed(ii)%frac(1:m,nn)
+       sed(ii)%mass(1:m,nn)=init_bed_thickness(nn)*sed(ii)%Srho&
+            &*(1.0-init_bed_porosity)*sed(ii)%frac(1:m,nn)
+# endif 
+
+# if defined (CSTMS_SED)
+       sedbed%bed_frac(1:m,nn,ii) = sed(ii)%frac(1:m,1)
+! update bed_mass here too to be consistant with init_sed
+       sedbed%bed_mass(1:m,nn,1,ii)=init_bed_thickness(nn)*sed(ii)%Srho&
+            &*(1.0-init_bed_porosity(nn))*sedbed%bed_frac(1:m,nn,ii)
+       sedbed%bed_mass(1:m,nn,2,ii)=init_bed_thickness(nn)*sed(ii)%Srho&
+            &*(1.0-init_bed_porosity(nn))*sedbed%bed_frac(1:m,nn,ii)
+
+# endif 
+    END DO
+! END OF RJT ADDITION
     END DO
 
    ! BOTTOM VARIABLES
@@ -2092,6 +2165,55 @@ CONTAINS
 
 # endif
 
+# if defined (FABM)
+!==============================================================================!
+  SUBROUTINE READ_FABM
+    IMPLICIT NONE
+    TYPE(NCVAR),  POINTER :: VAR
+    LOGICAL :: FOUND
+    INTEGER :: STKCNT, IFABM
+    REAL(SP),POINTER :: FABM_TMP(:,:)
+    REAL(SP),POINTER :: FABM_TMP_HZ(:)
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_FABM" 
+
+    STKCNT = NC_START%FTIME%PREV_STKCNT
+
+    DO IFABM = 1,size(model%interior_state_variables)
+      ! LOAD FABM PELAGIC STATE VARIABLES
+      VAR => FIND_VAR(NC_START,TRIM(model%interior_state_variables(IFABM)%name),FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(model%interior_state_variables(IFABM)%name)//" IN THE HOTSTART FILE OBJECT")
+      FABM_TMP => FABM_ALL(1:,1:,IFABM)
+      CALL NC_CONNECT_PVAR(VAR,FABM_TMP)
+      CALL NC_READ_VAR(VAR,STKCNT)
+    END DO
+
+
+    DO IFABM = 1,size(model%bottom_state_variables)
+      ! LOAD BOTTOM-BOUND FABM STATE VARIABLES
+      VAR => FIND_VAR(NC_START,TRIM(model%bottom_state_variables(IFABM)%name),FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(model%bottom_state_variables(IFABM)%name)//" IN THE HOTSTART FILE OBJECT")
+      FABM_TMP_HZ => FABM_ALL_BT(1:,IFABM)
+      CALL NC_CONNECT_PVAR(VAR,FABM_TMP_HZ)
+      CALL NC_READ_VAR(VAR,STKCNT)
+   END DO
+
+    DO IFABM = 1,size(model%surface_state_variables)
+      ! LOAD SURFACE-BOUND FABM STATE VARIABLES
+      VAR => FIND_VAR(NC_START,TRIM(model%surface_state_variables(IFABM)%name),FOUND)
+      IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
+         & TRIM(model%surface_state_variables(IFABM)%name)//" IN THE HOTSTART FILE OBJECT")
+      FABM_TMP_HZ => FABM_ALL_SF(1:,IFABM)
+      CALL NC_CONNECT_PVAR(VAR,FABM_TMP_HZ)
+      CALL NC_READ_VAR(VAR,STKCNT)
+    END DO
+
+   IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_FABM" 
+
+ END SUBROUTINE READ_FABM
+!==============================================================================!
+# endif
 
 
 # if defined (MEAN_FLOW)

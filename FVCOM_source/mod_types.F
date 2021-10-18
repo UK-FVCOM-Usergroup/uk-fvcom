@@ -30,13 +30,13 @@ MODULE MOD_TYPES
   USE MOD_PREC
   IMPLICIT NONE
   TYPE MAP
-     INTEGER :: NSIZE ! SIZE OF LOCAL DATA (Size of Local data)
-     INTEGER :: GSIZE ! GLOBAL SIZE (SIZE OF GLOBAL DATA)
-     INTEGER :: LSIZE ! SIZE OF LOCAL ARRAY (Usually ==nsize or MT,NT)
+     INTEGER :: NSIZE =0 ! SIZE OF LOCAL DATA (Size of Local data)
+     INTEGER :: GSIZE =0 ! GLOBAL SIZE (SIZE OF GLOBAL DATA)
+     INTEGER :: LSIZE =0 ! SIZE OF LOCAL ARRAY (Usually ==nsize or MT,NT)
      ! INDEX FROM LOCAL ARRAY TO GLOBAL ARRAY
-     INTEGER, POINTER,  DIMENSION(:) :: LOC_2_GL => null()
+     INTEGER, POINTER,  DIMENSION(:) :: LOC_2_GL => NULL()
      ! INDEX FROM LOCAL ARRAY TO LOCAL GRID
-     INTEGER, POINTER,  DIMENSION(:) :: LOC_2_Grid => null()
+     INTEGER, POINTER,  DIMENSION(:) :: LOC_2_Grid => NULL()
   END TYPE MAP
 
   TYPE COMM
@@ -51,14 +51,14 @@ MODULE MOD_TYPES
      !----------------------------------------------------------
 
      !  LOGICAL :: SND,RCV
-     INTEGER  NSND,NRCV,RCPT
-     INTEGER, POINTER,  DIMENSION(:) :: SNDP => null(),RCVP => null()
-     REAL(SP), POINTER,   DIMENSION(:) :: MLTP => null()
+     INTEGER  :: NSND =0,NRCV=0,RCPT=0
+     INTEGER, POINTER,  DIMENSION(:) :: SNDP => NULL(),RCVP => NULL()
+     REAL(SP), POINTER,   DIMENSION(:) :: MLTP => NULL()
   END TYPE COMM
 
   TYPE BC
-     INTEGER NTIMES
-     REAL(SP), POINTER,  DIMENSION(:) :: TIMES => null()
+     INTEGER :: NTIMES =0
+     REAL(SP), POINTER,  DIMENSION(:) :: TIMES => NULL()
      CHARACTER(LEN=80) :: LABEL
   END TYPE BC
 
@@ -82,31 +82,31 @@ MODULE MOD_TYPES
      ! PARALLEL STUFF
 !     INTEGER, POINTER :: EL_PID(:) !!PROCESSOR OWNER OF GLOBAL ELEMENT
 
-     INTEGER, POINTER :: egid(:) => null() !!GLOBAL ID OF LOCAL ELEMENT
-     INTEGER, POINTER :: ngid(:) => null() !!GLOBAL ID OF LOCAL NODE 
-     INTEGER, POINTER :: elid(:) => null() !!LOCAL ID OF GLOBAL ELEMENT
-     INTEGER, POINTER :: nlid(:) => null() !!LOCAL ID OF GLOBAL NODE 
+     INTEGER, POINTER :: egid(:) => NULL() !!GLOBAL ID OF LOCAL ELEMENT
+     INTEGER, POINTER :: ngid(:) => NULL() !!GLOBAL ID OF LOCAL NODE 
+     INTEGER, POINTER :: elid(:) => NULL() !!LOCAL ID OF GLOBAL ELEMENT
+     INTEGER, POINTER :: nlid(:) => NULL() !!LOCAL ID OF GLOBAL NODE 
 
      ! TRANSFER INDEX INCLUDING HALO
-     INTEGER, POINTER :: egid_X(:) => null()
-     INTEGER, POINTER :: ngid_X(:) => null()
-     INTEGER, POINTER :: elid_X(:) => null()
-     INTEGER, POINTER :: nlid_X(:) => null()
+     INTEGER, POINTER :: egid_X(:) => NULL()
+     INTEGER, POINTER :: ngid_X(:) => NULL()
+     INTEGER, POINTER :: elid_X(:) => NULL()
+     INTEGER, POINTER :: nlid_X(:) => NULL()
 
      ! GRID DATA POINTERS
 
-     INTEGER, POINTER :: NV(:,:) => null()
+     INTEGER, POINTER :: NV(:,:) => NULL()
 
 
-     REAL(SP),POINTER :: XM(:)  => null()
-     REAL(SP),POINTER :: YM(:)  => null()
-     REAL(SP),POINTER :: LON(:) => null()
-     REAL(SP),POINTER :: LAT(:) => null()
+     REAL(SP),POINTER :: XM(:) => NULL()
+     REAL(SP),POINTER :: YM(:) => NULL()
+     REAL(SP),POINTER :: LON(:) => NULL()
+     REAL(SP),POINTER :: LAT(:) => NULL()
 
-     REAL(SP),POINTER :: XMC(:)  => null()
-     REAL(SP),POINTER :: YMC(:)  => null()
-     REAL(SP),POINTER :: LONC(:) => null()
-     REAL(SP),POINTER :: LATC(:) => null()
+     REAL(SP),POINTER :: XMC(:) => NULL()
+     REAL(SP),POINTER :: YMC(:) => NULL()
+     REAL(SP),POINTER :: LONC(:) => NULL()
+     REAL(SP),POINTER :: LATC(:) => NULL()
 
      ! NOTES: SHOULD MAKE AN ARRAY TO STORE 1/ART, 1/ART2 and 1/ART2
      ! IT is faster and safer
@@ -118,7 +118,7 @@ MODULE MOD_TYPES
      !----------------Node, Boundary Condition, and Control Volume-----------------------!
 
 
-     INTEGER, POINTER :: NBE(:,:) => null()            !!INDICES OF ELMNT NEIGHBORS
+     INTEGER, POINTER :: NBE(:,:) => NULL()            !!INDICES OF ELMNT NEIGHBORS
  !    INTEGER, POINTER :: NTVE(:)             !! NUMBER OF ELEMENTS SURROUNDING EACH NODE
  !    INTEGER, POINTER :: NTSN(:)             !! NUMBER OF NODES SURROUNDING EACH NODE
  !    INTEGER, POINTER :: ISONB(:)            !!NODE MARKER = 0,1,2
@@ -126,20 +126,20 @@ MODULE MOD_TYPES
  !    INTEGER, POINTER :: ISBCE(:)     
  !    INTEGER, POINTER :: IEC(:,:)
  !    INTEGER, POINTER :: IENODE(:,:)
-     INTEGER, POINTER :: NBSN(:,:) => null()            !! INDICES OF NODES SURROUNDING EACH NODE
+     INTEGER, POINTER :: NBSN(:,:) => NULL()            !! INDICES OF NODES SURROUNDING EACH NODE
 !     INTEGER, POINTER :: NIEC(:,:)
 !     INTEGER, POINTER :: NTRG(:)
-     INTEGER, POINTER :: NBVE(:,:) => null()            !! INDICIES OF ELEMENTS SURROUNDING EACH NODE
+     INTEGER, POINTER :: NBVE(:,:) => NULL()            !! INDICIES OF ELEMENTS SURROUNDING EACH NODE
 !     INTEGER, POINTER :: NBVT(:,:)
 
      !----------------2-d arrays for the general vertical coordinate -------------------------------!
 
-     REAL(SP), POINTER :: H(:)     => null()                   !!BATHYMETRY 
-     REAL(SP), POINTER :: Z(:,:)   => null()                   !!SIGMA COORDINATE VALUE 
-     REAL(SP), POINTER :: ZZ(:,:)  => null()                   !!INTRA LEVEL SIGMA VALUE
-     REAL(SP), POINTER :: H1(:)    => null()                   !!BATHYMETRY 
-     REAL(SP), POINTER :: Z1(:,:)  => null()                   !!SIGMA COORDINATE VALUE 
-     REAL(SP), POINTER :: ZZ1(:,:) => null()                   !!INTRA LEVEL SIGMA VALUE
+     REAL(SP), POINTER :: H(:)     => NULL()                   !!BATHYMETRY 
+     REAL(SP), POINTER :: Z(:,:)   => NULL()                   !!SIGMA COORDINATE VALUE 
+     REAL(SP), POINTER :: ZZ(:,:)  => NULL()                   !!INTRA LEVEL SIGMA VALUE
+     REAL(SP), POINTER :: H1(:)    => NULL()                   !!BATHYMETRY 
+     REAL(SP), POINTER :: Z1(:,:)  => NULL()                   !!SIGMA COORDINATE VALUE 
+     REAL(SP), POINTER :: ZZ1(:,:) => NULL()                   !!INTRA LEVEL SIGMA VALUE
 
      !------------shape coefficient arrays and control volume metrics--------------------!
      

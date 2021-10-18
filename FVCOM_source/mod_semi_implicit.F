@@ -55,6 +55,11 @@ MODULE MOD_SEMI_IMPLICIT
 #include "include/finclude/petscviewer.h"
 
   INTEGER , PUBLIC  :: STAGE, KSTAGE_UV, KSTAGE_TE, KSTAGE_TS
+# if defined (FABM)
+  INTEGER , PUBLIC  :: KSTAGE_FABM !syshi 20191013
+  REAL(SP), PUBLIC, ALLOCATABLE :: RK_FABM(:) !syshi 20191013
+  REAL(SP), PUBLIC, ALLOCATABLE :: TSC_FABM_ALL(:,:,:) !syshi 20191013
+# endif
   REAL(SP), PUBLIC  :: IFCETA, BEDF
   CHARACTER(LEN=80), PUBLIC :: MSTG
   REAL(SP), PUBLIC, ALLOCATABLE :: RK_UV(:), RK_TE(:), RK_TS(:)
@@ -70,6 +75,9 @@ MODULE MOD_SEMI_IMPLICIT
           & KSTAGE_UV,       &
           & KSTAGE_TE,       &
           & KSTAGE_TS,       &
+# if defined (FABM)
+          & KSTAGE_FABM,     &
+# endif
           & MSTG
 
   PetscViewer :: viewer
@@ -164,6 +172,9 @@ MODULE MOD_SEMI_IMPLICIT
 # if defined (SPHERICAL)  
   USE MOD_NORTHPOLE, ONLY : XFLUX3_NP, YFLUX3_NP, UBETA_NP, VBETA_NP
 # endif
+# if defined (FABM)
+  USE MOD_FABM_DATA
+# endif
   IMPLICIT NONE
   INTEGER K
 
@@ -191,6 +202,9 @@ MODULE MOD_SEMI_IMPLICIT
 
   ALLOCATE(TSC(0:MT,KB))              ; TSC       = 0.0_SP
 
+# if defined (FABM)
+  ALLOCATE(TSC_FABM_ALL(0:MT,KB,size(model%state_variables)))        ; TSC_FABM_ALL       = 0.0_SP  !syshi 20191013
+# endif
   ALLOCATE(RK_UV(KSTAGE_UV))          ; RK_UV     = 1.0_SP
   DO K=1, KSTAGE_UV
     RK_UV(K) = 1.0_SP/REAL(KSTAGE_UV+1-K)
@@ -206,6 +220,12 @@ MODULE MOD_SEMI_IMPLICIT
     RK_TS(K) = 1.0_SP/REAL(KSTAGE_TS+1-K)
   ENDDO
 
+# if defined (FABM)
+  ALLOCATE(RK_FABM(KSTAGE_FABM))      ; RK_FABM     = 1.0_SP
+  DO K=1, KSTAGE_FABM
+    RK_FABM(K) = 1.0_SP/REAL(KSTAGE_FABM+1-K)
+  ENDDO  !syshi 20191013
+# endif
   RETURN
   END SUBROUTINE ALLOC_VARS_SEMI
 
@@ -1395,6 +1415,9 @@ END IF
   KSTAGE_UV = 1
   KSTAGE_TE = 1
   KSTAGE_TS = 1
+# if defined (FABM)
+  KSTAGE_FABM = 1 !syshi 20191013
+# endif
   MSTG      = 'slow'
     
   END SUBROUTINE NAME_LIST_INITIALIZE_SEMI

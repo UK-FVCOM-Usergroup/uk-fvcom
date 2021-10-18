@@ -239,12 +239,16 @@ logical, parameter    :: debug_sed = .false.
 !  init_bed_porosity:  initial bed porosity [0,1]
 !  init_bed_thickness: initial bed thickness [m] [> 0]
 !  init_bed_fraction:  initial bed fraction [-] [> 0]
+!  thickness_threshold: user-defined threshold for bed thickness [m]
+!  F_fixfac: fixed layer proximity factor
+!            F_fixfac=DPSED/THRESS, limited to the range [0,1]
 !--------------------------------------------------
  
 real(sp) :: init_bed_porosity  = 1.0
 real(sp), allocatable :: init_bed_thickness(:) 
 real(sp), allocatable :: init_bed_fraction(:) 
-
+real(sp) :: thickness_threshold
+real(sp) :: F_fixfac
 !--------------------------------------------------
 !Bedload 
 !
@@ -382,8 +386,8 @@ character(len=80), dimension(n_bot_vars) :: bot_snames = &
 character(len=80), dimension(n_bot_vars) :: bot_lnames = &
       (/"bot_sd50","bot_dens","bot_wset","bot_tauc","bot_actv","sedlayer_depth_current_iteration",&
       "sedlayer_dapth_last_iteration","sedlayer_depth_net_change","bot_tmass","morph","rip_length","&
-      &rip_height","wav_excur","def_rough","app_rough","Niku_rough","b&
-      &io_rough","bfm_rough","bld_rough","wave_bbl","bot_phi","bedflag"/)
+      &rip_height","wav_excur","def_rough","app_rough","Niku_rough",&
+      &"bio_rough","bfm_rough","bld_rough","wave_bbl","bot_phi","bedflag"/)
 character(len=80), dimension(n_bot_vars) :: bot_units = (/"m","kg&
      &/m^3","m/s","N/m^2","days","m","m","m","kg","m","m","m","m","m"&
      &,"m","m","m","m","m","m","-","-"/)
@@ -593,7 +597,7 @@ End Subroutine Setup_Sed
   Subroutine Read_Sed_Params
   Use Input_Util
   Implicit None
-  integer linenum,i,k1,iscan
+  integer linenum,i,k1,iscan,itemp ! RJT itemp
   real(sp)           :: ftemp
   character(len=120) :: stemp
 
@@ -634,6 +638,9 @@ End Subroutine Setup_Sed
   !read in logical for infinite sediment supply 
   Call Get_Val(inf_bed,sedfile,'INF_BED',line=linenum,echo=.false.)
 
+  !read in user-defined threshold for bed thickness
+  Call Get_Val(thickness_threshold,sedfile,'THICKNESS_THRESHOLD',line=linenum,echo=.false.)
+
   !read in initial bed porosity  
   Call Get_Val(init_bed_porosity,sedfile,'INIT_BED_POROSITY',line=linenum,echo=.false.)
   if(init_bed_porosity < 0. .or. init_bed_porosity > 1)then
@@ -649,11 +656,17 @@ End Subroutine Setup_Sed
     init_bed_thickness(1) = ftemp
   else
     open(unit=999,file=trim(sedfile),form='formatted')
-    iscan = scan_file(999,"INIT_BED_THICKNESS",fvec = init_bed_thickness,nsze = nbed)
+    iscan = scan_file(999,"INIT_BED_THICKNESS",fvec = init_bed_thickness,nsze = itemp) ! RJT nbed to itemp
     if(iscan /= 0)then
       write(*,*)'problem reading INIT_BED_THICKNESS from sediment param file'
       stop
     endif
+! RJT
+    if(itemp /= nbed)then
+      write(*,*)'problem reading INIT_BED_THICKNESS from sediment param file, number of entries does not much NBED'
+      stop
+    endif
+! RJT
     close(999)
   endif
   if(minval(init_bed_thickness) <= 0.)then
@@ -669,12 +682,18 @@ End Subroutine Setup_Sed
     init_bed_fraction(1) = ftemp
   else
     open(unit=999,file=trim(sedfile),form='formatted')
-    iscan = scan_file(999,"INIT_BED_FRACTION",fvec = init_bed_fraction,nsze = nsed)
+    iscan = scan_file(999,"INIT_BED_FRACTION",fvec = init_bed_fraction,nsze = itemp) ! RJT nsed to itemp
     if(iscan /= 0)then
       write(*,*)'problem reading INIT_BED_FRACTION from sediment param file'
       stop
     endif
-    close(999)
+ ! RJT
+    if(itemp /= nsed)then
+      write(*,*)'problem reading INIT_BED_FRACTION from sediment param file, number of entries does not much NSED'
+      stop
+    endif
+! RJT
+   close(999)
   endif
   if(minval(init_bed_fraction) < 0. .or. maxval(init_bed_fraction) > 1.)then
     write(*,*)'error in init_bed_fraction in sed param file'
@@ -1119,7 +1138,7 @@ End Subroutine Setup_Sed
 # endif
 
 !J. Ge for tracer advection
-  IF(BACKWARD_ADVECTION==.TRUE.)THEN
+  IF(BACKWARD_ADVECTION .EQV..TRUE.)THEN
     IF(BACKWARD_STEP==1)THEN
       do i=1,nsed
         SED0(i)%conc = sed(i)%cnew
@@ -1893,6 +1912,16 @@ End Subroutine Setup_Sed
      
 ! J. Ge for fluid mud layer
 # if !defined (FLUID_MUD)
+
+      ! limit the erosion rate within the fixed layer
+      F_fixfac=bottom(i,lthck)/thickness_threshold
+      if(F_fixfac<=1.0_sp)erate = erate*F_fixfac
+
+      ! limit the tau_ce above original bed thickness 
+      ! accumulated layer is positive.
+      ! specify the tau_ce as 0.2N/m2 for this fluffy deposited layer.
+      if(bottom(i,dthck)>0.0_sp)tau_ce=0.2_sp 
+
       bed_por  = bed(i,1,iporo)
       bed_frac = sed(ised)%frac(i,1)
       tau_w    = taub(i)
@@ -1911,6 +1940,12 @@ End Subroutine Setup_Sed
       ! how much is available for erosion
       dz_bed = bed(i,1,ithck)
       eflux_avail = bed_frac * sed(ised)%srho*(1.0-bed_por) * dz_bed + dep
+
+      ! limit the available source above original bed thickness 
+      ! accumulated layer is positive.
+      if(bottom(i,dthck)>0.0_sp)then
+         eflux_avail=  bed_frac * sed(ised)%srho*(1.0-bed_por)*bottom(i,dthck)+dep
+      endif
 
       ! take only 99% of possible material
       sed(ised)%eflx(i) = min(sed(ised)%eflx(i) , eflux_avail)
@@ -1994,7 +2029,7 @@ End Subroutine Setup_Sed
   integer  :: cnt,jj,cc
   real(sp),dimension(0:mt,1:kb) :: unode,vnode
   real(sp),dimension(0:mt)      :: cbcn
-  real(sp) :: ud
+  real(sp) :: ud,cff
 
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: Calc_Deposition "
@@ -2050,16 +2085,26 @@ End Subroutine Setup_Sed
 # if defined (WAVE_CURRENT_INTERACTION)
         end if
 # endif
-        g1 = 0.0
-        do k=1,kbm1
-          if(d(i)<=5.0)then
-            je = mf**2*(unode(i,k)**2 + vnode(i,k)**2)/5**(4./3.) 
-          else
-            je = mf**2*(unode(i,k)**2 + vnode(i,k)**2)/d(i)**(4./3.) 
-          end if          
-          g1(k)=sqrt(grav*sqrt(unode(i,k)**2+vnode(i,k)**2)*je/Vcons)
-        end do
-        call calc_wset_floc(kbm1,c,sal,g1,ds50,sed(ised)%w0,wset)
+
+!        g1 = 0.0
+!        do k=1,kbm1
+!          if(d(i)<=5.0)then
+!            je = mf**2*(unode(i,k)**2 + vnode(i,k)**2)/5**(4./3.) 
+!          else
+!            je = mf**2*(unode(i,k)**2 + vnode(i,k)**2)/d(i)**(4./3.) 
+!          end if          
+!          g1(k)=sqrt(grav*sqrt(unode(i,k)**2+vnode(i,k)**2)*je/Vcons)
+!        end do
+!        call calc_wset_floc(kbm1,c,sal,g1,ds50,sed(ised)%w0,wset)
+         if(vert_hindered)then
+           call calc_wset_hindered(kbm1,c,sed(ised)%w0,wset,sed(ised)%Chin,sed(ised)%Wrdc) 
+         else
+           call calc_wset_delft(kbm1,c,sed(ised)%w0,wset)
+         end if
+! Jianzhong Ge 03/05/2013
+        sed(ised)%wset0(i,1:kbm1)=wset(1:kbm1)
+! Jianzhong Ge 03/05/2013
+
 !        if(d(i)<1.0)then
 !          ud = 0.812*(ds50*1000.0)**(0.4)*(wset(kbm1)*1000.0*1.0)**(0.2)
 !        else
