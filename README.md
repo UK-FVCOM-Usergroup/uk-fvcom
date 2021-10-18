@@ -48,8 +48,8 @@ We always aim to maintain this branch in sink with the latest FVCOM release. FVC
 
 LOG
 -------
-18-10-2021 Akvaplan elevation gradient in wetting and drying treatment. rho_pmean.F (double precission broadcasting)
-18-10-2021  mod_obcs.F to include Jianzhong Ge fixes for real time surface tidal elevations with eleven harmonics. Updates from Jianzhong to CSTMS original (bed thickness limits, thresholds to erodability, vertical settling options [i.e. hindered], semi_implicit for FABM. Kept spatially variable CBCMIN from Jianzhong Ge. 
+18-10-2021 c9e464f9e4440d1bba Akvaplan elevation gradient in wetting and drying treatment. rho_pmean.F (double precission broadcasting)
+18-10-2021 c9e464f9e4440d1bba mod_obcs.F to include Jianzhong Ge fixes for real time surface tidal elevations with eleven harmonics. Updates from Jianzhong to CSTMS original (bed thickness limits, thresholds to erodability, vertical settling options [i.e. hindered], semi_implicit for FABM. Kept spatially variable CBCMIN from Jianzhong Ge. 
 15-10-2021 f3e3840ba96cc Nullifying and initialising all variables that weren't included in the latest version
 15-10-2021 be7cb30853f7d Updates to include FABM on bcond_gcn/bcond_gcy, internal_step, mod_main, mod_input, mod_force,  cntrl_prmtrs(real time used in tidal forcing), left out Karsten H changes to COARE26z, WET_DRY on extel_edge.F,  
 14-10-2021 f3e3840ba96cc7 Starting to merge with FABMv1_v43 to transfer uk-fvcom changes and FABM coupler. 
