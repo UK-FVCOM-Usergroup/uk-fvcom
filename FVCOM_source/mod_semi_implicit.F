@@ -203,7 +203,7 @@ MODULE MOD_SEMI_IMPLICIT
   ALLOCATE(TSC(0:MT,KB))              ; TSC       = 0.0_SP
 
 # if defined (FABM)
-  ALLOCATE(TSC_FABM_ALL(0:MT,KB,size(model%state_variables)))        ; TSC_FABM_ALL       = 0.0_SP  !syshi 20191013
+  ALLOCATE(TSC_FABM_ALL(0:MT,KB,size(model%interior_state_variables)))        ; TSC_FABM_ALL       = 0.0_SP  !syshi 20191013
 # endif
   ALLOCATE(RK_UV(KSTAGE_UV))          ; RK_UV     = 1.0_SP
   DO K=1, KSTAGE_UV
