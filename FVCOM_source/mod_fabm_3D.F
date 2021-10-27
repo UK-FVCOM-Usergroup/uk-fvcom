@@ -2102,7 +2102,8 @@ END SUBROUTINE FABM_MIXING
 !RJT  END IF
 ! lwang
 !---------------------------------------------------------------------
-# endif
+# endif 
+! End of ! defined(MPDATA)
 
   !--Update Variables------------------------------------------------------------!
   !
@@ -2120,10 +2121,10 @@ END SUBROUTINE FABM_MIXING
 #      else
 #      endif
 
-#      else
+#      else  
            FABM_F(I,K,IFABM)=(TSC_FABM_ALL(I,K,IFABM)-RK_FABM(STAGE)*XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I)) !syshi 20191013
 #      endif
-#    else
+#    else 
            FABM_F(I,K,IFABM)=WQM_SF(I,K)
 #    endif              
         END DO
@@ -2148,7 +2149,7 @@ END SUBROUTINE FABM_MIXING
 ! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021   
         FABM_F((I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K)))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
-
+! nothing happens if not SEMI-IMPLICIT? 
 #      if !defined (THIN_DAM)
         FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      else
