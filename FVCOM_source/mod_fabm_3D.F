@@ -2147,7 +2147,7 @@ END SUBROUTINE FABM_MIXING
      DO K=1,KBM1
 #    if !defined (MPDATA)  
 ! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021   
-        FABM_F((I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K)))*(DT(I)/DTFA(I))
+        FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 ! nothing happens if not SEMI-IMPLICIT? 
 #      if !defined (THIN_DAM)
