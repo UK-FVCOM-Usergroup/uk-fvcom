@@ -1247,6 +1247,8 @@ SUBROUTINE INTERNAL_STEP
 #   endif
 
 #   if defined (FABM)
+! This DATA_ASSIM if block seems odd since the only change is to not apply the non-negative
+! salinity in the case you compile with DATA_ASSIM but run without it? MB2021
 # if defined (DATA_ASSIM)
   IF(ASSIM_FLAG.AND.(SST_ASSIM.OR.SSTGRD_ASSIM.OR.SSHGRD_ASSIM.OR.TSGRD_ASSIM))THEN
 # endif
