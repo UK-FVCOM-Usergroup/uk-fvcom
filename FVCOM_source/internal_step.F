@@ -236,8 +236,10 @@ SUBROUTINE INTERNAL_STEP
 !    DTFA = D We are reading this from offline file so we don't need to overwrite it 
   ! ---- SHIFT current values wet-dry mask 
   ! RJT 05/2020
+# if defined (WET_DRY)
     iswetnt = iswetn
     iswetct = iswetc
+# endif
 ! No idea if the latter is needed... RJT 06/2020 
 # if defined(MULTIPROCESSOR)
   IF(PAR)THEN
