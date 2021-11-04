@@ -1533,9 +1533,9 @@ END SUBROUTINE GENMAP_NESTING
 !          ALLOCATE(FABM_ALL_BLK(0:G%MT,KB,NESTING_BLOCKSIZE,size(model%interior_state_variables)),stat=status)
 !          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_BLK")
        END IF
-# endif
 
-      MEMCNT = MEMCNT + G%MT * KB * IFABMadv
+       MEMCNT = MEMCNT + G%MT * KB * IFABMadv
+# endif
 
       ! ALLOCATE SPACE FOR INTERPOLATED DATA
        ALLOCATE(U_NEST_L(0:G%NT,KB_L),stat=status)
