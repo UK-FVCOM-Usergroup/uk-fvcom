@@ -222,9 +222,15 @@ SUBROUTINE ADV_T
 ! ---
 
 !--ADJUST VOLUME'S HEAT CONTENT FOR EVAPORATION AND PRECIPITATION ------------------!
+# if defined (OBSICE)
+  IF (PRECIPITATION_ON) THEN
+     RF(:,1)=RF(:,1)+ROFVROS*(QEVAP+QPREC)*ICE_TEMP
+  END IF
+# else
   IF (PRECIPITATION_ON) THEN
      RF(:,1)=RF(:,1)+ROFVROS*(QEVAP+QPREC)*T1(:,1)
   END IF
+# endif
 
 # if defined (MPDATA)
     ! Adding offset to avoid less-than-zero problems
