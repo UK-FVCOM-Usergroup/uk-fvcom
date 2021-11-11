@@ -62,6 +62,12 @@ MODULE MOD_FABM_3D
   REAL(SP) :: DAYS_SINCE_YEAR_START
   LOGICAL :: COMPUTE_DAYS_SINCE_YEAR_START
 
+# if defined (OBSICE)
+  INTEGER :: I
+  REAL(SP), ALLOCATABLE,TARGET :: SWRAD_ICE(:) 
+# endif
+
+
   LOGICAL :: USE_FABM_SALINITY
   LOGICAL :: USE_FABM_BOTTOM_THICKNESS
   LOGICAL :: FABM_DEBUG
@@ -198,10 +204,15 @@ MODULE MOD_FABM_3D
     ! A predefined list of such variables is available at https://sourceforge.net/p/fabm/wiki/List_of_standard_variables/
     call model%link_interior_data(fabm_standard_variables%temperature,T1(1:M,:))
 !    call model%link_interior_data(spm1_from_host_model,fvcom_model_name(1:M,:)) ! FOR NEW SPM variables defined in ERSEM/src/shared.F90
-
-
     call model%link_interior_data(fabm_standard_variables%practical_salinity,S1(1:M,:))
+# if defined (OBSICE)     
+    DO I=1,M
+      SWRAD_ICE(I) = (1.0_SP - ICE_COV(I))*SWRAD_WATTS(I)
+    END DO
+    call model%link_horizontal_data(fabm_standard_variables%surface_downwelling_shortwave_flux,SWRAD_ICE(1:M)) 
+# else
     call model%link_horizontal_data(fabm_standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
+# endif
     call model%link_horizontal_data(fabm_standard_variables%longitude,LON(1:M))
     call model%link_horizontal_data(fabm_standard_variables%latitude,LAT(1:M))
     call model%link_horizontal_data(fabm_standard_variables%bottom_depth,D(1:M))
@@ -386,6 +397,13 @@ MODULE MOD_FABM_3D
          CALL E2N2D(UUWIND,UUWIND_N)
          CALL E2N2D(VVWIND,VVWIND_N)
          WIND_SPEED = SQRT(UUWIND_N**2 + VVWIND_N**2)
+# if defined (OBSICE)
+         DO I=1,M
+          IF(ICE_COV(I) > 0.95_SP) THEN
+             WIND_SPEED(I) = 0.0_SP
+          END IF
+        END DO
+# endif
       END IF
 
       IF (ALLOCATED(DENSITY)) THEN
