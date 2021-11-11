@@ -63,7 +63,6 @@ MODULE MOD_FABM_3D
   LOGICAL :: COMPUTE_DAYS_SINCE_YEAR_START
 
 # if defined (OBSICE)
-  INTEGER :: I
   REAL(SP), ALLOCATABLE,TARGET :: SWRAD_ICE(:) 
 # endif
 
@@ -206,10 +205,8 @@ MODULE MOD_FABM_3D
 !    call model%link_interior_data(spm1_from_host_model,fvcom_model_name(1:M,:)) ! FOR NEW SPM variables defined in ERSEM/src/shared.F90
     call model%link_interior_data(fabm_standard_variables%practical_salinity,S1(1:M,:))
 # if defined (OBSICE)     
-    DO I=1,M
-      SWRAD_ICE(I) = (1.0_SP - ICE_COV(I))*SWRAD_WATTS(I)
-    END DO
-    call model%link_horizontal_data(fabm_standard_variables%surface_downwelling_shortwave_flux,SWRAD_ICE(1:M)) 
+    ALLOCATE(SWRAD_ICE(0:MT))
+    call model%link_horizontal_data(fabm_standard_variables%surface_downwelling_shortwave_flux,SWRAD_ICE(1:M))
 # else
     call model%link_horizontal_data(fabm_standard_variables%surface_downwelling_shortwave_flux,SWRAD_WATTS(1:M))
 # endif
@@ -361,7 +358,7 @@ MODULE MOD_FABM_3D
    END SUBROUTINE
 
    SUBROUTINE PREPARE_ENVIRONMENT()
-      INTEGER :: K
+      INTEGER :: K,I
       REAL(SP), DIMENSION(0:MT) :: UUWIND_N,VVWIND_N
       TYPE(TIME) :: Time_yearstart
       CHARACTER(LEN=120) :: string_local
@@ -405,6 +402,14 @@ MODULE MOD_FABM_3D
         END DO
 # endif
       END IF
+
+# if defined (OBSICE)
+      IF (ALLOCATED(SWRAD_ICE)) THEN
+         DO I=1,M
+          SWRAD_ICE(I) = (1.0_SP - ICE_COV(I))*SWRAD_WATTS(I)
+        END DO
+      END IF
+# endif
 
       IF (ALLOCATED(DENSITY)) THEN
          ! From sigma in CGS units (g cm-3) to actual density in MKS units (kg m-3)
