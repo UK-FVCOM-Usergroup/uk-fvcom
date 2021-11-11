@@ -423,6 +423,14 @@ SUBROUTINE VDIF_TS(NCON1,F)
    END DO
 #  endif
 
+#  if defined (ONE_D_MODEL)
+  DO  K = 1, KBM1
+     DO  I = 1, M
+       F(I,K) = SUM(F(:,K),1)/REAL(M)
+     END DO
+  END DO
+# endif
+
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: vdif_ts"
   RETURN
 END SUBROUTINE VDIF_TS
