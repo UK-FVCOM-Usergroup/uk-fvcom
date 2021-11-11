@@ -1486,15 +1486,47 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET  :: DSW_AIR(:)       !!DOWNWARD SHORTWAVE RADIATION
 # endif
 # if defined (OBSICE)
+   REAL(SP), ALLOCATABLE,TARGET :: ICE_TEMP(:)
    REAL(SP), ALLOCATABLE,TARGET  :: ICE_COV(:)        !!ICE COVER FROM OBSERVATIONS
    REAL(SP), ALLOCATABLE,TARGET  :: ICE_TIK(:)        !!ICE COVER FROM OBSERVATIONS
    REAL(SP), ALLOCATABLE,TARGET  :: FMELT(:)          !!HEAT FLUX FOR MELTING
-   REAL(SP), ALLOCATABLE,TARGET  :: DHDT_MELT(:)      !!ICE MELTING (THIKNESS VAR) m/s
-   REAL(SP), ALLOCATABLE,TARGET  :: DHDT_FREEZ(:)     !!ICE FREEZING (THIKNESS VAR) m/s
+   REAL(SP), ALLOCATABLE,TARGET  :: DHDT_MELT(:)      !!ICE MELTING (THICKNESS VAR) m/s
+   REAL(SP), ALLOCATABLE,TARGET  :: DHDT_FREEZ(:)     !!ICE FREEZING (THCIKNESS VAR) m/s
    REAL(SP), ALLOCATABLE,TARGET  :: HEAT_FREEZ(:)     !!HEAT FLUX FOR ICING 
-   REAL(SP), PARAMETER :: DRAGW = 0.0055_SP*1022._SP  !!drag coefficient for water on ice *rhow (kg/m^3)
-   REAL(SP), PARAMETER :: COSW = 0.9063_SP  !cos(ocean turning angle) !turning angle = 25.
-   REAL(SP), PARAMETER :: SINW = 0.4226_SP  !sin(ocean turning angle) !turning angle = 25.
+   REAL(SP), ALLOCATABLE,TARGET  :: TSO(:)            !!TEMPERATURE SURFACE OLD
+   REAL(SP), ALLOCATABLE,TARGET  :: TSN(:)            !!TEMPERATURE SURFACE NEW
+   REAL(SP), PARAMETER :: COSW      = 0.9063_SP       ! cos(ocean turning angle) !turning angle = 25.
+   REAL(SP), PARAMETER :: SINW      = 0.4226_SP       ! sin(ocean turning angle) !turning angle = 25.   
+   REAL(SP), PARAMETER :: cp_ice    = 2106.0_SP       ! specific heat of fresh ice and snow (J/kg/K) 
+   REAL(SP), PARAMETER :: h_snow    = 0.2_SP          ! snow thickness  
+   REAL(SP), PARAMETER :: rhow      = 1026.0_SP       ! density of seawater (kg/m^3)
+   REAL(SP), PARAMETER :: DRAGW     = 0.0055_SP*rhow  ! drag coefficient for water on ice *rhow (kg/m^3)
+   REAL(SP), PARAMETER :: hcsw      = 3993.0_SP       ! heat capacity of sea water (J kg^-1 K^-1)
+   REAL(SP), PARAMETER :: hcfw      = 4187.0_SP       ! heat capacity of fresh water (J kg^-1 K^-1)
+   REAL(SP), PARAMETER :: tstan     = 0.0057_SP       ! turbulant Stanton number
+   REAL(SP), PARAMETER :: dragcoef  = 0.002_SP        ! drag coefficient
+   REAL(SP), PARAMETER :: c1i       = 0.0_SP          ! zero initial  
+   REAL(SP), PARAMETER :: lhffw     = 334000.0_SP     ! latent heat of fusion for fresh water (J K^-1)    
+   REAL(SP), PARAMETER :: cp_air        = 1005.0_SP   ! specific heat of air (J/kg/K)
+   REAL(SP), PARAMETER :: rho_air       = 1.25_SP     ! ambient air density (kg/m^3)
+   REAL(SP), PARAMETER :: cmomE     = 0.0013_SP       ! transfer (momentum) coefficient  Ce Bulk tranfer coefficient; Table 2 in Isemer et al. (1989)
+   REAL(SP), PARAMETER :: cmomH     = 0.94_SP*cmomE   ! transfer (sensible) coefficient Ch = 0.94 Ce; Table 2 in Isemer et al. (1989); (Maykut, 1986)
+   REAL(SP), PARAMETER :: lh_coef1  = 6.112_SP        ! coef1
+   REAL(SP), PARAMETER :: lh_coef2  = 17.67_SP        ! coef2
+   REAL(SP), PARAMETER :: lh_coef3  = 243.5_SP        ! coef3
+   REAL(SP), PARAMETER :: lh_coef4  = 0.622_SP        ! coef4
+   REAL(SP), PARAMETER :: Lvap          = 2502000.0_SP! latent heat,vaporization freshwater (J/kg)
+   REAL(SP), PARAMETER :: albedo_obs    = 0.8_SP      ! Maximum albedo for snow (NERSC Technical report No. 304, A multi-category sea-ice model)
+   
+   !LH =  0.622*rhoa*Lvap*Cbulk*UIS*(RH_AIR(I)*ESA - ESS)/PA_AIR(I)  !Latent
+   !heat. Check unit of air pressure. See Tonboe_DMI.pdf for constants
+             ! rhow=1028.1 sea water density at Temp= Press=0, rhow = 1026.0
+             ! fresh water
+            ! cw = 3993.0 [J kg^-1 K^-1] heat capacity of seawater , ch = 0.006
+            ! cw = 4187.0 fress water
+            ! L = 330000.0 [J K^-1], latent heat of fusion for seawater 
+            ! L = 334000.0 freshwater
+
 # endif
 # if defined (ICE)
    REAL(SP), ALLOCATABLE,TARGET  :: QA_AIR(:)        !!SPECIFIC HUMIDITY  (KG/KG)
@@ -2059,13 +2091,17 @@ CONTAINS
    MEMCNT =  MT*3*NDB + MEMCNT
 # endif
 # if defined (OBSICE)
+   ALLOCATE(ICE_TEMP(0:MT))         ;ICE_TEMP = ZERO
    ALLOCATE(ICE_COV(0:MT))        !!ICE COVER FROM OBSERVATIONS
    ALLOCATE(ICE_TIK(0:MT))        !!ICE THICK FROM OBSERVATIONS
    ALLOCATE(FMELT(0:MT))          !!HEAT FLUX FOR MELTING
    ALLOCATE(DHDT_MELT(0:MT))      !!ICE MELTING (THIKNESS) M/S
    ALLOCATE(DHDT_FREEZ(0:MT))      !!ICE FORMING (THIKNESS) M/S
    ALLOCATE(HEAT_FREEZ(0:MT))      !!HEAT FLUX FOR ICING
-   MEMCNT =  MT*6*NDB + MEMCNT
+   ALLOCATE(TSO(0:MT))      ;TSO = Zero             !!HEAT FLUX FOR ICING
+   ALLOCATE(TSN(0:MT))              !!HEAT FLUX FOR ICING
+   MEMCNT =  MT*8*NDB + MEMCNT
+
 # endif
 # if defined (ICE)
    ALLOCATE(QA_AIR(0:MT))        !!SPECIFIC HUMIDITY

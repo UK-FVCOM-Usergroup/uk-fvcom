@@ -1276,7 +1276,10 @@ SUBROUTINE INTERNAL_STEP
   !    UPDATE TEMPERATURE IN NON-BAROTROPIC CASE                                 !
   !==============================================================================!
   IF(TEMPERATURE_ACTIVE)THEN 
-     
+#     if defined (OBSICE)
+     CALL AEXCHANGE(NC,MYID,NPROCS,ICE_TEMP)
+#     endif
+ 
 #    if defined (SEMI_IMPLICIT)
      TSC  = T1
      DO STAGE = 1, KSTAGE_TS
@@ -1728,6 +1731,12 @@ SUBROUTINE INTERNAL_STEP
 #     if defined (DYE_RELEASE)
      CALL AEXCHANGE(NC,MYID,NPROCS,DYE)
 #     endif       
+
+#     if defined (OBSICE)
+     CALL AEXCHANGE(NC,MYID,NPROCS,FMELT,DHDT_MELT)
+     CALL AEXCHANGE(NC,MYID,NPROCS,DHDT_FREEZ,HEAT_FREEZ,ICE_COV)
+     CALL AEXCHANGE(NC,MYID,NPROCS,ICE_TIK,WTSURF)
+#     endif 
      
      CALL AEXCHANGE(EC,MYID,NPROCS,VISCOFM)
      CALL AEXCHANGE(NC,MYID,NPROCS,VISCOFH)

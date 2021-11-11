@@ -7229,12 +7229,6 @@ CONTAINS
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
             & "COULD NOT FIND VARIABLE 'ice_cover'")
 
-       VAR => FIND_VAR(HEAT_FILE,"ice_thick",FOUND)
-       IF(.not. FOUND) CALL FATAL_ERROR &
-            & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
-            & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            & "COULD NOT FIND VARIABLE 'ice_thick'")
-
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ICE_COV_N => reference_var(var)
        ALLOCATE(STORAGE_VEC(0:MT), stat = status)
@@ -7250,6 +7244,11 @@ CONTAINS
        CALL NC_CONNECT_PVAR(ICE_COV_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 
+       VAR => FIND_VAR(HEAT_FILE,"ice_thick",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
+            & "COULD NOT FIND VARIABLE 'ice_thick'")
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ICE_TIK_N => reference_var(var)
@@ -13257,8 +13256,12 @@ CONTAINS
     REAL(SP), DIMENSION(0:NT) :: WDSN
     REAL(SP) :: t1k,ulw_airf          ! ejw 8/16/2006
 # if defined (OBSICE)
+    REAL(SP) :: Tfreez
     REAL(SP), DIMENSION(0:NT) :: UISN
-    REAL(SP) :: ustarice, fbot, fice, UIS, Tfreez
+    REAL(SP) :: ustarice, fbot, fice, UIS, rhos 
+    REAL(SP) :: SH_obsice, ESA_obsice, ESS_obsice, ULW_obsice, LH_obsice
+!   first step initialized the ice variables
+    TSO(:)    = 0.0_SP
 # endif
 
     IF(.NOT. ALLOCATED(HEAT_SWV)) CALL FATAL_ERROR &
@@ -13607,8 +13610,7 @@ CONTAINS
 
        ICE_COV = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
-
-       ! ICE THIKNESS FROM OBSERVATIONS
+       ! ICE THICKNESS FROM OBSERVATIONS
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,ICE_TIK_P,ICE_TIK_N,HTIME,STATUS)
        IF (STATUS /= 0) THEN
           CALL FATAL_ERROR("COULD NOT UPATE HEAT_FILE TIME BRACKET: BOUNDS EXCEEDED?")
@@ -13640,72 +13642,107 @@ CONTAINS
          END DO
          UIS = UIS/FLOAT(NTVE(I))
 
-       IF(ICE_COV(I) > 0.5_SP) THEN
-       	    	! freezing point
-       	    	!!REFERENCE: UNESCO TECH. PAPERS IN THE MARINE SCIENCE NO. 28. 1978
-		!! ANNEX 6 FREEZING POINT OF SEAWATER F.J. MILLERO PP.29-35.
-		!! ----------------------------------------------------------
-		!! UNITS:
-		!!   PRESSURE     P   DECIBARS
-		!!   SALINITY     S   PSS-78
-		!!   TEMPERATURE  TF  DEGREES CELSIUS FREEZING PT.
-		!! ----------------------------------------------------------
-		!! CHECKVALUE:
-		!!   TF=-2.588567 DEG C for S=40.0, P=500.0 DECIBARS
-		!! ----------------------------------------------------------
-		!! Original fortran code is found in:
-		!!   UNESCO technical papers in marine science 44 (1983) -
-		!!   'Algorithms for computation of fundamental properties of seawater'
-		!! ----------------------------------------------------------
-		!! Translated to object pascal by:
-		!!   Dr. Jan Schulz, 20. May 2008, www.code10.info
-		!!TF = (-0.0575_SP + 0.001710523_SP * Sqrt (Abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1) - 0.000753_SP * P(I,1);
-	    Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1)	! sea water freezing point
-            ustarice = sqrt(0.002_SP * UIS**2)   !dragcoef = 0.002, 
-            ! rhow=1028.1 sea water density at Temp= Press=0, rhow = 1026.0 fresh water
+            !! freezing point
+                !! REFERENCE: UNESCO TECH. PAPERS IN THE MARINE SCIENCE NO. 28.
+                !1978
+        !! ANNEX 6 FREEZING POINT OF SEAWATER F.J. MILLERO PP.29-35.
+        !! ----------------------------------------------------------
+        !! UNITS:
+        !!   PRESSURE     P   DECIBARS
+        !!   SALINITY     S   PSS-78
+        !!   TEMPERATURE  TF  DEGREES CELSIUS FREEZING PT.
+        !! ----------------------------------------------------------
+        !! CHECKVALUE:
+        !!   TF=-2.588567 DEG C for S=40.0, P=500.0 DECIBARS
+        !! ----------------------------------------------------------
+        !! Original fortran code is found in:
+        !!   UNESCO technical papers in marine science 44 (1983) -
+        !!   'Algorithms for computation of fundamental properties of seawater'
+        !! ----------------------------------------------------------
+        !! Translated to object pascal by:
+        !!   Dr. Jan Schulz, 20. May 2008, www.code10.info
+        !!TF = (-0.0575_SP + 0.001710523_SP * Sqrt (Abs (S(I,1))) -
+        !0.0002154996_SP * S(I,1)) * S(I,1) - 0.000753_SP * P(I,1);
+       
+       Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) - 0.0002154996_SP * S(I,1)) * S(I,1) - 0.00753_SP ! sea water freezing point
+       IF(ICE_COV(I) > 0.5_SP) THEN    
+            ustarice = sqrt(dragcoef * UIS**2)    
+            ! rhow=1028.1 sea water density at Temp= Press=0, rhow = 1026.0
+            ! fresh water
             ! cw = 3993.0 [J kg^-1 K^-1] heat capacity of seawater , ch = 0.006
             ! cw = 4187.0 fress water
-            ! L = 330000.0 [J K^-1], latent heat of fusion for seawater 
-            ! L = 334000.0 freshwater
-            fbot = 1026.0_SP * 4187.0_SP * 0.006_SP * ustarice * (T(I,1) + Tfreez)  
+
+            fbot = rhow * hcfw * tstan * ustarice * (T(I,1)-Tfreez)  
             HEAT_NET(I) = -fbot
             HEAT_SWV(I) = 0.0_SP
-            fice = 2.0_SP * (Tfreez - T_AIR(I))/ICE_TIK(I)   	!kice = 2.0 (thermal conductivity)
-            FMELT(I) = (fbot -fice)				!HEAT FLUX FOR MELTING
-            DHDT_MELT(I) = FMELT(I)/(1000.0_SP*334000.0_SP)  	!thickness variation by melting, To go into precipitation
+            ! fice = 2.0_SP * (Tfreez - T_AIR(I))/ICE_TIK(I)    !kice = 2.0
+            ! (thermal conductivity)
+            ! FMELT(I) = (fbot -fice)
+            FMELT(I) = fbot             !HEAT FLUX FOR MELTING
+            DHDT_MELT(I) = FMELT(I)/(1000.0_SP*lhffw)   !thickness variation by melting, To go into precipitation
             DHDT_FREEZ(I) = 0.0_SP
             ! if temperature is below freezing, reset T to Tf
             !if (T(I,1) <= Tfreez) T(I,1) = Tfreez
-       ELSE
+            !!!! Surface melting:
+            !IF (T_AIR(I) > 2.5_SP) THEN
+            !   rhos = 500.0_SP
+            !ELSEIF ( (T_AIR(I) > -13.0_SP) .AND. (T_AIR(I) <= 2.5_SP) ) THEN
+            !    rhos = 500_SP*(1.0_SP - 0.951_SP*EXP(-1.4_SP*(5.0_SP -
+            !    T_AIR(I))**(-1.15_SP) - 0.008_SP*UIS**1.7_SP))
+            !ELSEIF (T_AIR(I) <= -13.0_SP) THEN
+            !    rhos = 500 * (1.0_SP - 0.904_SP * EXP(-0.008_SP * UIS**1.7_SP))
+            !END IF
+            rhos = 118.64
+            !SH = rhoa*ca*cmom*UIS*(T_AIR(I) + TSO(I))  !Sensible heat
+            SH_obsice = rho_air * cp_air * cmomH * WDS * ((T_AIR(I) + 273.16_SP) - (TSO(I) + 273.16_SP))
+            ESA_obsice = lh_coef1 * EXP(lh_coef2 * T_AIR(I) / (T_AIR(I) + lh_coef3))
+            ESS_obsice = lh_coef1 * EXP(lh_coef2 * TSO(I) / (TSO(I) + lh_coef3))  
+            LH_obsice =  lh_coef4*rho_air*Lvap*cmomE*WDS*(RH_AIR(I)*ESA_obsice - ESS_obsice)/PA_AIR(I)
+            ULW_obsice = -emmiss * StefBo * (TSO(I) + 273.16_SP)**4
+                
+            TSN(I) = TSO(I) + (2.0_SP * DTI)/(rhos * cp_ice * h_snow) * ((1.0_SP- albedo_obs) * DSW_AIR(I) + DLW_AIR(I) + SH_obsice + LH_obsice + ULW_obsice)
+            IF (TSN(I) > 0.0_SP) THEN  !Melting if temp warmer than freezing.
+               DHDT_MELT(I) =  DHDT_MELT(I) + (0.5_SP * cp_ice * h_snow *TSN(I)) / (lhffw * DTI)
+               TSN(I) = 0.0_SP
+            END IF
+            TSO(I) = TSN(I)
+            ICE_TEMP(I) = Tfreez
+        ELSE
 # endif
          IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
            CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
                 DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
 
-# if defined(OBSICE)	      
-            t1k= t1(i,1) + 273.16_sp
-            
-            DHDT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*(T(I,1) - Tfreez)/(334000.0_SP*600.0_SP)	! Ice thickness by forming, To go into evaporation
-            HEAT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*1026.0_SP*(T(I,1) - Tfreez)/(3600.0_SP)	! Heat flux for ice forming, delta_time is 1.0 hour
-            DHDT_MELT(I) = 0.0_SP
-            ulw_airf = -emmiss * StefBo * t1k * t1k * t1k * t1k
-            HEAT_NET(I) = DLW_AIR(I) + DSW_AIR(I) + HSB+HLB + ulw_airf + HEAT_FREEZ(I)        ! ejw 8/16/2006 based on ROMS
-            HEAT_SWV(I) = DSW_AIR(I)
-            ! if temperature is below freezing, reset T to Tf
-            !if (T(I,1) <= Tfreez) T(I,1) = Tfreez         
-       END IF
-# endif
-           IF(.NOT. HEATING_FRESHWATER)THEN	      
+           IF(.NOT. HEATING_FRESHWATER)THEN
              t1k=t1(i,1)+273.16_sp
              ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
-             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
              HEAT_SWV(I) = DSW_AIR(I)
-	     !EJA edit - output sensible and latent heat flux
-	     HEAT_SENSIBLE(I) = HSB
-	     HEAT_LATENT(I) = HLB
+	         !EJA edit - output sensible and latent heat flux
+	         HEAT_SENSIBLE(I) = HSB
+	         HEAT_LATENT(I) = HLB
 !g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
-             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
-	   ELSE
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf
+# if defined (OBSICE)
+            IF (T(I,1) <= Tfreez) THEN 
+                DHDT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*(T(I,1) - Tfreez)/(lhffw*600.0_SP)    ! Ice thickness by forming, To go into evaporation
+                HEAT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*1026.0_SP*(T(I,1) - Tfreez)/(3600.0_SP) ! Heat flux for ice forming, delta_time is 1.0 hour
+            ELSE
+                DHDT_FREEZ(I) = 0.0_SP
+                HEAT_FREEZ(I) = 0.0_SP
+            ENDIF
+            DHDT_MELT(I) = 0.0_SP
+            HEAT_NET(I) = DLW_AIR(I) + DSW_AIR(I) + HSB + HLB + ulw_airf + HEAT_FREEZ(I)        ! ejw 8/16/2006 based on ROMS
+            ! if temperature is below freezing, reset T to Tf
+            ! Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) -
+            ! 0.0002154996_SP * S(I,1)) * S(I,1) - 0.00753_SP   ! sea water
+            ! freezing point
+            if (T(I,1) <= Tfreez) T(I,1) = Tfreez     
+                ICE_TEMP(I) = T(I,1)
+# else
+            HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+# endif
+
+	       ELSE
              USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
 !             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
              t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
@@ -13714,30 +13751,51 @@ CONTAINS
              ulw_airf=-StefBo*t1k*t1k*t1k*t1k
              HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
              HEAT_SWV(I)  = DSW_AIR(I)
-	     !EJA edit - output sensible and latent heat flux
-	     HEAT_SENSIBLE(I) = HSB
-	     HEAT_LATENT(I) = HLB
+	         !EJA edit - output sensible and latent heat flux
+	         HEAT_SENSIBLE(I) = HSB
+	         HEAT_LATENT(I) = HLB
 !g.l. 10/10/2017         HEAT_RLN(I)  =DLW_AIR(I)
              HEAT_RLN(I)  =emmiss*(DLW_AIR(I)+ulw_airf)	     
-	   END IF  
+	       END IF
+
 	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
-           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
-	   ZI40 = fmiss
-	   CP40 = 0.0_SP
-	   SIGH = 0.0_SP
-           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+         RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+	     ZI40 = fmiss
+	     CP40 = 0.0_SP
+	     SIGH = 0.0_SP
+         CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
                 DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
 	      
-           IF(.NOT. HEATING_FRESHWATER)THEN	      
+         IF(.NOT. HEATING_FRESHWATER)THEN
              t1k=t1(i,1)+273.16_sp
              ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
-             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
              HEAT_SWV(I) = DSW_AIR(I)
-	     !EJA edit - output sensible and latent heat flux
-	     HEAT_SENSIBLE(I) = HSB
-	     HEAT_LATENT(I) = HLB
+	         !EJA edit - output sensible and latent heat flux
+	         HEAT_SENSIBLE(I) = HSB
+	         HEAT_LATENT(I) = HLB
 !g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
-             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf
+# if defined (OBSICE)
+             IF (T(I,1) <= Tfreez) THEN
+                DHDT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*(T(I,1) - Tfreez)/(lhffw*600.0_SP)    ! Ice thickness by forming, To go into evaporation
+                HEAT_FREEZ(I) = DT(I)*DZ(I,1)*4187.0_SP*1026.0_SP*(T(I,1) - Tfreez)/(3600.0_SP) ! Heat flux for ice forming, delta_time is 1.0 hour
+             ELSE
+                DHDT_FREEZ(I) = 0.0_SP
+                HEAT_FREEZ(I) = 0.0_SP
+             ENDIF
+             DHDT_MELT(I) = 0.0_SP
+             HEAT_NET(I) = DLW_AIR(I) + DSW_AIR(I) + HSB + HLB + ulw_airf + HEAT_FREEZ(I)        ! ejw 8/16/2006 based on ROMS
+             ! if temperature is below freezing, reset T to Tf
+             ! Tfreez = (-0.0575_SP + 0.001710523_SP * sqrt (abs (S(I,1))) -
+             ! 0.0002154996_SP * S(I,1)) * S(I,1) - 0.00753_SP   ! sea water
+             ! freezing point
+             IF (T(I,1) <= Tfreez) THEN
+                T(I,1) = Tfreez
+             ENDIF
+             ICE_TEMP(I) = T(I,1)
+# else
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw8/16/2006 based on ROMS
+# endif
 	   ELSE
              USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
 !             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
@@ -13747,16 +13805,20 @@ CONTAINS
              ulw_airf=-StefBo*t1k*t1k*t1k*t1k
              HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
              HEAT_SWV(I)  = DSW_AIR(I)
-	     !EJA edit - output sensible and latent heat flux
-	     HEAT_SENSIBLE(I) = HSB
-	     HEAT_LATENT(I) = HLB
+	         !EJA edit - output sensible and latent heat flux
+	         HEAT_SENSIBLE(I) = HSB
+	         HEAT_LATENT(I) = HLB
 !g.l. 10/10/2017         HEAT_RLN(I)  =DLW_AIR(I)
              HEAT_RLN(I)  =emmiss*(DLW_AIR(I)+ulw_airf)	     
 	   END IF  
 	 ELSE
 	   CALL FATAL_ERROR("The value of COARE_VERSION should be 'COARE26Z' or 'COARE40VN'")
 	 END IF  
-       END DO
+# if defined (OBSICE)
+    ENDIF
+# endif
+
+    END DO
 
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN HEAT_FORCING_TYPE IN UPDATE HEAT")
@@ -14183,8 +14245,8 @@ CONTAINS
          	! DUVI = DRAGW*min(UIS,1.0_SP)  ! m/s
          	WSTRX = DRAGW*(min(UIS,1.0_SP))*(max(min(UISROT,1.0_SP),-1.0_SP))
          	WSTRY = DRAGW*(min(UIS,1.0_SP))*(max(min(VISROT,1.0_SP),-1.0_SP))
-                !WSTRY = 0.0_SP
-                !WSTRX = 0.0_SP
+            !WSTRY = 0.0_SP
+            !WSTRX = 0.0_SP
            END IF
        END DO
 # endif
