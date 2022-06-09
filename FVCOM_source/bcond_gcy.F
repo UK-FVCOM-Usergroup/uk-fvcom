@@ -53,6 +53,11 @@
    USE MOD_WD
    USE MOD_BULK
 
+# if defined(FABM)
+   USE MOD_FABM_DATA
+!   USE fabm
+# endif
+
 #  if defined (WATER_QUALITY)
    USE MOD_WQM
 #  endif
