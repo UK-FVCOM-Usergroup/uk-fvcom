@@ -1565,17 +1565,18 @@ END SUBROUTINE FABM_MIXING
      END DO
 
      IF(K == KBM1) THEN
- !       AH_BOTTOM(1:M) = (FACT*VISCOFF(1:M) + FM1)*NN_HVC(1:M)
- !********************Jadon**************************************
-     DO I = 1,M
-       AH_BOTTOM(i) = (FACT*VISCOFF(i) + FM1) * NN_HVC(i)
-       if (h(i)>800.0) then
-       elseif (h(i)<200.0) then
-         AH_BOTTOM(i)=AH_BOTTOM(i)*0.05
-       else
-         AH_BOTTOM(i)=AH_BOTTOM(i)*(1-(800.0-h(i))/600.0*0.95) 
-      endif
-     END DO
+       AH_BOTTOM(1:M) = (FACT*VISCOFF(1:M) + FM1)*NN_HVC(1:M)
+! !********************Jadon**************************************
+! --- This Could be useful in large domain implementations ----
+!     DO I = 1,M
+!       AH_BOTTOM(i) = (FACT*VISCOFF(i) + FM1) * NN_HVC(i)
+!       if (h(i)>800.0) then
+!       elseif (h(i)<200.0) then
+!         AH_BOTTOM(i)=AH_BOTTOM(i)*0.05
+!       else
+!         AH_BOTTOM(i)=AH_BOTTOM(i)*(1-(800.0-h(i))/600.0*0.95) 
+!      endif
+!     END DO
 !********************************************************************
      END IF
 
@@ -1654,15 +1655,16 @@ END SUBROUTINE FABM_MIXING
         !VISCOF=HORCON*(FACT*(VISCOFF(IA)+VISCOFF(IB))*0.5_SP + FM1)
         
         ! David moved HPRNU and added HVC
-       ! VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
-!*******************************Jadon*************************************
        VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
-     if (min(h(ia),h(ib))>800.0) then
-     elseif (min(h(ia),h(ib))<200.0) then
-       VISCOF=VISCOF*0.05
-     else
-       VISCOF=VISCOF*(1-(800.0-min(h(ia),h(ib)))/600.0*0.95) 
-     endif
+!*******************************Jadon*************************************
+! ---- Could be useful in large implementations with shelf breaks -----------------
+!       VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
+!     if (min(h(ia),h(ib))>800.0) then
+!     elseif (min(h(ia),h(ib))<200.0) then
+!       VISCOF=VISCOF*0.05
+!     else
+!       VISCOF=VISCOF*(1-(800.0-min(h(ia),h(ib)))/600.0*0.95) 
+!     endif
 !*****************************************************************************
         TXX=0.5_SP*(PFPXD(IA)+PFPXD(IB))*VISCOF
         TYY=0.5_SP*(PFPYD(IA)+PFPYD(IB))*VISCOF
