@@ -358,6 +358,7 @@ CONTAINS
     ADCOR_ON = .TRUE.
     EQUATOR_BETA_PLANE = .FALSE.
     NOFLUX_BOT_CONDITION = .TRUE.
+    !--for tidal turbines momentum sink and vegetation drag
     TIDAL_TURBINE_ON = .FALSE.
     TIDAL_TURBINE_FILE = trim(casename)//"_tt.nc"
     TIDAL_TURBINE_KIND = "Options:"//TRIM(TTMSINK)//","//TRIM(TTBROUGH)
@@ -1819,7 +1820,7 @@ CONTAINS
        
     END IF
 
-        ! LOAD TIDAL TURBINE PARAMETERS
+        ! LOAD TIDAL TURBINE or VEGETATION PARAMETERS
     IF (TIDAL_TURBINE_ON) THEN
 
        ! TEST FILE NAME
@@ -2009,7 +2010,7 @@ CONTAINS
    
     LOGICAL FOUND
 
-    ! FIND THE Tidal Turbine FILE OBJECT
+    ! FIND THE Tidal Turbine or Vegetation FILE OBJECT
     NCF => FIND_FILE(FILEHEAD,trim(TIDAL_TURBINE_FILE),FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("COULD NOT FIND TIDAL_TURBINE_FILE FILE OBJECT",&
@@ -2023,7 +2024,7 @@ CONTAINS
          & ("Dimension 'nele' in the TIDAL_TURBINE_FILE does not match NGL for this model?",&
          & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
 
-    ! FIND THE 'turbine_sigma_layer' variable
+    ! FIND THE fraction turbine/vegetation sigma_layer variable
     VAR => FIND_VAR(NCF,'turbine_sigma_layer',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'turbine_sigma_layer' in:",&
@@ -2034,7 +2035,7 @@ CONTAINS
     CALL NC_DISCONNECT(VAR)
 
 
-    ! FIND THE rotor swept area variable
+    ! FIND THE rotor swept area or vegetation flow facing area variable
     IF (TIDAL_TURBINE_ARTT .EQ. TTCNSTNT) THEN
        VAR => FIND_VAR(NCF,'swept_area',FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
@@ -2049,7 +2050,7 @@ CONTAINS
     END IF
 
 
-        ! FIND THE NUMBER OF TURBINES VARIABLE
+        ! FIND THE NUMBER OF TURBINES or PLANTS VARIABLE
     VAR => FIND_VAR(NCF,'turbine_number',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'turbine_number' in:",&
@@ -2059,7 +2060,7 @@ CONTAINS
     CALL NC_READ_VAR(VAR)
     CALL NC_DISCONNECT(VAR)
 
-        ! FIND THE NUMBER OF TURBINES VARIABLE
+        ! FIND THE NUMBER OF TURBINES or PLANTS VARIABLE
     VAR => FIND_VAR(NCF,'turbine_number',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'turbine_number' in:",&
@@ -2069,7 +2070,7 @@ CONTAINS
     CALL NC_READ_VAR(VAR)
     CALL NC_DISCONNECT(VAR)
 
-    ! FIND THE THRUST COEFFICIENT VARIABLE IF TIDAL_TURBINE_CT IS CONSTANT OTHERWISE MAKE IT ZERO
+    ! FIND THE THRUST/DRAG COEFFICIENT VARIABLE IF TIDAL_TURBINE_CT IS CONSTANT OTHERWISE MAKE IT ZERO
     IF (TIDAL_TURBINE_CT .EQ. TTCNSTNT) THEN
        VAR => FIND_VAR(NCF,'thrust_coeff',FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &

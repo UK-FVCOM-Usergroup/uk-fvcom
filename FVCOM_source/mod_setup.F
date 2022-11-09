@@ -378,7 +378,7 @@ CONTAINS
   END SUBROUTINE SETUP_BOTTOM_ROUGHNESS
 
   !==============================================================================|
-  !   SET TIDAL TURBINE PARAMETERS                                                       |
+  !   SET TIDAL TURBINE/VEGETATION PARAMETERS                                                       |
   !==============================================================================|
   SUBROUTINE SETUP_TIDAL_TURBINES
     IMPLICIT NONE
