@@ -120,17 +120,18 @@
                  -(WVSURF2(I)+WVBOT(I))*ART(I)+NHQ2DY(I)
 #      endif
 
-   !ADD TIDAL ENERGY EXTRACTION or VEGETATION DRAG IN THE 'J' SIGMA LAYER
-   !NTT(I) is the number of tidal turbines/plants in element I
-   !CT(I) is the thrust coefficient:
-   !Constant or speed dependent for element I updated every time step in
-   !ARTT(I) is the rotor swept area of turbines in element I
-   !or the flow facing area of the plant
-   !KBTT(I,J) contains the fraction of the turbine(s) or plant(s) in sigma layer J and element I
+
+   !ADD STRUCTURE DRAG FORCE IN THE 'J' SIGMA LAYER
+   !STRUCTURES: TIDAL STREAM TURBINES, VEGETATION OR OFFSHORE WIND UNDERWATER STRUCTURES
+   !NTT(I) is the number of structures (turbines/plants/pylons/foundations) in element I
+   !CT(I) is the drag/thrust coefficient:
+   !constant or speed dependent for element I, it can be updated every time step in the TT_THRUST_UPDATE subroutine
+   !ARTT(I) is the rotor swept area of turbines or flow facing are of the structure in element I
+   !KBTT(I,J) contains the fraction of the structure in sigma layer J and element I
    !Note that this extra term only includes a momentum sink contribution due to the thrust of the turbine(s) 
-   !or the drag of the vegetation
+   !or the drag of the structure
    !Use U,V if 3D model is run and sum over sigma layers, otherwise use UA,VA if 2D model is used.
-   IF (TIDAL_TURBINE_ON .AND. (TIDAL_TURBINE_KIND .EQ. TTMSINK)) THEN
+   IF (STRUCTURE_ON .AND. (STRUCTURE_KIND .EQ. TTMSINK)) THEN
 #  if !defined (TWO_D_MODEL)
       DO J=1,KBM1
         RESX(I) = RESX(I) + 0.5*KBTT(I,J)*NTT(I)*CT(I)*ARTT(I)*((U(I,J)**2 + V(I,J)**2)**(0.5))*U(I,J)

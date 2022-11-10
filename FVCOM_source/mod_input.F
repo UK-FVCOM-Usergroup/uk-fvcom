@@ -358,12 +358,12 @@ CONTAINS
     ADCOR_ON = .TRUE.
     EQUATOR_BETA_PLANE = .FALSE.
     NOFLUX_BOT_CONDITION = .TRUE.
-    !--for tidal turbines momentum sink and vegetation drag
-    TIDAL_TURBINE_ON = .FALSE.
-    TIDAL_TURBINE_FILE = trim(casename)//"_tt.nc"
-    TIDAL_TURBINE_KIND = "Options:"//TRIM(TTMSINK)//","//TRIM(TTBROUGH)
-    TIDAL_TURBINE_CT = "Options:"//TRIM(TTCNSTNT)//","//TRIM(TTVRBL)
-    TIDAL_TURBINE_ARTT = "Options:"//TRIM(TTCNSTNT)//","//TRIM(TTVRBL)
+    !--for  structures momentum sink
+    STRUCTURE_ON = .FALSE.
+    STRUCTURE_FILE = trim(casename)//"_tt.nc"
+    STRUCTURE_KIND = "Options:"//TRIM(TTMSINK)//","//TRIM(TTBROUGH)
+    STRUCTURE_CT = "Options:"//TRIM(TTCNSTNT)//","//TRIM(TTVRBL)
+    STRUCTURE_ARTT = "Options:"//TRIM(TTCNSTNT)//","//TRIM(TTVRBL)
 
     !--Parameters in NameList NML_SURFACE_FORCING
     WIND_ON = .FALSE.
@@ -1820,17 +1820,17 @@ CONTAINS
        
     END IF
 
-        ! LOAD TIDAL TURBINE or VEGETATION PARAMETERS
-    IF (TIDAL_TURBINE_ON) THEN
+        ! LOAD STRUCTURE PARAMETERS (TIDAL TURBINES, VEGETATION or OFFSHORE WIND UNDERWATER STRUCTURES
+    IF (STRUCTURE_ON) THEN
 
        ! TEST FILE NAME
-       charnum = index (TIDAL_TURBINE_FILE,".nc",back)
-       if (charnum /= len_trim(TIDAL_TURBINE_FILE)-2)&
-            & CALL WARNING("Tidal Turbine File does not end in .nc", &
-            & trim(TIDAL_TURBINE_FILE))
+       charnum = index (STRUCTURE_FILE,".nc",back)
+       if (charnum /= len_trim(STRUCTURE_FILE)-2)&
+            & CALL WARNING("Structure File does not end in .nc", &
+            & trim(STRUCTURE_FILE))
 
        ! INITIALIZE TYPE TO HOLD FILE METADATA
-       pathnfile= trim(INPUT_DIR)//trim(TIDAL_TURBINE_FILE)
+       pathnfile= trim(INPUT_DIR)//trim(STRUCTURE_FILE)
        CALL  NC_INIT(NCF,pathnfile)
 
        ! OPEN THE FILE AND LOAD METADATA
@@ -1996,7 +1996,7 @@ CONTAINS
     
   END SUBROUTINE LOAD_BOTTOM_ROUGHNESS
 
-  SUBROUTINE LOAD_TIDAL_TURBINE_PARAMETERS(TTSIGMA, TTAREA, TTNUMBER, TTTHRUST)
+  SUBROUTINE LOAD_STRUCTURE_PARAMETERS(TTSIGMA, TTAREA, TTNUMBER, TTTHRUST)
     USE CONTROL
     IMPLICIT NONE
     REAL(SP),ALLOCATABLE  :: TTSIGMA(:,:)
@@ -2011,24 +2011,24 @@ CONTAINS
     LOGICAL FOUND
 
     ! FIND THE Tidal Turbine or Vegetation FILE OBJECT
-    NCF => FIND_FILE(FILEHEAD,trim(TIDAL_TURBINE_FILE),FOUND)
+    NCF => FIND_FILE(FILEHEAD,trim(STRUCTURE_FILE),FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND TIDAL_TURBINE_FILE FILE OBJECT",&
-         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+         & ("COULD NOT FIND STRUCTURE_FILE FILE OBJECT",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     DIM1 => FIND_DIM(NCF,'nele',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND TIDAL_TURBINE_FILE DIMENSION 'nele' in:",&
-         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+         & ("COULD NOT FIND STRUCTURE_FILE DIMENSION 'nele' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
     IF (DIM1%DIM /= NGL)CALL FATAL_ERROR &
-         & ("Dimension 'nele' in the TIDAL_TURBINE_FILE does not match NGL for this model?",&
-         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+         & ("Dimension 'nele' in the STRUCTURE_FILE does not match NGL for this model?",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
-    ! FIND THE fraction turbine/vegetation sigma_layer variable
+    ! FIND THE fraction structure sigma_layer variable
     VAR => FIND_VAR(NCF,'turbine_sigma_layer',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'turbine_sigma_layer' in:",&
-         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'turbine_sigma_layer' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     CALL NC_CONNECT_AVAR(VAR,TTSIGMA)
     CALL NC_READ_VAR(VAR)
@@ -2036,11 +2036,11 @@ CONTAINS
 
 
     ! FIND THE rotor swept area or vegetation flow facing area variable
-    IF (TIDAL_TURBINE_ARTT .EQ. TTCNSTNT) THEN
+    IF (STRUCTURE_ARTT .EQ. TTCNSTNT) THEN
        VAR => FIND_VAR(NCF,'swept_area',FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'swept_area' in:",&
-         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'swept_area' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     CALL NC_CONNECT_AVAR(VAR,TTAREA)
     CALL NC_READ_VAR(VAR)
@@ -2050,32 +2050,32 @@ CONTAINS
     END IF
 
 
-        ! FIND THE NUMBER OF TURBINES or PLANTS VARIABLE
+        ! FIND THE NUMBER OF STRUCTURES VARIABLE
     VAR => FIND_VAR(NCF,'turbine_number',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'turbine_number' in:",&
-         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'turbine_number' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     CALL NC_CONNECT_AVAR(VAR,TTNUMBER)
     CALL NC_READ_VAR(VAR)
     CALL NC_DISCONNECT(VAR)
 
-        ! FIND THE NUMBER OF TURBINES or PLANTS VARIABLE
+        ! FIND THE NUMBER OF STRUCTURES VARIABLE
     VAR => FIND_VAR(NCF,'turbine_number',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'turbine_number' in:",&
-         & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'turbine_number' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     CALL NC_CONNECT_AVAR(VAR,TTNUMBER)
     CALL NC_READ_VAR(VAR)
     CALL NC_DISCONNECT(VAR)
 
-    ! FIND THE THRUST/DRAG COEFFICIENT VARIABLE IF TIDAL_TURBINE_CT IS CONSTANT OTHERWISE MAKE IT ZERO
-    IF (TIDAL_TURBINE_CT .EQ. TTCNSTNT) THEN
+    ! FIND THE THRUST/DRAG COEFFICIENT VARIABLE IF STRUCTURE_CT IS CONSTANT OTHERWISE MAKE IT ZERO
+    IF (STRUCTURE_CT .EQ. TTCNSTNT) THEN
        VAR => FIND_VAR(NCF,'thrust_coeff',FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
-            & ("COULD NOT FIND TIDAL_TURBINE_FILE VARIABLE 'thrust_coeff' in:",&
-            & "FILE NAME: "//TRIM(TIDAL_TURBINE_FILE))
+            & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'thrust_coeff' in:",&
+            & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
        CALL NC_CONNECT_AVAR(VAR,TTTHRUST)
        CALL NC_READ_VAR(VAR)
@@ -2085,7 +2085,7 @@ CONTAINS
        TTTHRUST = ZERO
     END IF
 
-  END SUBROUTINE LOAD_TIDAL_TURBINE_PARAMETERS
+  END SUBROUTINE LOAD_STRUCTURE_PARAMETERS
 
 # if defined (SEDIMENT)
 

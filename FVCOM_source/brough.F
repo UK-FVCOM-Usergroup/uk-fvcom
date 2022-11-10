@@ -150,10 +150,10 @@ SUBROUTINE BOTTOM_ROUGHNESS
 # endif
 
   !==============================================================================|
-  !  ADD ON BOTTOM ROUGHNESS FOR TIDAL TURBINE IF BED ROUGHNESS OPTION SELECTED
+  !  ADD ON BOTTOM ROUGHNESS FOR STRUCTURE IF BED ROUGHNESS OPTION SELECTED
   !  |
   !==============================================================================|
-  IF (TIDAL_TURBINE_ON .AND. (TIDAL_TURBINE_KIND .EQ. TTBROUGH)) THEN
+  IF (STRUCTURE_ON .AND. (STRUCTURE_KIND .EQ. TTBROUGH)) THEN
      CBC = CBC + ( NTT * (CT*ARTT/(2*ART)) )
   END IF
 

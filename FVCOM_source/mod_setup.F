@@ -378,19 +378,19 @@ CONTAINS
   END SUBROUTINE SETUP_BOTTOM_ROUGHNESS
 
   !==============================================================================|
-  !   SET TIDAL TURBINE/VEGETATION PARAMETERS                                                       |
+  !   SET STRUCTURES PARAMETERS                                                       |
   !==============================================================================|
-  SUBROUTINE SETUP_TIDAL_TURBINES
+  SUBROUTINE SETUP_STRUCTURES
     IMPLICIT NONE
   
-    IF (TIDAL_TURBINE_ON) THEN
+    IF (STRUCTURE_ON) THEN
   
        if(DBG_SET(DBG_LOG)) then
           write(IPT,*) "! "
-          write(IPT,*) "! Setting tidal turbine parameters"
+          write(IPT,*) "! Setting structure parameters"
        end if
 
-       CALL LOAD_TIDAL_TURBINE_PARAMETERS(KBTT, ARTT, NTT, CT)
+       CALL LOAD_STRUCTURE_PARAMETERS(KBTT, ARTT, NTT, CT)
               
     else
        
@@ -403,7 +403,7 @@ CONTAINS
 
     end if
     
-  END SUBROUTINE SETUP_TIDAL_TURBINES
+  END SUBROUTINE SETUP_STRUCTURES
 
   !==============================================================================|
   !   SET UP LOCAL MESH (BATHYMETRIC DEPTH)                                      |
