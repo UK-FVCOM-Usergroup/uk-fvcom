@@ -2010,7 +2010,7 @@ CONTAINS
    
     LOGICAL FOUND
 
-    ! FIND THE Tidal Turbine or Vegetation FILE OBJECT
+    ! FIND THE STRUCTURE FILE OBJECT
     NCF => FIND_FILE(FILEHEAD,trim(STRUCTURE_FILE),FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("COULD NOT FIND STRUCTURE_FILE FILE OBJECT",&
@@ -2025,9 +2025,9 @@ CONTAINS
          & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     ! FIND THE fraction structure sigma_layer variable
-    VAR => FIND_VAR(NCF,'turbine_sigma_layer',FOUND)
+    VAR => FIND_VAR(NCF,'structure_sigma_layer',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'turbine_sigma_layer' in:",&
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_sigma_layer' in:",&
          & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     CALL NC_CONNECT_AVAR(VAR,TTSIGMA)
@@ -2037,9 +2037,9 @@ CONTAINS
 
     ! FIND THE rotor swept area or vegetation flow facing area variable
     IF (STRUCTURE_ARTT .EQ. TTCNSTNT) THEN
-       VAR => FIND_VAR(NCF,'swept_area',FOUND)
+       VAR => FIND_VAR(NCF,'structure_area',FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'swept_area' in:",&
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_area' in:",&
          & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     CALL NC_CONNECT_AVAR(VAR,TTAREA)
@@ -2051,9 +2051,9 @@ CONTAINS
 
 
         ! FIND THE NUMBER OF STRUCTURES VARIABLE
-    VAR => FIND_VAR(NCF,'turbine_number',FOUND)
+    VAR => FIND_VAR(NCF,'structure_number',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'turbine_number' in:",&
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_number' in:",&
          & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     CALL NC_CONNECT_AVAR(VAR,TTNUMBER)
@@ -2061,9 +2061,9 @@ CONTAINS
     CALL NC_DISCONNECT(VAR)
 
         ! FIND THE NUMBER OF STRUCTURES VARIABLE
-    VAR => FIND_VAR(NCF,'turbine_number',FOUND)
+    VAR => FIND_VAR(NCF,'structure_number',FOUND)
     IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'turbine_number' in:",&
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_number' in:",&
          & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
     CALL NC_CONNECT_AVAR(VAR,TTNUMBER)
@@ -2072,9 +2072,9 @@ CONTAINS
 
     ! FIND THE THRUST/DRAG COEFFICIENT VARIABLE IF STRUCTURE_CT IS CONSTANT OTHERWISE MAKE IT ZERO
     IF (STRUCTURE_CT .EQ. TTCNSTNT) THEN
-       VAR => FIND_VAR(NCF,'thrust_coeff',FOUND)
+       VAR => FIND_VAR(NCF,'structure_coeff',FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
-            & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'thrust_coeff' in:",&
+            & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_coeff' in:",&
             & "FILE NAME: "//TRIM(STRUCTURE_FILE))
 
        CALL NC_CONNECT_AVAR(VAR,TTTHRUST)

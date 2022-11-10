@@ -3137,7 +3137,7 @@ CONTAINS
     VAR  => NC_MAKE_AVAR(name='KBTT',&
          & values=KBTT, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3= DIM_time)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='tidal turbine sigma layer fractions') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='structure sigma layer fractions') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='units',values='n/a') 
@@ -3192,7 +3192,7 @@ CONTAINS
     VAR  => NC_MAKE_AVAR(name='CT',&
          & values=CT, DIM1= DIM_nele, DIM2= DIM_time)
 
-    ATT  => NC_MAKE_ATT(name='long_name',values='tidal turbine thrust coefficient') 
+    ATT  => NC_MAKE_ATT(name='long_name',values='drag/thrust coefficient') 
     VAR  => ADD(VAR,ATT)
 
     ATT  => NC_MAKE_ATT(name='units',values='n/a') 
