@@ -149,6 +149,16 @@ SUBROUTINE BOTTOM_ROUGHNESS
 !    CBC = CFMIN*(1+(H_BREAK/DT1)**THETA)**(LAMB/THETA)
 # endif
 
+# if defined(STRUCTURE)
+  !==============================================================================|
+  !  ADD ON BOTTOM ROUGHNESS FOR STRUCTURE IF BED ROUGHNESS OPTION SELECTED
+  !  |
+  !==============================================================================|
+  IF (STRUCTURE_ON .AND. (STRUCTURE_KIND .EQ. TTBROUGH)) THEN
+     CBC = CBC + ( NTT * (CT*ARTT/(2*ART)) )
+  END IF
+# endif
+
   !==============================================================================|
   !  CALCULATE SHEAR STRESS ON BOTTOM  --> WUBOT/WVBOT                           |
   !==============================================================================|

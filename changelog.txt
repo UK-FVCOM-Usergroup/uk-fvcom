@@ -27,3 +27,9 @@ extuv_edge.F
 
 coords_n_const.F
 - Add call to SETUP_STRUCTURES
+
+brough.F
+- Add bottom roughness for structure if bed roughness option is selected
+
+adv_uv_edge_gcn.F
+- Flux adj to reflect flux (as for extuv_edj)

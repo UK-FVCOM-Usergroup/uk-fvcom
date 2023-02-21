@@ -986,6 +986,23 @@
        YFLUX(I,K) = YFLUX(I,K) + WAVESTRY_3D(I,K)
 #  endif   
 
+# if defined(STRUCTURE)
+         !ADD STRUCTURE DRAG FORCE IN THE 'K' SIGMA LAYER
+         !STRUCTURES: TIDAL STREAM TURBINES, VEGETATION OR OFFSHORE WIND UNDERWATER STRUCTURES
+         !NTT(I) is the number of structures (turbines/plants/pylons/foundations) in element I
+         !CT(I) is the drag/thrust coefficient:
+         !constant or speed dependent for element I, it can be updated every time step in the TT_THRUST_UPDATE subroutine
+         !ARTT(I) is the rotor swept area of turbines or flow facing area of the structure in element I 
+         !KBTT(I,K) contains the fraction the structure in sigma layer K and element I
+         !Note that this extra term only includes a momentum sink contribution due to the thrust of the turbine(s)
+         !or drag of the structure
+        IF (STRUCTURE_ON .AND. (STRUCTURE_KIND .EQ. TTMSINK)) THEN
+         XFLUX(I,K) = XFLUX(I,K) + 0.5*KBTT(I,K)*NTT(I)*CT(I)*ARTT(I)*((U(I,K)**2 + V(I,K)**2)**0.5)*U(I,K)
+         YFLUX(I,K) = YFLUX(I,K) + 0.5*KBTT(I,K)*NTT(I)*CT(I)*ARTT(I)*((U(I,K)**2 + V(I,K)**2)**0.5)*V(I,K)
+        END IF
+# endif
+
+
      END DO
 #  if defined (WET_DRY)
     END IF
