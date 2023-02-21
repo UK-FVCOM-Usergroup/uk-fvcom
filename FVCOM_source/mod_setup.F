@@ -376,6 +376,35 @@ CONTAINS
     
     
   END SUBROUTINE SETUP_BOTTOM_ROUGHNESS
+
+  !==============================================================================|
+  !   SET STRUCTURES PARAMETERS                                                       |
+  !==============================================================================|
+  SUBROUTINE SETUP_STRUCTURES
+    IMPLICIT NONE
+  
+    IF (STRUCTURE_ON) THEN
+  
+       if(DBG_SET(DBG_LOG)) then
+          write(IPT,*) "! "
+          write(IPT,*) "! Setting structure parameters"
+       end if
+
+       CALL LOAD_STRUCTURE_PARAMETERS(KBTT, ARTT, NTT, CT)
+              
+    else
+       
+       KBTT      = 0.0
+       KBTT(0,1) = 0.0
+       NTT	 = 0.0
+       NTT(0)    = 0.0
+       ARTT	 = 0.0
+       ARTT(0)	 = 0.0
+
+    end if
+    
+  END SUBROUTINE SETUP_STRUCTURES
+
   !==============================================================================|
   !   SET UP LOCAL MESH (BATHYMETRIC DEPTH)                                      |
   !==============================================================================|

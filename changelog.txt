@@ -1,0 +1,5 @@
+Changelog
+---------
+
+mod_setup.F
+- add sub-routine SETUP_STRUCTURES
