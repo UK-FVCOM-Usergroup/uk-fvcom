@@ -427,9 +427,21 @@ SUBROUTINE INTERNAL_STEP
 
 # endif    
   !end !defined (TWO_D_MODEL)
-  
+
+# if defined (STRUCTURE) 
   !----SPECIFY THE BOTTOM ROUGHNESS AND CALCULATE THE BOTTOM STRESSES------------!
   CALL BOTTOM_ROUGHNESS
+
+  !----UPDATE THE TIDAL TURBINE THRUST COEFFICENT--------------------------------!
+  IF (STRUCTURE_ON .AND. (STRUCTURE_CT .EQ. TTVRBL)) THEN
+         CALL TT_THRUST_UPDATE
+  END IF
+
+  !----UPDATE THE VEGETATION AREA-----------------------------------------------!
+  IF (STRUCTURE_ON .AND. (STRUCTURE_ARTT .EQ. TTVRBL)) THEN
+         CALL TT_AREA_UPDATE
+  END IF
+# endif
 
 # if defined (ICE)
 
