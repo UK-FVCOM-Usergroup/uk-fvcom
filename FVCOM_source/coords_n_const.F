@@ -100,6 +100,10 @@ SUBROUTINE COORDS_N_CONST
 
      CALL SETUP_BOTTOM_ROUGHNESS
 
+# if defined(STRUCTURE)
+     CALL SETUP_STRUCTURES
+# endif
+
      !=================================================
      ! CRASHSTART 
   CASE("crashrestart")
@@ -155,6 +159,10 @@ SUBROUTINE COORDS_N_CONST
      CALL SETUP_HORIZONTAL_MIXING_COEFFICIENT
 
      CALL SETUP_BOTTOM_ROUGHNESS
+
+# if defined(STRUCTURE)
+     CALL SETUP_STRUCTURES
+# endif
 
      !=================================================
      ! COLDSTART 
@@ -231,6 +239,10 @@ SUBROUTINE COORDS_N_CONST
      CALL SETUP_HORIZONTAL_MIXING_COEFFICIENT
 
      CALL SETUP_BOTTOM_ROUGHNESS
+
+# if defined(STRUCTURE)
+     CALL SETUP_STRUCTURES
+# endif
 
   END SELECT
   

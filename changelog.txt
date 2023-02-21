@@ -3,3 +3,27 @@ Changelog
 
 mod_setup.F
 - add sub-routine SETUP_STRUCTURES
+
+mod_ncdio.F
+- Add output of NC_KBTT and NC_CT
+
+mod_main.F
+- add structure variables (kinds, files)				
+- add extra options to namelist
+- add structure parameters
+
+mod_input.F
+- Add structure variables
+- Add subroutine load_structure_parameters
+
+internal_step.F
+- Add call to thrust calc
+
+tidal_turbine.F
+- Add file
+
+extuv_edge.F
+- Flux adj to reflect thrust
+
+coords_n_const.F
+- Add call to SETUP_STRUCTURES
