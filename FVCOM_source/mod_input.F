@@ -367,7 +367,14 @@ CONTAINS
     ADCOR_ON = .TRUE.
     EQUATOR_BETA_PLANE = .FALSE.
     NOFLUX_BOT_CONDITION = .TRUE.
-
+# if defined (STRUCTURE)
+    !--for  structures momentum sink
+    STRUCTURE_ON = .FALSE.
+    STRUCTURE_FILE = trim(casename)//"_tt.nc"
+    STRUCTURE_KIND = "Options:"//TRIM(TTMSINK)//","//TRIM(TTBROUGH)
+    STRUCTURE_CT = "Options:"//TRIM(TTCNSTNT)//","//TRIM(TTVRBL)
+    STRUCTURE_ARTT = "Options:"//TRIM(TTCNSTNT)//","//TRIM(TTVRBL)
+# endif
     !--Parameters in NameList NML_SURFACE_FORCING
     WIND_ON = .FALSE.
     WIND_TYPE = "Options::"//TRIM(SPEED)//","//TRIM(STRESS)
@@ -2089,6 +2096,30 @@ CONTAINS
        
     END IF
 
+# if defined (STRUCTURE)
+    ! LOAD STRUCTURE PARAMETERS (TIDAL TURBINES, VEGETATION or OFFSHORE WIND UNDERWATER STRUCTURES
+    IF (STRUCTURE_ON) THEN
+
+       ! TEST FILE NAME
+       charnum = index (STRUCTURE_FILE,".nc",back)
+       if (charnum /= len_trim(STRUCTURE_FILE)-2)&
+            & CALL WARNING("Structure File does not end in .nc", &
+            & trim(STRUCTURE_FILE))
+
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(STRUCTURE_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+
+    END IF
+# endif
+
 # if defined (SEDIMENT)
     !LOAD BEDFLAG FLAG
     IF (BEDFLAG_TYPE /= CNSTNT) THEN
@@ -2242,6 +2273,97 @@ CONTAINS
     CALL NC_DISCONNECT(VAR)
     
   END SUBROUTINE LOAD_BOTTOM_ROUGHNESS
+
+# if defined (STRUCTURE)
+  SUBROUTINE LOAD_STRUCTURE_PARAMETERS(TTSIGMA, TTAREA, TTNUMBER, TTTHRUST)
+    USE CONTROL
+    IMPLICIT NONE
+    REAL(SP),ALLOCATABLE  :: TTSIGMA(:,:)
+    REAL(SP),ALLOCATABLE  :: TTAREA(:)
+    REAL(SP),ALLOCATABLE  :: TTNUMBER(:)
+    REAL(sp),ALLOCATABLE  :: TTTHRUST(:)
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM1
+    integer status,I,IERR
+   
+    LOGICAL FOUND
+
+    ! FIND THE STRUCTURE FILE OBJECT
+    NCF => FIND_FILE(FILEHEAD,trim(STRUCTURE_FILE),FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND STRUCTURE_FILE FILE OBJECT",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
+
+    DIM1 => FIND_DIM(NCF,'nele',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &	
+         & ("COULD NOT FIND STRUCTURE_FILE DIMENSION 'nele' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
+    IF (DIM1%DIM /= NGL)CALL FATAL_ERROR &
+         & ("Dimension 'nele' in the STRUCTURE_FILE does not match NGL for this model?",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
+
+    ! FIND THE fraction structure sigma_layer variable
+    VAR => FIND_VAR(NCF,'structure_sigma_layer',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_sigma_layer' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,TTSIGMA)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+
+    ! FIND THE rotor swept area or vegetation flow facing area variable
+    IF (STRUCTURE_ARTT .EQ. TTCNSTNT) THEN
+       VAR => FIND_VAR(NCF,'structure_area',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_area' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,TTAREA)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+    ELSE
+       TTAREA = ZERO
+    END IF
+
+        ! FIND THE NUMBER OF STRUCTURES VARIABLE
+    VAR => FIND_VAR(NCF,'structure_number',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_number' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,TTNUMBER)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+
+        ! FIND THE NUMBER OF STRUCTURES VARIABLE
+    VAR => FIND_VAR(NCF,'structure_number',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_number' in:",&
+         & "FILE NAME: "//TRIM(STRUCTURE_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,TTNUMBER)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+    ! FIND THE THRUST/DRAG COEFFICIENT VARIABLE IF STRUCTURE_CT IS CONSTANT OTHERWISE MAKE IT ZERO
+    IF (STRUCTURE_CT .EQ. TTCNSTNT) THEN
+       VAR => FIND_VAR(NCF,'structure_coeff',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND STRUCTURE_FILE VARIABLE 'structure_coeff' in:",&
+            & "FILE NAME: "//TRIM(STRUCTURE_FILE))
+
+       CALL NC_CONNECT_AVAR(VAR,TTTHRUST)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+    ELSE
+       TTTHRUST = TTNUMBER
+       TTTHRUST = ZERO
+    END IF
+
+  END SUBROUTINE LOAD_STRUCTURE_PARAMETERS
+# endif
+
 
 # if defined (SEDIMENT)
 
