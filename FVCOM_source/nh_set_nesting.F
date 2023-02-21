@@ -7,36 +7,42 @@
   INTEGER I, J, K
   INTEGER JN, II, I1, I2
 
-  IF(NESTING_ON)THEN
-    CALL SET_VAR(intTime,HYW=HYW_NEST)
+!---> Modified by Dr. Lai 2021-01-15
+! The original version: use hyw_nest from nesting file as w4zt (with nesting)
+!                       use wts and elevation to calculate w4zt
+! The update version: directly use w4zt 
+!%  IF(NESTING_ON)THEN
+    CALL SET_VAR(intTime,HYW=W4ZT)
 
-    DO I=1, M
-      IF(ISONB(I)==2) THEN
-        W4ZT(I,1:KB) = HYW_NEST(I,1:KB)
-      ENDIF
-    ENDDO
+!    DO I=1, M
+!      IF(ISONB(I)==2) THEN
+!        W4ZT(I,1:KB) = HYW_NEST(I,1:KB)
+!      ENDIF
+!    ENDDO
 
-  ELSE
+!%  ELSE
 
-    DO J = 1, IBCN(1)
-      JN = OBC_LST(1,J)
-      II = I_OBC_N(JN)
+!%    DO J = 1, IBCN(1)
+!%      JN = OBC_LST(1,J)
+!%      II = I_OBC_N(JN)
 
-      DO K=1, KB
-        W4ZT(II,K) = WTS(II,K) + (1.0_SP+Z(II,K))*(EL(II)-ET(II))/DTI
-      ENDDO
-    END DO
-    DO J = 1,IBCN(4)
-      JN = OBC_LST(4,J)
-      I1 = I_OBC_N(JN)
-      I2 = NEXT_OBC(JN)
+!%      DO K=1, KB
+!%        W4ZT(II,K) = WTS(II,K) + (1.0_SP+Z(II,K))*(EL(II)-ET(II))/DTI
+!%      ENDDO
+!%    END DO
+!%    DO J = 1,IBCN(4)
+!%      JN = OBC_LST(4,J)
+!%      I1 = I_OBC_N(JN)
+!%      I2 = NEXT_OBC(JN)
 
-      DO K=1, KB
-        W4ZT(I1,K) = W4ZT(I2,K)
-      ENDDO
-    END DO
+!%      DO K=1, KB
+!%        W4ZT(I1,K) = W4ZT(I2,K)
+!%      ENDDO
+!%    END DO
 
-  ENDIF
+!%  ENDIF
+
+!<--- Modified by Dr. Lai 2021-01-15
 
   RETURN
 # endif

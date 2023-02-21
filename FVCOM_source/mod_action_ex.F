@@ -363,8 +363,8 @@ MODULE MOD_ACTION_EX
   REAL(SP),ALLOCATABLE :: Sice_TMP(:),SiceLOC(:)
 # endif  
 # if defined (SPHERICAL)
-  REAL(SP) :: XTMP1,XTMP
-  REAL(SP) :: DLTXE_TMP,DLTYE_TMP
+  REAL(8) :: XTMP1,XTMP
+  REAL(8) :: DLTXE_TMP,DLTYE_TMP
 # endif
   REAL(SP) :: UA_NODE,VA_NODE
   INTEGER  :: CNT
@@ -561,9 +561,34 @@ MODULE MOD_ACTION_EX
 !# if defined (PLBC)
 !    UN =  - CANX*DLTYE(I)
 !# endif
-    EXFLUX=-UN*((1.0+SIGN(1.0_sp,UN))*FIJ1(:,:,2)+(1.0-SIGN(1.0_sp,UN))*FIJ1(:,:,1))*0.5
+    EXFLUX=-UN*((1.0+SIGN(REAL(1.0,SP),UN))*FIJ1(:,:,2)+(1.0-SIGN(REAL(1.0,SP),UN))*FIJ1(:,:,1))*0.5
 
-#   if defined (ICE)                                 
+#   if defined (WAVE_ONLY)
+    IF(ICEIN_ON)THEN
+      C_ICE=(CICE_TEST(IA)+CICE_TEST(IB))/2.0_SP
+      if(C_ICE.gt.1e-8)then
+        CALL ACTT2(IA,IB,RATIO)
+        DO ID=1,MDC
+          DO ISS=1,MSC
+            EXFLUX_TMP(ID,ISS)=EXFLUX(ID,ISS)*RATIO(ISS)
+            if (EXFLUX(ID,ISS).ge.0)then   
+              XFLUX(ID,ISS,IA)=XFLUX(ID,ISS,IA)+EXFLUX(ID,ISS)
+              XFLUX(ID,ISS,IB)=XFLUX(ID,ISS,IB)-EXFLUX_TMP(ID,ISS)
+            else
+              XFLUX(ID,ISS,IA)=XFLUX(ID,ISS,IA)+EXFLUX_TMP(ID,ISS)
+              XFLUX(ID,ISS,IB)=XFLUX(ID,ISS,IB)-EXFLUX(ID,ISS)
+            end if
+          END DO
+        END DO
+      else
+        XFLUX(:,:,IA)=XFLUX(:,:,IA)+EXFLUX
+        XFLUX(:,:,IB)=XFLUX(:,:,IB)-EXFLUX
+      endif
+    ELSE
+      XFLUX(:,:,IA)=XFLUX(:,:,IA)+EXFLUX
+      XFLUX(:,:,IB)=XFLUX(:,:,IB)-EXFLUX     
+    END IF  
+#   elif defined (ICE)                                 
     C_ICE=(aice(IA,1)+aice(IB,1))/2.0_SP
 !    C_ICE=0.0
     if(C_ICE.gt.1e-8)then
@@ -660,8 +685,8 @@ MODULE MOD_ACTION_EX
             CGO_2D  ,SPCDIR2,SPCDIR3,UTMP ,VTMP,DLTYETMP,DLTXETMP,DLTXEA,DLTXEB)
     UNA = CANYA - CANXAB
     UNBB = CANYB - CANXAB
-    EXFLUXA=-UNA*((1.0+SIGN(1.0,UNA))*FIJ2A(:,:,IB)+(1.0-SIGN(1.0,UNA))*FIJ1A(:,:,IA))*0.5
-    EXFLUXB=-UNBB*((1.0+SIGN(1.0,UNBB))*FIJ2B(:,:,IB)+(1.0-SIGN(1.0,UNBB))*FIJ1B(:,:,IA))*0.5
+    EXFLUXA=-UNA*((1.0+SIGN(REAL(1.0,SP),UNA))*FIJ2A(:,:,IB)+(1.0-SIGN(REAL(1.0,SP),UNA))*FIJ1A(:,:,IA))*0.5
+    EXFLUXB=-UNBB*((1.0+SIGN(REAL(1.0,SP),UNBB))*FIJ2B(:,:,IB)+(1.0-SIGN(REAL(1.0,SP),UNBB))*FIJ1B(:,:,IA))*0.5
 
 #   if defined (ICE)                                 
     C_ICE=(aice(IA,1)+aice(IB,1))/2
@@ -975,9 +1000,9 @@ MODULE MOD_ACTION_EX
   USE MOD_NORTHPOLE
   
   IMPLICIT NONE
-  REAL(SP)     ::FF1(MDC,MSC),N32_TMPP(MDC,MSC),N32_TMPP4(MDC,MSC)
+  REAL(SP) :: FF1(MDC,MSC),N32_TMPP(MDC,MSC),N32_TMPP4(MDC,MSC)
   INTEGER  :: ISS, ID,I1,I2,IDT,IDD,III,I,IDD1,IDD2
-  REAL(SP)     :: UL_DEGREE,CENTER_DEGREE,DL_DEGREE,DIFLAT1,DIFLAT2,RATELAT1,RATELAT2
+  REAL     :: UL_DEGREE,CENTER_DEGREE,DL_DEGREE,DIFLAT1,DIFLAT2,RATELAT1,RATELAT2
 
 
   DO ISS = 1,MSC  
@@ -1332,7 +1357,11 @@ MODULE MOD_ACTION_EX
   COES2(6,:)=(/0.0,0.0,0.0,0.0,0.0002636,-0.01267,0.1853,-1.403,2.459/)
   COES2(7,:)=(/0.0,0.0,0.0,0.0,1.551E-5,-0.002103,0.03268,-0.4304,0.3751/)
 
-  C_ICE=(aice(IA,1)+aice(IB,1))/2
+# if defined (WAVE_ONLY)
+  C_ICE=(CICE_TEST(IA)+CICE_TEST(IB))/2.0_SP
+# else
+  C_ICE=(aice(IA,1)+aice(IB,1))/2.0_SP
+# endif
   floe_diam=200
 # if defined (SPHERICAL)
   Y1_DP=vy(IA)

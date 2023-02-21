@@ -37,7 +37,7 @@ MODULE MOD_FORCE
   USE MOD_SPHERICAL
   USE MOD_PAR
   USE MOD_INPUT
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
   USE MOD_HEATFLUX
 # endif
 # if defined (HEATING_SOLAR)
@@ -247,7 +247,7 @@ MODULE MOD_FORCE
   !  TYPE(NCVAR), POINTER :: HEAT_LTNT_N, HEAT_LTNT_P ! LATENT
   !  TYPE(NCVAR), POINTER :: HEAT_SNS_N, HEAT_SNS_P   ! SENSIBLE
   TYPE(NCVAR), POINTER :: HEAT_NET_N, HEAT_NET_P   ! NET HEAT FLUX
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) 
+# if defined (HEATING_CALCULATED)
   TYPE(NCVAR), POINTER :: T_AIR_N, T_AIR_P   
   TYPE(NCVAR), POINTER :: RH_AIR_N, RH_AIR_P   
   TYPE(NCVAR), POINTER :: PA_AIR_N, PA_AIR_P   
@@ -284,6 +284,26 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: WINDW_STRX_N, WINDW_STRX_P   ! STRESS IN THE X DIRECTION (wave)
   TYPE(NCVAR), POINTER :: WINDW_STRY_N, WINDW_STRY_P   ! STRESS IN THE Y DIRECTION (wave)
 # endif
+
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+  ! =================================================================
+  ! SURFACE ICE FILE DATA FOR WAVE ONLY MODE
+  INTEGER :: ICEINS_FORCING_TYPE
+
+  INTEGER, PARAMETER :: ICEINS_ARE_WRFGRID   = 0
+  INTEGER, PARAMETER :: ICEINS_ARE_FVCOMGRID = 1
+  INTEGER, PARAMETER :: ICEINS_ARE_PT_SOURCE = 2
+
+
+  TYPE(TIME) :: ICEINS_PERIOD
+
+  TYPE(NCFILE), POINTER :: ICEINS_FILE
+  CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE    :: ICEINS_FORCING_COMMENTS(:)
+  TYPE(INTERP_WEIGHTS),POINTER :: ICEINS_INTP_N
+  TYPE(INTERP_WEIGHTS),POINTER :: ICEINS_INTP_C
+  TYPE(NCVAR), POINTER :: ICEINS_ICEC_N, ICEINS_ICEC_P
+# endif
+
 
 # if defined (OFFLINE_SEDIMENT)
   ! =================================================================
@@ -443,16 +463,18 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: ICING_WSPX_N, ICING_WSPX_P   ! SEA LEVEL AIR TEMPERATURE
   TYPE(NCVAR), POINTER :: ICING_WSPY_N, ICING_WSPY_P   ! SPECFIC HUMIDITY
 
-
   PUBLIC :: SETUP_FORCING
   PUBLIC :: UPDATE_GROUNDWATER
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
   PUBLIC :: UPDATE_HEAT
 # endif
   PUBLIC :: UPDATE_WIND
   PUBLIC :: UPDATE_WAVE
-
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+  PUBLIC :: UPDATE_ICEIN
+# endif
+  
+# if defined (HEATING_CALCULATED)
   PUBLIC :: UPDATE_HEAT_CALCULATED
 # endif
 # if defined (HEATING_SOLAR)
@@ -504,11 +526,11 @@ CONTAINS
 
     NULLIFY(GWATER_FILE)
 
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
     NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, HEAT_SWV_P,&
          & HEAT_SWV_N)
 # endif
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
     NULLIFY(HEAT_FILE,HEAT_INTP_N, HEAT_INTP_C, T_AIR_P, T_AIR_N,  &
          &  RH_AIR_P, RH_AIR_N, PA_AIR_P, PA_AIR_N, DLW_AIR_P,     &
 	 &  DLW_AIR_N, DSW_AIR_P, DSW_AIR_N)
@@ -588,13 +610,16 @@ CONTAINS
     IF(BIOLOGICAL_MODEL)CALL OBC_BIO
 # endif    
     CALL RIVER_DISCHARGE
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)    
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)    
     CALL SURFACE_HEATING
 # endif    
     CALL SURFACE_WINDSTRESS
     CALL SURFACE_PRECIPITATION
     CALL SURFACE_AIRPRESSURE
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+    CALL SURFACE_ICEIN
+# endif    
+# if defined (HEATING_CALCULATED)
     CALL SURFACE_HEATING_CALCULATED
 # endif    
 # if defined (HEATING_SOLAR) 
@@ -704,7 +729,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(GROUNDWATER_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
             & TRIM(fvcom_grid_source)) THEN
@@ -780,7 +805,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(GROUNDWATER_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
             & TRIM(fvcom_cap_grid_source)) THEN
@@ -971,13 +996,8 @@ CONTAINS
     END SELECT
     !==================================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
-    ! afm 20150914
-    ! Need initialization. Otherwise, random values are asigned
-    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
-    ! This problem reported with Intel15.0.3. 
-    ! PRECIPITATION
     GWATER_FLUX_P%curr_stkcnt = 0 ; GWATER_FLUX_N%curr_stkcnt = 0
     GWATER_TEMP_P%curr_stkcnt = 0 ; GWATER_TEMP_N%curr_stkcnt = 0
     GWATER_SALT_P%curr_stkcnt = 0 ; GWATER_SALT_N%curr_stkcnt = 0
@@ -1048,7 +1068,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION ELEVATION FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -1093,12 +1113,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND PERIOD VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND PERIOD VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(trim(ATT%CHR(1)) .NE. 'seconds')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"PERIOD VARIABLE ATTRIBUTE 'units' SHOULD BE 'seconds'")
+            &"PERIOD VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'seconds'")
 
        CALL NC_CONNECT_AVAR(VAR,PERIOD)
        CALL NC_READ_VAR(VAR)
@@ -1187,12 +1207,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND EQUILIBRIUM AMPLITUDE VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND EQUILIBRIUM AMPLITUDE VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(trim(ATT%CHR(1)) .NE. 'meters')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"EQUILIBRIUM AMPLITUDE VARIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
+            &"EQUILIBRIUM AMPLITUDE VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
 
 
        CALL NC_CONNECT_AVAR(VAR,APT_EQI)
@@ -1210,12 +1230,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND LOVE NUMBER VARIABLE'S ATTRIBUTE 'formula'")
+            &"COULD NOT FIND LOVE NUMBER VARIRIABLE'S ATTRIBUTE 'formula'")
 
        if(trim(ATT%CHR(1)) .NE. 'beta=1+klove-hlove')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"BETA LOVE VARIABLE ATTRIBUTE 'formula' SHOULD BE 'beta=1+klove-hlove'")
+            &"BETA LOVE VARIRIABLE ATTRIBUTE 'formula' SHOULD BE 'beta=1+klove-hlove'")
 
        CALL NC_CONNECT_AVAR(VAR,BETA_EQI)
        CALL NC_READ_VAR(VAR)
@@ -1299,12 +1319,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND ELEVATION REFERENCE VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND ELEVATION REFERENCE VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(trim(ATT%CHR(1)) .NE. 'meters')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"ELEVATION REFERENCE VARIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
+            &"ELEVATION REFERENCE VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
 
        CALL NC_CONNECT_AVAR(VAR,EMEAN)
        CALL NC_READ_VAR(VAR)
@@ -1321,12 +1341,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND AMPLITUDE VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND AMPLITUDE VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(trim(ATT%CHR(1)) .NE. 'meters')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"AMPLITUDE VARIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
+            &"AMPLITUDE VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
 
 
        CALL NC_CONNECT_AVAR(VAR,APT)
@@ -1344,12 +1364,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND PHASE VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND PHASE VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(ATT%CHR(1)(1:7) .NE. 'degrees')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"PHASE VARIABLE ATTRIBUTE 'units' SHOULD BE 'degrees'")
+            &"PHASE VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'degrees'")
 
        CALL NC_CONNECT_AVAR(VAR,PHAI)
        CALL NC_READ_VAR(VAR)
@@ -1445,12 +1465,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND PERIOD VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND PERIOD VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(trim(ATT%CHR(1)) .NE. 'seconds')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"PERIOD VARIABLE ATTRIBUTE 'units' SHOULD BE 'seconds'")
+            &"PERIOD VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'seconds'")
 
        CALL NC_CONNECT_AVAR(VAR,PERIOD)
        CALL NC_READ_VAR(VAR)
@@ -1498,12 +1518,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND EQUILIBRIUM AMPLITUDE VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND EQUILIBRIUM AMPLITUDE VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(trim(ATT%CHR(1)) .NE. 'meters')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"EQUILIBRIUM AMPLITUDE VARIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
+            &"EQUILIBRIUM AMPLITUDE VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
 
 
        CALL NC_CONNECT_AVAR(VAR,APT_EQI)
@@ -1521,12 +1541,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND LOVE NUMBER VARIABLE'S ATTRIBUTE 'formula'")
+            &"COULD NOT FIND LOVE NUMBER VARIRIABLE'S ATTRIBUTE 'formula'")
 
        if(trim(ATT%CHR(1)) .NE. 'beta=1+klove-hlove')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"BETA LOVE VARIABLE ATTRIBUTE 'formula' SHOULD BE 'beta=1+klove-hlove'")
+            &"BETA LOVE VARIRIABLE ATTRIBUTE 'formula' SHOULD BE 'beta=1+klove-hlove'")
 
        CALL NC_CONNECT_AVAR(VAR,BETA_EQI)
        CALL NC_READ_VAR(VAR)
@@ -1646,12 +1666,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"COULD NOT FIND ELEVATION VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND ELEVATION VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. 'meters')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TIME SERIES ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"ELEVATION VARIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
+            &"ELEVATION VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'meters'")
 
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
@@ -1668,6 +1688,8 @@ CONTAINS
        CALL NC_CONNECT_PVAR(TIDE_ELV_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 
+       tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0  ! Siqi Li, 2021-01-27
+
 
        ! SINCE NO DATA HAS BEEN LOADED THERE IS NOT MUCH TO REPORT
        IF(DBG_SET(DBG_LOG)) THEN
@@ -1679,15 +1701,6 @@ CONTAINS
        TIDE_FORCING_TYPE = TIDE_FORCING_TIMESERIES
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
-    ! Need initialization. Otherwise, random values are asigned
-    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
-    ! This problem reported with Intel15.0.3. 
-    tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0
-    ! --------- end new --------------------------------------------
-
        ! NOT MUCH ELSE TO REPORT SINCE WE DON'T LOAD ANY DATA NOW
 
        !=====================================
@@ -1697,9 +1710,16 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION ELEVATION FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_ELEVATION_FILE),&
-            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
+
+    ! Removed by Siqi Li, 2021-01-27
+    ! afm 20151112 & EJA 20160921
+    ! Need initialization. Otherwise, random values are asigned
+    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
+    ! This problem reported with Intel15.0.3. 
+!    tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END TIDAL_ELEVATION"
 
@@ -2144,16 +2164,10 @@ CONTAINS
        CALL NC_CONNECT_PVAR(RIVER_FORCING(I)%SALT_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 
-       ! ============= New : 2016, April ===================
-       ! Initialize some variables 
-       ! Similar to the hints by Qi and afm 20160216
+       ! afm 20160516 & EJA 20160921
        RIVER_FORCING(I)%FLUX_N%curr_stkcnt = 0; RIVER_FORCING(I)%FLUX_P%curr_stkcnt = 0
        RIVER_FORCING(I)%TEMP_N%curr_stkcnt = 0; RIVER_FORCING(I)%TEMP_P%curr_stkcnt = 0
        RIVER_FORCING(I)%SALT_N%curr_stkcnt = 0; RIVER_FORCING(I)%SALT_P%curr_stkcnt = 0 
-       ! ==================== end new ======================================
-
-
-
 
 # if defined (WATER_QUALITY)
        ! GET THE WATER QUALITY VARIABLE
@@ -2268,13 +2282,8 @@ CONTAINS
        RIVER_FORCING(I)%WQM8_P => reference_var(var)
        CALL NC_CONNECT_PVAR(RIVER_FORCING(I)%WQM8_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
-       
-      ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
-      ! Initialize some variables 
-      ! afm 20150914
-      ! Need initialization. Otherwise, random values are asigned
-      ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
-      ! This problem reported with Intel15.0.3. 
+
+       ! afm 20160516 & EJA 20160921
        river_forcing(i)%wqm1_n%curr_stkcnt = 0; river_forcing(i)%wqm1_p%curr_stkcnt = 0
        river_forcing(i)%wqm2_n%curr_stkcnt = 0; river_forcing(i)%wqm2_p%curr_stkcnt = 0
        river_forcing(i)%wqm3_n%curr_stkcnt = 0; river_forcing(i)%wqm3_p%curr_stkcnt = 0
@@ -2283,7 +2292,6 @@ CONTAINS
        river_forcing(i)%wqm6_n%curr_stkcnt = 0; river_forcing(i)%wqm6_p%curr_stkcnt = 0
        river_forcing(i)%wqm7_n%curr_stkcnt = 0; river_forcing(i)%wqm7_p%curr_stkcnt = 0
        river_forcing(i)%wqm8_n%curr_stkcnt = 0; river_forcing(i)%wqm8_p%curr_stkcnt = 0
-      ! ----------------------------------------------------------------------------------
 
        
 # endif
@@ -2509,7 +2517,7 @@ CONTAINS
        ENDIF
 
 
-       ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+       ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
        ! Initialize some variables 
        ! afm 20160216
        ! Need initialization. Otherwise, random values are asigned
@@ -2981,7 +2989,7 @@ CONTAINS
        ENDIF
 
 
-       ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+       ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
        ! Initialize some variables 
        ! afm 20160216
        ! Need initialization. Otherwise, random values are asigned
@@ -3626,7 +3634,7 @@ CONTAINS
     CASE ('unifor')
        
        ! ALREADY SET VALUES
-!       WRITE(IPT,*) "UNIFORM RIVER DISTRIBUTION",MYDIST
+       WRITE(IPT,*) "UNIFORM RIVER DISTRIBUTION",MYDIST
        ! HEAVISIDE FUNCTION
     CASE('heavis')
        
@@ -3808,7 +3816,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION TEMPERATURE FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_TEMP_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -3925,12 +3933,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TEMPERATURE NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_TEMP_FILE),&
-            &"COULD NOT FIND TEMP VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND TEMP VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. 'Celsius' .and. TRIM(ATT%CHR(1)) .NE. 'Celcius')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TEMPERATURE NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_TEMP_FILE),&
-            &"TEMP VARIABLE ATTRIBUTE 'units' SHOULD BE 'Celsius'")
+            &"TEMP VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'Celsius'")
 
 
 
@@ -3956,21 +3964,17 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION TEMPERATURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_TEMP_FILE),&
-            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
-
-    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_TEMPERATURE"
-
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3.     
     OBC_T_N%curr_stkcnt = 0; OBC_T_P%curr_stkcnt = 0
-    ! ---------- end new ---------------------------------------
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_TEMPERATURE"
 
   END SUBROUTINE OBC_TEMPERATURE
   !================================================================
@@ -4015,7 +4019,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION SALINITY FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_SALT_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -4133,12 +4137,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION SALINITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_SALT_FILE),&
-            &"COULD NOT FIND TEMP VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND TEMP VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. 'PSU')  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION SALINITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_SALT_FILE),&
-            &"TEMP VARIABLE ATTRIBUTE 'units' SHOULD BE 'PSU'")
+            &"TEMP VARIRIABLE ATTRIBUTE 'units' SHOULD BE 'PSU'")
 
 
 
@@ -4164,18 +4168,15 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION SALINITY FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_SALT_FILE),&
-            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+
+    ! afm 20150914 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
     OBC_S_N%curr_stkcnt = 0; OBC_S_P%curr_stkcnt = 0
-    ! -------- end new ---------------------------------------------
-
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_SALINITY"
 
@@ -4224,7 +4225,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION WATER QUALITY FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -4343,12 +4344,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"COULD NOT FIND VARIABLE DO'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND VARIRIABLE DO'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. WQM_NAME(1,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"VARIABLE DO'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(1,2)))
+            &"VARIRIABLE DO'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(1,2)))
 
 
 
@@ -4376,12 +4377,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"COULD NOT FIND VARIABLE CBOD'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND VARIRIABLE CBOD'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. WQM_NAME(2,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"VARIABLE CBOD'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(2,2)))
+            &"VARIRIABLE CBOD'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(2,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4407,12 +4408,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"COULD NOT FIND VARIABLE PHYT'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND VARIRIABLE PHYT'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. WQM_NAME(3,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"VARIABLE PHYT'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(3,2)))
+            &"VARIRIABLE PHYT'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(3,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4438,12 +4439,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"COULD NOT FIND VARIABLE NH3'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND VARIRIABLE NH3'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. WQM_NAME(4,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"VARIABLE NH3'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(4,2)))
+            &"VARIRIABLE NH3'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(4,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4469,12 +4470,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"COULD NOT FIND VARIABLE NO3'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND VARIRIABLE NO3'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. WQM_NAME(5,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"VARIABLE NO3'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(5,2)))
+            &"VARIRIABLE NO3'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(5,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4500,12 +4501,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"COULD NOT FIND VARIABLE ON'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND VARIRIABLE ON'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. WQM_NAME(6,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"VARIABLE ON'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(6,2)))
+            &"VARIRIABLE ON'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(6,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4531,12 +4532,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"COULD NOT FIND VARIABLE OPO4'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND VARIRIABLE OPO4'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. WQM_NAME(7,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"VARIABLE OPO4'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(7,2)))
+            &"VARIRIABLE OPO4'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(7,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4562,12 +4563,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"COULD NOT FIND VARIABLE OP'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND VARIRIABLE OP'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. WQM_NAME(8,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"VARIABLE OP'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(8,2)))
+            &"VARIRIABLE OP'S ATTRIBUTE 'units' SHOULD BE "//TRIM(WQM_NAME(8,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4590,12 +4591,12 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION WATER QUALITY FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_WQM_FILE),&
-            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -4610,9 +4611,6 @@ CONTAINS
     OBC_W_P7%curr_stkcnt = 0; OBC_W_N7%curr_stkcnt = 0
     OBC_W_P8%curr_stkcnt = 0; OBC_W_N8%curr_stkcnt = 0
     ! -------- end new ----------------------------------------------------------------
-
-
-
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END OBC_WQM"
 
@@ -4662,7 +4660,7 @@ CONTAINS
     IF(.not. FOUND) CALL FATAL_ERROR &
          & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL FILE OBJECT",&
          & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-         &"COULD NOT FIND GLOBAL ATTRIBUTE: 'type'")
+         &"COULD NOT FIND GLOBAL ATTRIBURE: 'type'")
 
 
     SELECT CASE(TRIM(ATT%CHR(1)))
@@ -4782,12 +4780,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO1 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO1 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(1,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO1 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(1,2)))
+            &"BIO1 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(1,2)))
 
 
 
@@ -4817,12 +4815,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO2 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO2 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(2,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO2 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(2,2)))
+            &"BIO2 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(2,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4850,12 +4848,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO3 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO3 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(3,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO3 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(3,2)))
+            &"BIO3 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(3,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4883,12 +4881,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO4 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO4 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(4,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO4 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(4,2)))
+            &"BIO4 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(4,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4916,12 +4914,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO5 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO5 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(5,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO5 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(5,2)))
+            &"BIO5 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(5,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4949,12 +4947,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO6 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO6 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(6,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO6 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(6,2)))
+            &"BIO6 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(6,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -4982,12 +4980,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO7 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO7 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(7,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO7 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(7,2)))
+            &"BIO7 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(7,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5015,12 +5013,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO8 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO8 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(8,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO8 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(8,2)))
+            &"BIO8 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(8,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5048,12 +5046,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO9 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO9 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(9,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO9 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(9,2)))
+            &"BIO9 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(9,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5081,12 +5079,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO10 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO10 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(10,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO10 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(10,2)))
+            &"BIO10 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(10,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5114,12 +5112,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO11 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO11 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(11,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO11 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(11,2)))
+            &"BIO11 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(11,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5147,12 +5145,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO12 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO12 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(12,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO12 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(12,2)))
+            &"BIO12 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(12,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5180,12 +5178,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO13 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO13 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(13,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO13 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(13,2)))
+            &"BIO13 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(13,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5213,12 +5211,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO14 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO14 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(14,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO14 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(14,2)))
+            &"BIO14 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(14,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5246,12 +5244,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO15 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO15 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(15,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO15 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(15,2)))
+            &"BIO15 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(15,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5279,12 +5277,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO16 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO16 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(16,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO16 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(16,2)))
+            &"BIO16 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(16,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5312,12 +5310,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO17 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO17 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(17,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO17 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(17,2)))
+            &"BIO17 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(17,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5345,12 +5343,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO18 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO18 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(18,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO18 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(18,2)))
+            &"BIO18 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(18,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5378,12 +5376,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO19 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO19 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(19,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO19 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(19,2)))
+            &"BIO19 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(19,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5411,12 +5409,12 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"COULD NOT FIND BIO20 VARIABLE'S ATTRIBUTE 'units'")
+            &"COULD NOT FIND BIO20 VARIRIABLE'S ATTRIBUTE 'units'")
 
        if(TRIM(ATT%CHR(1)) .NE. BIO_NAME(20,2))  CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL NUDGING FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"BIO20 VARIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(20,2)))
+            &"BIO20 VARIRIABLE ATTRIBUTE 'units' SHOULD BE "//TRIM(BIO_NAME(20,2)))
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(IOBCN,KBM1), stat = status)
@@ -5445,12 +5443,12 @@ CONTAINS
        CALL FATAL_ERROR &
             & ("IN OPEN BOUNDARY CONDITION BIOLOGICAL FILE OBJECT",&
             & "FILE NAME: "//TRIM(OBC_BIO_FILE),&
-            &"THE GLOBAL ATTRIBUTE 'type' RETURNED UNKNOWN TYPE:",&
+            &"THE GLOBAL ATTRIBURE 'type' RETURNED UNKNOWN TYPE:",&
             & TRIM(ATT%CHR(1)))
     END SELECT
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -5714,8 +5712,8 @@ CONTAINS
     IF(MSR) CALL DEGREES2METERS(XLON,XLAT,PROJECTION_REFERENCE,HEATX,HEATY,lons,lats)
 # if defined(MULTIPROCESSOR)
     IF (PAR) THEN
-      CALL MPI_BCAST(HEATX,lats*lons,MPI_F,0,MPI_COMM_WORLD,ierr)
-      CALL MPI_BCAST(HEATY,lats*lons,MPI_F,0,MPI_COMM_WORLD,ierr)
+      CALL MPI_BCAST(HEATX,lats*lons,MPI_F,0,MPI_FVCOM_GROUP,ierr)
+      CALL MPI_BCAST(HEATY,lats*lons,MPI_F,0,MPI_FVCOM_GROUP,ierr)
     END IF
 # endif    
     
@@ -5851,7 +5849,7 @@ CONTAINS
   END SUBROUTINE SET_FILE_INTERP_BILINEAR
   !================================================================
   !================================================================
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
   SUBROUTINE SURFACE_HEATING
     IMPLICIT NONE
     ! SOME NC POINTERS
@@ -5905,7 +5903,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -5920,7 +5918,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6004,7 +6002,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6251,9 +6249,7 @@ CONTAINS
     END SELECT
     !==================================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
@@ -6261,14 +6257,13 @@ CONTAINS
     heat_net_p%curr_stkcnt=0
     heat_swv_n%curr_stkcnt=0
     heat_swv_p%curr_stkcnt=0
-    ! -------- end new ----------------------------------------------
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING"
   END SUBROUTINE SURFACE_HEATING
 # endif
   !================================================================
   !================================================================
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
   SUBROUTINE SURFACE_HEATING_CALCULATED
     USE MOD_HEATFLUX
     IMPLICIT NONE
@@ -6329,6 +6324,16 @@ CONTAINS
 #  endif
    DEALLOCATE(CORRG)
    
+   IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
+     ALLOCATE(RAIN(0:MT)) ; RAIN = 0.0_SP
+     ALLOCATE(CP40(0:MT)) ; CP40 = 0.0_SP
+     ALLOCATE(SIGH(0:MT)) ; SIGH = 0.0_SP
+     ALLOCATE(ZI40(0:MT)) ; ZI40 = 0.0_SP
+   END IF   
+   
+   IF(HEATING_FRESHWATER)THEN
+     ALLOCATE(USRCOARE(0:MT)) ; USRCOARE = 0.0_SP
+   END IF  
 !----------------------------REPORT--------------------------------------------!
    IF(MSR)WRITE(IPT,*)'!'
    IF(MSR)WRITE(IPT,*)'!            SETTING UP PRESCRIBED BOUNDARY CONDITIONS  '
@@ -6339,7 +6344,10 @@ CONTAINS
 !==============================================================================|
 !    bulk air temperature at height 2m:   degree(C)    "t_air"                 |
 !    relative humidity at height 2m:      (%)          "rh_air"                |
-!    surface pressure:                    mb           "pa_air"                |
+!---> Siqi li, 2021-01-27
+!    surface pressure:                    pa           "pa_air"                |
+!    surface pressure:                    mb           "pa_air"                |  (the unit was wrong for coare)  
+!<--- Siqi Li, 2021-01-27
 !    downward longwave radiation:         w/m^2        "dlw_air"               |
 !    downward shortwave radiation:        w/m^2        "dsw_air"               |
 !==============================================================================|
@@ -6378,7 +6386,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -6393,7 +6401,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6477,7 +6485,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -6646,11 +6654,35 @@ CONTAINS
 !       
        ! SURFACE PRESSURE
        VAR => FIND_VAR(HEAT_FILE,"air_pressure",FOUND)
-       IF(.not. FOUND) VAR => FIND_VAR(HEAT_FILE,"air_pressure",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(HEAT_FILE,"SLP",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            & "COULD NOT FIND VARIABLE 'air_pressure'")
+            & "COULD NOT FIND VARIABLE 'air_pressure' OR 'SLP'")
+
+       !---> Siqi Li, 2021-01-27
+       ! The unit of air pressure is really important. It can influence both
+       ! water elevation and wind stress. In calculation, the unit of air 
+       ! pressure is 'Pa'.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(VAR,'unit',FOUND)
+       IF (FOUND) THEN
+       call UPCASE(ATT%CHR(1))
+       SELECT CASE (TRIM(ATT%CHR(1)))
+       CASE ('MB', 'HPA')
+         Pair_unit_factor = 100.0_SP
+       CASE ('PA','PASCAL')
+         Pair_unit_factor = 1.0_SP
+       CASE DEFAULT
+         CALL FATAL_ERROR("UNKNOWN UNIT of AIR PRESSURE: " &
+                 & //TRIM(ATT%CHR(1)))
+       END SELECT
+       ELSE
+         ! There is no unit attribute for the air_pressure variable
+         ! We assume the unit is 'Pa'.
+         Pair_unit_factor = 1.0_SP
+       END IF
+       !<--- Siqi Li, 2021-01-27
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
@@ -6826,10 +6858,36 @@ CONTAINS
 !
        ! SURFACE PRESSURE
        VAR => FIND_VAR(HEAT_FILE,"air_pressure",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(HEAT_FILE,"SLP",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            & "COULD NOT FIND VARIABLE 'air_pressure'")
+            & "COULD NOT FIND VARIABLE 'air_pressure' OR 'SLP'") ! Siqi Li, 2021-01-27
+!            & "COULD NOT FIND VARIABLE 'air_pressure' OR "SLP")
+
+       !---> Siqi Li, 2021-01-27
+       ! The unit of air pressure is really important. It can influence both
+       ! water elevation and wind stress. In calculation, the unit of air 
+       ! pressure is 'Pa'.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(VAR,'unit',FOUND)
+       IF (FOUND) THEN
+       call UPCASE(ATT%CHR(1))
+       SELECT CASE (TRIM(ATT%CHR(1)))
+       CASE ('MB', 'HPA')
+         Pair_unit_factor = 100.0_SP
+       CASE ('PA','PASCAL')
+         Pair_unit_factor = 1.0_SP
+       CASE DEFAULT
+         CALL FATAL_ERROR("UNKNOWN UNIT of AIR PRESSURE: " &
+                 & //TRIM(ATT%CHR(1)))
+       END SELECT
+       ELSE
+         ! There is no unit attribute for the air_pressure variable
+         ! We assume the unit is 'Pa'.
+         Pair_unit_factor = 1.0_SP
+       END IF
+       !<--- Siqi Li, 2021-01-27
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        PA_AIR_N => reference_var(var)
@@ -6898,9 +6956,7 @@ CONTAINS
     END SELECT
     !==================================================================
 
- 
-    ! ========== New: Karsten Lettmann, 2016, march from Qi =============
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
@@ -6909,8 +6965,6 @@ CONTAINS
     pa_air_n%curr_stkcnt  = 0;pa_air_p%curr_stkcnt  = 0
     dlw_air_n%curr_stkcnt = 0;dlw_air_p%curr_stkcnt = 0
     dsw_air_n%curr_stkcnt = 0;dsw_air_p%curr_stkcnt = 0
-    ! =========== end New ================================================
-
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING_CALCULATED"
   END SUBROUTINE SURFACE_HEATING_CALCULATED
@@ -7006,7 +7060,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -7025,7 +7079,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_SOLAR_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7337,15 +7391,13 @@ CONTAINS
     END SELECT
     !==================================================================
 
-    ! ========== New: Karsten Lettmann, 2016, march from Qi =============
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
     t_air_n%curr_stkcnt = 0;t_air_p%curr_stkcnt = 0
     tdew_n%curr_stkcnt  = 0;tdew_p%curr_stkcnt  = 0
     ccov_n%curr_stkcnt  = 0;ccov_p%curr_stkcnt  = 0
-    ! ====================== end new ===========================
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_HEATING_SOLAR"
   END SUBROUTINE SURFACE_HEATING_SOLAR
@@ -7416,7 +7468,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT ICE FORCING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT ICE FORCING Not Set Up Yet")
        !       HEAT_FORCING_COMMENTS = "Using TIME DEPENDENT heating from file"
 
     CASE(PRDC)
@@ -7433,7 +7485,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7517,7 +7569,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -7667,11 +7719,15 @@ CONTAINS
 
        ! Surface Air Temperature DATA
        VAR => FIND_VAR(ICE_FILE,"SAT",FOUND)
-       VAR => FIND_VAR(ICE_FILE,"T2",FOUND)
+!       VAR => FIND_VAR(ICE_FILE,"T2",FOUND)
+! afm 20150930 & EJA 20160921
+       IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"air_temperature",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"T2",FOUND)
+
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            & "COULD NOT FIND VARIABLE 'T2' of 'SAT'")
+            & "COULD NOT FIND VARIABLE 'T2','air_temperature' or 'SAT'")
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
@@ -7702,11 +7758,13 @@ CONTAINS
 
        ! Specific Humidity DATA
        VAR => FIND_VAR(ICE_FILE,"SPQ",FOUND)
-       VAR => FIND_VAR(ICE_FILE,"Q2",FOUND)
+!       VAR => FIND_VAR(ICE_FILE,"Q2",FOUND)
+! afm 20160513 & EJA 20160921
+       IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"Q2",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            & "COULD NOT FIND VARIABLE 'Q2' of 'SPQ'")
+            & "COULD NOT FIND VARIABLE 'Q2' or 'SPQ'")
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
@@ -7800,6 +7858,11 @@ CONTAINS
 
        ! SHORT WAVE RADIATION DATA
        !IF(ASSOCIATED(ICE_FILE,HEAT_FILE)) THEN
+# if !defined (ICE_FRESHWATER)
+! afm 20151112 &  & EJA 20160921
+! commented out for Solar ----------
+! With SOLAR, use SOLAR-derived shortwave
+! Without SOLAR, use shortwave from forcing data  
        VAR => FIND_VAR(HEAT_FILE,"short_wave",FOUND)
        IF( FOUND ) THEN
           ! USE THE SAME MEMORY USED FOR OCEAN MODEL HEAT FLUX
@@ -7837,13 +7900,17 @@ CONTAINS
        END IF
 
 
+# endif
+
        ! Surface Air Temperature DATA
        VAR => FIND_VAR(ICE_FILE,"SAT",FOUND)
+! afm 20151112 & EJA 20160921
+       IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"air_temperature",FOUND)
        IF(.not. FOUND) VAR => FIND_VAR(ICE_FILE,"T2",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN ICE FORCING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICE_FORCING_FILE),&
-            & "COULD NOT FIND VARIABLE 'T2' or 'SAT'")
+            & "COULD NOT FIND VARIABLE 'T2','air_temperature' or 'SAT'")
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ICE_SAT_N => reference_var(var)
@@ -7914,18 +7981,17 @@ CONTAINS
     END SELECT
     !==================================================================
 
-
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
+! afm 20180717
+# if !defined (ICE_FRESHWATER)
     ice_swv_n%curr_stkcnt   = 0;ice_swv_p%curr_stkcnt   = 0
+# endif
     ice_sat_n%curr_stkcnt   = 0;ice_sat_p%curr_stkcnt   = 0
     ice_spq_n%curr_stkcnt   = 0;ice_spq_p%curr_stkcnt   = 0
     ice_cld_n%curr_stkcnt   = 0;ice_cld_p%curr_stkcnt   = 0
-    ! --------- end new --------------------------------------------
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END ICE MODEL FORCING"
   END SUBROUTINE ICE_MODEL_FORCING
@@ -7986,7 +8052,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
        !       HEAT_FORCING_COMMENTS = "Using TIME DEPENDENT heating from file"
 
     CASE(PRDC)
@@ -8002,7 +8068,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE ICING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICING_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -8086,7 +8152,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE ICING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(ICING_FORCING_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
 
        ICING_FORCING_COMMENTS ="VARIABLE ICING: "//TRIM(ATT%CHR(1))
 
@@ -8391,7 +8457,7 @@ CONTAINS
     !==================================================================
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -8437,6 +8503,65 @@ CONTAINS
          &("YOU MUST SELECT A WIND TYPE IN THE RUNFILE: '"&
          &//TRIM(SPEED)//", or '"//TRIM(STRESS)//"'")
 
+!---> Siqi Li, 2021-01-27
+    IF (WIND_ON) THEN
+
+      SELECT CASE (TRIM(WIND_STRESS_METHOD))
+
+        CASE ('LP1981')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : LP1981!"
+
+# if defined (HEATING_CALCULATED)
+        CASE ('COARE')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : COARE!"
+# else
+        CASE ('COARE')
+          CALL FATAL_ERROR("TO USE COARE FOR WIND_STRESS_METHOD, &
+                     &       RECOMPILE FVCOM WITH HEATING_CALCULATED")
+# endif
+
+# if defined  (WAVE_CURRENT_INTERACTION)
+        CASE ('TY2001')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : TY2001!"
+# else
+        CASE ('TY2001')
+          CALL FATAL_ERROR("TO USE TY2001 FOR WIND_STRESS_METHOD, &
+                     &      RECOMPILE FVCOM WITH WAVE_ONLY or WAVE_CURRENT_INTERACTION")
+# endif
+
+# if defined(HEATING_CALCULATED) && defined(WAVE_CURRENT_INTERACTION)
+        CASE ('OOST')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : OOST!"
+
+        CASE ('DGHQ')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : DGHQ!"
+# else
+        CASE ('OOST')
+          CALL FATAL_ERROR("TO USE OOST FOR WIND_STRESS_METHOD, &
+                     &      RECOMPILE FVCOM WITH HEATING_CALCULATED and &
+                     &       WAVE_ONLY / WAVE_CURRENT_INTERACTION")
+
+        CASE ('DGHQ')
+          CALL FATAL_ERROR("TO USE DGHQ FOR WIND_STRESS_METHOD, &
+                     &      RECOMPILE FVCOM WITH HEATING_CALCULATED and &
+                     &       WAVE_ONLY / WAVE_CURRENT_INTERACTION")
+
+# endif
+
+        CASE DEFAULT
+          CALL FATAL_ERROR               &
+               &   ("WRONG WIND_STRESS_METHOD OPTIONS.")
+
+      END SELECT
+
+# if defined(HEATING_CALCULATED) && defined(WAVE_CURRENT_INTERACTION)
+    IF (TRIM(WIND_STRESS_METHOD) == 'COARE' .AND. TRIM(COARE_VERSION) == 'COARE26Z')&
+      &  CALL FATAL_ERROR("COARE26Z DOES NOT INVOLVE WAVE. &
+      &                    CHANGE ANOTHER WIND_STRESS_METHOD")
+# endif
+
+    END IF
+!<--- Siqi Li, 2021-01-27
 
 ! DETERMINE HOW TO LOAD THE DATA
     SELECT CASE(WIND_KIND)
@@ -8480,7 +8605,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -8495,7 +8620,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -8580,7 +8705,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -8954,21 +9079,198 @@ CONTAINS
     END SELECT
 !==============================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
+    ! afm 20151112 & EJA 20160921
     ! Need initialization. Otherwise, random values are asigned
     ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
     ! This problem reported with Intel15.0.3. 
     winds_strx_n%curr_stkcnt = 0; winds_strx_p%curr_stkcnt = 0
     winds_stry_n%curr_stkcnt = 0; winds_stry_p%curr_stkcnt = 0
-    ! -------- end new ---------------------------------------------
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_WINDSTRESS"
   END SUBROUTINE SURFACE_WINDSTRESS
 
 !================================================================
 
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+!================================================================
+  SUBROUTINE SURFACE_ICEIN
+    IMPLICIT NONE
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT, ATT_DATE
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    LOGICAL :: FOUND
+    REAL(SP), POINTER :: STORAGE_ARR(:,:), storage_vec(:)
+    TYPE(TIME) :: TIMETEST
+    INTEGER :: LATS, LONS, I, Ntimes
+    INTEGER :: STATUS
+    CHARACTER(len=60) :: icec
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START SURFACE_ICEIN"
+
+    NULLIFY(ATT,DIM,VAR,STORAGE_ARR,STORAGE_VEC)
+
+
+    IF (.NOT. ICEIN_ON ) THEN
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! SURFACE ICEIN FORCING IS OFF!"
+       ALLOCATE(ICEINS_FORCING_COMMENTS(1))
+       ICEINS_FORCING_COMMENTS(1) = "SURFACE ICEIN FORCING IS OFF"
+       RETURN
+    END IF
+
+!PRINT *, "ICEIN_KIND",ICEIN_KIND   !zhangyang
+
+! DETERMINE HOW TO LOAD THE DATA
+    SELECT CASE(ICEIN_KIND)
+    CASE (CNSTNT)
+
+       write(icec,'(f8.4)') ICEC
+          IF(DBG_SET(DBG_LOG)) THEN
+             WRITE(IPT,*)"! SETTING UP CONSTANT ICEIN FORCING: "
+             WRITE(IPT,*)"      Icec: "//trim(icec)
+          END IF
+
+          ALLOCATE(ICEINS_FORCING_COMMENTS(2))
+          ICEINS_FORCING_COMMENTS(1) = "Using constant ICEIN from run file:"
+          ICEINS_FORCING_COMMENTS(2) = "Icec:"//trim(icec)
+          RETURN
+
+    CASE(VRBL)
+
+       ICEINS_FILE => FIND_FILE(FILEHEAD,trim(ICEIN_FILE),FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND SURFACE ICEIN CONDINTION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE))
+
+       ! DETERMINE GRID TYPE BASED ON SOURCE ATTRIBUTE   
+       ATT => FIND_ATT(ICEINS_FILE,"source",FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(ICEINS_FILE,"Source",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+
+       IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
+            & TRIM(wrf2fvcom_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_WRFGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
+            & TRIM(fvcom_grid_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
+            & TRIM(fvcom_cap_grid_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(wrf_grid_source)) ==&
+            & TRIM(wrf_grid_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_WRFGRID
+       ELSE IF (ATT%CHR(1)(1:len_trim(surf_forcing_pt_source)) ==&
+            & TRIM(surf_forcing_pt_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_PT_SOURCE
+       ELSE
+          CALL PRINT_FILE(ICEINS_FILE)
+          CALL FATAL_ERROR("CAN NOT RECOGNIZE ICEIN FILE!",&
+               & "UNKNOWN SOURCE STRING:",TRIM(ATT%CHR(1)))
+       END IF
+       ! GOT GRID TYPE
+       ALLOCATE(ICEINS_FORCING_COMMENTS(4))
+       ICEINS_FORCING_COMMENTS(1) = "FVCOM variable surface Icein forcing:"
+       ICEINS_FORCING_COMMENTS(2) = "FILE NAME:"//TRIM(ICEIN_FILE)
+
+       ICEINS_FORCING_COMMENTS(3) = "SOURCE:"//TRIM(ATT%CHR(1))
+
+       ATT_DATE => FIND_ATT(ICEINS_FILE,"START_DATE",FOUND)
+       IF (FOUND) THEN
+          ICEINS_FORCING_COMMENTS(4) ="MET DATA START DATE:"//TRIM(ATT_DATE%CHR(1))
+       ELSE
+          ICEINS_FORCING_COMMENTS(4) = "Unknown start date meta data format"
+       END IF
+
+
+       ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_UNLIMITED(ICEINS_FILE,FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            &"COULD NOT FIND THE UNLIMITED DIMENSION")
+
+       NTIMES = DIM%DIM
+
+       ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
+       TIMETEST = get_file_time(ICEINS_FILE,1)
+       IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            &"THE MODEL RUN STARTS BEFORE THE FORCING TIME SERIES")
+
+       TIMETEST = get_file_time(ICEINS_FILE,ntimes)
+       IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            &"THE MODEL RUN ENDS AFTER THE FORCING TIME SERIES")
+
+    CASE DEFAULT
+       CALL FATAL_ERROR("SURFACE_ICEIN: UNKNOWN ICEIN KIND?")
+    END SELECT
+!PRINT *, "ICEINS_FORCING_TYPE_in",ICEINS_FORCING_TYPE
+!==============================================================
+    SELECT CASE(ICEINS_FORCING_TYPE)
+!==============================================================
+    CASE(ICEINS_ARE_WRFGRID)
+!==============================================================
+       CALL FATAL_ERROR("ICEIN based on WRF grid Not Set Up Yet")
+!==============================================================
+    CASE(ICEINS_ARE_FVCOMGRID)
+!==============================================================
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP ICEIN FORCING FROM A 'FVCOM GRID' FILE"
+
+       DIM => FIND_DIM(ICEINS_FILE,'node',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            & "COULD NOT FIND DIMENSION 'node'")
+
+       if (mgl /= dim%dim) CALL FATAL_ERROR&
+            &("Surface ICEIN: the number of nodes in the file does not match the fvcom grid?")
+
+
+          ! ICE CONCENTRATION AT EVERY NODES
+          VAR => FIND_VAR(ICEINS_FILE,"icec",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(ICEINS_FILE,"aice",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN SURFACE ICEIN BOUNDARY CONDITION FILE OBJECT",&
+               & "FILE NAME: "//TRIM(ICEIN_FILE),&
+               & "COULD NOT FIND VARIABLE 'icec'")
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICEINS_ICEC_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE ICE CONCENTRATION")
+       CALL NC_CONNECT_PVAR(ICEINS_ICEC_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICEINS_ICEC_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE ICE CONCENTRATION")
+       CALL NC_CONNECT_PVAR(ICEINS_ICEC_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+
+
+    CASE DEFAULT
+!==============================================================
+       CALL FATAL_ERROR("CAN NOT RECOGNIZE ICEIN FILE TYPE!")
+!==============================================================
+    END SELECT
+!==============================================================
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_ICEIN"
+  END SUBROUTINE SURFACE_ICEIN
+
+!================================================================
+# endif
 
 # if defined (OFFLINE_SEDIMENT)
 !================================================================
@@ -9004,7 +9306,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OFFLINE SEDIMENT FILE OBJECT",&
             & "FILE NAME: "//TRIM(OFFLINE_SEDIMENT_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -9388,7 +9690,7 @@ CONTAINS
        NULLIFY(STORAGE_INT)
 # endif
 
-      ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+      ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
       ! Initialize some variables 
       ! afm 20150914
       ! Need initialization. Otherwise, random values are asigned
@@ -9452,7 +9754,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN OFFLINE BIOLOGY FILE OBJECT",&
             & "FILE NAME: "//TRIM(OFFLINE_BIOLOGY_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -9914,7 +10216,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT WAVE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT WAVE Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -9929,7 +10231,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -10015,7 +10317,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WAVE BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WAVE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -10316,7 +10618,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT AIR PRESSURE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT AIR PRESSURE Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -10331,7 +10633,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -10417,7 +10719,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -10513,10 +10815,35 @@ CONTAINS
        ! AIR PRESSURE
        VAR => FIND_VAR(AIRPRESSURE_P_FILE,"air_pressure",FOUND)
        IF(.not. FOUND) VAR => FIND_VAR(AIRPRESSURE_P_FILE,"pressure_air",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(AIRPRESSURE_P_FILE,"SLP",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
-            & "COULD NOT FIND VARIABLE 'air_pressure'")
+            & "COULD NOT FIND VARIABLE 'air_pressure' OR 'SLP'")
+
+       !---> Siqi Li, 2021-01-27
+       ! The unit of air pressure is really important. It can influence both
+       ! water elevation and wind stress. In calculation, the unit of air 
+       ! pressure is 'Pa'.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(VAR,'unit',FOUND)
+       IF (FOUND) THEN
+       call UPCASE(ATT%CHR(1))
+       SELECT CASE (TRIM(ATT%CHR(1)))
+       CASE ('MB', 'HPA')
+         Pair_unit_factor = 100.0_SP
+       CASE ('PA','PASCAL')
+         Pair_unit_factor = 1.0_SP
+       CASE DEFAULT
+         CALL FATAL_ERROR("UNKNOWN UNIT of AIR PRESSURE: " &
+                 & //TRIM(ATT%CHR(1)))
+       END SELECT
+       ELSE
+         ! There is no unit attribute for the air_pressure variable
+         ! We assume the unit is 'Pa'.
+         Pair_unit_factor = 1.0_SP
+       END IF
+       !<--- Siqi Li, 2021-01-27
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
@@ -10580,6 +10907,30 @@ CONTAINS
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
             & "COULD NOT FIND VARIABLE 'air_pressure' or 'SLP'")
 
+       !---> Siqi Li, 2021-01-27
+       ! The unit of air pressure is really important. It can influence both
+       ! water elevation and wind stress. In calculation, the unit of air 
+       ! pressure is 'Pa'.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(VAR,'unit',FOUND)
+       IF (FOUND) THEN
+       call UPCASE(ATT%CHR(1))
+       SELECT CASE (TRIM(ATT%CHR(1)))
+       CASE ('MB', 'HPA')
+         Pair_unit_factor = 100.0_SP
+       CASE ('PA','PASCAL')
+         Pair_unit_factor = 1.0_SP
+       CASE DEFAULT
+         CALL FATAL_ERROR("UNKNOWN UNIT of AIR PRESSURE: " &
+                 & //TRIM(ATT%CHR(1)))
+       END SELECT
+       ELSE
+         ! There is no unit attribute for the air_pressure variable
+         ! We assume the unit is 'Pa'.
+         Pair_unit_factor = 1.0_SP
+       END IF
+       !<--- Siqi Li, 2021-01-27
+
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        AIR_PRESSURE_N => reference_var(var)
        ALLOCATE(STORAGE_VEC(0:MT), stat = status)
@@ -10603,7 +10954,7 @@ CONTAINS
     END SELECT
 !==============================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -10670,7 +11021,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -10686,7 +11037,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
 
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
@@ -10772,7 +11123,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(PRECIPITATION_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
        IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
             & TRIM(wrf2fvcom_source)) THEN
@@ -11028,7 +11379,7 @@ CONTAINS
 !=====================================================================
 
 
-    ! ---------- new: 2016 , april, after Hint by Qi and ayumi.fujisaki@noaa.gov------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi and ayumi.fujisaki@noaa.gov------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -11041,9 +11392,6 @@ CONTAINS
     PRECIP_EVP_N%curr_stkcnt = 0
     PRECIP_EVP_P%curr_stkcnt = 0
     ! --------- end new ----------------------------------------------------------------
-
-
-
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_PRECIPITATION"
   END SUBROUTINE SURFACE_PRECIPITATION
@@ -12155,11 +12503,11 @@ CONTAINS
 
     CASE(STTC)
 
-       CALL FATAL_ERROR("STATIC GROUNDWATER Not Set Up Yet")
+       CALL FATAL_ERROR("STATIC HEATING Not Set Up Yet")
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT GROUNDWATER Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12245,7 +12593,7 @@ CONTAINS
 
   END SUBROUTINE UPDATE_GROUNDWATER
   !==============================================================================|
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
   SUBROUTINE UPDATE_HEAT(NOW,HEAT_SWV,HEAT_NET)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
@@ -12277,7 +12625,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12362,17 +12710,22 @@ CONTAINS
 # endif
   !==============================================================================|
   !==============================================================================|
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
-  SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET)
+# if defined (HEATING_CALCULATED)
+  SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN,&
+           Cwave,HSC1,TAU_WIND,U_star,Cd) ! Siqi Li, 2021-01-27
+!  SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: HTIME
     REAL(SP), ALLOCATABLE :: HEAT_SWV(:), HEAT_NET(:)
+    REAL(SP), ALLOCATABLE :: HEAT_SENSIBLE(:), HEAT_LATENT(:), HEAT_RLN(:)
+    REAL(SP), ALLOCATABLE :: TAU_WIND(:), U_star(:), Cd(:), Cwave(:), HSC1(:) ! Siqi Li, 2021-01-27
+    REAL(SP), DIMENSION(0:MT) :: TAU_node, USR_node, Cd_node  ! Siqi Li, 2021-01-27
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS,I,J
     REAL(SP), POINTER :: VNP(:), VPP(:)
     REAL(SP) :: WDS
-    REAL(SP) :: HSB,HLB,TAU,USR,DTER
+    REAL(SP) :: HSB,HLB,TAU,USR,DTER  
     REAL(SP), DIMENSION(0:NT) :: WDSN
     REAL(SP) :: t1k,ulw_airf          ! ejw 8/16/2006
 
@@ -12381,6 +12734,15 @@ CONTAINS
 
     IF(.NOT. ALLOCATED(HEAT_NET)) CALL FATAL_ERROR &
          &("THE NET HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_SENSIBLE)) CALL FATAL_ERROR &
+         &("THE SENSIBLE HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_LATENT)) CALL FATAL_ERROR &
+         &("THE LATENT HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_RLN)) CALL FATAL_ERROR &
+         &("THE LONGWAVE HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
 
     IF(WIND_TYPE /= 'speed')CALL FATAL_ERROR("WIND_TYPE must be 'speed' for heat flux calculating")
        
@@ -12404,27 +12766,99 @@ CONTAINS
          END DO
          WDS = WDS/FLOAT(NTVE(I))
   
-# if defined (HEATING_CALCULATED)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
-         t1k=t1(i,1)+273.16_sp
-         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
-# if defined (HEATING_CALCULATED_GL)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
-	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
-!         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
-         t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+         IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
+!---> Siqi Li, 2021-01-27 : add Cd
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER,Cd_node(I))
+!           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+!                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
+
+	   IF(.NOT. HEATING_FRESHWATER)THEN		
+	     t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+	     USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         ulw_airf=-StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
+           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+	   ZI40 = fmiss
+           CP40 = Cwave(I)
+           SIGH = HSC1(I)
+!---> Siqi Li, 2021-01-27
+           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER,Cd_node(I)) 
+!if (I==156) write(IPT,*) WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+!                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER,Cd_node(I)
+!           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+!                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
+
+	   IF(.NOT. HEATING_FRESHWATER)THEN		
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+             USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+!MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+!MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE
+	   CALL FATAL_ERROR("The value of COARE_VERSION should be 'COARE26Z' or 'COARE40VN'")
+	 END IF  
        END DO
+
+!---> Siqi Li, 2021-01-27
+!#      if defined (MULTIPROCESSOR)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,TAU_node)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,USR_node)
+!#      endif
+       DO I = 1, NT
+!if (I==154) write(IPT,*) '--->', TAU_node(NV(I,1)),TAU_node(NV(I,2)),TAU_node(NV(I,3))
+         TAU_WIND(I) = (TAU_node(NV(I,1))+TAU_node(NV(I,2))+TAU_node(NV(I,3))) / 3.0_SP
+         U_star(I) = (USR_node(NV(I,1))+USR_node(NV(I,2))+USR_node(NV(I,3))) / 3.0_SP
+         Cd(I) = (Cd_node(NV(I,1))+Cd_node(NV(I,2))+Cd_node(NV(I,3))) / 3.0_SP
+       END DO
+!<--- Siqi Li, 2021-01-27
 
        RETURN
 
@@ -12434,7 +12868,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12496,6 +12930,7 @@ CONTAINS
        CALL NC_POINT_VAR(PA_AIR_P,VPP)        
 
        PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       PA_AIR = PA_AIR * Pair_unit_factor  ! Siqi Li, 2021-01-27
 !
        ! DOWNWARD LONGWAVE RADIATION
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,DLW_AIR_P,DLW_AIR_N,HTIME,STATUS,HEAT_INTP_N)
@@ -12529,26 +12964,83 @@ CONTAINS
          END DO
          WDS = WDS/FLOAT(NTVE(I))
   
-# if defined (HEATING_CALCULATED)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
-         t1k=t1(i,1)+273.16_sp
-         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
-# if defined (HEATING_CALCULATED_GL)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
-	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
-!         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
-         t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+         IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
+!---> Siqi Li, 2021-01-27 : add Cd
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER,Cd_node(I))
+!           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+!           &                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
+
+           IF(.NOT. HEATING_FRESHWATER)THEN
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+             USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         ulw_airf=-StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
+           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+	   ZI40 = fmiss
+           CP40 = Cwave(I)
+           SIGH = HSC1(I)
+!---> Siqi Li, 2021-01-27
+           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),&
+               DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER,Cd_node(I))
+!           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+!              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
+
+           IF(.NOT. HEATING_FRESHWATER)THEN
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+	     USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+!MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+!MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE
+	   CALL FATAL_ERROR("The value of COARE_VERSION should be 'COARE26Z' or 'COARE40VN'")
+	 END IF  
        END DO
 
     CASE(HEAT_IS_FVCOMGRID)
@@ -12588,6 +13080,7 @@ CONTAINS
        CALL NC_POINT_VAR(PA_AIR_P,VPP)        
 
        PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       PA_AIR = PA_AIR * Pair_unit_factor  ! Siqi Li, 2021-01-27
 !
        ! DOWNWARD LONGWAVE RADIATION
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,DLW_AIR_P,DLW_AIR_N,HTIME,STATUS)
@@ -12621,32 +13114,103 @@ CONTAINS
          END DO
          WDS = WDS/FLOAT(NTVE(I))
   
-# if defined (HEATING_CALCULATED)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I))
-	      
-         t1k=t1(i,1)+273.16_sp
-         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         HEAT_SWV(I) = DSW_AIR(I)
-# endif
-# if defined (HEATING_CALCULATED_GL)
-         CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
-	 USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
-!         t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
-         t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+         IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
+!---> Siqi Li, 2021-01-27 : add Cd
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER,Cd_node(I))
+!           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),&
+!           &       DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
+
+           IF(.NOT. HEATING_FRESHWATER)THEN	      
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I) = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+             USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
 !MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
 !MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
-         ulw_airf=-StefBo*t1k*t1k*t1k*t1k
-         HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
-         HEAT_SWV(I)  = DSW_AIR(I)
-# endif
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  =DLW_AIR(I)
+             HEAT_RLN(I)  =emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
+           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+	   ZI40 = fmiss
+           CP40 = Cwave(I)
+           SIGH = HSC1(I)
+!---> Siqi Li, 2021-01-27
+           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),&
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER,Cd_node(I))
+!           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+!                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
+
+
+           IF(.NOT. HEATING_FRESHWATER)THEN	      
+             t1k=t1(i,1)+273.16_sp
+             ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             HEAT_SWV(I) = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  = DLW_AIR(I)
+             HEAT_RLN(I)  = DLW_AIR(I)+ulw_airf	     
+	   ELSE
+             USRCOARE(I) = USR !MDR 3-19-2013 for wind wave mix
+!             t1k=t1(i,1)+273.16_sp !MDR 4-24-2013
+             t1k=t1(i,1)-DTER+273.16_sp !MDR 4-24-2013, include cool skin adjustment to surface temp
+!MDR         ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
+!MDR         HEAT_NET(I) = DLW_AIR(I)+DSW_AIR(I)+HSB+HLB+ulw_airf        ! ejw 8/16/2006 based on ROMS
+             ulw_airf=-StefBo*t1k*t1k*t1k*t1k
+             HEAT_NET(I) = DSW_AIR(I)+HSB+HLB+emmiss*(DLW_AIR(I)+ulw_airf) !MDR, apply emmiss to NET long wave, as in COARE     
+             HEAT_SWV(I)  = DSW_AIR(I)
+	     !EJA edit - output sensible and latent heat flux
+	     HEAT_SENSIBLE(I) = HSB
+	     HEAT_LATENT(I) = HLB
+!g.l. 10/10/2017         HEAT_RLN(I)  =DLW_AIR(I)
+             HEAT_RLN(I)  =emmiss*(DLW_AIR(I)+ulw_airf)	     
+	   END IF  
+	 ELSE
+	   CALL FATAL_ERROR("The value of COARE_VERSION should be 'COARE26Z' or 'COARE40VN'")
+	 END IF  
        END DO
 
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN HEAT_FORCING_TYPE IN UPDATE HEAT")
     END SELECT
+
+!---> Siqi Li, 2021-01-27
+!#      if defined (MULTIPROCESSOR)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,TAU_node)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,USR_node)
+!#      endif
+    DO I = 1, N
+!if (I==154) write(IPT,*) '--->', TAU_node(NV(I,1)),TAU_node(NV(I,2)),TAU_node(NV(I,3))
+       TAU_WIND(I) = (TAU_node(NV(I,1))+TAU_node(NV(I,2))+TAU_node(NV(I,3))) / 3.0_SP
+       U_star(I) = (USR_node(NV(I,1))+USR_node(NV(I,2))+USR_node(NV(I,3))) / 3.0_SP
+       Cd(I) = (Cd_node(NV(I,1))+Cd_node(NV(I,2))+Cd_node(NV(I,3))) / 3.0_SP
+    END DO
+!<--- Siqi Li, 2021-01-27
+
 
     RETURN
   END SUBROUTINE UPDATE_HEAT_CALCULATED
@@ -12654,11 +13218,12 @@ CONTAINS
   !==============================================================================|
   !==============================================================================|
 # if defined (HEATING_SOLAR)
-  SUBROUTINE UPDATE_HEAT_SOLAR(NOW,HEAT_SWV,HEAT_NET)
+  SUBROUTINE UPDATE_HEAT_SOLAR(NOW,HEAT_SWV,HEAT_NET,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: HTIME
     REAL(SP), ALLOCATABLE :: HEAT_SWV(:), HEAT_NET(:)
+    REAL(SP), ALLOCATABLE :: HEAT_SENSIBLE(:), HEAT_LATENT(:), HEAT_RLN(:)
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS,I,J
     INTEGER :: JULDAY
@@ -12666,7 +13231,8 @@ CONTAINS
     REAL(SP) :: WDS,CLOUD_TMP,TDEW_TMP
     REAL(SP) :: TANUM,TWAT,TDIFF,LATIT,LONGI
     REAL(SP) :: SOLHR,CHEAT,CDMOM
-    REAL(SP) :: SURFLXC,Q0
+    !EJA - Add HS,HL,RLN to variable list
+    REAL(SP) :: SURFLXC,Q0,HS,HL,RLN
     REAL(SP) :: UZLZ0,UZLFL
     REAL(SP), DIMENSION(0:NT) :: WDSN
 
@@ -12678,6 +13244,15 @@ CONTAINS
 
     IF(.NOT. ALLOCATED(HEAT_NET)) CALL FATAL_ERROR &
          &("THE NET HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_SENSIBLE)) CALL FATAL_ERROR &
+         &("THE SENSIBLE HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_LATENT)) CALL FATAL_ERROR &
+         &("THE LATENT HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+    IF(.NOT. ALLOCATED(HEAT_RLN)) CALL FATAL_ERROR &
+         &("THE LONGWAVE HEAT VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
 
     IF(WIND_TYPE /= 'speed')CALL FATAL_ERROR("WIND_TYPE must be 'speed' for heat flux calculating")
        
@@ -12694,7 +13269,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT HEATING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT HEATING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -12785,6 +13360,7 @@ CONTAINS
          LATIT = LAT(I)
          LONGI = LON(I)
          IF(LONGI > 180.0) LONGI = 360.0 - LONGI
+         IF(LONGI < 0.0) LONGI = ABS(LONGI)
 #        endif
 
          TANUM = T_AIR(I)
@@ -12799,16 +13375,23 @@ CONTAINS
          TDEW_TMP  = TDEW(I)
   
          CALL UZL(WDS,ZM,TDIFF,CDMOM,CHEAT,UZLZ0,UZLFL)
-         CALL SOLAR(TANUM,TDEW_TMP,WDS,CLOUD_TMP,TWAT,CHEAT,CDMOM,LATIT,LONGI,JULDAY,MONTH_NOW,SOLHR,SURFLXC,Q0)
+         !EJA - add HS,HL,RLN to return variable list from SOLAR
+         CALL SOLAR(TANUM,TDEW_TMP,WDS,CLOUD_TMP,TWAT,CHEAT,CDMOM,LATIT,LONGI,JULDAY,MONTH_NOW,SOLHR,SURFLXC,Q0,HS,HL,RLN)
 
          HEAT_NET(I) = SURFLXC     
          HEAT_SWV(I)  = Q0
+         !EJA - add HS,HL,RLN
+         HEAT_SENSIBLE(I) = HS
+         HEAT_LATENT(I) = HL
+         HEAT_RLN(I) = RLN
   
        END DO
        
 #      if defined (MULTIPROCESSOR)
        !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+       !EJA  - add HS,HL,RLN
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
 #      endif
 
     CASE(HEAT_IS_FVCOMGRID)
@@ -12875,6 +13458,7 @@ CONTAINS
          LATIT = LAT(I)
          LONGI = LON(I)
          IF(LONGI > 180.0) LONGI = 360.0 - LONGI
+         IF(LONGI < 0.0) LONGI = ABS(LONGI)
 #        endif
 
          TANUM = T_AIR(I)
@@ -12888,16 +13472,23 @@ CONTAINS
          CLOUD_TMP = CLOUD(I)
          TDEW_TMP  = TDEW(I)
          CALL UZL(WDS,ZM,TDIFF,CDMOM,CHEAT,UZLZ0,UZLFL)
-         CALL SOLAR(TANUM,TDEW_TMP,WDS,CLOUD_TMP,TWAT,CHEAT,CDMOM,LATIT,LONGI,JULDAY,MONTH_NOW,SOLHR,SURFLXC,Q0)
+         !EJA - add HS,HL,RLN to return variable list from SOLAR
+         CALL SOLAR(TANUM,TDEW_TMP,WDS,CLOUD_TMP,TWAT,CHEAT,CDMOM,LATIT,LONGI,JULDAY,MONTH_NOW,SOLHR,SURFLXC,Q0,HS,HL,RLN)
 
          HEAT_NET(I) = SURFLXC     
          HEAT_SWV(I)  = Q0
+         !EJA - add HS,HL,RLN
+         HEAT_SENSIBLE(I) = HS
+         HEAT_LATENT(I) = HL
+         HEAT_RLN(I) = RLN
 
        END DO
 
 #      if defined (MULTIPROCESSOR)
        !*** Edit to fix halo-element problem (output heatflux into NetCDF to verify) - based on Xueming Zhu's analysis - EJA 6/17/2013 ***"
        IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_NET,HEAT_SWV)
+       !EJA  - add HS,HL,RLN
+       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
 #      endif
 
     CASE DEFAULT
@@ -12941,7 +13532,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13045,6 +13636,79 @@ CONTAINS
 !===================================================
 
   END SUBROUTINE UPDATE_WIND
+
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+!==============================================================================|
+  SUBROUTINE UPDATE_ICEIN(NOW,wicec)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    TYPE(TIME)             :: WTIME
+    REAL(SP), ALLOCATABLE :: wicec(:)
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS
+
+
+    IF(.NOT. ALLOCATED(wicec)) CALL FATAL_ERROR &
+         &("THE ICE VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+
+!===================================================
+    SELECT CASE(WIND_KIND)
+!===================================================
+    CASE (CNSTNT)
+
+          wicec(1:MT) = CICE
+
+       RETURN
+
+    CASE(STTC)
+
+       CALL FATAL_ERROR("STATIC WIND Not Set Up Yet")
+
+    CASE(TMDPNDNT)
+
+       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+
+    CASE(PRDC)
+
+       ! TO SET ZERO TIME PHASE USING RUNFILE START TIME
+!      WTIME= NOW - RUNFILE_StartTime
+
+       ! TO USE ZERO AS THE PHASE OF THE FORCING
+       !WTIME= NOW
+CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+
+
+       !WTIME = MOD(WTIME,WINDS_PERIOD)
+
+    CASE(VRBL)
+
+       WTIME = NOW
+    END SELECT
+!PRINT *, "ICEINS_FORCING_TYPE",ICEINS_FORCING_TYPE
+!===================================================
+    SELECT CASE(ICEINS_FORCING_TYPE)
+!===================================================
+    CASE(ICEINS_ARE_FVCOMGRID)
+!===================================================
+       FTM => ICEINS_FILE%FTIME
+
+       CALL UPDATE_VAR_BRACKET(ICEINS_FILE,ICEINS_ICEC_P,ICEINS_ICEC_N,WTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE ICEIN: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(ICEINS_ICEC_N,VNP)
+       CALL NC_POINT_VAR(ICEINS_ICEC_P,VPP)
+       WICEC = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!===================================================
+    CASE DEFAULT
+       CALL FATAL_ERROR("UNKNOWN ICEIN IN UPDATE WIND")
+    END SELECT
+!===================================================
+  END SUBROUTINE UPDATE_ICEIN
+# endif
 
 # if defined (OFFLINE_SEDIMENT)
   !==============================================================================|
@@ -13481,7 +14145,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13613,7 +14277,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT PRECIP Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT PRECIP Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13774,7 +14438,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT AIR PRESSURE Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT AIR PRESSURE Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -13813,6 +14477,7 @@ CONTAINS
        CALL NC_POINT_VAR(AIR_PRESSURE_N,VNP)
        CALL NC_POINT_VAR(AIR_PRESSURE_P,VPP)   
        PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       PA_AIR = PA_AIR * Pair_unit_factor  ! Siqi Li, 2021-01-27
        
 !===================================================
     CASE(AIRPRESSURE_IS_FVCOMGRID)
@@ -13829,7 +14494,7 @@ CONTAINS
        CALL NC_POINT_VAR(AIR_PRESSURE_N,VNP)
        CALL NC_POINT_VAR(AIR_PRESSURE_P,VPP)   
        PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
-       
+       PA_AIR = PA_AIR * Pair_unit_factor  ! Siqi Li, 2021-01-27 
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN AIRPRESSURE_FORCING_TYPE IN UPDATE AIR PRESSURE")
     END SELECT
@@ -14327,7 +14992,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT ICE FORCING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT ICE FORCING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -14364,6 +15029,10 @@ CONTAINS
        SAT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
        ! SHORT WAVE
+# if !defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160921 - commented out for solar
+! With SOLAR, use SOLAR-derived shortwave
+! Without SOLAR, use shortwave from forcing data
 !       CALL UPDATE_VAR_BRACKET(ICE_FILE,ICE_SWV_P,ICE_SWV_N,WTIME,STATUS,ICE_INTP_N)
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,ICE_SWV_P,ICE_SWV_N,WTIME,STATUS,ICE_INTP_N)
        IF (STATUS /= 0) THEN
@@ -14373,6 +15042,7 @@ CONTAINS
        CALL NC_POINT_VAR(ICE_SWV_N,VNP)
        CALL NC_POINT_VAR(ICE_SWV_P,VPP)   
        SWV = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+# endif
 
        ! THE SPECIFIC HUMIDITY
        CALL UPDATE_VAR_BRACKET(ICE_FILE,ICE_SPQ_P,ICE_SPQ_N,WTIME,STATUS,ICE_INTP_N)
@@ -14416,6 +15086,10 @@ CONTAINS
        SAT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
        ! SHORT WAVE
+# if !defined (ICE_FRESHWATER)
+! afm 20151001 commented out for solar
+! With SOLAR, use SOLAR-derived shortwave
+! Without SOLAR, use shortwave from forcing data
 !       CALL UPDATE_VAR_BRACKET(ICE_FILE,ICE_SWV_P,ICE_SWV_N,WTIME,STATUS)
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,ICE_SWV_P,ICE_SWV_N,WTIME,STATUS)
        IF (STATUS /= 0) THEN
@@ -14426,6 +15100,7 @@ CONTAINS
        CALL NC_POINT_VAR(ICE_SWV_P,VPP)   
        SWV = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
 
+# endif
 
        ! THE SPECIFIC HUMIDITY
        CALL UPDATE_VAR_BRACKET(ICE_FILE,ICE_SPQ_P,ICE_SPQ_N,WTIME,STATUS)
@@ -14494,7 +15169,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT ICING Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT ICING Not Set Up Yet")
 
     CASE(PRDC)
 
@@ -15130,7 +15805,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
 
     CASE(PRDC)
     
@@ -15149,7 +15824,7 @@ CONTAINS
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE WIND BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(WIND_FILE),&
-            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
        
        ! LOOK FOR THE DIMENSIONS
        DIM => FIND_UNLIMITED(WINDS_FILE,FOUND)
@@ -15450,7 +16125,7 @@ CONTAINS
     END SELECT
 !==============================================================
 
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
+    ! ---------- new: 2016 , april, Karsten Lettmann after Hint by Qi -------------------------
     ! Initialize some variables 
     ! afm 20150914
     ! Need initialization. Otherwise, random values are asigned
@@ -15498,7 +16173,7 @@ CONTAINS
 
     CASE(TMDPNDNT)
 
-       CALL FATAL_ERROR("TIME DEPENDENT WIND Not Set Up Yet")
+       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
 
     CASE(PRDC)
 

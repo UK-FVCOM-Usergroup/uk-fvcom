@@ -91,22 +91,10 @@ SUBROUTINE BOTTOM_ROUGHNESS
      END WHERE
      
      ! SET A MINIMUM VALUE FOR CBC
-!Jadon Ge
-     if(BOTTOM_ROUGHNESS_KIND .eq. CNSTNT) THEN
-        WHERE (CBC < CBCMIN)
-          CBC=CBCMIN
-        END WHERE
-     else if(BOTTOM_ROUGHNESS_KIND .eq. STTC) THEN
-       DO I=1,N
-         IF(CBC(I)<NUNI_CBCMIN(I))CBC(I)=NUNI_CBCMIN(I)
-         ! Tuning the bottom friction in the Changjiang channel
-         ! , river mouth and the inner Hangzhou Bay
-!         IF(NUNI_CBCMIN(I)<0.001.AND.NUNI_CBCMIN(I)>0.0007)CBC(I)=CBC(I)*0.4 !0.4
-!         IF(NUNI_CBCMIN(I)<0.0006.AND.NUNI_CBCMIN(I)>0.0004)CBC(I)=CBC(I)*0.15 !0.2
-!         IF(NUNI_CBCMIN(I)<0.0005)CBC(I)=CBC(I)*0.09 !0.2
-       END DO
-     end if
-!Jadon Ge
+     WHERE (CBC < CBCMIN)
+        CBC=CBCMIN
+     END WHERE
+
 
   !==============================================================================|
   CASE(BR_GOTM) !GOTM FORMULATION FOR BOTTOM FRICTION    |
@@ -130,6 +118,13 @@ SUBROUTINE BOTTOM_ROUGHNESS
         CBC(I) =   RR*RR
      END DO
 
+  ! Added by Siqi Li@2015/08/29
+  !==============================================================================|
+  CASE(BR_UDEF) !READ DRAG COEFFICENT FROM THE BOTTOM ROUGHNESS FILE    |
+  !==============================================================================|
+
+     CBC = CBC_UD !; DEALLOCATE(CBC_UD)
+  ! Siqi Li
 
   CASE DEFAULT
      CALL FATAL_ERROR ("BROUGH: UNKNOWN BOTTOM_ROUGHNESS_TYPE:"&

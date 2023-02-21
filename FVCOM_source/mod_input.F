@@ -38,6 +38,7 @@ MODULE MOD_INPUT
   TYPE(NCFILE), POINTER ::NC_AVG
   TYPE(NCFILE), POINTER ::NC_RST
   TYPE(NCFILE), POINTER ::NC_START
+  TYPE(NCFILE), POINTER ::NC_SF
 
 CONTAINS
 
@@ -234,6 +235,7 @@ CONTAINS
     VISIT_ALL_VARS = .False.
     WAIT_FOR_VISIT = .False.
     USE_MPI_IO_MODE = .FALSE.
+    IO_PROCESSORS = 1
 
 
     !--Parameters in NameList NML_INTEGRATION
@@ -242,6 +244,7 @@ CONTAINS
     IRamp = 0 
     Static_SSH_Adj = 0.0
     Min_Depth = 0.0
+    RK_3D_ON = .False.
 
     !--Parameters in NameList NML_RESTART
     RST_ON            = .False.
@@ -258,7 +261,6 @@ CONTAINS
     NC_GRID_METRICS = .False.
     NC_FILE_DATE    = .False.   
     NC_VELOCITY     = .False.
-    NC_OFFLINE      = .False.
     NC_SALT_TEMP    = .False.
     NC_TURBULENCE   = .False.
     NC_AVERAGE_VEL  = .False.
@@ -266,18 +268,56 @@ CONTAINS
     NC_NH_QP        = .False.
     NC_NH_RHS       = .False.
     NC_WIND_VEL     = .False.
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     NC_ATM_PRESS    = .False.
 # endif    
     NC_WIND_STRESS  = .False.
-    NC_WAVE_PARA    = .False.  !Jadon
-    NC_WAVE_STRESS  = .False.  !Jadon
+# if defined (WAVE_CURRENT_INTERACTION)
+    NC_WAVE_PARA    = .False. 
+    NC_WAVE_STRESS  = .False. 
+# endif
     NC_EVAP_PRECIP  = .False.
     NC_SURFACE_HEAT = .False.
     NC_GROUNDWATER  = .False.
+# if defined (ICE)
+    NC_ICE          = .False.
+# endif
     NC_VORTICITY    = .False.
     NC_WQM          = .False.
     NC_BIO          = .False.
+!!# if defined (DATA_ASSIM)  ! Siqi Li, @20210809
+! lwang added for mld_output Jul 09, 2019
+!    NC_MLD          = .False.   ! Siqi Li, @20210809
+! lwang added for ERSEM offline Aug 26, 2019
+    NC_UARD_OBCN    = .False.
+! lwang
+!!# endif        ! Siqi Li, @20210809
+    ! OUTPUT VARIABLES DEFAULT TO OFF
+
+    !--Parameters in NameList NML_NETCDF_SURFACE
+    NCSF_ON = .False.
+    NCSF_FIRST_OUT = 'Date to start NETCDF OUTPUT: Format the same as START_DATE'
+    NCSF_OUT_INTERVAL = "A length of time: 'seconds= ','days= ', or 'cycles= '"
+    NCSF_OUTPUT_STACK = 0
+    NCSF_SUBDOMAIN_FILES= "FVCOM"
+    NCSF_GRID_METRICS = .False.
+    NCSF_FILE_DATE    = .False.   
+    NCSF_VELOCITY     = .False.
+    NCSF_SALT_TEMP    = .False.
+    NCSF_TURBULENCE   = .False.
+    NCSF_WIND_VEL     = .False.
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
+    NCSF_ATM_PRESS    = .False.
+# endif    
+    NCSF_WIND_STRESS  = .False.
+# if defined (WAVE_CURRENT_INTERACTION)
+    NCSF_WAVE_PARA    = .False.
+# endif
+# if defined (ICE)
+    NCSF_ICE          = .False.
+# endif
+    NCSF_EVAP_PRECIP  = .False.
+    NCSF_SURFACE_HEAT = .False.
     
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
@@ -290,7 +330,6 @@ CONTAINS
     NCAV_GRID_METRICS = .False.
     NCAV_FILE_DATE    = .False.   
     NCAV_VELOCITY     = .False.
-    NCAV_OFFLINE      = .False.
     NCAV_SALT_TEMP    = .False.
     NCAV_TURBULENCE   = .False.
     NCAV_AVERAGE_VEL  = .False.
@@ -298,7 +337,7 @@ CONTAINS
     NCAV_NH_QP        = .False.
     NCAV_NH_RHS       = .False.
     NCAV_WIND_VEL     = .False.
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     NCAV_ATM_PRESS    = .False.  
 # endif    
     NCAV_WIND_STRESS  = .False.
@@ -328,8 +367,15 @@ CONTAINS
 
     BOTTOM_ROUGHNESS_MINIMUM = -1.0_SP
     BOTTOM_ROUGHNESS_LENGTHSCALE = -1.0_SP
+! Changed by Siqi Li@2015/08/29
+!    BOTTOM_ROUGHNESS_TYPE   = "'"//TRIM(BR_ORIG)//"', or '"&
+!         &//TRIM(BR_GOTM)//"'; Select your bottom roughness equation
+!         (brough.F)"
     BOTTOM_ROUGHNESS_TYPE   = "'"//TRIM(BR_ORIG)//"', or '"&
-         &//TRIM(BR_GOTM)//"'; Select your bottom roughness equation (brough.F)"
+         &//TRIM(BR_GOTM)//"', or '"&
+         &//TRIM(BR_UDEF)//"'; Select your bottom roughness equation (brough.F)"
+! Siqi Li
+
     BOTTOM_ROUGHNESS_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)
     BOTTOM_ROUGHNESS_FILE =trim(casename)//"_brf.nc"
 
@@ -372,8 +418,10 @@ CONTAINS
     WIND_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)//","//TRIM(TMDPNDNT)//","//TRIM(PRDC)//","//TRIM(VRBL)
     WIND_X = 0.0_SP
     WIND_Y = 0.0_SP
+    WIND_STRESS_METHOD = "Options:: LP1981, COARE, TY2001, OOST, DGHQ"  ! Siqi Li, 2021-01-27
+    ZUU = 10.0_SP                                                       ! Siqi Li, 2021-01-27
     HEATING_ON = .FALSE.
-    HEATING_TYPE = "'body' or 'flux'"
+    HEATING_TYPE = "'surface' or 'flux' or 'body'" 
     HEATING_FILE = trim(casename)//"_hfx.nc"
     HEATING_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)//","//TRIM(TMDPNDNT)//","//TRIM(PRDC)//","//TRIM(VRBL)
     HEATING_RADIATION = 0.0_SP
@@ -400,7 +448,13 @@ CONTAINS
     WAVE_PERIOD     = 0.0_SP
     WAVE_PER_BOT    = 0.0_SP
     WAVE_UB_BOT     = 0.0_SP
-
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+    !    yzhang1
+    ICEIN_ON = .FALSE.
+    ICEIN_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(VRBL)
+    ICEIN_FILE = trim(casename)//"_icein.nc"
+    CICE = 0.0_SP
+# endif
     !--Parameters in NameList NML_RIVER_TYPE
     RIVER_NUMBER = -1
     RIVER_KIND = "Options:"//TRIM(PRDC)//" or "//TRIM(VRBL)
@@ -444,7 +498,10 @@ CONTAINS
     OBC_MEANFLOW = .FALSE.
     OBC_MEANFLOW_FILE = trim(casename)//"_obc.nc"
     OBC_LONGSHORE_FLOW_ON = .FALSE.
-    OBC_LONGSHORE_FLOW_FILE = trim(casename)//"_lsf.dat"
+!---> Siqi Li
+!    OBC_LONGSHORE_FLOW_FILE = trim(casename)//"_lsf.dat"
+    OBC_LONGSHORE_FLOW_FILE = 'LONGSHORE_FLOW setting is only used for GOM (see )'
+!<--- Siqi Li
     OBC_TIDEOUT_INITIAL  = 0       !TIME STEPS
     OBC_TIDEOUT_INTERVAL = 0       !TIME STEPS
     OBC_DEPTH_CONTROL_ON = .TRUE.
@@ -501,7 +558,6 @@ CONTAINS
 # endif
     SEDIMENT_PARAMETER_TYPE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     SEDIMENT_PARAMETER_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
-    SEDIMENT_MIXING_RATIO =  1.0
     BEDFLAG_TYPE = "DO NOT ADD UNTIL FVCOM IS RUNNING BY ITS SELF FIRST"
     BEDFLAG_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     ICE_MODEL= .FALSE.
@@ -529,6 +585,14 @@ CONTAINS
 
     HIGH_LATITUDE_WAVE = .FALSE.
 
+!---> Siqi Li, @20210809
+    !--Parameters in NameList NML_MLD
+    NC_MLD          = .false.
+    GAMMA_MIN       = 0.04e-3
+    MLD_DEFAULT     = 5.0
+    DEEPWATER_DEPTH = 100.0
+    DEEPWATER_GAMMA = 0.03e-3
+!<--- 
   END SUBROUTINE NAME_LIST_INITIALIZE
 
 
@@ -547,6 +611,7 @@ CONTAINS
     write(UNIT=IPT,NML=NML_INTEGRATION)
     write(UNIT=IPT,NML=NML_RESTART)
     write(UNIT=IPT,NML=NML_NETCDF)
+    write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
     write(UNIT=IPT,NML=NML_NETCDF_AV)
     write(UNIT=IPT,NML=NML_SURFACE_FORCING)
     write(UNIT=IPT,NML=NML_PHYSICS)
@@ -559,13 +624,14 @@ CONTAINS
     write(UNIT=IPT,NML=NML_ADDITIONAL_MODELS)
     write(UNIT=IPT,NML=NML_PROBES)
     write(UNIT=IPT,NML=NML_BOUNDSCHK)  !bounds checking
+    write(UNIT=IPT,NML=NML_MLD)   ! Siqi Li, @20210809
 
   RETURN
   END SUBROUTINE NAME_LIST_PRINT
 
 
   SUBROUTINE NAME_LIST_READ
-     USE CONTROL
+    USE CONTROL
     IMPLICIT NONE
     integer :: ios, i
     Character(Len=120):: FNAME
@@ -585,6 +651,7 @@ CONTAINS
     !READ NAME LIST FILE
 
     ! Read IO Information
+!!$    IO_PROCESSORS = 1
     READ(UNIT=NMLUNIT, NML=NML_IO,IOSTAT=ios)
     if(ios .NE. 0 ) Then
        if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_IO)
@@ -674,6 +741,21 @@ CONTAINS
 
     if(DBG_SET(dbg_scl)) &
          & write(UNIT=IPT,NML=NML_NETCDF)
+
+    ! Read Netcdf Output Settings
+    READ(UNIT=NMLUNIT, NML=NML_NETCDF_SURFACE,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
+       Call Fatal_Error("Can Not Read NameList NML_NETCDF_SURFACE from file: "//trim(FNAME))
+    end if
+
+    REWIND(NMLUNIT)
+
+    if(DBG_SET(dbg_scl)) &
+         & write(IPT,*) "Read_Name_List:"
+
+    if(DBG_SET(dbg_scl)) &
+         & write(UNIT=IPT,NML=NML_NETCDF_SURFACE)
 
     ! Read Netcdf Average Output Settings
     READ(UNIT=NMLUNIT, NML=NML_NETCDF_AV,IOSTAT=ios)
@@ -894,7 +976,25 @@ CONTAINS
 
     if(DBG_SET(dbg_scl)) &
          & write(UNIT=IPT,NML=NML_PROBES)
-    
+
+!---> Siqi Li, @20210809
+    ! Read MLD Settings
+    !=> bounds checking
+    READ(UNIT=NMLUNIT, NML=NML_MLD,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_MLD)
+       Call Fatal_Error("Can Not Read NameList NML_MLD from file: "//trim(FNAME))
+    end if
+    !<= bounds checking
+
+    REWIND(NMLUNIT)
+
+    if(DBG_SET(dbg_scl)) &
+         & write(IPT,*) "Read_Name_List:"
+
+    if(DBG_SET(dbg_scl)) &
+         & write(UNIT=IPT,NML=NML_MLD)
+!<---     
 
     CLOSE(NMLUNIT)
 
@@ -1006,6 +1106,7 @@ CONTAINS
     NULLIFY(NC_AVG)
     NULLIFY(NC_RST)
     NULLIFY(NC_START)
+    NULLIFY(NC_SF)
   END SUBROUTINE NULLIFY_FILE_POINTERS
 !=============================================================  
   SUBROUTINE INCRIMENT_FNAME(FNAME)
@@ -1126,7 +1227,22 @@ CONTAINS
     END IF
        
 
-    IF(NCAV_ON) then
+     IF(NCSF_ON) then
+       ! DATA FILE
+       NCSF_FILE_NAME = trim(casename)//"_surface_0001.nc"
+       pathnfile= trim(OUTPUT_DIR)//TRIM(NCSF_FILE_NAME)
+       
+       CALL SEARCH_FOR_LAST_MATCHING_NAME(PATHNFILE)
+       NCF => NEW_FILE()
+       NCF%FNAME=trim(pathnfile)
+       NCF%writable = .true.
+       NC_SF => NCF
+       FILEHEAD => ADD(FILEHEAD,NCF)
+
+    END IF
+       
+
+   IF(NCAV_ON) then
        ! DATA FILE
        NCAV_FILE_NAME = trim(casename)//"_avg_0001.nc"
        pathnfile= trim(OUTPUT_DIR)//TRIM(NCAV_FILE_NAME)
@@ -1308,7 +1424,24 @@ CONTAINS
 
     END IF
     
-    IF(NCAV_ON) THEN
+     IF(NCSF_ON) THEN
+       NCSF_FILE_NAME = trim(casename)//"_surface_0001.nc"
+       pathnfile = trim(OUTPUT_DIR)//trim(NCSF_FILE_NAME)
+       CALL NC_INIT(NCF,pathnfile)
+       if(msr) then
+          CALL NC_CREATE(NCF)
+          CALL NC_CLOSE(NCF)
+       else
+          NCF%writable = .true.
+       end if
+
+       NC_SF => NCF
+
+       FILEHEAD => ADD(FILEHEAD,NCF)
+
+    END IF
+    
+   IF(NCAV_ON) THEN
        NCAV_FILE_NAME = trim(casename)//"_avg_0001.nc"
        pathnfile = trim(OUTPUT_DIR)//trim(NCAV_FILE_NAME)
        CALL NC_INIT(NCF,pathnfile)
@@ -1345,7 +1478,7 @@ CONTAINS
 
   SUBROUTINE OPEN_FORCING
     USE CONTROL
-#   if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#   if defined (HEATING_CALCULATED)
     USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON, HEATING_CALCULATE_KIND, HEATING_CALCULATE_FILE
 #   endif
 #   if defined (HEATING_SOLAR)
@@ -1408,9 +1541,32 @@ CONTAINS
        end if
 
     end if
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+        ! Check icein file and open
+    if (ICEIN_ON .and. ICEIN_KIND /= CNSTNT) then
+
+       ! TEST FILE NAME
+       charnum = index (ICEIN_FILE,".nc",back)
+       if (charnum /= len_trim(ICEIN_FILE)-2)&
+            & CALL WARNING("ICEIN FILE does not end in .nc", &
+            & trim(ICEIN_FILE))
+
+       ! INITIALIZE TYPE TO HOLD FILE METAData
+       pathnfile = trim(INPUT_DIR)//trim(ICEIN_FILE)
+       CALL NC_INIT(NCF,pathnfile)
+
+       ! OPEN THE FILE AND LOAD METADATA       
+       If(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+
+    end if
+# endif
 
     ! Check Heat file and open
-#   if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+#   if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
     if (HEATING_ON .and. HEATING_KIND /= CNSTNT) then
 
        ! TEST FILE NAME
@@ -1434,7 +1590,7 @@ CONTAINS
     end if
 #   endif    
 
-#   if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+#   if defined (HEATING_CALCULATED)
     if (HEATING_CALCULATE_ON .and. HEATING_CALCULATE_KIND /= CNSTNT) then
 
        ! TEST FILE NAME
@@ -1947,10 +2103,10 @@ CONTAINS
 
   END SUBROUTINE LOAD_HORIZONTAL_MIXING_COEFFICIENT
 
-  SUBROUTINE LOAD_BOTTOM_ROUGHNESS(Z0,NUNI_CBCMIN)
+  SUBROUTINE LOAD_BOTTOM_ROUGHNESS(Z0)
     USE CONTROL
     IMPLICIT NONE
-    REAL(SP),ALLOCATABLE :: Z0(:),NUNI_CBCMIN(:)
+    REAL(SP),ALLOCATABLE :: Z0(:)
     TYPE(NCFILE), POINTER :: NCF
     TYPE(NCVAR),  POINTER :: VAR
     TYPE(NCDIM),  POINTER :: DIM1
@@ -1984,17 +2140,48 @@ CONTAINS
     CALL NC_READ_VAR(VAR)
     CALL NC_DISCONNECT(VAR)
 
-    ! FIND THE 'NUNI_CBCMIN' variable
-    VAR => FIND_VAR(NCF,'cbcmin',FOUND)
-    IF(.not. FOUND) CALL FATAL_ERROR &
-         & ("COULD NOT FIND BOTTOM_ROUGHNESS_FILE VARIABLE 'cbcmin' in:",&
-         & "FILE NAME: "//TRIM(BOTTOM_ROUGHNESS_FILE))
-
-    CALL NC_CONNECT_AVAR(VAR,NUNI_cbcmin)
-    CALL NC_READ_VAR(VAR)
-    CALL NC_DISCONNECT(VAR)
     
   END SUBROUTINE LOAD_BOTTOM_ROUGHNESS
+! Added by Siqi Li@2015/08/29
+  SUBROUTINE LOAD_DRAG_COEFFICIENT(Cd_UD)
+    USE CONTROL
+    IMPLICIT NONE
+    REAL(SP),ALLOCATABLE :: Cd_UD(:)
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM1
+    TYPE(NCDIM),  POINTER :: DIM2
+    integer status,I,IERR
+
+    LOGICAL FOUND
+
+    ! FIND THE Bottom Roughness FILE OBJECT
+    NCF => FIND_FILE(FILEHEAD,trim(BOTTOM_ROUGHNESS_FILE),FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND BOTTOM_ROUGHNESS_FILE FILE OBJECT",&
+         & "FILE NAME: "//TRIM(BOTTOM_ROUGHNESS_FILE))
+
+    DIM1 => FIND_DIM(NCF,'nele',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND BOTTOM_ROUGHNESS_FILE DIMENSION 'nele' in:",&
+         & "FILE NAME: "//TRIM(BOTTOM_ROUGHNESS_FILE))
+    IF (DIM1%DIM /= NGL)CALL FATAL_ERROR &
+         & ("Dimension 'nele' in the BOTTOM_ROUGHNESS_FILE does not match NGL for this model?",&
+         & "FILE NAME: "//TRIM(BOTTOM_ROUGHNESS_FILE))
+
+
+    ! FIND THE 'Cd' variable
+    VAR => FIND_VAR(NCF,'Cd',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND BOTTOM_ROUGHNESS_FILE VARIABLE 'Cd' in:",&
+         & "FILE NAME: "//TRIM(BOTTOM_ROUGHNESS_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,Cd_UD)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+
+  END SUBROUTINE LOAD_DRAG_COEFFICIENT
+!Siqi Li
 
   SUBROUTINE LOAD_STRUCTURE_PARAMETERS(TTSIGMA, TTAREA, TTNUMBER, TTTHRUST)
     USE CONTROL
@@ -2434,6 +2621,21 @@ CONTAINS
        CALL NC_CONNECT_PVAR(VAR,G%ZZ)
        CALL NC_READ_VAR(VAR)
        CALL NC_DISCONNECT(VAR)
+
+       !---> Added by Dr. Lai 2021-01-15
+       ! z
+       ALLOCATE(G%Z(0:G%MT,G%KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%Z WHILE READING:"//TRIM(NCF%FNAME))
+       G%Z=0.0_SP
+
+       VAR => FIND_VAR(NCF,'siglev',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'siglev' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+
+       CALL NC_CONNECT_PVAR(VAR,G%Z)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+       !<--- Added by Dr. Lai 2021-01-15
        
        ! zz1
        ALLOCATE(G%ZZ1(0:G%NT,G%KBM1),stat=status)
@@ -2794,8 +2996,8 @@ CONTAINS
 #  if defined (MULTIPROCESSOR) 
        
        SENDER = 0 ! SEND FROM MASTER
-       CALL MPI_BCAST(MGL,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
-       CALL MPI_BCAST(NGL,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
+       CALL MPI_BCAST(MGL,1,MPI_INTEGER,SENDER,MPI_COMM_FVCOM,IERR)
+       CALL MPI_BCAST(NGL,1,MPI_INTEGER,SENDER,MPI_COMM_FVCOM,IERR)
        
        if(.not. MSR) then
           ALLOCATE(NVG(0:NGL,4),STAT=STATUS)
@@ -2804,7 +3006,7 @@ CONTAINS
        end if
        
        nvals= (NGL+1)*4
-       CALL MPI_BCAST(NVG,nvals,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
+       CALL MPI_BCAST(NVG,nvals,MPI_INTEGER,SENDER,MPI_COMM_FVCOM,IERR)
 # endif
     END IF
     
@@ -2834,7 +3036,7 @@ CONTAINS
     IF(PAR) THEN
 # if defined (MULTIPROCESSOR)
        SENDER = MSRID -1 ! SEND FROM MASTER
-       CALL MPI_BCAST(IOBCN_GL,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
+       CALL MPI_BCAST(IOBCN_GL,1,MPI_INTEGER,SENDER,MPI_COMM_FVCOM,IERR)
        
        IF(IOBCN_GL == 0) RETURN
        
@@ -2843,8 +3045,8 @@ CONTAINS
           ALLOCATE(TYPE_OBC_GL(IOBCN_GL))
        END IF
        
-       CALL MPI_BCAST(I_OBC_GL,IOBCN_GL,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
-       CALL MPI_BCAST(TYPE_OBC_GL,IOBCN_GL,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)    
+       CALL MPI_BCAST(I_OBC_GL,IOBCN_GL,MPI_INTEGER,SENDER,MPI_COMM_FVCOM,IERR)
+       CALL MPI_BCAST(TYPE_OBC_GL,IOBCN_GL,MPI_INTEGER,SENDER,MPI_COMM_FVCOM,IERR)    
 # endif
     END IF
     
@@ -2874,7 +3076,7 @@ CONTAINS
     IF(PAR) THEN
 # if defined (MULTIPROCESSOR)
        SENDER = MSRID -1 ! SEND FROM MASTER
-       CALL MPI_BCAST(N_GL,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
+       CALL MPI_BCAST(N_GL,1,MPI_INTEGER,SENDER,MPI_COMM_FVCOM,IERR)
        
        IF(N_GL == 0) RETURN
        
@@ -2884,9 +3086,9 @@ CONTAINS
           ALLOCATE(GEO_GL(N_GL))
        END IF
        
-       CALL MPI_BCAST(I_GL,N_GL,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
-       CALL MPI_BCAST(GEO_GL,N_GL,MPI_F,SENDER,MPI_COMM_WORLD,IERR)    
-       CALL MPI_BCAST(WDF_GL,N_GL,MPI_F,SENDER,MPI_COMM_WORLD,IERR)    
+       CALL MPI_BCAST(I_GL,N_GL,MPI_INTEGER,SENDER,MPI_COMM_FVCOM,IERR)
+       CALL MPI_BCAST(GEO_GL,N_GL,MPI_F,SENDER,MPI_COMM_FVCOM,IERR)    
+       CALL MPI_BCAST(WDF_GL,N_GL,MPI_F,SENDER,MPI_COMM_FVCOM,IERR)    
 # endif
     END IF
     
@@ -2946,7 +3148,7 @@ CONTAINS
     IF(PAR)THEN 
       IF(.NOT.ALLOCATED(HG))  ALLOCATE(HG(0:MGL))
       SENDER = MSRID - 1
-      CALL MPI_BCAST(HG,MGL,MPI_F,SENDER,MPI_COMM_WORLD,IERR)
+      CALL MPI_BCAST(HG,MGL,MPI_F,SENDER,MPI_FVCOM_GROUP,IERR)
       HG(0)=0.0_SP
     END IF
 # endif
@@ -4005,7 +4207,7 @@ CONTAINS
 
 
   SUBROUTINE READ_COLDSTART_COORDS(GRIDUNIT,MGL,XG2,YG2)
-!    USE ALL_VARS   !Jadon Ge
+    USE ALL_VARS, ONLY : NVG
     IMPLICIT NONE
     INTEGER, INTENT(IN)    :: MGL
     INTEGER, INTENT(IN)    :: GRIDUNIT
@@ -4020,6 +4222,8 @@ CONTAINS
             EVY12,EVY13,EVY23,EVXY,VX12,VY12,VX23,VY23,VX31,VY31,&
 	    X1_DP,Y1_DP,X2_DP,Y2_DP,DTMP_DP
 #  endif
+    REAL(SP)               :: X_CW(3),Y_CW(3)
+    INTEGER                :: IS_CW
     !==============================================================================|
     
     ! DO NOT REWIND - SAVED LOCATION FROM READING CONNECTIVITY
@@ -4047,6 +4251,14 @@ CONTAINS
        write(ipt,*) "Read, ", I, "rows of data but mgl= ",mgl 
        CALL FATAL_ERROR('Number of rows of data in the grid file coordinates does not equal the stated number of nodes ?')
     END if
+    
+    IF(MSR)THEN
+      X_CW(1:3)=XG2(NVG(1,1:3))
+      Y_CW(1:3)=YG2(NVG(1,1:3))
+      CALL IS_TRI_CW(X_CW,Y_CW,IS_CW)
+      IF(IS_CW /= 1) CALL FATAL_ERROR('Three nodes on each triangular cell in file *_grd.dat should be identified', &
+                                      & 'counter-clockwise...')
+    END IF
 
       if(DBG_SET(dbg_log)) then
       WRITE(IPT,*)'!  Finished Reading coordinates from Grid File'
@@ -4642,5 +4854,84 @@ case default
     write(IPT,*) ""
 
   END SUBROUTINE HelpTxt
+
+  SUBROUTINE IS_TRI_CW(X, Y, IS_CW)
+
+  !===================================================
+  ! Subroutine to check if a triangle is clockwise.
+  ! Input  : x(3), the x-coordinate 
+  !          y(3), the y-coordinate
+  ! Output : is_cw, integer result. 1, clockwise
+  !                                -1, anti-clockwise
+  !                                 0, line
+  ! Siqi Li, SMAST.
+  ! 
+  !===================================================
+    implicit none
+    !
+    real(sp), intent(in) :: x(3), y(3)
+    integer, intent(out) :: is_cw
+    real(sp)             :: cross_prod
+    !
+!---> Siqi Li, updated on 2021-02-16
+    integer :: decimal_x, decimal_y
+    real(kind=4) :: x0, y0
+
+    x0 = maxval(abs(x))
+    y0 = maxval(abs(y))
+
+    decimal_x = precision(x0) - power10(x0)
+    decimal_y = precision(y0) - power10(y0)
+!<--- Siqi Li
+
+    cross_prod=(x(2)-x(1))*(y(3)-y(1))-(y(2)-y(1))*(x(3)-x(1))
+    !
+    ! Siqi Li, updated on 2021-02-16
+    if (abs(cross_prod)<10.**(-decimal_x-decimal_y)) then
+!    if (abs(cross_prod)<1e-6) then
+      is_cw=0
+!      print*, 'This is a line, rather than a triangle.'
+    else
+      if (cross_prod>0) then
+        is_cw=-1
+!        print*, 'This triangle is anti-clockwise.'
+      else
+        is_cw=1
+!        print*, 'This triangle is clockwise.'
+      end if
+    end if
+    !
+  END SUBROUTINE IS_TRI_CW
+
+  !===================================================
+  ! Function to calculate the power of a number in 
+  ! scientific notation
+  !           
+  ! Siqi Li, SMAST.
+  ! 2021-02-16
+  !===================================================
+  integer FUNCTION power10(num0)
+
+    implicit none
+
+    real, intent(in) :: num0
+    real :: num
+
+    power10 = 0
+
+    num = abs(num0)
+
+    DO WHILE (num > 10.)
+      num = num / 10.
+      power10 = power10 + 1
+    END DO
+
+    DO WHILE (num < 1.)
+      num = num * 10.
+      power10 = power10 - 1
+    END DO
+
+END FUNCTION power10
+ 
 
 END MODULE MOD_INPUT

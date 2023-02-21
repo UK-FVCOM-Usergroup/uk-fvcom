@@ -906,7 +906,7 @@
 !            write (nu_diag,*) '(ice) received final coupler msg'
 !         else
 !            write (nu_diag,*) '(ice) terminating before coupler'
-!            call MPI_ABORT(MPI_COMM_WORLD,-1,ierr)
+!            call MPI_ABORT(MPI_FVCOM_GROUP,-1,ierr)
 !         endif
 !      endif
 

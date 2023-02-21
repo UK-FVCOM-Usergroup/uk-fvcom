@@ -1,0 +1,41 @@
+mod_prec.o : mod_prec.F 
+mod_types.o : mod_types.F mod_prec.o 
+mod_main.o : mod_main.F mod_types.o mod_prec.o 
+mod_utils.o : mod_utils.F 
+mod_par.o : mod_par.F mod_main.o mod_utils.o mod_types.o 
+mod_inp.o : mod_inp.F mod_prec.o mod_utils.o 
+mod_clock.o : mod_clock.F mod_prec.o 
+mod_spherical.o : mod_spherical.F mod_main.o mod_main.o mod_prec.o mod_main.o 
+mod_obcs.o : mod_obcs.F mod_inp.o mod_main.o mod_par.o mod_spherical.o mod_main.o mod_prec.o 
+mod_northpole.o : mod_northpole.F mod_spherical.o mod_main.o 
+mod_ncdin.o : mod_ncdin.F mod_main.o 
+mod_bio_obc.o : mod_bio_obc.F mod_clock.o mod_obcs.o mod_par.o mod_main.o mod_main.o mod_inp.o mod_prec.o mod_types.o 
+mod_bio_3D.o : mod_bio_3D.F mod_bio_obc.o mod_utils.o mod_types.o mod_spherical.o mod_par.o mod_main.o mod_main.o mod_obcs.o mod_main.o mod_main.o 
+mod_onedtide.o : mod_onedtide.F mod_inp.o mod_main.o mod_types.o 
+mod_ncdout.o : mod_ncdout.F mod_bio_3D.o mod_utils.o mod_types.o mod_par.o mod_inp.o mod_main.o mod_prec.o 
+utilities.o : utilities.F mod_clock.o mod_main.o 
+alloc_vars.o : alloc_vars.F mod_main.o 
+archive.o : archive.F mod_main.o mod_ncdout.o 
+bcmap.o : bcmap.F mod_obcs.o mod_par.o mod_main.o 
+bracket.o : bracket.F mod_types.o 
+cell_area.o : cell_area.F mod_spherical.o mod_main.o 
+data_run.o : data_run.F mod_inp.o mod_utils.o mod_main.o 
+domdec.o : domdec.F 
+genmap.o : genmap.F mod_par.o mod_main.o mod_main.o 
+iofiles.o : iofiles.F mod_utils.o mod_main.o 
+pdomdec.o : pdomdec.F mod_spherical.o mod_par.o mod_main.o 
+bcs_force.o : bcs_force.F mod_obcs.o mod_par.o mod_bio_3D.o mod_utils.o mod_clock.o mod_main.o mod_main.o 
+report.o : report.F mod_main.o 
+sinter.o : sinter.F mod_prec.o 
+startup.o : startup.F mod_bio_3D.o mod_main.o mod_main.o 
+getbdno.o : getbdno.F mod_obcs.o mod_main.o 
+fvcom_gem.o : fvcom_gem.F mod_obcs.o mod_onedtide.o mod_bio_obc.o mod_bio_3D.o mod_main.o mod_ncdout.o mod_ncdin.o mod_northpole.o mod_spherical.o mod_clock.o mod_par.o mod_main.o 
+tge.o : tge.F mod_obcs.o mod_par.o mod_spherical.o mod_main.o 
+vertvl.o : vertvl.F mod_par.o mod_northpole.o mod_obcs.o mod_main.o mod_main.o 
+water_depth.o : water_depth.F mod_obcs.o mod_main.o 
+closefiles.o : closefiles.F mod_main.o 
+viscofh.o : viscofh.F mod_spherical.o mod_par.o mod_main.o 
+print_vals.o : print_vals.F mod_par.o mod_obcs.o mod_main.o 
+ncdio.o : ncdio.F mod_par.o mod_main.o mod_ncdin.o 
+fct_bio.o : fct_bio.F mod_bio_3D.o mod_obcs.o mod_main.o mod_main.o 
+adjust_bio.o : adjust_bio.F mod_main.o mod_bio_3D.o mod_main.o 

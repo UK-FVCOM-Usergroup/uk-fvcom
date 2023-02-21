@@ -272,7 +272,12 @@
      &,  vi_diff          ! vi0new - vi_frzmlt 
 
       real (kind=dbl_kind), parameter :: &
+# if defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160921 hfrazilmin 5cm-->1cm.
+     &   hfrazilmin = 0.01_dbl_kind  ! min thickness of new frazil ice (m)
+# else
      &   hfrazilmin = 0.05_dbl_kind  ! min thickness of new frazil ice (m)
+# endif
 
       integer (kind=int_kind) :: &
      &   icells, jcells, kcells &! grid cell counters
@@ -331,9 +336,6 @@
       ! Compute the volume, area, and thickness of new ice.
       !-----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -445,9 +447,6 @@
 
       do ni = 1, ncat
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, kcells
             i = indxi3(ij)
             j = indxj3(ij)
@@ -457,9 +456,6 @@
          enddo                  ! ij
 
          do k=1,nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, kcells
                i = indxi3(ij)
                j = indxj3(ij)
@@ -475,9 +471,6 @@
       ! Combine new ice grown in open water with category 1 ice.
       ! NOTE: vsnon and esnon are unchanged.
       !-----------------------------------------------------------------
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, jcells
          i = indxi2(ij)
          j = indxj2(ij)
@@ -493,9 +486,6 @@
       enddo                     ! ij
 
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, jcells
             i = indxi2(ij)
             j = indxj2(ij)
@@ -576,9 +566,6 @@
       ! Melt the ice and increment fluxes.
       !-----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -616,9 +603,6 @@
          enddo                  ! ij
 
          do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, icells
                i = indxi(ij)
                j = indxj(ij)
@@ -711,9 +695,6 @@
 
          jcells = 0             ! freeboard adjustment counter
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells      ! aicen > puny
             i = indxi(ij)
             j = indxj(ij)
@@ -779,9 +760,6 @@
       ! Adjust ice energy.
       !-----------------------------------------------------------------
          do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, jcells   ! just cells with freeboard adjustment
                i = indxi2(ij)
                j = indxj2(ij)

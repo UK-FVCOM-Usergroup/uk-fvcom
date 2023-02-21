@@ -28,7 +28,7 @@
 
 module mod_utils
   USE MOD_PREC
-  use CONTROL, only: IPT,TPI, DEG2RAD
+  use CONTROL, only: IPT,TPI, DEG2RAD, MPI_FVCOM_GROUP
   implicit none
   save
   
@@ -40,6 +40,7 @@ module mod_utils
    INTEGER, PARAMETER ::        WAIT_CODE =3603
    INTEGER ::                   RESTART_CODE
    INTEGER ::                   NC_CODE 
+   INTEGER ::                   NCSF_CODE 
    INTEGER ::                   NCAV_CODE 
    INTEGER ::                   INIT_CODE
    INTEGER ::                   NESTING_CODE 
@@ -140,7 +141,7 @@ CONTAINS
 !  FVCOM VERSION                                                               !
 !==============================================================================!
 
-   FVCOM_VERSION     = 'FVCOM_3.0'
+   FVCOM_VERSION     = 'FVCOM_4.4.2'
    FVCOM_WEBSITE     = 'http://fvcom.smast.umassd.edu, http://codfish.smast.umassd.edu'
    INSTITUTION       = 'School for Marine Science and Technology'
 
@@ -168,9 +169,13 @@ CONTAINS
          ZEROTIME%MUSOD = 0
            ZEROTIME%MJD = 0
 # if defined(MULTIPROCESSOR)
-        MPI_FVCOM_GROUP = MPI_COMM_WORLD ! FOR NOW MAKE THEM EQUAL
+        MPI_COMM_FVCOM  = MPI_COMM_WORLD ! FOR NOW MAKE THEM EQUAL
+        MPI_FVCOM_GROUP = MPI_COMM_FVCOM ! FOR NOW MAKE THEM EQUAL
+        MPI_IO_GROUP    = MPI_COMM_FVCOM ! FOR NOW MAKE THEM EQUAL
 # else
+        MPI_COMM_FVCOM  = -1
         MPI_FVCOM_GROUP = -1
+        MPI_IO_GROUP    = -1
 # endif
   END SUBROUTINE INITIALIZE_CONTROL
 
@@ -259,7 +264,7 @@ CONTAINS
        IF(PRESENT(ER2)) WRITE(IPT,*) ER2
        IF(PRESENT(ER3)) WRITE(IPT,*) ER3
        IF(PRESENT(ER4)) WRITE(IPT,*) ER4
-       write(IPT,*) TRIM(PRG_NAME)//" CONTINUING"
+       write(IPT,*) TRIM(PRG_NAME)//" CONTINUEING"
        write(IPT,*) "+++++++++++++++++++++++++++++++++++++++++++++++++"
     end if
 
@@ -270,14 +275,14 @@ CONTAINS
     !==============================================================================|
 # if defined (MULTIPROCESSOR)
     USE LIMS, ONLY: IOPROCID
-    use CONTROL, only: IN_MPI_IO_LOOP, MSR
+    use CONTROL, only: IN_MPI_IO_LOOP,MPI_COMM_FVCOM,MSR
 
     INTEGER :: IERR, RECV, Ecode
 
 !    if(IN_MPI_IO_LOOP)then
 !       RECV = IOPROCID -1
 !       CALL MPI_SEND(EXT_CODE,1,MPI_INTEGER,RECV,SYNC_TAG &
-!            &,MPI_COMM_WORLD,IERR)
+!            &,MPI_COMM_FVCOM,IERR)
 !    end if
 
     ! MPI_ABORT SHOULD CLEAR ALL COMMUNICATION
@@ -285,7 +290,8 @@ CONTAINS
     ! where one processor hits a mpi_abort or mpi_finalize.
 
     ecode = -1
-    CALL MPI_ABORT(MPI_COMM_WORLD,ecode,IERR)
+!    CALL MPI_ABORT(MPI_COMM_WORLD,ecode,IERR)
+    CALL MPI_ABORT(MPI_COMM_FVCOM,ecode,IERR)
 
     CALL MPI_FINALIZE(IERR)
 # endif
@@ -297,14 +303,15 @@ CONTAINS
   SUBROUTINE PSHUTDOWN               
     !==============================================================================|
 # if defined (MULTIPROCESSOR)
-    USE LIMS, ONLY: IOPROCID
-    use CONTROL, only: IN_MPI_IO_LOOP, MSR
+    USE LIMS, ONLY: IOPROCID, MYID_IOGROUP
+    use CONTROL, only: IN_MPI_IO_LOOP, MSR, MPI_IO_GROUP
     INTEGER IERR, RECV
 
-    if(IN_MPI_IO_LOOP .AND. MSR)then
+!    if(IN_MPI_IO_LOOP .AND. MSR)then
+    if(IN_MPI_IO_LOOP .AND. MYID_IOGROUP == 1)then
        RECV = IOPROCID -1
        CALL MPI_SEND(EXT_CODE,1,MPI_INTEGER,RECV,SYNC_TAG &
-            &,MPI_COMM_WORLD,IERR)
+            &,MPI_IO_GROUP,IERR)
     end if
 
     CALL MPI_FINALIZE(IERR)
@@ -2294,27 +2301,36 @@ CONTAINS
 ! CREATED USING: http://www.mudmagic.com/figlet-server/
 !     146) rounded.flf :
 
-WRITE(IPT,*)'!=============================================================================!'
-WRITE(IPT,*)'            _______ _     _ _______ _______ _______ _     _   _____            '
-WRITE(IPT,*)'           (_______|_)   (_|_______|_______|_______) |   (_) (_____)           '
-WRITE(IPT,*)'            _____   _     _ _       _     _ _  _  _| |_____  _  __ _           '
-WRITE(IPT,*)'           |  ___) | |   | | |     | |   | | ||_|| |_____  || |/ /| |          '
-WRITE(IPT,*)'           | |      \ \ / /| |_____| |___| | |   | |     | ||   /_| |          '
-WRITE(IPT,*)'           |_|       \___/  \______)\_____/|_|   |_|     |_(_)_____/           '
-WRITE(IPT,*)''
-WRITE(IPT,*)'!=============================================================================!'
-WRITE(IPT,*)'!                                                                             !'
-WRITE(IPT,*)'!================== DOMAIN DECOMPOSITION USING: METIS 4.0.1 ==================!'
-WRITE(IPT,*)'!============= Copyright 1998, Regents of University of Minnesota ============!'
-WRITE(IPT,*)'!                                                                             !'
+!!$WRITE(IPT,*)'!================================================================!'
+!!$WRITE(IPT,*)'  _______  _     _  _______  _______  _______  ______     _____  '
+!!$WRITE(IPT,*)' (_______)(_)   (_)(_______)(_______)(_______)(_____ \   (_____) '
+!!$WRITE(IPT,*)'  _____    _     _  _        _     _  _  _  _  _____) )  _  __ _ '
+!!$WRITE(IPT,*)' |  ___)  | |   | || |      | |   | || ||_|| |(_____ (  | |/ /| |'
+!!$WRITE(IPT,*)' | |       \ \ / / | |_____ | |___| || |   | | _____) )_|   /_| |'
+!!$WRITE(IPT,*)' |_|        \___/   \______) \_____/ |_|   |_|(______/(_)\_____/ '
+!!$WRITE(IPT,*)' -- Beta Release'
+!!$WRITE(IPT,*)'!================================================================!'
+WRITE(IPT,*)'!================================================================!'
+WRITE(IPT,*)'          _______  _     _  _______  _______  _______             '
+WRITE(IPT,*)'         (_______)(_)   (_)(_______)(_______)(_______)            '
+WRITE(IPT,*)'          _____    _     _  _        _     _  _  _  _             '
+WRITE(IPT,*)'         |  ___)  | |   | || |      | |   | || ||_|| |            '
+WRITE(IPT,*)'         | |       \ \ / / | |_____ | |___| || |   | |            '
+WRITE(IPT,*)'         |_|        \___/   \______) \_____/ |_|   |_|            '
+WRITE(IPT,*)' -- Version 4.4.2 Release'
+WRITE(IPT,*)'!================================================================!'
+WRITE(IPT,*)'!                                                                !'
+WRITE(IPT,*)'!========DOMAIN DECOMPOSITION USING: METIS 4.0.1 ================!'
+WRITE(IPT,*)'!======Copyright 1998, Regents of University of Minnesota========!'
+WRITE(IPT,*)'!                                                                !'
 IF(PAR) THEN
    WRITE(chr_np,'(I3.3)') NP
    WRITE(chr_id,'(I3.3)') ID
-WRITE(IPT,*)'!=============================================================================!'
-WRITE(IPT,*)'!                                                                             !'
-WRITE(IPT,*)'! RUNNING IN PARALLEL: '//trim(chr_np)//' Processors                          !'
-WRITE(IPT,*)'! MYID is '//trim(chr_id)//'                                                  !'
-WRITE(IPT,*)'!=============================================================================!'
+WRITE(IPT,*)'!================================================================!'
+WRITE(IPT,*)'!                                                                !'
+WRITE(IPT,*)'! RUNNING IN PARALLEL: '//trim(chr_np)//' Processors                            !'
+WRITE(IPT,*)'! MYID is '//trim(chr_id)//'                                                    !'
+WRITE(IPT,*)'!================================================================!'
 END IF
    RETURN
    END SUBROUTINE WRITE_BANNER
@@ -2995,7 +3011,7 @@ END SUBROUTINE GET_VALUE
 
   real(sp) a,b,alpha
 
-  lim = 0.5_sp*(sign(1._sp,a)+sign(1._sp,b))*max(min(alpha*abs(a),abs(b)),min(abs(a),alpha*abs(b)))
+  lim = 0.5_sp*(sign(real(1.0,sp),a)+sign(real(1.0,sp),b))*max(min(alpha*abs(a),abs(b)),min(abs(a),alpha*abs(b)))
 
   End Function LimLED1
 
@@ -3004,7 +3020,7 @@ END SUBROUTINE GET_VALUE
 
   real(sp) a,b,alpha
 
-  lim = 0.5_sp*(sign(1._sp,a)+sign(1._sp,b))*min(0.5_sp*abs(a+b),alpha*abs(a),alpha*abs(b))
+  lim = 0.5_sp*(sign(real(1.0,sp),a)+sign(real(1.0,sp),b))*min(0.5_sp*abs(a+b),alpha*abs(a),alpha*abs(b))
 
   End Function LimLED2
 

@@ -53,6 +53,11 @@
    USE MOD_PAR
    USE MOD_WD
    USE MOD_BULK
+#  if defined (ICE)
+!  hhu ice bc 2/8/2017
+   use ice_state  !hhu
+!  hhu
+#  endif
 
 #  if defined (WATER_QUALITY)
    USE MOD_WQM
@@ -65,8 +70,11 @@
    USE MOD_DAM, ONLY : NBE_DAM,KDAM1,CLP_CELL,CLP_ALPHA,CLP_KDAM   !Jadon
 #  endif
 
-#  if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
-   USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON
+#  if defined (HEATING_CALCULATED)
+   USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON,HEATING_FRESHWATER
+#  if defined (WAVE_CURRENT_INTERACTION)
+   USE VARS_WAVE, ONLY : HSC1  ! Siqi Li, 2021-01-27
+#  endif
 #  endif
 #  if defined (HEATING_SOLAR)
    USE MOD_SOLAR, ONLY : HEATING_SOLAR_ON
@@ -81,7 +89,8 @@
 !   REAL(SP) :: TIME1,FACT,UFACT,FORCE,QPREC,QEVAP,UI,VI,UNTMP,VNTMP,TX,TY,HFLUX
    REAL(SP) :: TIME1,FACT,UFACT,FORCE,UI,VI,UNTMP,VNTMP,TX,TY,HFLUX
 !   REAL(SP) :: DTXTMP,DTYTMP,QPREC2,QEVAP2,SPRO,WDS,CD,SPCP,ROSEA
-   REAL(SP) :: DTXTMP,DTYTMP,SPRO,WDS,CD,SPCP,ROSEA,ROSEA1(MT),SPRO1(MT)
+!   REAL(SP) :: DTXTMP,DTYTMP,SPRO,WDS,CD,SPCP,ROSEA,ROSEA1(0:MT),SPRO1(0:MT) !,ROSEA1(MT),SPRO1(MT)
+   REAL(SP) :: DTXTMP,DTYTMP,SPRO,WDS,SPCP,ROSEA,ROSEA1(0:MT),SPRO1(0:MT) !,ROSEA1(MT),SPRO1(MT) ! Siqi Li, 2021-01-27
    REAL(SP) :: PHAI_IJ,ALPHA1,DHFLUXTMP,DHSHORTTMP,HSHORT,TIMERK1
 
    ! VARIABLES FOR LONG SHORE FLOW STUFF
@@ -499,8 +508,34 @@
 
 
 !==============================================================================|
-   CASE(4) !Blank                                                              !
+   CASE(4)                                                                     !
 !==============================================================================|
+# if defined (ICE)
+! hhu ice bc 2/8/2017
+!=Sea ice open boundary by Haoguo Hu=== hhu                                                    !
+! additional bc fix - afm 4/17/17
+! additional bc fix using Ice flux (UIARC_OBCN) - afm 11/13/17
+         DO I=1,IOBCN
+             I1 = I_OBC_N(I)
+             I2 = NEXT_OBC(I)
+!             IF(UARD_OBCN(I) > 0.0_SP) THEN       ! IF THE FLOW IS OUT OF THE DOMAIN
+             UIARD_OBCN(I) = -XFLUX_ICE_OBC(I)  ! ICE FLUX at open boudary cells
+             IF(UIARD_OBCN(I) > 0.0_SP) THEN       ! IF THE FLOW IS OUT OF THE DOMAIN
+                vicen(i1,:,:)= vicen(i2,:,:)
+                aicen(i1,:,:)= aicen(i2,:,:)
+                eicen(i1,:,:)= eicen(i2,:,:)
+                esnon(i1,:,:)= esnon(i2,:,:)
+                Tsfc(i1,:)= Tsfc(i2,:)
+                aice0(i1,:)= aice0(i2,:)
+                aice(i1,:)= aice(i2,:)
+                vice(i1,:)= vice(i2,:)
+                eice(i1,:)= eice(i2,:)
+                esno(i1,:)= esno(i2,:)
+            ENDIF
+          ENDDO
+!!==End sea ice open boundary=====
+!==============================================================================|
+# endif
 
 !==============================================================================|
    CASE(5) !!SOLID BOUNDARY CONDITIONS ON U AND V                              !
@@ -626,32 +661,44 @@
       END IF
       
       
-      
+      ! Siqi Li, 2021-01-27
+      ! Here we only read the wind speed or wind stress.
+      ! The calculation of wind stress was moved and now is placed
+      ! behind the heat part.       
       IF (WIND_ON) THEN
          IF (WIND_TYPE == SPEED)THEN
             CALL UPDATE_WIND(IntTime,UUWIND,VVWIND)
-            
-            CALL ASIMPLE_DRAG(UUWIND,VVWIND,WUSURF,WVSURF)
+           
+!            CALL ASIMPLE_DRAG(UUWIND,VVWIND,WUSURF,WVSURF) ! Siqi Li, 2021-01-27
 
          ELSEIF(WIND_TYPE == STRESS)THEN
             CALL UPDATE_WIND(IntTime,WUSURF,WVSURF)
          END IF
          
+!---> Siqi Li, 2021-01-27
+!         ! For output only - don't divide by density
+!         WUSURF_save = WUSURF * RAMP
+!         WVSURF_save = WVSURF * RAMP
 
-         ! For output only - don't divide by density
-         WUSURF_save = WUSURF * RAMP
-         WVSURF_save = WVSURF * RAMP
-
-         ! Divide by density 
-         WUSURF = -WUSURF * RAMP *0.001_SP
-         WVSURF = -WVSURF * RAMP *0.001_SP
-         
+!         ! Divide by density 
+!         WUSURF = -WUSURF * RAMP *0.001_SP
+!         WVSURF = -WVSURF * RAMP *0.001_SP
+!<--- Siqi Li, 2021-01-27         
          ! MAJOR MISTAKE: NEED THE NEGATIVE SIGN FOR THE INTERNAL
          ! STEP WIND STRESS
 
       END IF
+
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+!-----------------------yzhang1-----------------
+       IF (ICEIN_ON) THEN
+            CALL UPDATE_ICEIN(IntTime,CICE_TEST)
+  !   print *, CICE_TEST
+         END IF
+!------------------------------------------------- 
+# endif
       
-# if !defined (HEATING_CALCULATED) && !defined (HEATING_CALCULATED_GL) && !defined (HEATING_SOLAR)
+# if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
       IF (HEATING_ON) THEN
          CALL UPDATE_HEAT(IntTime,SWRAD_WATTS,WTSURF_WATTS)
          
@@ -673,45 +720,79 @@
       END IF
 # endif      
       
-# if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (HEATING_CALCULATED)
       IF (HEATING_CALCULATE_ON) THEN
-         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS)
-         
+!---> Siqi Li, 2021-01-27
+# if defined (WAVE_CURRENT_INTERACTION)
+         SELECT CASE (WIND_STRESS_METHOD)
+         CASE ('COARE')
+           CALL Cwave_on_WLEN_TPEAK
+         CASE DEFAULT
+           Cwave = 0.0_SP
+         END SELECT
+         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS, &
+              &        Cwave,HSC1,TAU_WIND,U_star,Cd)
+# else
+         Cwave = 0.0_SP
+         ! Here both Cwave and HSC1 are set as 0.0
+         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS, &
+              &        Cwave,Cwave,TAU_WIND,U_star,Cd)
+# endif
+
+# if defined (MULTIPROCESSOR)
+         IF(PAR) CALL AEXCHANGE(EC, MYID, NPROCS, Cd)
+         IF(PAR) CALL AEXCHANGE(EC, MYID, NPROCS, Cd)
+# endif
+
+!         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
+!<--- Siqi Li, 2021-01-27         
+
          ! LOAD INTO THES VARIABLE TO SAVE THE FORCING IN THE CORRECT UNITS
          SWRAD_WATTS  = SWRAD_WATTS * RAMP
          WTSURF_WATTS = WTSURF_WATTS * RAMP
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
+         HSENS_WATTS = HSENS_WATTS * RAMP
+         HLAT_WATTS = HLAT_WATTS * RAMP
+         LWRAD_WATTS = LWRAD_WATTS * RAMP
 
-# if defined (HEATING_CALCULATED)
-         SPCP=4.2174E3_SP
-         ROSEA = 1.023E3_SP
-         SPRO = SPCP*ROSEA
-# else
-         SPCP= 4.186E3_SP
-         ROSEA = 1.000E3_SP
-         SPRO = SPCP*ROSEA
-# endif
+         IF(.NOT. HEATING_FRESHWATER)THEN
+	   SPCP=4.2174E3_SP
+           ROSEA = 1.023E3_SP
+           SPRO = SPCP*ROSEA
+         ELSE
+           SPCP= 4.186E3_SP
+           ROSEA = 1.000E3_SP
+           SPRO = SPCP*ROSEA
+	 END IF  
          
          WTSURF    = -WTSURF_WATTS/SPRO
          SWRAD     = -SWRAD_WATTS/SPRO
 	 
 # if defined (MULTIPROCESSOR)
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
          IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,SWRAD_WATTS,WTSURF_WATTS)         
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
 # endif
 
       END IF
 # endif      
 # if defined (HEATING_SOLAR)
       IF (HEATING_SOLAR_ON) THEN
-         CALL UPDATE_HEAT_SOLAR(IntTime,SWRAD_WATTS,WTSURF_WATTS)
+      !EJA edit - add HS,HL,RLN - 05/03/2016
+         CALL UPDATE_HEAT_SOLAR(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
          
          ! LOAD INTO THES VARIABLE TO SAVE THE FORCING IN THE CORRECT UNITS
          SWRAD_WATTS  = SWRAD_WATTS * RAMP
          WTSURF_WATTS = WTSURF_WATTS * RAMP
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
+         HSENS_WATTS = HSENS_WATTS * RAMP
+         HLAT_WATTS = HLAT_WATTS * RAMP
+         LWRAD_WATTS = LWRAD_WATTS * RAMP
 
-         ROSEA1 = (-.0057)*T1(:,1)*T1(:,1) + 0.0249*T1(:,1) + 1000
+         ROSEA1 = (-.0057_SP)*T1(:,1)*T1(:,1) + 0.0249_SP*T1(:,1) + 1000.0_SP
          !IF(TWAT .LT. 3.9) WRITE(IPT,*)'WATER TEMP BELOW 4 C, BEWARE DENSITY CALCULATION!, TWAT = ',TWAT
          !IF(TWAT .GT. 30.1) WRITE(IPT,*)'WATER TEMP ABOVE 30 C, BEWARE DENSITY CALCULATION!, TWAT = ',TWAT
-         SPCP  = 4186
+         SPCP  = 4186.0_SP
          !SPRO  = SPCP*ROSEA
          !SPRO  = SPCP*ROSEA
          SPRO1  = SPCP*ROSEA1
@@ -724,12 +805,34 @@
          SWRAD     = -SWRAD_WATTS/SPRO1
 	 
 # if defined (MULTIPROCESSOR)
+         !EJA edit - add HSENS, HLAT, LWRAD 05/03/2016
          IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,SWRAD_WATTS,WTSURF_WATTS)         
+         IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
 # endif
 
       END IF
 # endif      
-      
+ 
+      !---> Siqi Li, 2021-01-27
+      IF (WIND_ON) THEN
+         IF (WIND_TYPE == SPEED)THEN
+            CALL UPDATE_WINDSTRESS('INT')
+         END IF
+
+         ! For output only - don't divide by density
+         WUSURF_save = WUSURF * RAMP
+         WVSURF_save = WVSURF * RAMP
+
+         ! Divide by density 
+         WUSURF = -WUSURF * RAMP *0.001_SP
+         WVSURF = -WVSURF * RAMP *0.001_SP
+
+         ! MAJOR MISTAKE: NEED THE NEGATIVE SIGN FOR THE INTERNAL
+         ! STEP WIND STRESS
+
+      END IF
+      !<--- Siqi Li, 2021-01-27
+     
       IF (PRECIPITATION_ON) THEN
          CALL UPDATE_PRECIPITATION(IntTime,Qprec,Qevap)
          ! NO RAMP FOR PRECIP/EVAP
@@ -803,8 +906,11 @@
 
          IF (WIND_TYPE == SPEED)THEN
             CALL UPDATE_WIND(ExtTime,UUWIND,VVWIND)
-            
-            CALL ASIMPLE_DRAG(UUWIND,VVWIND,WUSURF2,WVSURF2)
+
+            !---> Siqi Li, 2021-01-27
+            !CALL ASIMPLE_DRAG(UUWIND,VVWIND,WUSURF2,WVSURF2)
+            CALL UPDATE_WINDSTRESS('EXT')
+            !<--- Siqi Li, 2021-01-27
 
          ELSEIF(WIND_TYPE == STRESS)THEN
             CALL UPDATE_WIND(ExtTime,WUSURF2,WVSURF2)

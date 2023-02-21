@@ -1,0 +1,18 @@
+A) To choose the compiler manually by user, in folder FVCOM_source, copy file make.inc_example to make.inc and then modify make.inc for the compiler you want use.
+
+B) To choose the compiler automatically by system, run shell file configure.sh in folder Configure to recreate a file named make.inc in folder FVCOM_source (*):
+
+1. Compiling with series run:
+./configure.sh series
+
+2. Compiling with parallel run:
+./configure.sh parallel
+
+C) After A) or B), you can edit file make.inc in folder FVCOM_source for your desired setup (FLAG_1 to FLAG_41 and path of lib)
+
+Then run make in folder FVCOM_source to compile FVCOM_source code.
+
+* Only intel compilers for Linux are tested. Others are need to be tested for compilers on different system.
+
+
+ 

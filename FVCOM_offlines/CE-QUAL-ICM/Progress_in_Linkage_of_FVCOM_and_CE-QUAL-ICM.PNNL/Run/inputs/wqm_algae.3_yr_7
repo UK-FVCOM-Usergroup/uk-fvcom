@@ -1,0 +1,135 @@
+Algal kinetics parameters mass balance tests.                           
+Mock up for Lower St. Johns River                                       
+based on input file provided by C. Cerco                                
+Need to check variables                                                 
+Modified Jan 14,2003 by DHT:Increased PM1                               
+JLM ERDC WES                                                            
+                                                                        
+LIMITS   MINPROD                                                        
+         MINIMUM
+                                                                        
+PREDATN     TRPR    KTPR                                                
+            20.0  0.0690
+                                                                        
+FRACTN N    FNIP    FNUP   FLNDP   FNRDP    FNLP    FNRP                
+            0.40    0.00   0.180   0.020   0.300   0.100                
+old         0.40    0.00   0.250   0.100   0.300   0.100                
+FRACTN P    FPIP   FPLDP   FPRDP    FPLP    FPRP                        
+            0.50    0.36   0.040   0.070   0.030                        
+old         0.50    0.30   0.100   0.070   0.030                        
+FRACTN C    FDOP   FCLDP   FCRDP    FCLP    FCRP                        
+            0.00   0.100   0.200   0.500   0.200                        
+                                                                        
+FRACTN SI   FSAP                                                        
+             0.3
+                                                                        
+GROUP 1 1   ANC1     Q01    ASC1    STF1                                
+           0.175  0.0050   0.000     2.0                                
+                  0.0100             1.8                                
+GROUP 1  CHLCMN1  ACHLC1  BCHCL1  CCHLC1                                
+           0.033  0.0000    0.05   0.059                                
+old        0.020                                                        
+GROUP 1 2   KHN1    KHP1    KHS1    KHR1   KHST1  KHNFIX   FNFIX        
+            0.04 0.00075    0.00    0.50     2.0    0.01   0.000        
+   old                                       2.5                        
+GROUP 1 3 ALPHMN ALPHRAT   PRSP1   VMAX1                                
+            3.15  0.0000    0.00  0.0060                                
+old         8.00                  0.0050                                
+GROUP 1 4   TMP1     TR1                                                
+            35.0   20.00                                                
+                                                                        
+GROUP 1 5  KTG11   KTG12    KTB1                                        
+          0.0070  0.0040  0.0322                                        
+old       0.0080                                                        
+GROUP 1 6   FNI1   FNLD1   FNRD1   FNLP1   FNRP1                        
+            0.55    0.18   0.020   0.200   0.050                        
+old         0.55    0.20   0.100   0.200   0.050                        
+GROUP 1 7   FPI1   FPLD1   FPRD1   FPLP1   FPRP1                        
+            0.75    0.20   0.050   0.000   0.000                        
+old         0.75    0.23   0.020   0.000   0.000                        
+GROUP 1 8  FCLD1   FCRD1   FCLP1   FCRP1                                
+           0.000   0.000   0.000   0.000                                
+                                                                        
+GROUP 2 1   ANC2     Q02    ASC2    STF2                                
+           0.175  0.0050   0.800    0.00                                
+old               0.010             0.50                                
+GROUP 2  CHLCMN2  ACHLC2  BCHCL2  CCHLC2                                
+           0.020  0.0000    0.05   0.059                                
+                                                                        
+GROUP 2 2   KHN2    KHP2    KHS2    KHR2   KHST2                        
+           0.040   0.003   0.050     0.5     2.0                        
+old                                         20.0                        
+GROUP 2 3 ALPHMN ALPHRAT   PRSP2   VMAX2                                
+            8.00   0.000    0.25  0.0033                                
+old         8.00                  0.0022                                
+GROUP 2 4   TMP2     TR2                                                
+            25.0   20.00                                                
+                                                                        
+GROUP 2 5  KTG21   KTG22    KTB2                                        
+         0.00600 0.00000  0.0322                                        
+old      0.00400 0.01200                                                
+GROUP 2 6   FNI2   FNLD2   FNRD2   FNLP2   FNRP2                        
+            0.55    0.18   0.020   0.200   0.050                        
+old         0.55    0.20   0.100   0.200   0.050                        
+GROUP 2 7   FPI2   FPLD2   FPRD2   FPLP2   FPRP2                        
+            0.75    0.20   0.050   0.000   0.000                        
+old         0.75    0.23   0.020   0.000   0.000                        
+GROUP 2 8  FCLD2   FCRD2   FCLP2   FCRP2                                
+           0.000   0.000   0.000   0.000                                
+                                                                        
+GROUP 3 1   ANC3     Q03    ASC3    STF3                                
+           0.175  0.0040   0.000    0.00                                
+old               0.0050   0.300    0.05                                
+GROUP 3  CHLCMN3  ACHLC3  BCHCL3  CCHLC3                                
+           0.020  0.0000    0.05   0.059                                
+                                                                        
+GROUP 3 2   KHN3    KHP3    KHS3    KHR3   KHST3                        
+           0.025 0.00100   0.000    0.50    35.0                        
+old                        0.100                                        
+GROUP 3 3 ALPHMN ALPHRAT   PRSP3   VMAX3                                
+            8.00   0.000    0.25  0.0044                                
+old         8.00                  0.0033                                
+GROUP 3 4   TMP3     TR3                                                
+            35.0   20.00                                                
+                                                                        
+GROUP 3 5  KTG31   KTG32    KTB3                                        
+         0.00400 0.01000  0.0322                                        
+old      0.00300                                                        
+GROUP 3 6   FNI3   FNLD3   FNRD3   FNLP3   FNRP3                        
+            0.55    0.18   0.020   0.200   0.050                        
+old         0.55    0.20   0.100   0.200   0.050                        
+GROUP 3 7   FPI3   FPLD3   FPRD3   FPLP3   FPRP3                        
+            0.75    0.20   0.050   0.000   0.000                        
+old         0.75    0.23   0.020   0.000   0.000                        
+GROUP 3 8  FCLD3   FCRD3   FCLP3   FCRP3                                
+           0.000   0.000   0.000   0.000                                
+                                                                        
+GROUP 1   SPVAR1  PRINT1                                                
+        CONSTANT      NO
+                                                                        
+     BOX     PM1    BMR1    BPR1                                        
+       1   200.0   0.050   0.050
+   old     250.0   0.02                                                 
+GROUP 2   SPVAR2  PRINT2                                                
+        CONSTANT      NO
+                                                                        
+     BOX     PM2    BMR2    BPR2                                        
+       1   350.0   0.050   1.000
+   old     300.0   0.02    0.750                                        
+GROUP 3   SPVAR3  PRINT3                                                
+        CONSTANT      NO
+                                                                        
+     BOX     PM3    BMR3    BPR3                                        
+       1   200.0   0.050   1.000
+    old    250.0   0.02    0.750                                        
+PREDATN    TPVAR   PRINT                                                
+        CONSTANT     ALL
+                                                                        
+             DAY    TVPR                                                
+       1           1.000
+                                                                        
+GROUP 2    TB2GR   PRINT                                                
+        CONSTANT     ALL
+                                                                        
+             DAY   TB2GR                                                
+       1           1.000

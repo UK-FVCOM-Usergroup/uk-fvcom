@@ -955,7 +955,11 @@
 !                 +U(I,K)*U(I,K)/REARTH*TAN(YC(I)*DEG2RAD)*DT1(I)*ART(I)&
 !                 +0.5_SP*V(I,K)*(W(I,K+1)+W(I,K))/REARTH*DT1(I)*ART(I)
        XFLUX(I,K)=XFLUX(I,K)+XFLUXV*ART(I)&
-                 +DRHOX(I,K)-COR(I)*V(I,K)*DT1(I)*DZ1(I,K)*ART(I)&
+!JQI20201123 -- start add
+!                 +DRHOX(I,K)-COR(I)*V(I,K)*DT1(I)*DZ1(I,K)*ART(I)&
+                 +DRHOX(I,K)-(COR(I)*V(I,K)-1.458E-4_SP*W(I,K)*cos(YC(I)*DEG2RAD))&
+                 *DT1(I)*DZ1(I,K)*ART(I)&
+!JQI20201123 -- end add
                  -U(I,K)*V(I,K)/REARTH*TAN(YC(I)*DEG2RAD)*DT1(I)*DZ1(I,K)*ART(I)&
                  +0.5_SP*U(I,K)*(W(I,K+1)+W(I,K))/REARTH*DT1(I)*DZ1(I,K)*ART(I)
        YFLUX(I,K)=YFLUX(I,K)+YFLUXV*ART(I)&
@@ -1008,7 +1012,7 @@
 
 #  if defined (SPHERICAL)
 #  if !defined (SEMI_IMPLICIT)
-     CALL ADV_UV_EDGE_XY(XFLUX,YFLUX,0.0_SP,0,0_SP)
+     CALL ADV_UV_EDGE_XY(XFLUX,YFLUX,0.0_SP,0,0)
 #  else
      CALL ADV_UV_EDGE_XY(XFLUX,YFLUX,IFCETA,STAGE,KSTAGE_UV)
 #  endif
@@ -1114,7 +1118,16 @@
        UF(I,K)=U(I,K)*DT1(I)/D1(I)-DTI*XFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
        VF(I,K)=V(I,K)*DT1(I)/D1(I)-DTI*YFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
        IF(ADCOR_ON) THEN
+!JQI20201123 -- start add
+#      if defined (SPHERICAL)
+         UBETA(I,K)=XFLUX(I,K)+(COR(I)*V(I,K)-1.458E-4_SP*W(I,K)*cos(YC(I)*DEG2RAD))&
+                    *DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
+#      else
+!JQI20201123 -- end add
          UBETA(I,K)=XFLUX(I,K) +COR(I)*V(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
+!JQI20201123 -- start add
+#      endif
+!JQI20201123 -- end add
          VBETA(I,K)=YFLUX(I,K) -COR(I)*U(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
        ENDIF
 #      else
@@ -1125,7 +1138,16 @@
          XFLUX3(I,K)=XFLUX(I,K)
          YFLUX3(I,K)=YFLUX(I,K)
          IF(ADCOR_ON) THEN
+!JQI20201123 -- start add
+#      if defined (SPHERICAL)
+           UBETA(I,K)=XFLUX(I,K) +(COR(I)*V(I,K)-1.458E-4_SP*W(I,K)*cos(YC(I)*DEG2RAD))&
+                      *DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
+#      else
+!JQI20201123 -- end add
            UBETA(I,K)=XFLUX(I,K) +COR(I)*V(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
+!JQI20201123 -- start add
+#      endif
+!JQI20201123 -- end add
            VBETA(I,K)=YFLUX(I,K) -COR(I)*U(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
          ENDIF
        ENDIF

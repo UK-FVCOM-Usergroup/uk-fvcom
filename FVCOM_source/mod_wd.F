@@ -43,6 +43,9 @@ MODULE MOD_WD
    INTEGER , ALLOCATABLE :: ISWETCT(:)          !!CELL POROSITY AT CELLS FOR TIME N-1 INTERNAL
    INTEGER , ALLOCATABLE :: ISWETCE(:)          !!CELL POROSITY AT CELLS FOR TIME N-1 EXTERNAL
 
+!qxu{for inundation maps
+   INTEGER , ALLOCATABLE :: INUNDATION_MAPS(:)         !!is flooding cell for Time N
+!qxu}
 !!   REAL(SP), ALLOCATABLE :: UAS(:)          !!VERT-AVGD X-VELOC USED FOR MASS CONS IN FLOODING/DRYING PROCESS
 !!   REAL(SP), ALLOCATABLE :: VAS(:)          !!VERT-AVGD Y-VELOC USED FOR MASS CONS IN FLOODING/DRYING PROCESS
 !!   REAL(SP), ALLOCATABLE :: UARDS(:)        !!UA AVGD OVER EXT INT FOR MASS CONS IN FLOODING/DRYING PROCESS
@@ -170,8 +173,11 @@ MODULE MOD_WD
    ALLOCATE(ISWETNT(0:MT))       ; ISWETNT    = 1
    ALLOCATE(ISWETCT(0:NT))       ; ISWETCT    = 1
    ALLOCATE(ISWETCE(0:NT))       ; ISWETCE    = 1
+!qxu{for inundation maps
+   ALLOCATE(INUNDATION_MAPS(0:NT))      ; INUNDATION_MAPS   = 1
+!qxu}
 
-   memcnt = memcnt + 3*NT + 2*MT
+   memcnt = memcnt + 3*NT + 2*MT + NT
 
 !!   ALLOCATE(US(0:NT,KB))         ;US    = ZERO   !!X-VELOCITY FOR MASS CONSERVATION
 !!   ALLOCATE(VS(0:NT,KB))         ;VS    = ZERO   !!Y-VELOCITY FOR MASS CONSERVATION
@@ -267,6 +273,14 @@ MODULE MOD_WD
      ELF1(I) = ONE_THIRD*(ELF(NV(I,1))+ELF(NV(I,2))+ELF(NV(I,3)))
    END DO
 
+!qxu{for inundation maps
+!--Flood cells-----------------------------------------------------------------!
+!
+   INUNDATION_MAPS = 0
+   WHERE (H1 < 0.0 )
+     INUNDATION_MAPS = ISWETC
+   END WHERE
+!qxu}       
 !
 !--Extend Element/Node Based Wet/Dry Flags to Domain Halo----------------------!
 !
@@ -275,6 +289,9 @@ MODULE MOD_WD
 
 !JQI     CALL AEXCHANGE(EC,MYID,NPROCS,ISWETC)
      CALL AEXCHANGE(NC,MYID,NPROCS,ISWETN)
+!qxu{for inundation maps
+     CALL AEXCHANGE(EC,MYID,NPROCS,INUNDATION_MAPS)
+!qxu}
 
    END IF
 #  endif

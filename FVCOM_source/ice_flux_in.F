@@ -1211,7 +1211,7 @@
 !
       use ice_grid, only: ANGLET, t2ugrid, hm
       use ice_state
-      use mod_utils, only: fatal_error
+      use mod_utils, only: Fatal_Error
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !

@@ -119,19 +119,32 @@ MODULE MOD_ICE2D
 
   REAL(SP), PARAMETER :: DRAGW = 0.0055_SP*RHOW
   ! drag coefficient for water on ice *rhow (kg/m^3)
-  !  REAL(SP), PARAMETER :: COSW = C1I  !cos(ocean turning angle) !turning angle = 0
-  !  REAL(SP), PARAMETER :: SINW = C0I  !sin(ocean turning angle) !turning angle = 0
+# if defined (ICE_FRESHWATER)
+  ! afm 20151112 & EJA 20160921 - turning angle 0
+  REAL(SP), PARAMETER :: COSW = C1I  !cos(ocean turning angle) !turning angle = 0
+  REAL(SP), PARAMETER :: SINW = C0I  !sin(ocean turning angle) !turning angle = 0
+# else
   REAL(SP), PARAMETER :: COSW = 0.9063_SP  !cos(ocean turning angle) !turning angle = 25.
   REAL(SP), PARAMETER :: SINW = 0.4226_SP  !sin(ocean turning angle) !turning angle = 25.
+# endif
 
+# if defined (ICE_FRESHWATER)
+  ! afm 20151112 & EJA 20160921 - turning angle 0
+  REAL(SP), PARAMETER :: COSA = c1i  !cos(wind turning angle) !turning angle = 0.
+  REAL(SP), PARAMETER :: SINA = c0i  !sin(wind turning angle) !turning angle = 0.
+# else
   REAL(SP), PARAMETER :: COSA = 0.9063_SP  !cos(wind turning angle) !turning angle = 25.
   REAL(SP), PARAMETER :: SINA = 0.4226_SP  !sin(wind turning angle) !turning angle = 25.
+# endif
 
+  ! afm 20151112 & EJA 20160921 - not used for freshwater
+# if !defined (ICE_FRESHWATER) 
   REAL(SP), PARAMETER :: COSA30 = 0.86602_SP  !cos(wind turning angle) !turning angle = 30.
   REAL(SP), PARAMETER :: SINA30 = 0.50000_SP  !sin(wind turning angle) !turning angle = 30.
  
   REAL(SP), PARAMETER :: COSA20 = 0.93969_SP  !cos(wind turning angle) !turning angle = 20.
   REAL(SP), PARAMETER :: SINA20 = 0.34202_SP  !sin(wind turning angle) !turning angle = 20.
+# endif
 
   !!---------------------------------------------------------------------------------   
   real (kind=dbl_kind), dimension (:) ,allocatable,save ::&
@@ -197,7 +210,14 @@ MODULE MOD_ICE2D
 
       dyn_dt=dtice/real(ndyn_dt,kind=dbl_kind)
 
-      ndte =120 !!  
+# if defined (ICE_FRESHWATER)
+! afm 20151113 & EJA 20160921
+! ndte=120-->30, based on time stepping analysis, it should be allowable
+! and saves some computational time
+     ndte = 30
+# else
+     ndte =120 !!  
+# endif
  
       Tdte = dyn_dt/real(ndte,kind=dbl_kind)        ! s
       dtei = c1i/Tdte              ! 1/s
@@ -360,6 +380,11 @@ MODULE MOD_ICE2D
       !------------------------------------------------------------
          vmag_tmp = max(1.0, windspeed_tmp)
 
+# if defined (ICE_FRESHWATER)
+! afm turning angle 0 ------------- EJA 20160921
+         STRAIRXE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*COSA - VVWIND(I)*SINA)*AIU(I)
+         STRAIRYE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*SINA + VVWIND(I)*COSA)*AIU(I)
+# else
          IF(vmag_tmp<15.0_SP) THEN
          STRAIRXE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*COSA30 - VVWIND(I)*SINA30)*AIU(I) 
          STRAIRYE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*SINA30 + VVWIND(I)*COSA30)*AIU(I) 
@@ -367,6 +392,7 @@ MODULE MOD_ICE2D
          STRAIRXE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*COSA20 - VVWIND(I)*SINA20)*AIU(I)
          STRAIRYE(I) =1.3E-3*(1.1+0.04*vmag_tmp)*vmag_tmp*(UUWIND(I)*SINA20 + VVWIND(I)*COSA20)*AIU(I)
          ENDIF
+# endif
 
       END DO
 
@@ -1200,6 +1226,28 @@ end if !dwang
       !
      
     var_ICE1=0.0_SP
+# if defined (ICE_FRESHWATER)    
+    DO I=1,M
+! afm 20151207 & EJA 20160921 - Fix bug.
+! 1. ART_TMP: Underestimates a control volume (It only counts the ice-covered
+!             cell), resulting in overestimating flux.
+! 2. "IF(ART_TMP>0.0)&...": Ice only advects to a cell where ice already exists.
+! Put them into a classical advection form: var_ICE(I)=var_ice(I)-XFLUX(I)*dyn_dt/ART1(i)
+!
+!!       IF(ISICEN(I)==1)THEN
+!       ART_TMP=0.0
+!       DO J=1,NTVE(I)
+!!          ART_TMP=ART_TMP+ISICEC(NBVE(I,J))*ART(NBVE(I,J))
+!          ART_TMP=ART_TMP+real(ISICEC(NBVE(I,J)),SP)*ART(NBVE(I,J))
+!       END DO
+!        IF(ART_TMP>0.0)&
+!          var_ICE1(I)=var_ice(I)-XFLUX(I)*dyn_dt/(ART_TMP/3.0_SP)
+!!       ENDIF
+!       var_ICE(I)=var_ICE1(I)
+!       if (VAR_ICE(I) < 0.0)VAR_ICE(I) = c0i
+        var_ICE(I)=var_ice(I)-XFLUX(I)*dyn_dt/ART1(i)
+    END DO
+# else
     DO I=1,M
        IF(ISICEN(I)==1)THEN
        ART_TMP=0.0
@@ -1212,8 +1260,11 @@ end if !dwang
        var_ICE(I)=var_ICE1(I)
        if (VAR_ICE(I) < 0.0)VAR_ICE(I) = c0i
     END DO
+# endif      
       
-      
+! - begin afm 20171113 for ice open boundary -------------
+      XFLUX_ICE = XFLUX
+! - end afm 20171113 for ice open boundary -------------
       RETURN
     END SUBROUTINE ICE_ADV_fvcom
     !==============================================================================|
@@ -1983,7 +2034,7 @@ end if !dwang
 #  if defined (MULTIPROCESSOR) 
    IF(PAR)THEN
 
-     CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+     CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 
      ALLOCATE(aicetmp(0:mGL,1))  
      allocate(art1tmp(0:mgl)) 

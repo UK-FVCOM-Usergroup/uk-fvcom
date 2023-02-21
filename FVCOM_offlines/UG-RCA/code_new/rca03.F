@@ -1,0 +1,819 @@
+      SUBROUTINE RCA03
+! 
+!     RCA03 READS THE MODEL GEOMETRY AND INITIAL TRANSPORT FIELDS
+!        AS PROVIDED BY THE HYDRODYNAMIC MODEL
+! 
+      USE ALL_VARS
+      USE MOD_RCA
+# if defined (MULTIPROCESSOR)
+      USE MOD_PAR
+# endif            
+      IMPLICIT NONE
+      SAVE
+!      INCLUDE   'RCACM' 
+      INTEGER    IMINX(20),IMINY(20),IMINZ(20),TOTLWATR
+!JQI      REAL
+!JQI     .     TPS(NXY),MINDT(20),SCRATCH(NXY*NZ)
+!JQI     .   , TIMESTEP(NXY,NZ),TIMESTEPS(NXY*NZ)
+!JQI     .   , QBAL(NXY),TVDER(NXY)
+      CHARACTER(LEN=4)  UNITS
+!JQI      REAL DUMMY(NXY,NZ)
+      CHARACTER(LEN=80)  :: COMMENT
+      REAL QTOL,SCALHYD,TMID,TMIDD,HYDDT2
+      INTEGER IHYDDT,I,IREMAIN,NOHYDFILNA,J,IDAY
+      INTEGER ISEDTRAN,IDIF
+      INTEGER :: IERR,N_HOUR
+      
+      REAL, ALLOCATABLE :: FSM_TMP(:)
+      REAL, ALLOCATABLE :: BVOLN(:,:) 
+
+!
+!JQI      EQUIVALENCE
+!JQI     .     (TPS(1),EZ(1,1)) , (SCRATCH(1),TIMESTEP(1,1))
+!JQI     .   , (TIMESTEP(1,1),SCRATCH_TRAN(1,1,1))
+
+!JQI      DATA   MINDT/20*100./ , TOTLWATR/0/
+      DATA   TOTLWATR/0/
+
+      IF(MSR) WRITE(OUT,8000) 
+ 8000 FORMAT(//1X,119('*')//)
+  
+      READ(IN,'(A)') COMMENT
+!JQI      READ(IN,'(2I10)')  ICOLLOPT,HYDCYCOPT,LNDWTROPT,IDIFFOPT,IECOMVER
+      READ(IN,'(2I10)') HYDCYCOPT,IDIFFOPT
+      IF(HYDCYCOPT == 1 .AND. MSR) WRITE(OUT,1103)
+ 1103 FORMAT(37X,'HYDRODYNAMIC FILE WILL BE CYCLED IF END-OF-FILE ',     &
+                 'ENCOUNTERED'/)
+      IF(IDIFFOPT == 1 .AND. MSR) WRITE(OUT,1105)
+ 1105 FORMAT(35X,'USER IS SPECIFYING DIFFUSER INPUT FILES')
+      QTOL=0.01
+      IF(IDIFFOPT == 1) QTOL=0.001
+      READ(IN,'(A)')  COMMENT
+      READ(IN,'(I10,6X,A4,6X,I10)')  IHYDDT,UNITS
+      IF(UNITS /= 'SECS' .AND. UNITS /= 'secs' .AND.                     &
+         UNITS /= 'MINS' .AND. UNITS /= 'mins' .AND.                     &
+         UNITS /= 'HRS ' .AND. UNITS /= 'hrs ' .AND.                     &
+         UNITS /= ' HRS' .AND. UNITS /= ' hrs') THEN
+       IF(MSR) WRITE(OUT,9001)  UNITS
+ 9001  FORMAT(/5X,'UNITS CHOSEN FOR HYDRODYNAMIC UPDATE INTERVAL ',      &
+           A4,' ARE NOT VALID'/5X,'RCA TERMINATED')
+!       CALL EXIT
+       CALL PSTOP('rca03-61  ')
+      ENDIF
+      IF(UNITS == 'SECS' .OR. UNITS == 'secs')  SCALHYD=1.
+      IF(UNITS == 'MINS' .OR. UNITS == 'mins')  SCALHYD=60.
+      IF(UNITS == 'HRS ' .OR. UNITS == 'hrs ')  SCALHYD=3600.
+      IF(UNITS == ' HRS' .OR. UNITS == ' hrs')  SCALHYD=3600.
+!        POSSIBLE FUTURE CODE IF HYDRODYNAMIC RECORDS NOT SAVED AT HOURLY
+!          OR CONSTANT INTERVALS
+!     IF(HYDDT.NE.0.0)  THEN
+!       DO I=1,NHYD
+!        HYDBRK(I) = FLOAT(I)*HYDDT*SCALHYD
+!       ENDDO
+!     ELSE
+!       READ(IN,'(2I10)')  NOHYD
+!       IF(NOHYD.GT.NHYD)  GO TO 960
+!       READ(IN,1108,ERR=950)  (HYDBRK(I),I=1,NOHYD)
+!1108   FORMAT(8F10.0)
+!     ENDIF
+!     DO I=1,NOHYD
+!      HYDBRK(I)=SCALHYD*HYDBRK(I)
+!     ENDDO
+      IHYDDTSECS = IHYDDT*SCALHYD
+      HYDDT = FLOAT(IHYDDTSECS)/86400.
+      NXHYDTSECS = 0
+      NXHYDT = 0.0
+
+!     CHECK TO MAKE SURE THAT INTEGRATION STEPSIZE(S) ARE EXACT
+!     MULTIPLES OF THE HYDRODYNAMIC INTERVAL
+      DO I=1,NSTEP
+       IREMAIN=IMOD(IHYDDTSECS,ISTEP(I))
+       IF(IREMAIN /= 0) THEN
+        IF(MSR) WRITE(OUT,1150)  I,ISTEP(I),IHYDDTSECS
+ 1150   FORMAT(//5X,'INPUT ERROR ... INTEGRATION STEP NUMBER',I3,         &
+          ' (DT =',I6,' SECONDS) IS NOT AN EXACT MULTIPLE OF THE',1X,     &
+          'HYDRODYNAMIC UPDATE INTERVAL OF ',I8,' SECONDS'/5X,            &
+          'RCA TERMINATED')
+!        CALL EXIT
+        CALL PSTOP('rca03_98  ')
+       ENDIF
+      ENDDO
+
+!     Advective and Dispersive Scale Factors
+      READ(IN,'(A)')   COMMENT
+      READ(IN,'(3F10.0)') SCALRX,SCALRY,SCALRZ
+
+      IF(MSR) WRITE(OUT,1210)  SCALRX,SCALRY,SCALRZ
+ 1210 FORMAT(//                                                          &
+        40X,'X-DISPERSION SCALE FACTOR =',E11.3/                         &
+        40X,'Y-DISPERSION SCALE FACTOR =',E11.3/                         &
+        40X,'Z-DISPERSION SCALE FACTOR =',E11.3)
+
+
+      READ(IN,'(A)') COMMENT
+      READ(IN,'(2I10)') NOHYDFILNA
+      IF(NOHYDFILNA > MXHYDFILES) THEN
+       IF(MSR) WRITE(OUT,1260)   NOHYDFILNA,MXHYDFILES
+ 1260  FORMAT(//                                                          &
+         10X,'ERROR ... USER REQUESTED',I5,' HYDRODYNAMIC INPUT FILES'/   &
+         10X,'THIS IS GREATER THAN MAXIMUM NUMBER PERMITTED (',I3,')'/    &
+         10X,'CORRECT INPUT OR INCREASE RCACM VARIABLE -MXHYDFILES-')
+      ENDIF
+      DO IHYDFILE=1,NOHYDFILNA
+       READ(IN,'(2A40)')  HYDFILNA(IHYDFILE),DIFFILNA(IHYDFILE)   
+      ENDDO     
+      IHYDFILE=1
+      IF(MSR) WRITE(OUT,1310)  HYDFILNA(1),DIFFILNA(1)
+ 1310 FORMAT(//40X,'OPENING HYDRODYNAMIC TRANPORT FILE = ',A40/          &
+               39X,'AND OPENING DIFFUSER DISCHARGE FILE = ',A40/)
+!-----DETERMINE NUMBER OF ELEMENTS AND NODES IN THE MODEL
+      NCFILE =TRIM(HYDFILNA(1))
+      CALL NCD_READ_GRID(NCFILE)
+      IF(MSR) WRITE(*,*)  '!  # OF NODES            :',NXY
+      IF(MSR) WRITE(*,*)  '!  # OF ELEMENTS         :',EXY
+      IF(MSR) WRITE(*,*)  '!  # OF SIGMA LAYERS     :',NZ
+      IF(MSR) WRITE(*,*)
+      IF(MSR) WRITE(*,*)  '!      MESH READING      :    FINISHED'
+
+      CALL NCD_READ_SHAPE(NCFILE)
+
+!
+!---- DECOMPOSE DOMAIN BY ELEMENTS USING METIS
+!
+#  if defined (MULTIPROCESSOR) 
+      ALLOCATE(EL_PID(EXY))  ;  EL_PID = 1
+      IF(PAR)CALL DOMDEC(NPROCS,EL_PID)
+#  endif 
+
+!
+!  GENERATE GLOBAL<==>LOCAL ELEMENT/NODE MAPPING
+!
+#  if defined (MULTIPROCESSOR)
+      IF(PAR)CALL GENMAP
+#  endif
+
+      CALL PDOMDEC 
+
+      CALL ALLOCATE_RCA
+      
+      FSM = 1
+  
+!
+!-----SET UP GRID METRICS (FLUX EDGES/CONTROL VOLUMES/ETC)
+!
+      CALL TRIANGLE_GRID_EDGE      !Set up fluxes and control Volumes
+      CALL CELL_AREA               !Calculate Element and Control Volume Areas
+
+!     WRITE LAND-MASK ARRAY FOR USE IN GDP
+      IF(SERIAL)THEN
+       WRITE(10)   FSM
+       DO IXY=1,NXY
+        IF(FSM(IXY) == 1.) THEN
+          TOTLWATR = TOTLWATR+1
+        ENDIF
+       END DO
+       TOTLWATR = NZ*TOTLWATR
+      END IF 
+
+#  if defined (MULTIPROCESSOR)
+      IF(PAR)THEN
+       ALLOCATE(FSM_TMP(NXY))      ;FSM_TMP = 0.0
+       CALL GATHER(LBOUND(FSM,1),UBOUND(FSM,1),M,NXY,1,MYID,NPROCS,  &
+                  NMAP,FSM,FSM_TMP)  
+
+       IF(MSR) WRITE(10) FSM_TMP
+       DO IXY=1,NXY
+        IF(FSM_TMP(IXY) == 1.) THEN
+         TOTLWATR = TOTLWATR+1
+        ENDIF
+       END DO
+       TOTLWATR = NZ*TOTLWATR
+       DEALLOCATE(FSM_TMP)
+      END IF
+#  endif       
+         
+      IF(IDIFFOPT == 1) THEN
+       OPEN(31,FILE=DIFFILNA(1),FORM='UNFORMATTED',STATUS='OLD',ERR=910)
+       READ(31)   NODIFF
+       IF(NODIFF > MXDIFF) GO TO 980
+       BACKSPACE(31)
+       READ(31)  NODIFF,(IDD(I),I=1,NODIFF),((VDDIST(I,J),J=1,NZ),I=1,NODIFF)
+       IF(LIST(1) == 1) THEN
+        IF(MSR) WRITE(OUT,1140)
+ 1140   FORMAT(//30X,'THE FOLLOWING DIFFUSERS WERE UTILIZED IN THE ',      &
+              'HYDRODYNAMIC MODEL'/10X,'IXY VERTICAL FLOW DISTRIBUTION'/)
+        DO I=1,NODIFF
+         IF(MSR) WRITE(OUT,1142)  IDD(I),(VDDIST(I,J),J=1,NZ)
+ 1142    FORMAT(9X,I5,3X,10F5.0)
+         DO J=1,NZ
+          VDDIST(I,J)=VDDIST(I,J)/100.
+         ENDDO
+        ENDDO
+       ENDIF
+      ENDIF
+      IF(IDIAGDT == 1 .OR. INPCHCK == 1) TIME=0.
+
+      TMID = NXHYDT
+      HOUR = NXHYDT*24
+
+      ENTRY   RCA03A
+      
+     ! write(100,*) 'HOUR = ', HOUR,NXBCT
+IF(MSR)    print*, 'MONTH DAY HOUR = ',IHYDFILE, HOUR/24+1,HOUR
+
+
+  30  CALL NCD_READ(NCFILE,QX,QY,UUA,VVA,EZ,ETA,HYDSAL,HYDTEMP,HOUR,N_HOUR)
+  
+        !HYDTEMP = HYDTEMP +1   !Temporal
+       
+!      write(100,*) 'TEMP = ', HYDTEMP(1,1)
+!      write(100,*) 'NXBCT = ',NXBCT, ' -1'
+!      print*, 'NXBCT = ',NXBCT, ' -1'
+      
+      ETA1(:)  = (ETA(NV(:,1))+ETA(NV(:,2))+ETA(NV(:,3)))/3.0
+      DETA1(:) = (DETA(NV(:,1))+DETA(NV(:,2))+DETA(NV(:,3)))/3.0
+   
+      HOUR=HOUR+HYDDT*24
+!      IF(HOUR > 23) THEN
+      IF(HOUR >= N_HOUR) THEN
+      
+      IHYDFILE = IHYDFILE +1    !Tian
+      NCFILE =TRIM(HYDFILNA(IHYDFILE))   !Tian
+ IF(MSR) PRINT*,'HYDR-FILE LOADING  ', NCFILE    
+        HOUR=0   
+        IDAY=IDAY+1.
+      ENDIF            
+      
+!JQI   30 READ(30,END=920)  TMID
+      IF(INITB == 0) TMID0=TMID
+      IF(IDIAGDT > 1 .OR. INPCHCK == 1) THEN
+        INITB=1
+        TIME = TMID - TMID0
+      ENDIF
+      IF(IDIAGDT == 1 .OR. INPCHCK == 1) WRITE(OUT,8011)  TIME, TMID
+ 8011 FORMAT(10X,'Hydrodynamic Update at Day = ',F11.6,' (Hydro Time =)',F11.6)
+      IF(IDIFFOPT == 1) THEN
+       READ(31,END=930)  TMIDD,(QDIFF(I),I=1,NODIFF)
+       IF(TMID /= TMIDD) GO TO 990
+      ENDIF
+
+      UU(1:NT,:) = QX(1:NT,:)
+      VV(1:NT,:) = QY(1:NT,:)
+      CALL VISCOF_H
+      EX(1:MT,:) = VISCOFH(1:MT,:)
+      EY(1:MT,:) = VISCOFH(1:MT,:)
+
+!      write(100,*) 'NXBCT = ',NXBCT, ' 0'
+!      print*, 'NXBCT = ',NXBCT, ' 0'
+! SET FLAG FOR READING SETTLING RATE AND RESUSPENSION FLUX IN "TUNER"
+!     ISEDTRAN (=0,DO NOT READ),(=1,READ)
+      ISEDTRAN=1
+
+!     CHECK FOR NEGATIVE TEMPERATURES IN HYDRO MODEL
+      DO IZ=1,NZ
+       DO IXY=1,M
+          IF(HYDTEMP(IXY,IZ) < 0.0) THEN
+!           WRITE(OUT,1234)  TIME,IXY,IZ,HYDTEMP(IXY,IZ)
+ 1234       FORMAT(/10X,                                                   &
+             'WARNING: NEGATIVE TEMPERATURE PROVIDED BY THE HYDRODYNAMIC   &
+       MODEL AT TIME =',F10.5' DAYS'/10X,                                  &
+             'IN MODEL SEGMENT(IXY,IZ) =',2I4,' TEMPERATURE OF',F7.2,      &
+             ' DEG C MODIFIED TO 0.0 DEG C')
+            HYDTEMP(IXY,IZ) = 0.0
+          ENDIF
+       ENDDO
+      ENDDO
+
+!     POSSIBLE FUTURE CODE IF HYDRODYNAMIC RECORDS NOT SAVED AT HOURLY
+!       OR CONSTANT INTERVALS
+!     READ(30,END=920)  TMID
+!     BACKSPACE(30)
+!     NXHYDT=TMID-TMID0
+      NXHYDTSECS=NXHYDTSECS+IHYDDTSECS
+      NXHYDT=NXHYDTSECS/86400.
+
+!     If uncollapsed grid compute segment volumes  (m^3)
+
+!      write(100,*) 'NXBCT = ',NXBCT, ' 1'
+!      print*, 'NXBCT = ',NXBCT, ' 1'
+      DO IZ=1,NZ
+       DO IXY=1,M
+!        The following Commented code should not be active if the
+!            hydrodynamic model maintains true continuity and time-step
+!            round-off is not a problem
+!         IF(INITB.GT.0)  THEN
+!          DO 36 ISYS=1,NOSYS
+!           CARAY(IXY,IZ,ISYS) = BVOL(IXY,IZ)*CARAY(IXY,IZ,ISYS)
+!  36      CONTINUE
+!         ENDIF
+        BVOL(IXY,IZ)=ART1(IXY)*(H(IXY)+ETA(IXY))*DZ(IXY,IZ)+1.E-20
+!         IF(INITB.GT.0)  THEN
+!          DO 38 ISYS=1,NOSYS
+!           CARAY(IX,IY,IZ,ISYS) = CARAY(IX,IY,IZ,ISYS)/BVOL(IX,IY,IZ)
+!  38      CONTINUE
+!         ENDIF
+       END DO
+      END DO
+
+      IF(LIST(1) == 1) THEN
+        IF(MSR) WRITE(OUT,'(/49X,"SEGMENT VOLUMES (M^3)"//)')
+!!!!!JQI        CALL RCAPRNT(BVOL,1,NZ,MT)
+      ENDIF
+
+!     IF UNYLAPSED GRID COMPUTE SURFACE AREAS AND
+!     CROSS SECTIONAL AREAS
+
+!JQI      IF(ICOLLOPT.EQ.0)  THEN
+      XAZ = ART1
+
+      HYDDT2 = HYDDT/2.
+
+!JQI        DO 70 IZ=1,NZ
+!JQI        DO 70 IXY=2,NXY
+
+!JQI        IF(FSM(IXY).GE.1. OR. FSM(IXY).LE.-2)THEN
+!JQI          IF(FSM(IX-1,IY).GE.1. OR. FSM(IX-1,IY).LE.-2)THEN
+!JQI            AVEH = (H(IX-1,IY)+ETA(IX-1,IY)+HYDDT2*DETA(IX-1,IY)*86400.
+!JQI     .           + H(IX,IY)+ETA(IX,IY)+HYDDT2*DETA(IX,IY)*86400.)/2.
+!JQI            XAX(IX,IY,IZ) = AVEH*DZ(IZ)*(DY(IX-1,IY)+DY(IX,IY))/2.
+!JQI          ENDIF
+
+!JQI          IF(FSM(IX,IY-1).GE.1. OR. FSM(IX,IY-1).LE.-2)THEN
+!JQI            AVEH = (H(IX,IY-1)+ETA(IX,IY-1)+HYDDT2*DETA(IX,IY-1)*86400.
+!JQI     .           + H(IX,IY)+ETA(IX,IY)+HYDDT2*DETA(IX,IY)*86400.)/2.
+!JQI            XAY(IX,IY,IZ) = AVEH*DZ(IZ)*(DX(IX,IY-1)+DX(IX,IY))/2.
+!JQI          ENDIF
+!JQI        ENDIF
+
+!JQI   70   CONTINUE
+
+!     COMPUTE AVERAGE DEPTHS FOR THE TIME-INTERVAL
+
+      DO IXY=1,MT
+        HBAR(IXY) = H(IXY)+ETA(IXY)+HYDDT2*DETA(IXY)*86400.	
+      END DO  
+ 
+!      write(100,*) 'NXBCT = ',NXBCT, ' 2'
+!      print*, 'NXBCT = ',NXBCT, ' 2'
+!JQI      ENDIF
+     
+!        COMPUTE ADVECTIVE AND DISPERSIVE FIELDS
+!
+!JQI      IF (NZ.EQ.1) THEN
+!JQI        DO 85 IXY=1,NXY
+!JQI            TPS(IXY)=SQRT(DX(IX,IY)*DX(IX,IY)+DY(IX,IY)*DY(IX,IY))
+!JQI 85     CONTINUE
+!
+!JQI        FMIN=1.E20
+!JQI        DO 86 IY=1,NY
+!JQI        DO 86 IX=1,NX
+!JQI            FMIN=AMIN1(FMIN,TPS(IX,IY))
+!JQI 86     CONTINUE
+!JQI      ENDIF
+
+!JQI      IF(ICOLLOPT.EQ.0)  THEN
+      DO 90 IZ=1,NZ
+       DO 90 IXY=1,M
+ 
+!JQI        IF(FSM(IX,IY).GE.1. OR. FSM(IX,IY).LE.-2)THEN
+!JQI          IF (NZ.EQ.1) THEN
+!JQI            IF(FSM(IX-1,IY).GE.1. OR. FSM(IX-1,IY).LE.-2)THEN
+!JQI              EX(IX,IY,IZ)=1.0*FSM(IX,IY)*FSM(IX-1,IY)*TPS(IX,IY)/FMIN
+!JQI            ENDIF
+!JQI            IF(FSM(IX,IY-1).GE.1. OR. FSM(IX,IY-1).LE.-2)THEN
+!JQI              EY(IX,IY,IZ)=1.0*FSM(IX,IY)*FSM(IX,IY-1)*TPS(IX,IY)/FMIN
+!JQI            ENDIF
+!JQI          ENDIF
+!JQI 
+!JQI          IF(FSM(IX-1,IY).GE.1. OR. FSM(IX-1,IY).LE.-2)THEN
+!JQI            RX(IX,IY,IZ) = SCALRX*EX(IX,IY,IZ)*XAX(IX,IY,IZ)
+!JQI     .                    /(0.5*(DX(IX-1,IY)+DX(IX,IY)))
+!JQI          ENDIF
+
+!JQI          IF(FSM(IX,IY-1).GE.1. OR. FSM(IX,IY-1).LE.-2)THEN
+!JQI            RY(IX,IY,IZ) = SCALRY*EY(IX,IY,IZ)*XAY(IX,IY,IZ)
+!JQI     .                    /(0.5*(DY(IX,IY-1)+DY(IX,IY)))
+!JQI          ENDIF
+!JQI        ENDIF
+
+!JQI        IF(IZ.GT.1.AND.NZ.GT.1.AND.FSM(IX,IY).GE.1) THEN
+!JQI           RZ(IX,IY,IZ) = SCALRZ*EZ(IX,IY,IZ)*XAZ(IX,IY)
+!JQI     .                    /(0.5*(DZ(IZ)+DZ(IZ-1))*HBAR(IX,IY))
+!JQI        ENDIF
+        RX(IXY,IZ) = SCALRX*EX(IXY,IZ)*FSM(IXY)
+	RY(IXY,IZ) = SCALRY*EY(IXY,IZ)*FSM(IXY)
+	RZ(IXY,IZ) = SCALRZ*EZ(IXY,IZ)*FSM(IXY)
+   90 CONTINUE
+      IF(.NOT. ALLOCATED(BVOLN)) ALLOCATE(BVOLN(0:MT,NZ))
+      IF(.NOT. ALLOCATED(D)) ALLOCATE(D(MT))
+      IF(.NOT. ALLOCATED(D1)) ALLOCATE(D1(NT))
+      D(1:MT) = H(1:MT)+ETA(1:MT)     !+DELT*DETA(1:MT)*86400.
+!      D1(1:NT) = HC(1:NT)+ETA1(1:NT)    !+DELT*DETA1(1:NT)*86400.
+      D1(1:NT) = (D(NV(1:NT,1))+D(NV(1:NT,2))+D(NV(1:NT,3)))/3.0
+
+       CALL VERTVL(BVOLN)
+       
+!     COMPUTE VOLUME DERIVATIVE
+!     (M^3/SEC * 86400. ==> M^3/DAY)
+
+!      write(100,*) 'NXBCT = ',NXBCT, ' 3'
+!      print*, 'NXBCT = ',NXBCT, ' 3'
+      DO IZ=1,NZ
+       DO IXY=1,M
+!JQI         VDER(IXY,IZ) = 86400.*DZ(IXY,IZ)*DETA(IXY)*XAZ(IXY)
+         VDER(IXY,IZ) = (BVOLN(IXY,IZ)-BVOL(IXY,IZ))/DT
+       END DO
+      END DO 	
+
+      DO IXY=1,M
+       HBAR(IXY) = 0.0
+       DO IZ=1,NZ
+        HBAR(IXY) = HBAR(IXY)+BVOLN(IXY,IZ)
+       END DO
+       HBAR(IXY)=HBAR(IXY)/ART1(IXY)	
+      END DO
+!JQI      ENDIF
+
+!        SCALE ADVECTIVE FIELDS
+
+!JQI      IF(ICOLLOPT.EQ.1)  THEN
+!JQI      DO 105 IZ=1,NZ
+!JQI      DO 105 IY=1,NY
+!JQI      DO 105 IX=1,NX
+!JQI        RX(IX,IY,IZ) = SCALRX*RX(IX,IY,IZ)
+!JQI        RY(IX,IY,IZ) = SCALRY*RY(IX,IY,IZ)
+!JQI        RZ(IX,IY,IZ) = SCALRZ*RZ(IX,IY,IZ)
+!JQI  105 CONTINUE
+!JQI      ENDIF
+     
+      IF(LIST(1) == 0) GO TO 110
+
+      IF(MSR)THEN
+       WRITE(OUT,8000)
+       WRITE(OUT,1500)
+ 1500  FORMAT(44X,'F L O W S   ( M * * 3 / S E C )'//)
+       WRITE(OUT,1501)
+ 1501  FORMAT(20X,'HORIZONTAL OR X-DIRECTION COMPONENT'/)
+      END IF 
+      CALL RCAPRNT(QX,1,NZ,NT)
+      IF(MSR) WRITE(OUT,1502)
+ 1502 FORMAT(20X,'LATERAL OR Y-DIRECTION COMPONENT'/)
+      CALL RCAPRNT(QY,1,NZ,NT)
+      IF (NZ > 1 .AND. MSR) WRITE(OUT,1503)
+ 1503 FORMAT(20X,'VERTICAL OR Z-DIRECTION COMPONENT'/)
+!!!JQI      IF (NZ > 1) CALL RCAPRNT(QZ,1,NZ,MT)
+      IF(LIST(1) == 1) THEN
+       IF(MSR)THEN
+        WRITE(OUT,1550)
+ 1550   FORMAT(/20X,'DIFFUSER DISCHARGES'/ 8X,'IX  FLOW RATE (M^3/SEC)')
+        DO I=1,NODIFF
+         WRITE(OUT,1600) IDD(I),QDIFF(I)
+ 1600    FORMAT(5X,I5,2X,10E10.3)
+        ENDDO
+       END IF	
+      ENDIF
+      IF(MSR)THEN
+       WRITE(OUT,8000)
+       WRITE(OUT,2000)
+ 2000  FORMAT(28X,'E X C H A N G E   C O E F F I C I E N T S ',            &
+          ' (M * * 3 / S E C )'//)
+       WRITE(OUT,2001)
+ 2001  FORMAT(20X,'HORIZONTAL OR X-DIRECTION COMPONENT'/)
+      END IF
+      CALL RCAPRNT(RX,1,NZ,MT)
+      IF(MSR) WRITE(OUT,2002)
+ 2002 FORMAT(20X,'LATERAL OR Y-DIRECTION COMPONENT'/)
+      CALL RCAPRNT(RY,1,NZ,MT)
+      IF (NZ > 1 .AND. MSR) WRITE(OUT,2003)
+ 2003 FORMAT(20X,'VERTICAL OR Z-DIRECTION COMPONENT'/)
+!!!JQI      IF (NZ > 1 .AND. MSR) CALL RCAPRNT(RZ,1,NZ,MT)
+  
+!        CONVERT FLOWS AND EXCHANGES TO M^3/DAY
+
+  110 DO IZ=1,NZ
+       DO IXY=1,N
+        QX(IXY,IZ) = 86400.*QX(IXY,IZ)
+        QY(IXY,IZ) = 86400.*QY(IXY,IZ)
+       END DO
+       DO IXY=1,M	
+        IF (NZ > 1) QZ(IXY,IZ) = 86400.*QZ(IXY,IZ)
+        RX(IXY,IZ) = 86400.*RX(IXY,IZ)
+        RY(IXY,IZ) = 86400.*RY(IXY,IZ)
+        IF (NZ > 1) RZ(IXY,IZ) = 86400.*RZ(IXY,IZ)
+        IF (NZ > 1 .AND. IZ == 1) RZ(IXY,IZ) = 0.
+	EX(IXY,IZ) = 86400.*EX(IXY,IZ)
+        EY(IXY,IZ) = 86400.*EY(IXY,IZ)
+!JQI        IF (NZ > 1) EZ(IXY,IZ) = 86400.*EZ(IXY,IZ)
+        IF (NZ > 1) EZ(IXY,IZ) = EZ(IXY,IZ)
+        IF (FSM(IXY) <= 0) EZ(IXY,IZ)=0.0
+       END DO
+      END DO 	
+      IF(IDIFFOPT == 1) THEN
+        DO IDIF=1,NODIFF
+          QDIFF(IDIF) = 86400.*QDIFF(IDIF)
+	END DO  
+      ENDIF
+
+!        MAKE SURE R ARE ZERO FOR APPROPRIATE LAND AND BC SEGMENTS
+
+!JQI      DO 150 IZ=1,NZ
+!JQI      DO 150 IY=1,NY-1
+!JQI      DO 150 IX=1,NX-1
+!JQI         IF(FSM(IX,IY).NE.-1)  GO TO 150
+!JQI         IF(IX.LT.NX .AND. FSM(IX+1,IY).EQ.1) RX(IX+1,IY,IZ)=0.
+!JQI         IF(IX.GT.1 .AND. FSM(IX-1,IY).EQ.1) RX(IX,IY,IZ)=0.
+!JQI         IF(IY.LT.NY .AND. FSM(IX,IY+1).EQ.1) RY(IX,IY+1,IZ)=0.
+!JQI         IF(IY.GT.1 .AND. FSM(IX,IY-1).EQ.1) RY(IX,IY,IZ)=0.
+!JQI  150 CONTINUE
+
+!        COMPUTE CRITICAL INTEGRATION STEPSIZES
+
+!JQI      DO 160 IZ=1,NZ
+!JQI      DO 160 IY=1,NY-1
+!JQI      DO 160 IX=1,NX-1
+!JQI       IF(FSM(IX,IY).LE.0)  THEN
+!JQI        TIMESTEP(IX,IY,IZ) = 999.999
+!JQI       ELSE
+!JQI        TIMESTEP(IX,IY,IZ) = RX(IX,IY,IZ) + RX(IX+1,IY,IZ)
+!JQI     .                     + RY(IX,IY,IZ) + RY(IX,IY+1,IZ)
+!JQI        IF(QX(IX,IY,IZ).LT.0.0)  TIMESTEP(IX,IY,IZ) =
+!JQI     .                              TIMESTEP(IX,IY,IZ) - QX(IX,IY,IZ)
+!JQI        IF(QX(IX+1,IY,IZ).GT.0.0)  TIMESTEP(IX,IY,IZ) =
+!JQI     .                              TIMESTEP(IX,IY,IZ) + QX(IX+1,IY,IZ)
+!JQI        IF(QY(IX,IY,IZ).LT.0.0)  TIMESTEP(IX,IY,IZ) =
+!JQI     .                              TIMESTEP(IX,IY,IZ) - QY(IX,IY,IZ)
+!JQI        IF(QY(IX,IY+1,IZ).GT.0.0)  TIMESTEP(IX,IY,IZ) =
+!JQI     .                              TIMESTEP(IX,IY,IZ) + QY(IX,IY+1,IZ)
+!JQI        IF(QZ(IX,IY,IZ).GT.0.0)  TIMESTEP(IX,IY,IZ) =
+!JQI     .                              TIMESTEP(IX,IY,IZ) + QZ(IX,IY,IZ)
+!JQI        IF(QZ(IX,IY,IZ+1).LT.0.0)  TIMESTEP(IX,IY,IZ) =
+!JQI     .                              TIMESTEP(IX,IY,IZ) - QZ(IX,IY,IZ+1)
+!JQI        TIMESTEP(IX,IY,IZ) = BVOL(IX,IY,IZ)/(TIMESTEP(IX,IY,IZ)+1.E-20)
+!JQI       ENDIF
+!JQI  160 CONTINUE
+ 
+!JQI      IF(IDIAGDT.EQ.1 .AND. TIME.GT.0.0)  THEN
+
+!JQI      IMIN=1
+!JQI      DO 180 IZ=1,NZ
+!JQI      DO 180 IY=1,NY
+!JQI      DO 180 IX=1,NX
+!JQI        IF(FSM(IX,IY).LE.0)  GO TO 180
+!JQI        IF(IMIN.LT.21)  THEN
+!JQI           MINDT(IMIN)=TIMESTEP(IX,IY,IZ)
+!JQI           IMINX(IMIN) = IX
+!JQI           IMINY(IMIN) = IY
+!JQI           IMINZ(IMIN) = IZ
+!JQI           IMIN = IMIN+1
+!JQI        ELSE
+!JQI           STEPMIN=TIMESTEP(IX,IY,IZ)
+!JQI           IXMIN=IX
+!JQI           IYMIN=IY
+!JQI           IZMIN=IZ
+!JQI           DO 170 IMINR=1,20
+!JQI             IF(STEPMIN.LT.MINDT(IMINR))   THEN
+!JQI              TEMPSTOR = MINDT(IMINR)
+!JQI              MINDT(IMINR)=STEPMIN
+!JQI              STEPMIN=TEMPSTOR
+!JQI              ITEMPSTOR=IMINX(IMINR)
+!JQI              IMINX(IMINR) = IXMIN
+!JQI              IXMIN=ITEMPSTOR
+!JQI              ITEMPSTOR=IMINY(IMINR)
+!JQI              IMINY(IMINR) = IYMIN
+!JQI              IYMIN=ITEMPSTOR
+!JQI              ITEMPSTOR=IMINZ(IMINR)
+!JQI              IMINZ(IMINR) = IZMIN
+!JQI              IZMIN=ITEMPSTOR
+!JQI             ENDIF
+!JQI  170      CONTINUE
+!JQI        ENDIF
+!JQI  180 CONTINUE
+
+!JQI        WRITE(OUT,4300)  TIME,NINT(24.*TIME),TMID
+!JQI 4300 FORMAT(///5X,
+!JQI     .  'TIMESTEP INFORMATION FOR WATER QUALITY MODEL TIME ='
+!JQI     .  F8.2,' DAYS (= ',I7' HOURS) ... HYDRO MODEL TIME =',F8.2,
+!JQI     .  ' DAYS')
+!JQI      WRITE(OUT,4400)  (MINDT(IMIN),IMINX(IMIN),IMINY(IMIN),
+!JQI     .   IMINZ(IMIN),IMIN=1,20)
+!JQI 4400 FORMAT(   40X,' MINIMUM TIMESTEP CRITERIA'/
+!JQI     .          40X,'STEPSIZE      IX  IY  IZ'/
+!JQI     .          40X,' (DAYS)'/(40X,F7.5,4X,3I4))
+
+!JQI      CALL MOVE(NXY*NZ,TIMESTEP,TIMESTEPS)
+!JQI      CALL SORT(NXY*NZ,TIMESTEPS)
+!JQI      IP1 = 0.01*TOTLWATR
+!JQI      IP5 = 0.05*TOTLWATR
+!JQI      IP10 = 0.10*TOTLWATR
+!JQI      IP15 = 0.15*TOTLWATR
+!JQI      IP20 = 0.20*TOTLWATR
+!JQI      WRITE(OUT,4600)  1,TIMESTEPS(1),IP1,TIMESTEPS(IP1),
+!JQI     .     IP5,TIMESTEPS(IP5),IP10,TIMESTEPS(IP10),
+!JQI     .     IP15,TIMESTEPS(IP15),IP20,TIMESTEPS(IP20)
+!JQI 4600 FORMAT(/25X,'DISTRIBUTION OF CRITICAL TIMESTEPS'/
+!JQI     .  15X,' 0 PERCENT OR',I4,' SEGMENT HAS A TIMESTEP OF LESS THAN',
+!JQI     .  F10.5,' DAYS'/
+!JQI     .  15X,' 1 PERCENT OR',I4,' SEGMENTS HAVE A TIMESTEP OF LESS THAN',
+!JQI     .  F8.5,' DAYS'/
+!JQI     .  15X,' 5 PERCENT OR',I4,' SEGMENTS HAVE A TIMESTEP OF LESS THAN',
+!JQI     .  F8.5,' DAYS'/
+!JQI     .  15X,'10 PERCENT OR',I4,' SEGMENTS HAVE A TIMESTEP OF LESS THAN',
+!JQI     .  F8.5,' DAYS'/
+!JQI     .  15X,'15 PERCENT OR',I4,' SEGMENTS HAVE A TIMESTEP OF LESS THAN',
+!JQI     .  F8.5,' DAYS'/
+!JQI     .  15X,'20 PERCENT OR',I4,' SEGMENTS HAVE A TIMESTEP OF LESS THAN',
+!JQI     .  F8.5,' DAYS')
+!JQI      DO 220 I=1,20
+!JQI  220 MINDT(I) = 100.
+
+!JQI      ENDIF
+
+!        FLOW BALANCE CHECK
+      IF(INPCHCK == 1) THEN
+!JQI       DO 230 IXY=1,NXY
+!JQI         IF(FSM(IXY).EQ.1.)  THEN
+!JQI          QBAL(IXY)=0.0
+!JQI          TVDER(IXY)=0.0
+!JQI          DO 225 IZ=1,NZ
+!JQI           QBAL(IXY) = QBAL(IXY) + QX(IXY,IZ)-QX(IX+1,IY,IZ)
+!JQI     .                               + QY(IX,IY,IZ)-QY(IX,IY+1,IZ)
+!JQI           TVDER(IX,IY) = TVDER(IX,IY) + VDER(IX,IY,IZ)
+!JQI  225     CONTINUE
+!JQI          IF(NODIFF.GT.0)  THEN
+!JQI           DO IDIF=1,NODIFF
+!JQI            IXD=IDD(IDIF)
+!JQI            IYD=JDD(IDIF)
+!JQI            IF(IX.EQ.IXD .AND. IY.EQ.IYD)  THEN
+!JQI             DO IZ=1,NZ
+!JQI              QBAL(IX,IY) = QBAL(IX,IY)+VDDIST(IDIF,IZ)*QDIFF(IDIF)
+!JQI             ENDDO
+!JQI            ENDIF
+!JQI           ENDDO
+!JQI          ENDIF
+!JQI          IF(ABS(QBAL(IXY)-TVDER(IXY)).LE.QTOL*ABS(TVDER(IXY)))
+!JQI     .                                                    GO TO 230
+!JQI          WRITE(OUT,5000)  IXY,TIME,NINT(24.*TIME),TMID,
+!JQI     .                     QBAL(IXY),TVDER(IXY)
+!JQI 5000     FORMAT(15X,'CONTINUITY ERROR FOUND IN CELL',I4,
+!JQI     .       ' AT WATER QUALITY MODEL TIME = ',F8.3,' DAYS (=',I7,
+!JQI     .       ' HOURS)'/20X,'HYDRODYNAMIC TIME = ',F8.3,' DAYS',5X,
+!JQI     .       'QBAL =',E11.4,'   VDER =',E11.4)
+!JQI         ENDIF
+!JQI  230  CONTINUE
+      ENDIF
+
+      IF(IDIAGDT == 0 .AND. INPCHCK == 0) RETURN
+
+!JQI      TIMESTEP = 100.
+   
+      GO TO 30
+
+!     EXIT POINT IF PERFORMING TIME-STEP DIAGNOSTIC RUN
+!  300 CALL EXIT
+  300 CALL PSTOP('rca03_671 ')
+
+!     HYDRODYNAMIC FILE DOES NOT EXIST ...
+!     ERROR MESSAGE AND EXIT
+  900 IF(MSR) WRITE(OUT,9000)   HYDFILNA(1)
+ 9000 FORMAT(///5X,'ERROR...THE FOLLOWING HYDRODYNAMIC FILE DOES NOT ',  &
+            'EXIST OR IS EMPTY'/5X,A40/5X,'RCA TERMINATED')
+!      CALL EXIT
+      CALL PSTOP('rca03_679 ')
+!     DIFFUSER FILE DOES NOT EXIST ...
+!     ERROR MESSAGE AND EXIT
+  910 IF(MSR) WRITE(OUT,9100)   DIFFILNA(1)
+ 9100 FORMAT(///5X,'ERROR...THE FOLLOWING DIFFUSER FILE DOES NOT EXIST',   &
+            ' OR IS EMPTY'/5X,A40/5X,'RCA TERMINATED')
+!      CALL EXIT
+      CALL PSTOP('rca03_686 ')
+
+!     END OF HYDRODYNAMIC FILE ENCOUNTERED ...
+!     CHECK IF RECYCLE OPTION ENABLED
+  920 IF(HYDCYCOPT == 1) THEN
+!       IF SO REWIND FILE AND CONTINUE SIMULATION
+        REWIND(30)
+        IF(IDIFFOPT == 1) THEN
+          REWIND(31)
+          READ(31)
+        ENDIF
+        GO TO 30
+!       OR IF "LINK-FILE" OPTION ENABLED
+      ELSE IF(NOHYDFILNA > 1) THEN
+!       IF SO CLOSE PRESENT "GCM" FILE AND OPEN NEW "GCM" FILE
+        CLOSE(30)
+        IF(IDIFFOPT == 1) CLOSE(31)
+        !IHYDFILE=IHYDFILE+1   !Tian Temporal
+        IF(IHYDFILE > NOHYDFILNA) GO TO 970
+        IF(MSR) WRITE(OUT,1310)  HYDFILNA(IHYDFILE),DIFFILNA(IHYDFILE)
+        OPEN(30,FILE=HYDFILNA(IHYDFILE),FORM='UNFORMATTED',STATUS='OLD',ERR=900)
+        IF(IDIFFOPT == 1) THEN
+          OPEN(31,FILE=DIFFILNA(IHYDFILE),FORM='UNFORMATTED',STATUS='OLD',ERR=910)
+          READ(31)
+        ENDIF
+        GO TO 30
+      ELSE IF(INPCHCK == 1) THEN
+        IF(MSR) WRITE(OUT,9150)
+ 9150   FORMAT(//,20X,'HYDRODYNAMIC FILE CHECKING COMPLETED'//)
+        RETURN
+      ENDIF
+!     ERROR MESSAGE AND EXIT
+      IF(MSR) WRITE(OUT,9200)   HYDFILNA(IHYDFILE),DIFFILNA(IHYDFILE)
+ 9200 FORMAT(///5X,'END-OF-FILE ENCOUNTERED DURING READ OF'/              &
+           5X,'HYDRODYNAMIC FILE =',A40,' -or-'/                          &
+           5X,'DIFFUSER FILE =',A40/5X,' ...RCA TERMINATED')
+!      CALL EXIT
+      CALL PSTOP('rca03_723 ')
+
+!     ERROR MESSAGE AND EXIT
+  930 IF(MSR) WRITE(OUT,9300)   HYDFILNA(IHYDFILE),DIFFILNA(IHYDFILE)
+ 9300 FORMAT(///5X,'APPARENT SYNCHRONIZATION ERROR BETWEEN HYDRODYNAMIC     &
+      AND DIFFUSER FILES'/5X,'END-OF-FILE ENCOUNTERED DURING READ OF DIF    &
+      FUSER FILE'/5X,A40/5X,' ...RCA TERMINATED')
+!      CALL EXIT
+      CALL PSTOP('rca03_731 ')
+
+  950 CALL FMTER
+!      CALL EXIT
+      CALL PSTOP('rca03_735 ')
+
+  960 IF(MSR) WRITE(OUT,9600)
+ 9600 FORMAT(///10X,                                                       &
+        'ERROR...USER REQUESTED MORE HYDRODYNAMIC TIME BREAKS'/            &
+        ' THEN DIMENSIONED FOR IN -RCACM- ... RCA TERMINATED')
+!      CALL EXIT
+      CALL PSTOP('rca03_742 ')
+  970 IF(INPCHCK == 1) RETURN
+      IF(MSR) WRITE(OUT,9700)
+ 9700 FORMAT(///                                                           &
+        5X,'ERROR...END-OF-FILE ENCOUNTERED IN LAST HYDRODYNAMIC FILE'/    &
+        5X,'NO MORE USER-SPECIFIED HYDRODYNAMIC FILES EXIST'/              &
+        5X,' ... RCA TERMINATED')
+!      CALL EXIT
+      CALL PSTOP('rca03_750 ')
+  980 IF(MSR) WRITE(OUT,9800)   NODIFF,MXDIFF
+ 9800 FORMAT(///                                                           &
+        5X,'ERROR...USER REQUESTED MORE DIFFUSERS (',I5,') THEN RCA DIME   &
+      NSIONED FOR (',I5,')'/5X,'CHANGE MXDIFF IN RCA AND RECOMPILE'/       &
+        5X,'RCA TERMINATED'/)
+!      CALL EXIT
+      CALL PSTOP('rca03_757 ')
+  990 IF(MSR) WRITE(OUT,9900)   TMID,TMIDD
+ 9900 FORMAT(///                                                          &
+        5X,'ERROR...SYNC ERROR BETWEEN HYDRODYNAMIC AND DIFFUSER FILES'   &
+       /5X,'HYDRO TMID (',F10.4,') .NE. TO DIFFUSER TMID (',F10.4,')'     &
+       /5X,'RCA TERMINATED'/)
+!      CALL EXIT
+      CALL PSTOP('rca03_764 ')
+
+      END SUBROUTINE RCA03
+
+      SUBROUTINE MOVE(N,FROM,TO)
+      IMPLICIT NONE
+      INTEGER :: N,I
+      REAL  FROM(N),TO(N)
+
+      DO I=1,N
+        TO(I) = FROM(I)
+      END DO	
+
+      RETURN
+      END SUBROUTINE MOVE
+
+      SUBROUTINE SORT_RCA(N,RA)
+      IMPLICIT NONE
+      INTEGER :: N,L,IX,I,J
+      REAL    :: RRA,RA(N)
+      L=N/2+1
+      IX=N
+10    CONTINUE
+        IF(L > 1)THEN
+          L=L-1
+          RRA=RA(L)
+        ELSE
+          RRA=RA(IX)
+          RA(IX)=RA(1)
+          IX=IX-1
+          IF(IX == 1)THEN
+            RA(1)=RRA
+            RETURN
+          ENDIF
+        ENDIF
+        I=L
+        J=L+L
+20      IF(J <= IX)THEN
+          IF(J < IX)THEN
+            IF(RA(J) < RA(J+1))J=J+1
+          ENDIF
+          IF(RRA < RA(J))THEN
+            RA(I)=RA(J)
+            I=J
+            J=J+J
+          ELSE
+            J=IX+1
+          ENDIF
+        GO TO 20
+        ENDIF
+        RA(I)=RRA
+      GO TO 10
+      
+      END SUBROUTINE SORT_RCA

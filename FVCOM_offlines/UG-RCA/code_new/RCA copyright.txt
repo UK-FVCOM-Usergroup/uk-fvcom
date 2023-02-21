@@ -1,0 +1,21 @@
+ 
+C*       Version 1.0   Copyright (C) 1980, HydroQual Inc.                       
+C*       Version 3.0   Copyright (C) 2004, HydroQual Inc.                       
+C*                                                                        
+C*  These coded instructions, statements, and computer programs contain   
+C*  unpublished proprietary information of HydroQual, Inc., and are     
+C*  protected by Federal copyright law.  No part of this program and/or
+C*  modifications of this program may be reproduced in any form by print
+C*  photocopy, microfilm, magnetic- or optical-media or by any other
+C*  means, without written permission of HydroQual, Inc.
+
+C*      Authors: James Fitzpatrick
+C*               Dominic DiToro
+C*               Kai-Yuan Yang
+C*               HydroQual, Inc.
+C*               1200 Mac Arthur Blvd.
+C*               Mahwah, NJ  07430
+C*               USA
+
+C*       Version UG=RCA   Copyright (C) 2004, UMASSD                       
+C*       Authors: Jianhua Qi

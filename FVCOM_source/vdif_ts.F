@@ -122,15 +122,8 @@ SUBROUTINE VDIF_TS(NCON1,F)
      RAD    = 0.0_SP
      WFSURF = 0.0_SP
      SWRADF = 0.0_SP
-     IF(HEATING_TYPE == 'flux')THEN
-        !     DO I=1,M
-        !       WFSURF(I)=WTSURF(I)
-        !       SWRADF(I)=SWRAD(I)
-        !       SASURF(I)=0.0_SP
-        !     END DO
-        WFSURF(1:M)=WTSURF(1:M)
-        SWRADF(1:M)=SWRAD(1:M)
-        SASURF=0.0_SP
+
+     WFSURF(1:M)=WTSURF(1:M)
 
 #    if !defined (ICE)
 !
@@ -147,6 +140,7 @@ SUBROUTINE VDIF_TS(NCON1,F)
 !    WFTMP3 = 0      if SST warmer than threshold (WFTMP1) - change nothing
 !    WFTMP3 = 1      if SST colder than threshold (WFTMP1)
 !
+!    0.5*(WFTMP2-ABS(WFTMP2)) = 0                        if flux is warming in ROMS
 !    0.5*(WFTMP2+ABS(WFTMP2)) = 0                        if flux is warming
 !                             = WFSURF                   if flux is cooling 
 !
@@ -158,6 +152,16 @@ SUBROUTINE VDIF_TS(NCON1,F)
         END DO
 #    endif
 
+     IF(HEATING_TYPE == 'flux')THEN
+        !     DO I=1,M
+        !       WFSURF(I)=WTSURF(I)
+        !       SWRADF(I)=SWRAD(I)
+        !       SASURF(I)=0.0_SP
+        !     END DO
+        WFSURF(1:M)=WFSURF(1:M)
+        SWRADF(1:M)=SWRAD(1:M)
+        SASURF=0.0_SP
+
         DO K = 1, KB
            DO I = 1, M
 #    if !defined (WET_DRY)
@@ -165,66 +169,35 @@ SUBROUTINE VDIF_TS(NCON1,F)
 #    else
               IF(ISWETN(I) == 1)THEN
 #    endif
-
-! Jadon: avoid overcooling or overheating in the region (depth<2m)
-                 IF(D(I)<2.0_SP)THEN
-                    WFSURF(I) = 0.0_SP
-                    SWRADF(I) = 0.0_SP
-                 END IF
-! Jadon: avoid overcooling or overheating in the region (depth<2m)
-
                  ZDEP = Z(I,K)*D(I)
-
-!       SPECIFIED PARAMETERS FOR ROSA/UK WATERS CASE (DECEMBER 2016)
-                    IF(D(I) < 50.0_SP) THEN
-                       RHEAT=0.65
-                       ZETA1=1._SP
-                       ZETA2=15.0_SP
-                    ELSE IF(D(I) > 100.0_SP) THEN
-                       RHEAT=0.58_SP
-                       ZETA1=0.35_SP
-                       ZETA2=23.0_SP
-                    ELSE
-                       TMP1=(D(I)-50.0_SP)/(100.0_SP-50.0_SP)
-                       RHEAT=0.65_SP+(0.58_SP-0.65_SP)*TMP1
-                       ZETA1=1._SP+ (0.35_SP-1._SP )*TMP1
-                       ZETA2=15.0_SP+ (23.0_SP-15.0_SP )*TMP1
-                    END IF
-
-! zlai: include the gom method to consider different surface heat penetration
-!                 IF(D(I) < 100.0_SP) THEN
-!                    RHEAT=0.78_SP
-!                    ZETA1=1.4_SP
-!                    ZETA2=6.3_SP
-!                 ELSE IF(D(I) > 150.0_SP) THEN
-!                    RHEAT=0.58_SP
-!                    ZETA1=0.35_SP
-!                    ZETA2=23.0_SP
-!                 ELSE
-!                    TMP1=(D(I)-100.0_SP)/(150.0_SP-100.0_SP)
-!                    RHEAT=0.78_SP+(0.58_SP-0.78_SP)*TMP1
-!                    ZETA1=1.4_SP+ (0.35_SP-1.4_SP )*TMP1
-!                    ZETA2=6.3_SP+ (23.0_SP-6.3_SP )*TMP1
-!                 END IF
-! zlai: include the gom method to consider different surface heat penetration
-
                  RAD(I,K)=SWRADF(I)*(RHEAT*EXP(ZDEP/ZETA1)+(1-RHEAT)*EXP(ZDEP/ZETA2))
+!CHEN                 RAD(I,K)=SWRADF(I)*(RHEAT/ZETA1*EXP(ZDEP/ZETA1)+(1-RHEAT)/ZETA2*EXP(ZDEP/ZETA2))
 #    if defined (WET_DRY)
               END IF
 # endif
            END DO
         END DO
+     ELSE IF(HEATING_TYPE == 'body')THEN
+        WFSURF(1:M)=WFSURF(1:M)
+        SWRADF = 0.0_SP
+        SASURF = 0.0_SP
+	RAD    = 0.0_SP
+     ELSE IF(HEATING_TYPE == 'surface')THEN
+        WFSURF(1:M)=WFSURF(1:M)
+        SWRADF = 0.0_SP
+        SASURF = 0.0_SP
+	RAD    = 0.0_SP
      END IF
 
   CASE(2)
 
      SWRADF   = 0.0_SP
-     WFSURF   =0.0_SP
-     COSGAMA1 =1.0_SP
+     WFSURF   = 0.0_SP
+     COSGAMA1 = 1.0_SP
 !---Considering the salinity conservation, the sea surface salinity flux-----!
 !---can be set as zero, that is----------------------------------------------!
      SASURF   = 0.0_SP
-     RAD      =0.0_SP
+     RAD      = 0.0_SP
 
   CASE DEFAULT
      CALL FATAL_ERROR('NCON NOT CORRECT IN VDIF_TS')

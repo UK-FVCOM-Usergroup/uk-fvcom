@@ -53,12 +53,17 @@ MODULE LIMS
    INTEGER KB                 !!NUMBER OF SIGMA LEVELS
    INTEGER KBM1               !!NUMBER OF SIGMA LEVELS-1
    INTEGER KBM2               !!NUMBER OF SIGMA LEVELS-2
-   INTEGER MYID               !!UNIQUE PROCESSOR ID (1 => NPROCS)
+   INTEGER MYID               !!UNIQUE PROCESSOR ID IN MPI_COMM_FVCOM(1 => NPROCS)
+   INTEGER MYID_FGROUP        !!UNIQUE PROCESSOR ID IN MPI_FVCOM_GROUP
+   INTEGER MYID_IOGROUP       !!UNIQUE PROCESSOR ID IN MPI_IO_GROUP
    INTEGER MSRID
    INTEGER IOPROCID           !!PROCESSOR ID OF THE PRINTER NODE IF PRESENT
 !   INTEGER KSL               !!NUMBER OF STANDARD SEA LEVELS 
-   INTEGER,POINTER:: NPROCS_TOTAL !!TOTAL NUMBER OF PROCESSORS
-   INTEGER,TARGET :: NPROCS       !!NUMBER OF PROCESSORS IN FVCOM
+   INTEGER,POINTER:: NPROCS_TOTAL  !!TOTAL NUMBER OF PROCESSORS
+   INTEGER,TARGET :: NPROCS        !!NUMBER OF PROCESSORS FOR CALCULATION
+   INTEGER,TARGET :: NPROCS_IO     !!NUMBER OF PROCESSORS IN IO GROUP
+   INTEGER,TARGET :: NPROCS_FVCOM  !!NUMBER OF PROCESSORS IN FVCOM GROUP
+   INTEGER,ALLOCATABLE :: NIO_LIST(:) !!STORE THE PROCESSORS' MYID IN THE MPI_IO_GROUP FOR THE IO PROCESSOR
    INTEGER NE                 !!NUMBER OF UNIQUE EDGES (LOCAL DOMAIN ONLY)
    INTEGER NCV                !!NUMBER OF INTERNAL CONTROL VOLUMES (EXTENDED LOCAL ONLY)
    
@@ -87,13 +92,15 @@ MODULE CONTROL
 
    ! Stuff set inside FVCOM at compile time:
    LOGICAL :: SERIAL         !!TRUE IF SINGLE PROCESSOR
-   LOGICAL ::    MSR         !!TRUE IF MASTER PROCESSOR (MYID==1)
-   LOGICAL ::    PAR         !!TRUE IF MULTIPROCESSOR RUN
-   LOGICAL ::   IOPROC         !!TRUE IF PROCESSOR IS THE IOPROC
+   LOGICAL :: MSR            !!TRUE IF MASTER PROCESSOR (MYID==1)
+   LOGICAL :: PAR            !!TRUE IF MULTIPROCESSOR RUN
+   LOGICAL :: IOPROC         !!TRUE IF PROCESSOR IS THE IOPROC
    LOGICAL :: IN_MPI_IO_LOOP !!TRUE IF OUTNODE IS ALREADY IN THE LOOP
    CHARACTER(LEN=80) PRG_NAME
 
+   INTEGER MPI_COMM_FVCOM          !! PROCESSORS AS MPI_COMM_WORLD
    INTEGER MPI_FVCOM_GROUP         !! PROCESSORS WORKING ON FVCOM
+   INTEGER MPI_IO_GROUP            !! COMMUNICATE THE WORKING AND IO PROCESSORS
 !   INTEGER MPI_OTHER_GROUP        !! ADD OTHER GROUPS HERE 
 
    ! FVCOM info strings
@@ -116,16 +123,7 @@ MODULE CONTROL
     CHARACTER(Len=80) START_DATE     !!DATE TO START MODEL
     CHARACTER(Len=80) END_DATE       !!DATE TO END MODEL 
     CHARACTER(Len=80) DATE_REFERENCE !!USER DEFINED REFERENCE DATE OR DEFAULT
-
-!------------------------------Jianzhong-----------------------------------!
-    INTEGER IYEAR          !!INITIAL TIME OF COMPUTATION(YEAR)
-    INTEGER IMONTH         !!INITIAL TIME OF COMPUTATION(MONTH)
-    INTEGER IDAY           !!INITIAL TIME OF COMPUTATION(DAY)
-    INTEGER IHOUR          !!INITIAL TIME OF COMPUTATION(HOUR)
-    INTEGER IMIN           !!INITIAL TIME OF COMPUTATION(MINITE)
-    INTEGER ISEC           !!INITIAL TIME OF COMPUTATION(SECOND)
-!--------------------------------------------------------------------------|     
-
+    
     LOGICAL USE_REAL_WORLD_TIME
     NAMELIST /NML_CASE/        &
          & CASE_TITLE,         &
@@ -178,12 +176,13 @@ MODULE CONTROL
 
 
     !--Parameters in NameList NML_IO
-    CHARACTER(LEN=80) INPUT_DIR         !!MAIN   INPUT DIRECTORY
-    CHARACTER(LEN=80) OUTPUT_DIR        !!PARENT OUTPUT DIRECTORY
+    CHARACTER(LEN=80) INPUT_DIR    !!MAIN   INPUT DIRECTORY
+    CHARACTER(LEN=80) OUTPUT_DIR   !!PARENT OUTPUT DIRECTORY
     INTEGER IREPORT                !!INTERVAL (IINT) FOR REPORTING OF FLOWFIELD STATISTICS
     LOGICAL VISIT_ALL_VARS         !!SET THE LEVEL OF COMPLEXITY IN VISIT
     LOGICAL WAIT_FOR_VISIT         !!WAIT FOR VISIT TO CONNECT BEFORE BEGINING INTEGRATION
     LOGICAL USE_MPI_IO_MODE        !!TURN ON THE PRINTER NODE FOR MPI JOBS
+    INTEGER IO_PROCESSORS          !!HOW MANY IO PROCESSORS
 
     NAMELIST /NML_IO/         &
          & INPUT_DIR,         &
@@ -191,7 +190,8 @@ MODULE CONTROL
          & IREPORT,           &
          & VISIT_ALL_VARS,    &
          & WAIT_FOR_VISIT,    &
-         & USE_MPI_IO_MODE
+         & USE_MPI_IO_MODE,   &
+         & IO_PROCESSORS
         
     !--Parameters in NameList NML_INTEGRATION
 
@@ -205,7 +205,8 @@ MODULE CONTROL
 
     INTEGER   IRAMP          !!RAMP FACTOR USED TO EASE STARTUP = f(IINT)
     REAL(SP)  STATIC_SSH_ADJ !!WATER LEVEL CONSTANT ADJUSTMENT
-    REAL(SP)  MIN_DEPTH      !!MINIMUM ALLOWABLE DEPTH         
+    REAL(SP)  MIN_DEPTH      !!MINIMUM ALLOWABLE DEPTH
+    LOGICAL   RK_3D_ON       !!TRUE IF USING RK 3D mode         
 
     NAMELIST /NML_INTEGRATION/  &
 # if defined(SEMI_IMPLICIT)
@@ -216,7 +217,8 @@ MODULE CONTROL
 # endif
          & IRAMP,               &
          & MIN_DEPTH,           &
-         & STATIC_SSH_ADJ
+         & STATIC_SSH_ADJ,      &
+         & RK_3D_ON
     
 
 
@@ -256,9 +258,7 @@ MODULE CONTROL
     LOGICAL NC_NH_QP
     LOGICAL NC_NH_RHS
     LOGICAL NC_ICE
-    LOGICAL NC_KBTT
-    LOGICAL NC_CT
-
+    
     ! FORCING DATA
     LOGICAL NC_WIND_VEL
     LOGICAL NC_WIND_STRESS
@@ -311,9 +311,71 @@ MODULE CONTROL
 # endif
          & NC_BIO,           &
          & NC_WQM,           &
-         & NC_VORTICITY,     &
-         & NC_KBTT,          &
-         & NC_CT
+# if defined (DATA_ASSIM)
+	 & NC_VORTICITY,     &
+    
+    ! lwang added for mld_output Jul 09, 2019
+!         & NC_MLD,           & ! Siqi Li, @20210809
+    ! lwang added for ERSEM oflline Aug 26, 2019
+         & NC_UARD_OBCN
+    ! lwang
+# else
+	 & NC_VORTICITY
+# endif
+
+
+    !--Parameters in NameList NML_NETCDF_SURFACE
+    LOGICAL NCSF_ON
+    CHARACTER(LEN=80) NCSF_FIRST_OUT        !! DATE TO START NETCDF OUTPUT
+    CHARACTER(LEN=80) NCSF_OUT_INTERVAL     !! OUTPUT INTERVAL IN DECIMAL DAYS
+    INTEGER  NCSF_OUTPUT_STACK              !! NUMBER OF TIMESTEPS PER FILE
+    CHARACTER(LEN=120) NCSF_SUBDOMAIN_FILES !! DOMAIN OUTPUT SPECS
+    ! GRID STUFF
+    LOGICAL NCSF_GRID_METRICS
+    LOGICAL NCSF_FILE_DATE
+    ! MODEL DATA
+    LOGICAL NCSF_VELOCITY
+    LOGICAL NCSF_SALT_TEMP
+    LOGICAL NCSF_TURBULENCE
+    LOGICAL NCSF_ICE
+    LOGICAL NCSF_WAVE_PARA     
+    
+    ! FORCING DATA
+    LOGICAL NCSF_WIND_VEL
+    LOGICAL NCSF_WIND_STRESS
+#   if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
+    LOGICAL NCSF_ATM_PRESS  
+#   endif    
+    LOGICAL NCSF_EVAP_PRECIP
+    LOGICAL NCSF_SURFACE_HEAT
+
+    CHARACTER(LEN=80) NCSF_FILE_NAME !!NAME OF NC FILE
+    ! ONLY VALID TILL THE NAME IS INCRIMENTED IF THE STKCNT IS EXCEEDED
+
+    NAMELIST /NML_NETCDF_SURFACE/    &
+         & NCSF_ON,            &
+         & NCSF_FIRST_OUT,     &
+         & NCSF_OUT_INTERVAL,  &
+         & NCSF_OUTPUT_STACK,  &
+         & NCSF_SUBDOMAIN_FILES,&
+         & NCSF_GRID_METRICS,  &
+         & NCSF_FILE_DATE,     &
+         & NCSF_VELOCITY,      &
+         & NCSF_SALT_TEMP,     &
+         & NCSF_TURBULENCE,    &
+         & NCSF_WIND_VEL,      &
+         & NCSF_WIND_STRESS,   &
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
+         & NCSF_ATM_PRESS,     &
+# endif
+# if defined(WAVE_CURRENT_INTERACTION)
+         & NCSF_WAVE_PARA,     &    
+# endif
+# if defined(ICE)
+         & NCSF_ICE,           &
+# endif
+         & NCSF_EVAP_PRECIP,   &
+         & NCSF_SURFACE_HEAT
 
     !--Parameters in NameList NML_NETCDF_AV
     LOGICAL NCAV_ON                         !! TURN ON NETCDF AVERAGING
@@ -339,7 +401,7 @@ MODULE CONTROL
     ! FORCING DATA
     LOGICAL NCAV_WIND_VEL
     LOGICAL NCAV_WIND_STRESS
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
     LOGICAL NCAV_ATM_PRESS  
 # endif
     LOGICAL NCAV_WAVE_PARA    
@@ -377,7 +439,7 @@ MODULE CONTROL
 # endif
          & NCAV_WIND_VEL,       &
          & NCAV_WIND_STRESS,    &
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
          & NCAV_ATM_PRESS,      &
 # endif
 # if defined(WAVE_CURRENT_INTERACTION)
@@ -431,6 +493,7 @@ MODULE CONTROL
 
     CHARACTER(LEN=80),parameter :: BR_ORIG   = 'orig'
     CHARACTER(LEN=80),parameter :: BR_GOTM   = 'gotm'
+    CHARACTER(LEN=80),parameter :: BR_UDEF   = 'udef'  !Added by Siqi Li@2015/08/29
 
     LOGICAL CONVECTIVE_OVERTURNING
     LOGICAL SCALAR_POSITIVITY_CONTROL
@@ -507,6 +570,8 @@ MODULE CONTROL
     CHARACTER(LEN=80) WIND_KIND
     REAL(SP) WIND_X
     REAL(SP) WIND_Y
+    CHARACTER(LEN=80) WIND_STRESS_METHOD ! Siqi Li, 2021-01-27
+    REAL(SP) ZUU                         ! Siqi Li, 2021-01-27
     
     LOGICAL HEATING_ON
     CHARACTER(LEN=80) HEATING_TYPE
@@ -544,6 +609,13 @@ MODULE CONTROL
     REAL(SP) :: WAVE_PERIOD
     REAL(SP) :: WAVE_PER_BOT
     REAL(SP) :: WAVE_UB_BOT
+    
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+    LOGICAL ICEIN_ON
+    CHARACTER(LEN=80) ICEIN_FILE
+    CHARACTER(LEN=80) ICEIN_KIND
+    REAL(SP) CICE    
+# endif
 
     ! FORCING KINDS
     CHARACTER(LEN=80),parameter:: CNSTNT   = "constant"
@@ -567,6 +639,8 @@ MODULE CONTROL
          & WIND_KIND,                       &
          & WIND_X,                          &
          & WIND_Y,                          &
+         & WIND_STRESS_METHOD,              &   ! Siqi Li, 2021-01-27
+         & ZUU,                             &   ! Siqi Li, 2021-01-27
          & HEATING_ON,                      &
          & HEATING_TYPE,                    &
          & HEATING_KIND,                    &
@@ -593,8 +667,15 @@ MODULE CONTROL
          & WAVE_DIRECTION,                  &
          & WAVE_PERIOD,                     &
          & WAVE_PER_BOT,                    &
-         & WAVE_UB_BOT  
-
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+         & WAVE_UB_BOT,                     &
+         & ICEIN_ON,                        &
+         & ICEIN_KIND,                      &
+         & ICEIN_FILE,                      &
+         & CICE
+# else
+         & WAVE_UB_BOT
+# endif
     !--Parameters in NameList NML_RIVER_TYPE
     CHARACTER(LEN=80) RIVER_TS_SETTING ! METHOD TO CALCULATE T&S AT
     ! THE RIVER MOUTH
@@ -936,6 +1017,22 @@ MODULE CONTROL
            & SALT_MIN
     !<= bounds checking
 
+!---> Siqi Li, @20210809
+    !--Parameters in NameList NML_MLD
+    LOGICAL  :: NC_MLD      
+    REAL(SP) :: GAMMA_MIN    
+    REAL(SP) :: MLD_DEFAULT   
+    REAL(SP) :: DEEPWATER_DEPTH
+    REAL(SP) :: DEEPWATER_GAMMA
+
+    NAMELIST /NML_MLD/         &
+         & NC_MLD,             &
+         & GAMMA_MIN,          &
+         & MLD_DEFAULT,        &
+         & DEEPWATER_DEPTH,    &
+         & DEEPWATER_GAMMA
+!<---
+
 !--Time Variables for FVCOM-----------------------------------------!
     TYPE(TIME) :: IntTime
     TYPE(TIME) :: ExtTime
@@ -1140,6 +1237,7 @@ MODULE ALL_VARS
    INTEGER, ALLOCATABLE,TARGET :: NTSN(:)             !! NUMBER OF NODES SURROUNDING EACH NODE
    INTEGER, ALLOCATABLE,TARGET :: ISONB(:)            !!NODE MARKER = 0,1,2
    INTEGER, ALLOCATABLE,TARGET :: ISONB_W(:)          !!NODE MARKER = 0,1,2
+   INTEGER, ALLOCATABLE,TARGET :: ISONB_3(:)          !!NODE MARKER = 0,3   
    INTEGER, ALLOCATABLE,TARGET :: ISBC(:)     
    INTEGER, ALLOCATABLE,TARGET :: ISBCE(:)     
    INTEGER, ALLOCATABLE,TARGET :: IEC(:,:)
@@ -1297,12 +1395,18 @@ MODULE ALL_VARS
 
    REAL(SP), ALLOCATABLE,TARGET :: CBC(:)           !!BOTTOM FRICTION     
    REAL(SP), ALLOCATABLE,TARGET :: CC_Z0B(:)        !!BOTTOM ROUGHNESS VARIABLE
+   REAL(SP), ALLOCATABLE,TARGET :: CBC_UD(:)        !!INPUT DRAG COEFFICIENT !Added by Siqi Li@2015/08/29
 !Jadon Ge
    REAL(SP), ALLOCATABLE,TARGET :: NUNI_CBCMIN(:)    !! BOTTOM ROUGHNESS MINIMUM
 !Jadon Ge
-
    REAL(SP), ALLOCATABLE,TARGET :: SWRAD_WATTS(:)  !!SURFACE INCIDENT RADIATION
    REAL(SP), ALLOCATABLE,TARGET :: WTSURF_WATTS(:) !!NET HEAT FLUX AT SURFACE
+#  if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+   !EJA edit to add Sensible, Latent, Longwave heat fluxes for output 05/03/2016
+   REAL(SP), ALLOCATABLE,TARGET :: HSENS_WATTS(:)  !!SENSIBLE HEAT FLUX AT SURFACE
+   REAL(SP), ALLOCATABLE,TARGET :: HLAT_WATTS(:)   !!LATENT HEAT FLUX AT SURFACE
+   REAL(SP), ALLOCATABLE,TARGET :: LWRAD_WATTS(:)  !!LONGWAVE RADIATION AT SURFACE
+#  endif
 
    ! THESE TWO ARE DIVIDED BY THE SPECFIC HEAT AND AVERAGE DENSITY!
    REAL(SP), ALLOCATABLE,TARGET :: SWRAD(:)         !!SURFACE INCIDENT RADIATION
@@ -1323,6 +1427,7 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: WVSURF(:)        !!SURFACE FRICTION FOR INT
    REAL(SP), ALLOCATABLE,TARGET :: WUSURF_save(:)   !!SURFACE FRICTION FOR INT
    REAL(SP), ALLOCATABLE,TARGET :: WVSURF_save(:)   !!SURFACE FRICTION FOR INT
+   REAL(SP), ALLOCATABLE,TARGET :: CICE_TEST(:)     !!INPUT ICE CONCENTRARION
    ! BFWDIS - UNITS: m3s-1 Cubic meters per second
    REAL(SP), ALLOCATABLE,TARGET :: BFWDIS(:)        !!GROUNDWATER FLUX AT CURRENT TIME
 !# if !defined (SEMI_IMPLICIT)
@@ -1497,6 +1602,13 @@ MODULE ALL_VARS
   REAL(SP), ALLOCATABLE,TARGET :: Q2LF(:,:)      !WORKING ARRAY FOR UPDATING Q2F 
   REAL(SP), ALLOCATABLE,TARGET :: KM1(:,:)       !TURBULENT EDDY VISCOSITY FOR MOMENTUM 
 
+!!# if defined (DATA_ASSIM)  ! Removed by Siqi Li, @20210809
+!---> Siqi Li for MLD_output @ 2019-05-01
+  REAL(SP), ALLOCATABLE,TARGET :: MLD_OUT(:)
+!  INTEGER, ALLOCATABLE,TARGET  :: MLD_Nsiglay(:)   ! Removed by Siqi Li, @20210809
+!<--- Siqi 
+!!# endif ! Removed by Siqi Li, @20210809
+
   ! VARIABLE HORIZONTAL VISCOSITY COEFFICENTS  
   REAL(SP), ALLOCATABLE :: CC_HVC(:)
   REAL(SP), ALLOCATABLE :: NN_HVC(:)
@@ -1555,10 +1667,30 @@ MODULE ALL_VARS
   REAL(SP), ALLOCATABLE,TARGET :: R_AVE(:,:)   !RHO1 AVERAGED OVER INT_AVGE ITERATIONS
   REAL(SP), ALLOCATABLE,TARGET :: EL_AVE(:)    !EL AVERAGED OVER INT_AVGE ITERATIONS
 
+  !-----arrays used for surface of flow quantities for output-----------------------!
+
+  REAL(SP), ALLOCATABLE,TARGET :: U_SURFACE(:)    !!SURFACE X-VELOC
+  REAL(SP), ALLOCATABLE,TARGET :: V_SURFACE(:)    !!SURFACE Y-VELOC
+  REAL(SP), ALLOCATABLE,TARGET :: T1_SURFACE(:)   !!SURFACE TEMPERATURE AT NODES               
+  REAL(SP), ALLOCATABLE,TARGET :: S1_SURFACE(:)   !!SURFACE SALINITY AT NODES               
+  REAL(SP), ALLOCATABLE,TARGET :: VISCOFH_SURFACE(:)
+  REAL(SP), ALLOCATABLE,TARGET :: VISCOFM_SURFACE(:)
+ 
+  !---------------------------------------------------------------------------------!
   REAL(SP), ALLOCATABLE,TARGET :: VISCOFH(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: VISCOFM(:,:)
 
   REAL(SP), ALLOCATABLE,TARGET :: HYW(:,:)
+
+
+  !-----Surface drag coefficient----------------------------------------------------!
+  ! Siqi Li, 2021-01-27
+  REAL(SP), ALLOCATABLE,TARGET :: Cd(:)          !! Surface drag coefficient
+  REAL(SP), ALLOCATABLE,TARGET :: Z0(:)          !! Surface roughness
+  REAL(SP), ALLOCATABLE,TARGET :: U_star(:)      !! friction velocity
+  REAL(SP), ALLOCATABLE,TARGET :: TAU_WIND(:)    !! Total wind stress
+  REAL(SP), ALLOCATABLE,TARGET :: Cwave(:)       !! peak wave phase speed
+  REAL(SP) :: Pair_unit_factor                   !! used for converting Pair unit 
 
 # if defined (EQUI_TIDE)
   INTEGER,  ALLOCATABLE :: EQUI_ID(:)
@@ -1721,6 +1853,7 @@ CONTAINS
    ALLOCATE(NTSN(0:MT))          ;NTSN     = 0 
    ALLOCATE(ISONB(0:MT))         ;ISONB    = 0  !!NODE MARKER = 0,1,2
    ALLOCATE(ISONB_W(0:MT))       ;ISONB_W  = 0  !!NODE MARKER = 0,1,2
+   ALLOCATE(ISONB_3(0:MT))       ;ISONB_3  = 0  !!NODE MARKER = 0,3
    ALLOCATE(ISBCE(0:NT))         ;ISBCE    = 0 
    ALLOCATE(NIEC(NCT,2))         ;NIEC     = 0
    ALLOCATE(NTRG(NCT))           ;NTRG     = 0
@@ -1848,7 +1981,8 @@ CONTAINS
 !---------------surface/bottom/edge boundary conditions-----------------------------!
 
    ALLOCATE(CBC(0:NT))           ;CBC    = ZERO     !!BOTTOM FRICTION     
-   ALLOCATE(CC_Z0B(0:NT))        ;CC_Z0B = ZERO     !!BOTTOM ROUGHNESS VARIABLE     
+   ALLOCATE(CC_Z0B(0:NT))        ;CC_Z0B = ZERO     !!BOTTOM ROUGHNESS VARIABLE  
+   ALLOCATE(CBC_UD(0:NT))        ;CBC_UD = ZERO     !!INPUT DRAG COEFFICIENT !added by Siqi Li@2015/08/29   
 !Jadon Ge
    ALLOCATE(NUNI_CBCMIN(0:NT))  ;NUNI_CBCMIN = ZERO !! BOTTOM ROUGHNESS MINIMUM
 !Jadon Ge
@@ -1873,7 +2007,12 @@ CONTAINS
    ALLOCATE(WTSURF(0:MT))        ;WTSURF = ZERO 
    ALLOCATE(SWRAD_WATTS(0:MT))  ;SWRAD_WATTS  = ZERO !!SURFACE INCIDENT RADIATION
    ALLOCATE(WTSURF_WATTS(0:MT)) ;WTSURF_WATTS = ZERO 
-
+# if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+   !EJA edit to add SENSIBLE, LATENT, LONGWAVE HEAT FLUX
+   ALLOCATE(HSENS_WATTS(0:MT))  ;HSENS_WATTS  = ZERO !!SENSIBLE HEAT FLUX
+   ALLOCATE(HLAT_WATTS(0:MT))   ;HLAT_WATTS   = ZERO !!LATENT HEAT FLUX
+   ALLOCATE(LWRAD_WATTS(0:MT))  ;LWRAD_WATTS  = ZERO !!LONGWAVE RADIATION
+#  endif
    ALLOCATE(KBTT(0:NT,KB))       ;KBTT = ZERO       !!SIGMA LAYER LOCATION AND FRACTION OF STRUCTURES
    ALLOCATE(NTT(0:NT))           ;NTT  = ZERO       !!NUMBER OF STRUCTURES IN EACH ELEMENT
    ALLOCATE(ARTT(0:NT))          ;ARTT  = ZERO      !!ROTOR SWEPT AREA OF FLOW FACING AREA OF STRUCTURES IN EACH ELEMENT
@@ -1893,6 +2032,10 @@ CONTAINS
    ALLOCATE(WLENGTH(0:MT))       ;WLENGTH  = ZERO
    ALLOCATE(WPER_BOT(0:MT))      ;WPER_BOT = ZERO
    ALLOCATE(WUB_BOT(0:MT))       ;WUB_BOT  = ZERO
+# endif
+
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+   ALLOCATE(CICE_TEST(0:MT))     ;CICE_TEST = ZERO
 # endif
 
 # if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
@@ -2047,6 +2190,12 @@ CONTAINS
    ALLOCATE(AAM(0:MT,KB))        ;AAM   = ZERO   !!??
    ALLOCATE(KM1(0:NT,KB))        ;KM1   = ZERO   !!TURBULENT QUANTITY AT ELEMENTS
 
+!!#  if defined (DATA_ASSIM)  ! Removed by Siqi Li, @20210809
+!---> Siqi Li for MLD_output @ 2019-05-01
+   ALLOCATE(MLD_OUT(0:MT))       ;MLD_OUT = ZERO
+!   ALLOCATE(MLD_Nsiglay(0:MT))   ;MLD_Nsiglay = ZERO ! Removed by Siqi Li, @20210809
+!<--- Siqi
+!!#  endif  ! Removed by Siqi Li, @20210809
 
    ALLOCATE(CC_HVC(0:NT))        ;CC_HVC = ZERO  !!VISCOSITY COEFFICIENT AT ELEMENTS
    ALLOCATE(NN_HVC(0:MT))        ;NN_HVC = ZERO  !!VISCOSITY COEFFICIENT AT NODES
@@ -2092,7 +2241,27 @@ CONTAINS
    ALLOCATE(VISCOFM(0:NT,KB))    ;VISCOFM = ZERO
    MEMCNT = MT*KB*NDB + NT*KB*NDB + MEMCNT
 
+  !-----arrays used for surface of flow quantities for output-----------------------!
+
+   ALLOCATE(U_SURFACE(0:NT))          ;U_SURFACE     = ZERO   !!X-VELOCITY
+   ALLOCATE(V_SURFACE(0:NT))          ;V_SURFACE     = ZERO   !!Y-VELOCITY
+   ALLOCATE(T1_SURFACE(0:MT))         ;T1_SURFACE    = ZERO   !!SURFACE TEMPERATURE AT NODES               
+   ALLOCATE(S1_SURFACE(0:MT))         ;S1_SURFACE    = ZERO   !!SURFACE SALINITY AT NODES               
+   ALLOCATE(VISCOFH_SURFACE(0:MT))    ;VISCOFH_SURFACE = ZERO
+   ALLOCATE(VISCOFM_SURFACE(0:NT))    ;VISCOFM_SURFACE = ZERO
+   MEMCNT = MT*3*NDB + NT*3*NDB + MEMCNT
+
+
    ALLOCATE(HYW(0:MT,KB))        ;HYW     = ZERO
+
+  !-----Surface drag coefficient----------------------------------------------------!
+  ! Siqi Li, 2021-01-27
+  ALLOCATE(Cd(0:NT))                  ;Cd       = ZERO
+  ALLOCATE(Z0(0:NT))                  ;Z0       = ZERO
+  ALLOCATE(U_star(0:NT))              ;U_star   = ZERO
+  ALLOCATE(Cwave(0:NT))               ;Cwave    = ZERO
+  ALLOCATE(TAU_WIND(0:NT))            ;TAU_WIND = ZERO
+
 !-----special initialization which probably do nothing------------------------------!
 
    DT1(0)   = 100.0_SP

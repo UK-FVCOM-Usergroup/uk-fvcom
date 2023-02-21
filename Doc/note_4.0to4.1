@@ -1,0 +1,7 @@
+1)ice_flux_in.F: Fixed a bug via adding 'use mod_utils, only: Fatal_Error' in subroutine prepare_forcing.
+
+2)mod_non_hydro.F: Added the subroutine calls to new version of PETSc (missed in FVCOM 4.0).  
+
+3)mod_setup.F: Fixed an unimportant bug in subroutine SETUP_CENTER_COORDS:
+
+call ADEAL(MYID,MSRID,NPROCS,EXMAP,xc_buf,ymc) => call ADEAL(MYID,MSRID,NPROCS,EXMAP,yc_buf,ymc)

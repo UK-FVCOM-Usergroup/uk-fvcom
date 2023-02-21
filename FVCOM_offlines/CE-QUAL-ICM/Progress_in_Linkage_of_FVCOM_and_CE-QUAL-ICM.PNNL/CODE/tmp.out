@@ -1,0 +1,95 @@
+adv_wqm.F:   REAL :: FFD,FF1,X11,Y11,X22,Y22,X33,Y33,TMP1,TMP2,XI,YI
+tge.F:   INTEGER ITMP1,ITMP2,ITMP3,JN,JJB,IBCETMP,NCTMP,NCETMP,NPT
+tge.F:     ITMP1=ISONB(NV(I,1))
+vertvl.F:   REAL(SP) :: DIJ,UIJ,VIJ,UN,EXFLUX,TMP1
+vertvl.F:         TMP1=EL(I)*FLOAT(KBM1)-WTS(I,KB)*DLT/DZ(1)
+vertvl.F:         TMP1=TMP1/FLOAT(KBM1)
+vertvl.F:         DTFA(I)=TMP1+H(I)
+viscofh.F:   REAL(SP) :: X11,Y11,X22,Y22,X33,Y33,TMP1,TMP2
+viscofh.F:       TMP1=PUPX(I)**2+PVPY(I)**2
+viscofh.F:       VISCOFF(I)=SQRT(TMP1+TMP2)*ART1(I)
+wqm_alg.F:   REAL :: TRPR, TMP1, TR1, TMP2, TR2, TMP3, TR3, TLOOK
+wqm_alg.F:     READ(AGR,1030) TMP1,TR1
+wqm_alg.F:       IF (TLOOK < TMP1) THEN
+wqm_alg.F:         FT1(I) = EXP(-KTG11*(TLOOK-TMP1)**2)
+wqm_alg.F:         FT1(I) = EXP(-KTG12*(TMP1-TLOOK)**2)
+wqm_alg.F:     IF(MSR)WRITE(ALO,4010) TMP1, TMP2, TMP3
+wqm_main.F:   REAL    :: ITT,TTMP1,TTMP2
+wqm_main.F:           DTMP1 = DENIT(I,K)*ART1(I)*D(I)*DZ(K)*TM1
+wqm_main.F:           DLWCKMNB(I,K) = DLWCKMNB(I,K)-DTMP1
+wqm_main.F:           DLWCKMN = DLWCKMN-DTMP1
+wqm_main.F:           DTMP1 = (DLALGC(I,K)-RESPC(I,K)-MNLLDOC(I,K)-MNLRDOC(I,K)-DENIT(I,K))   &
+wqm_main.F:           DLWCKMCB(I,K) = DLWCKMCB(I,K)+DTMP1
+wqm_main.F:           DLWCKMC = DLWCKMC+DTMP1
+wqm_main.F:       DTMP1=DLTS/1.E6
+wqm_main.F:         DFTMP=DTMP1*ART1(BB)
+wqm_sed.F:   REAL, ALLOCATABLE :: RTMP11(:),RTMP12(:),RTMP13(:),RTMP14(:),     &
+wqm_sed.F:                        RTMP15(:),RTMP16(:),RTMP17(:)
+wqm_sed.F:     ALLOCATE(RTMP11(MGL));     RTMP11 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP12(MGL));     RTMP12 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP13(MGL));     RTMP13 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP14(MGL));     RTMP14 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP15(MGL));     RTMP15 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP16(MGL));     RTMP16 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP17(MGL));     RTMP17 = 0.0
+wqm_sed.F:       WSSBNET = RTMP11
+wqm_sed.F:       WSLBNET = RTMP12
+wqm_sed.F:       WSRBNET = RTMP13
+wqm_sed.F:       WS1BNET = RTMP14
+wqm_sed.F:       WS2BNET = RTMP15
+wqm_sed.F:       WS3BNET = RTMP16
+wqm_sed.F:       WSUBNET = RTMP17
+wqm_sed.F:         WSSBNET(I) = RTMP11(NGID(I))
+wqm_sed.F:         WSLBNET(I) = RTMP12(NGID(I))
+wqm_sed.F:         WSRBNET(I) = RTMP13(NGID(I))
+wqm_sed.F:         WS1BNET(I) = RTMP14(NGID(I))
+wqm_sed.F:         WS2BNET(I) = RTMP15(NGID(I))
+wqm_sed.F:         WS3BNET(I) = RTMP16(NGID(I))
+wqm_sed.F:         WSUBNET(I) = RTMP17(NGID(I))
+wqm_sed.F:         WSSBNET(I+MLOC) = RTMP11(HN_LST(I))
+wqm_sed.F:         WSLBNET(I+MLOC) = RTMP12(HN_LST(I))
+wqm_sed.F:         WSRBNET(I+MLOC) = RTMP13(HN_LST(I))
+wqm_sed.F:         WS1BNET(I+MLOC) = RTMP14(HN_LST(I))
+wqm_sed.F:         WS2BNET(I+MLOC) = RTMP15(HN_LST(I))
+wqm_sed.F:         WS3BNET(I+MLOC) = RTMP16(HN_LST(I))
+wqm_sed.F:         WSUBNET(I+MLOC) = RTMP17(HN_LST(I))
+wqm_sed.F:     DEALLOCATE(RTMP11,RTMP12,RTMP13,RTMP14,RTMP15,RTMP16,RTMP17)
+wqm_sed.F:     ALLOCATE(RTMP11(MGL));     RTMP11 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP12(MGL));     RTMP12 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP13(MGL));     RTMP13 = 0.0
+wqm_sed.F:       READ(BFI,1022,ERR=10100) RTMP11(I),RTMP12(I),RTMP13(I)
+wqm_sed.F:       VSED  = RTMP11
+wqm_sed.F:       VPMIX = RTMP12
+wqm_sed.F:       VDMIX = RTMP13
+wqm_sed.F:         VSED(I)  = RTMP11(NGID(I))
+wqm_sed.F:         VPMIX(I) = RTMP12(NGID(I))
+wqm_sed.F:         VDMIX(I) = RTMP13(NGID(I))
+wqm_sed.F:         VSED(I+MLOC)  = RTMP11(HN_LST(I))
+wqm_sed.F:         VPMIX(I+MLOC) = RTMP12(HN_LST(I))
+wqm_sed.F:         VDMIX(I+MLOC) = RTMP13(HN_LST(I))
+wqm_sed.F:     DEALLOCATE(RTMP11,RTMP12,RTMP13)
+wqm_sed.F:     ALLOCATE(RTMP11(MGL));     RTMP11 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP12(MGL));     RTMP12 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP13(MGL));     RTMP13 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP14(MGL));     RTMP14 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP15(MGL));     RTMP15 = 0.0
+wqm_sed.F:     ALLOCATE(RTMP16(MGL));     RTMP16 = 0.0
+wqm_sed.F:       FRPOP(:,2) = RTMP11
+wqm_sed.F:       FRPOP(:,3) = RTMP12
+wqm_sed.F:       FRPON(:,2) = RTMP13
+wqm_sed.F:       FRPON(:,3) = RTMP14
+wqm_sed.F:       FRPOC(:,2) = RTMP15
+wqm_sed.F:       FRPOC(:,3) = RTMP16
+wqm_sed.F:         FRPOP(I,2) = RTMP11(NGID(I))
+wqm_sed.F:         FRPOP(I,3) = RTMP12(NGID(I))
+wqm_sed.F:         FRPON(I,2) = RTMP13(NGID(I))
+wqm_sed.F:         FRPON(I,3) = RTMP14(NGID(I))
+wqm_sed.F:         FRPOC(I,2) = RTMP15(NGID(I))
+wqm_sed.F:         FRPOC(I,3) = RTMP16(NGID(I))
+wqm_sed.F:         FRPOP(I+MLOC,2) = RTMP11(HN_LST(I))
+wqm_sed.F:         FRPOP(I+MLOC,3) = RTMP12(HN_LST(I))
+wqm_sed.F:         FRPON(I+MLOC,2) = RTMP13(HN_LST(I))
+wqm_sed.F:         FRPON(I+MLOC,3) = RTMP14(HN_LST(I))
+wqm_sed.F:         FRPOC(I+MLOC,2) = RTMP15(HN_LST(I))
+wqm_sed.F:         FRPOC(I+MLOC,3) = RTMP16(HN_LST(I))
+wqm_sed.F:     DEALLOCATE(RTMP11,RTMP12,RTMP13,RTMP14,RTMP15,RTMP16)

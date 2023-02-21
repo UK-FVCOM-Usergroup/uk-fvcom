@@ -85,6 +85,7 @@
 
       character (char_len), private :: stoplabel
 
+      real (kind=dbl_kind) ::  i0vis,      floediam 
 !=======================================================================
 
       contains
@@ -118,7 +119,13 @@
       real (kind=dbl_kind), parameter ::&
          nsal      = 0.407_dbl_kind&
       ,  msal      = 0.573_dbl_kind&
+# if defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160921
+      ,  saltmax   = 0.0_dbl_kind  &! max salinity at ice base (ppt)
+# else
       ,  saltmax   = 3.2_dbl_kind  &! max salinity at ice base (ppt)
+# endif
+
       ,  min_salin = 0.1_dbl_kind  ! threshold for brine pocket treatment 
 
       integer (kind=int_kind) :: k        ! ice layer index
@@ -509,8 +516,8 @@
       ! Parameters for lateral melting 
 
       real (kind=dbl_kind), parameter ::   &
-         floediam = 300.0_dbl_kind   & ! effective floe diameter (m)
-      ,  alpha    = 0.66_dbl_kind    & ! constant from Steele (unitless)
+!         floediam = 300.0_dbl_kind   & ! effective floe diameter (m)
+        alpha    = 0.66_dbl_kind    & ! constant from Steele (unitless)
       ,  m1 = 1.6e-6_dbl_kind        & ! constant from Maykut & Perovich
                                       ! (m/s/deg^(-m2))
       ,  m2 = 1.36_dbl_kind           ! constant from Maykut & Perovich
@@ -607,9 +614,6 @@
          enddo                  ! ij
 
          do k = 1, nilyr         
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, icells
                i = indxi(ij)
                j = indxj(ij)
@@ -617,9 +621,6 @@
             enddo               ! ij
          enddo                  ! k         
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -633,10 +634,6 @@
       !-----------------------------------------------------------------
       ! Limit bottom and lateral heat fluxes if necessary.
       !-----------------------------------------------------------------
-
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
 
 
       do ij = 1, icells
@@ -856,9 +853,6 @@
       !-----------------------------------------------------------------
       ! Load arrays for vertical thermo calculation.
       !-----------------------------------------------------------------
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu 
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -954,9 +948,6 @@
       ! incremented later for ice      
       !-----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -971,9 +962,6 @@
       enddo                     ! ij
 
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -1080,9 +1068,6 @@
       ! initial energy per unit area of ice/snow, relative to 0 C
       !-----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -1171,8 +1156,16 @@
 !
 !EOP
 !
-      integer (kind=int_kind), parameter ::   & 
+      integer (kind=int_kind), parameter ::   &
+# if defined (ICE_FRESHWATER)
+! afm 20151113 & EJA 20160921
+! Solution converges in the first 10 iternation. 
+! Output did not change signigicantly with nitermax=50-->10,
+! but saved some computational time.
+         nitermax = 10   ! max number of iterations in temperature solver
+# else
          nitermax = 50   ! max number of iterations in temperature solver
+# endif
 
       real (kind=dbl_kind), parameter ::   &
          alph =  c3i     & ! constant used to get 2nd order accurate fluxes
@@ -1246,9 +1239,6 @@
 
          all_converged   = .false.
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu 
       do ij = 1, icells
 
          i = indxi(ij)
@@ -1285,9 +1275,6 @@
       enddo                     ! ij
 
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -1346,9 +1333,6 @@
                flwoutn,    fsensn,    flatn,    fsurf,      &
                dflwout_dT, dfsens_dT, dflat_dT, dfsurf_dT) 
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, isolve
             i = indxii(ij)   ! NOTE: not indxi and indxj
             j = indxjj(ij)
@@ -1396,9 +1380,6 @@
             enddo               ! ij
          enddo                  ! k
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, isolve
             i = indxii(ij)
             j = indxjj(ij)
@@ -1580,6 +1561,19 @@
          call tridiag_solver                &
              (isolve, indxii, indxjj,       &
               nmat,   sbdiag, diag,  spdiag, rhs, Tmat)
+# if defined (ICE_FRESHWATER)
+! afm 20151114 & EJA 20160921 - isnan check
+        do k = 1, nilyr+2
+         do ij = 1, isolve
+          i= indxii(ij); j = indxjj(ij)
+          if (isnan(Tmat(i,j,k)) /= 0 ) then
+           print*, 'isnan tisfc :', i,j,k,tsf(i,j), tmat(i,j,k)
+!           tmat(i,j,k) = potT(i,j) - Tffresh
+           tmat(i,j,k) = c0i
+           end if
+          end do
+         end do
+# endif
 
       !-----------------------------------------------------------------
       ! Reload temperatures from matrix solution.
@@ -1646,9 +1640,6 @@
          ! initialize global convergence flag
          all_converged = .true.
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, isolve
             i = indxii(ij)
             j = indxjj(ij)
@@ -1725,9 +1716,6 @@
          enddo  ! ij
 
          do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, isolve
                i = indxii(ij)
                j = indxjj(ij)
@@ -1744,9 +1732,22 @@
       !----------------------------------------------------------------- 
       ! Compute qin and increment new energy.                            
       !----------------------------------------------------------------- 
+# if defined (ICE_FRESHWATER)
+! 20151112 afm avoid zero division
+               if ( Tin(i,j,k) /= c0i ) then 
                qin(i,j,k) = -rhoi * (cp_ice*(Tmlt(k)-Tin(i,j,k))        &
                                    + Lfresh*(c1i-Tmlt(k)/Tin(i,j,k))     &
                                    - cp_ocn*Tmlt(k)) 
+               else
+               qin(i,j,k) = -rhoi * Lfresh     
+               end if
+!------
+# else
+               qin(i,j,k) = -rhoi * (cp_ice*(Tmlt(k)-Tin(i,j,k))        &
+                                   + Lfresh*(c1i-Tmlt(k)/Tin(i,j,k))     &
+                                   - cp_ocn*Tmlt(k)) 
+# endif
+
                enew(i,j) = enew(i,j) + hlyr(i,j)*qin(i,j,k)
 
                Tin_start(i,j,k) = Tin(i,j,k) ! for next iteration
@@ -1754,9 +1755,6 @@
             enddo               ! ij
          enddo                  ! k               
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, isolve
             i = indxii(ij)
             j = indxjj(ij)
@@ -1845,9 +1843,6 @@
          enddo                  ! ij
       endif                     ! all_converged
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -1931,9 +1926,6 @@
       khi(:,:,:) = c0i
       khs(:,:) = c0i
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -1959,9 +1951,6 @@
 
       ! interior ice interfaces
       do k = 2, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -2025,8 +2014,18 @@
 !
 !EOP
 !
-      real (kind=dbl_kind), parameter ::   &
-         i0vis   = 0.70_dbl_kind  ! fraction of penetrating solar rad (visible)
+
+# if defined (ICE_FRESHWATER)
+! EJA 201609212016 
+! i0vis=0.7-->0.068 (Parkinson & Washington 1979, JGR) 17%*0.4=0.068
+      real (kind=dbl_kind) ::   &
+         i0vis                      ! fraction of penetrating solar rad (visible) - set in namelist
+         !i0vis   = 0.068_dbl_kind  ! fraction of penetrating solar rad (visible) - set in namelist
+# else
+      real (kind=dbl_kind) ::   &
+         i0vis                     ! fraction of penetrating solar rad (visible) - set in namelist
+         !i0vis   = 0.70_dbl_kind  ! fraction of penetrating solar rad (visible) - set in namelist
+# endif
 
       integer (kind=int_kind) ::   & 
          i, j           & ! horizontal indices
@@ -2090,9 +2089,6 @@
       !-----------------------------------------------------------------
 
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -2106,9 +2102,6 @@
          enddo                  ! ij
       enddo                     ! k
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -2184,11 +2177,8 @@
       ,  dQsfcdT       &  ! derivative of Qsfc wrt surface temperature
       ,  qsat          &  ! the saturation humidity of air (kg/m^3)
       ,  flwdabs       &  ! downward longwave absorbed heat flx (W/m^2)
-      ,  tmpvar          ! 1/TsfK
+      ,  tmpvar           ! 1/TsfK
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, isolve
          i = indxii(ij)         ! NOTE: not indxi and indxj
          j = indxjj(ij)
@@ -2284,9 +2274,6 @@
          wgamma          ! temporary matrix variable
 
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, isolve
          i = indxii(ij)
          j = indxjj(ij)
@@ -2297,9 +2284,6 @@
       enddo                     ! ij
 
       do k = 2, nmat
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, isolve
             i = indxii(ij)
             j = indxjj(ij)
@@ -2313,9 +2297,6 @@
       enddo                     ! k
 
       do k = nmat-1, 1, -1
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, isolve
             i = indxii(ij)
             j = indxjj(ij)
@@ -2440,9 +2421,6 @@
       !-----------------------------------------------------------------
 
       if (.not. l_brine) then 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -2456,9 +2434,6 @@
          enddo
 
          do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, icells
                i = indxi(ij)
                j = indxj(ij)
@@ -2478,9 +2453,6 @@
       ! Sublimation/condensation of ice/snow
       !-----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -2520,9 +2492,6 @@
          !--------------------------------------------------------------
 
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -2544,9 +2513,6 @@
          !--------------------------------------------------------------
          ! Melt snow
          !--------------------------------------------------------------
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -2570,9 +2536,6 @@
          !--------------------------------------------------------------
          
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -2594,9 +2557,6 @@
        ! Bottom growth and melt
        !----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -2611,9 +2571,22 @@
          !--------------------------------------------------------------
    
          ! enthalpy of new ice growing at bottom surface
+# if defined (ICE_FRESHWATER)
+! afm 20151112 & EJA 20160921
+! put if statement to avoid zero division for fresh water ice
+         if (Tbot(i,j) /= c0i ) then
+                qbot = -rhoi * (cp_ice * (Tmlt(nilyr+1)-Tbot(i,j))           &
+                       + Lfresh * (c1i-Tmlt(nilyr+1)/Tbot(i,j))        &
+                       - cp_ocn * Tmlt(nilyr+1)) 
+         else
+                qbot = -rhoi * Lfresh
+         endif 
+# else
          qbot = -rhoi * (cp_ice * (Tmlt(nilyr+1)-Tbot(i,j))           &
                        + Lfresh * (c1i-Tmlt(nilyr+1)/Tbot(i,j))        &
                        - cp_ocn * Tmlt(nilyr+1))                       
+# endif
+                
          qbot = min (qbot, qbotmax) ! in case Tbot is close to Tmlt    
          dhi  = ebot_gro / qbot     ! dhi > 0                          
                                                                        
@@ -2636,9 +2609,6 @@
          !--------------------------------------------------------------
               
       do k = nilyr, 1, -1
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -2658,9 +2628,6 @@
          ! Melt snow (only if all the ice has melted)
          !--------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -2683,9 +2650,6 @@
       ! Give the ocean any energy left over after melting
       !-----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -2719,12 +2683,17 @@
       !-----------------------------------------------------------------
 
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
+# if defined (ICE_FRESHWATER)
+! afm 20151114 & EJA 20160921 isnan check
+if ( isnan( hin(i,j) ) /= 0 .or. isnan( hnew(i,j,k) ) /= 0 ) then
+print*, 'hin isnan:', i, k,hlyr(i,j), hnew(i,j,k), dhi, dhs, qbot, &
+qsn(i,j), hsn(i,j), esub(i,j),etop_mlt(i,j), ebot_mlt(i,j), ebot_gro 
+end if
+# endif
+
             hin(i,j) = hin(i,j) + hnew(i,j,k)
             hq(i,j,k) = c0i
          enddo                  ! ij
@@ -2736,9 +2705,6 @@
       ! Compute depths znew of new layers (all the same thickness). 
       !-----------------------------------------------------------------
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -2777,9 +2743,6 @@
 
       do k = 1, nilyr
          do kold = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
             do ij = 1, icells
                i = indxi(ij)
                j = indxj(ij)
@@ -2801,9 +2764,6 @@
       !-----------------------------------------------------------------
 
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)
@@ -2874,9 +2834,6 @@
 
       ferr_flag = .false.     ! ferr <= ferrmax, initialization
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -2987,9 +2944,6 @@
 
       hsn_new(:,:) = c0i
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -3072,9 +3026,6 @@
       ,  ij           &   ! horizontal index, combines i and j loops
       ,  k               ! ice layer index
 
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
       do ij = 1, icells
          i = indxi(ij)
          j = indxj(ij)
@@ -3096,9 +3047,6 @@
       enddo                     ! ij
 
       do k = 1, nilyr
-!DIR$ CONCURRENT !Cray
-!cdir nodep      !NEC
-!ocl novrec      !Fujitsu
          do ij = 1, icells
             i = indxi(ij)
             j = indxj(ij)

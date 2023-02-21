@@ -1,6 +1,7 @@
 *.f90
 *.mod
 *.o
+*.nc
 install
 libs/netcdf
 libs/proj

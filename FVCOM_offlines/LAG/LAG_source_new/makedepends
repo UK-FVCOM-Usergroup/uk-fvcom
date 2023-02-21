@@ -1,0 +1,10 @@
+mod_prec.o : mod_prec.f90 
+mod_ncd.o : mod_ncd.f90 mod_prec.o 
+mod_var.o : mod_var.f90 mod_prec.o 
+mod_inp.o : mod_inp.f90 mod_prec.o 
+alloc_vars.o : alloc_vars.f90 mod_var.o 
+triangle_grid_edge.o : triangle_grid_edge.f90 mod_var.o 
+offlag.o : offlag.f90 mod_prec.o mod_var.o mod_var.o mod_var.o 
+util.o : util.f90 mod_prec.o 
+data_run.o : data_run.f90 mod_inp.o mod_var.o mod_var.o 
+ncdio.o : ncdio.f90 mod_var.o mod_var.o mod_ncd.o 

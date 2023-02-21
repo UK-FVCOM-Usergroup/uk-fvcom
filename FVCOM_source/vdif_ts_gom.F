@@ -57,11 +57,13 @@ SUBROUTINE VDIF_TS_GOM(NCON1,F)
   REAL(DP), DIMENSION(M)        :: KHBOTTOM,WFSURF,SWRADF,SASURF
   REAL(DP), DIMENSION(M)        :: COSGAMA1,COSGAMA2
 
+  REAL(SP) :: WFTMP1, WFTMP2, WFTMP3
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"Start: vdif_ts_gom :", NCON1
 
   UMOLPR = UMOL*1.E0_SP
   SASURF = 0.0_SP
+  GW     = 0.0_SP
   !
   !------------------------------------------------------------------------------!
   !                                                                              !
@@ -108,13 +110,43 @@ SUBROUTINE VDIF_TS_GOM(NCON1,F)
         WFSURF = 0.0_SP
         SWRADF = 0.0_SP
 
+     WFSURF(1:M)=WTSURF(1:M)
+
+#    if !defined (ICE)
+!
+!-----------------------------------------------------------------------
+!  If net heat flux is cooling and SST is at freezing point or below
+!  then suppress further cooling. Note: net heat flux sign convention is that 
+!  positive (in FVCOM negitive - J. Qi) means heating the ocean (J Wilkin - ROMS).
+!-----------------------------------------------------------------------
+! 
+!  Below the surface heat flux WFSURF is ZERO if cooling AND
+!  the SST is cooler than the threshold.  The value is retained if
+!  warming.
+!
+!    WFTMP3 = 0      if SST warmer than threshold (WFTMP1) - change nothing
+!    WFTMP3 = 1      if SST colder than threshold (WFTMP1)
+!
+!    0.5*(WFTMP2-ABS(WFTMP2)) = 0                        if flux is warming in ROMS
+!    0.5*(WFTMP2+ABS(WFTMP2)) = 0                        if flux is warming
+!                             = WFSURF                   if flux is cooling 
+!
+        WFTMP1=-2.0_SP              ! nominal SST threshold to cease cooling
+        DO I=1,M
+          WFTMP2=WFSURF(I)
+          WFTMP3=0.5_SP*(1.0_SP+SIGN(1.0_SP,WFTMP1-F(I,1)))
+          WFSURF(I) = WFTMP2-WFTMP3*0.5_SP*(WFTMP2+ABS(WFTMP2))
+        END DO
+#    endif
+
         IF(HEATING_TYPE == 'flux')THEN
            !     DO I=1,M
            !       WFSURF(I)=WTSURF(I)
            !       SWRADF(I)=SWRAD(I)
            !     END DO
-           WFSURF(1:M)=WTSURF(1:M)
+           WFSURF(1:M)=WFSURF(1:M)
            SWRADF(1:M)=SWRAD(1:M)
+           SASURF=0.0_SP
 
 
            DO K = 1, KB
@@ -127,19 +159,19 @@ SUBROUTINE VDIF_TS_GOM(NCON1,F)
                     ZDEP = Z(I,K)*D(I)
 
                     !       SPECIFIED PARAMETER FOR GOM CASE (JUNE 18, 2003)
-                    IF(D(I) < 50.0_SP) THEN
-                       RHEAT=0.77_SP
-                       ZETA1=1.5_SP
-                       ZETA2=14.0_SP
-                    ELSE IF(D(I) > 100.0_SP) THEN
+                    IF(D(I) < 100.0_SP) THEN
+                       RHEAT=0.78_SP
+                       ZETA1=1.4_SP
+                       ZETA2=6.3_SP
+                    ELSE IF(D(I) > 150.0_SP) THEN
                        RHEAT=0.58_SP
                        ZETA1=0.35_SP
                        ZETA2=23.0_SP
                     ELSE
-                       TMP1=(D(I)-50.0_SP)/(100.0_SP-50.0_SP)
-                       RHEAT=0.77_SP+(0.58_SP-0.77_SP)*TMP1
-                       ZETA1=1.5_SP+ (0.35_SP-1.5_SP )*TMP1
-                       ZETA2=14.0_SP+ (23.0_SP-14.0_SP )*TMP1
+                       TMP1=(D(I)-100.0_SP)/(150.0_SP-100.0_SP)
+                       RHEAT=0.78_SP+(0.58_SP-0.78_SP)*TMP1
+                       ZETA1=1.4_SP+ (0.35_SP-1.4_SP )*TMP1
+                       ZETA2=6.3_SP+ (23.0_SP-6.3_SP )*TMP1
                     END IF
 
                     RAD(I,K)=SWRADF(I)*(RHEAT*EXP(ZDEP/ZETA1)+(1-RHEAT)*EXP(ZDEP/ZETA2))
@@ -154,6 +186,11 @@ SUBROUTINE VDIF_TS_GOM(NCON1,F)
            RAD    = 0.0_SP
            WFSURF = 0.0_SP
            SWRADF = 0.0_SP
+        ELSE IF(HEATING_TYPE == 'surface')THEN
+           WFSURF(1:M)=WFSURF(1:M)
+           SWRADF = 0.0_SP
+           SASURF = 0.0_SP
+  	   RAD    = 0.0_SP
         ELSE IF(HEATING_ON) THEN
            CALL FATAL_ERROR("HEATING TYPE IS SET INCORRECTLY:",&
                 & TRIM(HEATING_TYPE) )
