@@ -28,3 +28,5 @@ Bug fix (?) change indexing for looping over nesting sections - mod_nesting.F
 Bug fix wrongly excluding variable when DATA_ASSIM flag wasn't active - mod_main.F
 
 Bug fix doubled up variable name - mod_ncdio.F
+
+Bug fix END DO spelling - mod_wave_current_interactions.F
