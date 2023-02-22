@@ -198,6 +198,7 @@ MODULE MOD_GOTM
       UU_NODE_KBM1 = UU_NODE_KBM1/FLOAT(NTVE(I))
       VV_NODE_KBM1 = VV_NODE_KBM1/FLOAT(NTVE(I))
 
+      u_taub = 0.0_SP
       DO J=1,MaxItz0b
         z0b_gotm = 0.1*umol/max(umold,u_taub)+0.03*(cc_z0b(i)/.03)
         rr = kappa/(log((z0b_gotm+ztemp)/z0b_gotm)) 

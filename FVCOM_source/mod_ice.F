@@ -562,7 +562,6 @@ MODULE MOD_ICE
 # endif
           cldf(i,j)  = CLOUD(I)
        !!======================================================
-
           fsnow(i,j)=0.0_SP
           fsnow(i,j) = (QPREC(I)+QEVAP(I))*RHOFRESH   !m/s---> kg/m^2/s
           frain(i,j) = c0i
@@ -1186,6 +1185,10 @@ LWRAD_WATTS(I) = flwitot(I,1)*aice(I,1) + flwtot(I,1)*(c1i-aice(i,jlo))
 !!--------------------------------------------------------------------------
 
      Irbuf=0.0_SP
+     
+! afm 20210226 initialize xflux_ice_obc (bug)
+     xflux_ice_obc = 0.0_SP
+
      DO K=1,narr
        Irbuf(1:M)=works(1:M,K)
 # if defined (MULTIPROCESSOR)
@@ -1286,7 +1289,6 @@ LWRAD_WATTS(I) = flwitot(I,1)*aice(I,1) + flwtot(I,1)*(c1i-aice(i,jlo))
          enddo
       enddo
 
-150     continue
       call check_state
 
      call aggregate           ! aggregate state variables over categories

@@ -18,3 +18,5 @@ Remove erroneous continue - mod_flocmod.F
 Remove uneeded commends - mod_force.F
 
 Bug fix incorrect variable used - mod_assim.F
+
+Bug fix initialise some varaibles - mod_gotm.F, mod_ice.F
