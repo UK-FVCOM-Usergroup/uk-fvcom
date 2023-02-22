@@ -34,6 +34,7 @@ History
 2021-10-05 - Initial upload to branch FVCOM441
 2021-10-05 - compilation check in Ceto (PML HPC) : No changes done to code. Make.inc copied directly from FVCOM43 code. Libs compiled in Ceto from code in FVCOM43 from 2016. It required addition of NML_ML in namelist file and USE_NETCDF4 flag. 
 2021-10-05 - test simulation of Lake Erie setup
+2023-02-22 - Update to FVCOM5
 
 
 
