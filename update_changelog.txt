@@ -24,3 +24,5 @@ Bug fix initialise some varaibles - mod_gotm.F, mod_ice.F
 Bug fix incorrect index loop (from Karsten) - mod_force.F
 
 Bug fix (?) change indexing for looping over nesting sections - mod_nesting.F
+
+Bug fix wrongly excluding variable when DATA_ASSIM flag wasn't active - mod_main.F

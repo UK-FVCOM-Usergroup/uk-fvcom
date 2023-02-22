@@ -315,7 +315,6 @@ MODULE CONTROL
 # endif
          & NC_BIO,           &
          & NC_WQM,           &
-# if defined (DATA_ASSIM)
 	 & NC_VORTICITY,     &
     
     ! lwang added for mld_output Jul 09, 2019
@@ -323,9 +322,6 @@ MODULE CONTROL
     ! lwang added for ERSEM oflline Aug 26, 2019
          & NC_UARD_OBCN
     ! lwang
-# else
-	 & NC_VORTICITY
-# endif
 
 
     !--Parameters in NameList NML_NETCDF_SURFACE
