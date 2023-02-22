@@ -1700,6 +1700,13 @@ MODULE ALL_VARS
   TYPE(ASTR) EQUI_ASTR(8)
 # endif
 
+# if defined (NUOPC) && !defined (WAVE_CURRENT_INTERACTION)
+  REAL(SP), ALLOCATABLE :: WAVESTRX_2D(:),WAVESTRY_2D(:)
+  REAL(SP), ALLOCATABLE :: WAVESTRX_3D(:,:),WAVESTRY_3D(:,:)
+  REAL(SP), ALLOCATABLE :: U_STOKES_2D(:),V_STOKES_2D(:)
+  REAL(SP), ALLOCATABLE :: U_STOKES_3D(:,:),v_STOKES_3D(:,:)
+# endif  
+
 CONTAINS
 
 
@@ -2240,6 +2247,19 @@ CONTAINS
 
 !---------------report approximate memory usage-------------------------------------!
 
+
+!--------------------------------------------------------------------------------!
+#  if defined (NUOPC) && !defined (WAVE_CURRENT_INTERACTION)
+   ALLOCATE(WAVESTRX_2D(0:NT));      WAVESTRX_2D = 0.0_SP
+   ALLOCATE(WAVESTRY_2D(0:NT));      WAVESTRY_2D = 0.0_SP
+   ALLOCATE(WAVESTRX_3D(0:NT,KB));   WAVESTRX_3D = 0.0_SP
+   ALLOCATE(WAVESTRY_3D(0:NT,KB));   WAVESTRY_3D = 0.0_SP
+   ALLOCATE(U_STOKES_2D(0:NT));      U_STOKES_2D = 0.0_SP
+   ALLOCATE(V_STOKES_2D(0:NT));      V_STOKES_2D = 0.0_SP
+   ALLOCATE(U_STOKES_3D(0:NT,KB));   U_STOKES_3D = 0.0_SP
+   ALLOCATE(V_STOKES_3D(0:NT,KB));   V_STOKES_3D = 0.0_SP
+#  endif   
+   
 
    RETURN
    END SUBROUTINE ALLOC_VARS

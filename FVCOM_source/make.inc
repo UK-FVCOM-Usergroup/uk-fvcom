@@ -507,6 +507,14 @@ dashL= $(empty) -L
 #             FLAG_80 = -DPIO
 
 #--------------------------------------------------------------------------
+#    NUOPC (The National Unified Operational Prediction Capability)
+#    This FLAG is only used for creating FVCOM library file 
+#    with command 'make libfvcom'.
+#--------------------------------------------------------------------------
+
+             FLAG_81 = -DNUOPC
+
+#--------------------------------------------------------------------------
 #        SELECT COMPILER/PLATFORM SPECIFIC DEFINITIONS
 #          SELECT FROM THE FOLLOWING PLATFORMS OR USE "OTHER" TO DEFINE
 #          THE FOLLOWING VARIABLES:

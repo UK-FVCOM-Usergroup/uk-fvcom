@@ -50,3 +50,5 @@ Add basal ice stess to 2d ice model - mod_ice2d.F
 Add psigma_distribution for if psigma == 1 - mod_input.F, mod_main.F, mod_setup.F
 
 Add metis partition - partition.c, make.inc, makefile, mod_par.F, mod_par_special.F
+
+Add option for NUIPIC to make libfvcom - make.inc, mod_main.F, fvcom.F, extuv_edge.F
