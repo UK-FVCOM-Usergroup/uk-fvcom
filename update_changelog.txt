@@ -26,7 +26,7 @@ Bug fix incorrect index loop (from Karsten) - mod_force.F
 Bug fix (?) change indexing for looping over nesting sections - mod_nesting.F
 
 Bug fix wrongly excluding variable when DATA_ASSIM flag wasn't active - mod_main.F
-
+	
 Bug fix doubled up variable name - mod_ncdio.F
 
 Bug fix END DO spelling - mod_wave_current_interactions.F
@@ -36,3 +36,5 @@ Add new BIO model (mostly just tidier code) - BIO_source/*
 Define wetting and drying and spehrical coordinates in non hydro - mod_non_hydro.F
 
 Prevent diffusive flux between dry and wet nodes - mod_wqm.F, mod_non_hydro.F, mod_dye.F, adv_q.F, adv_s.F, and adv_t.F
+
+Change river adjust_ts mode so it can be either 'average' or 'maximum' (the previous default in uk-fvcom) - adjust_ts.F, mod_input.F, mod_main.F

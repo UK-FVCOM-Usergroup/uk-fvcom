@@ -453,6 +453,9 @@ CONTAINS
     RIVER_NUMBER = -1
     RIVER_KIND = "Options:"//TRIM(PRDC)//" or "//TRIM(VRBL)
     RIVER_TS_SETTING = "'calculated' or 'specified'"
+!JQI NOV2021
+    TS_ADJUST_METHOD = "'average' or 'maximum'"
+!JQI NOV2021
     RIVER_INFLOW_LOCATION = "'node' or 'edge'"
     RIVER_INFO_FILE = "'default' or 'filename'"
 
