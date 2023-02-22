@@ -154,7 +154,16 @@ dashL= $(empty) -L
 #--------------------------------------------------------------------------
 
              FLAG_4 = -DMULTIPROCESSOR
+#         If using METIS 5 or above, uncomment FLAG_411 and read the file readme_metis in folder METIS_source for detail
+#	     FLAG_411 = -DMETIS_5
+#        If FLAG_411 is defined, uncomment path below	     
+#             PARLIB = 
+#             PARTINCS = -I/usr/local/install/metis-5.1.0/gcc-4.4.7/include
+#             PARTLIBS = -L/usr/local/install/metis-5.1.0/gcc-4.4.7/lib -lmetis
+#        If FLAG_411 is not defined, uncomment path below
              PARLIB = -lmetis  #-L/usr/local/lib -lmetis
+             PARTINCS =
+             PARTLIBS =
 
 #--------------------------------------------------------------------------
 #        WATER_QUALITY      INCLUDE EPA WATER QUALITY MOD
@@ -647,5 +656,5 @@ dashL= $(empty) -L
 			$(OILIB) $(VISITLIB) $(PROJLIBS) $(PETSC_LIB)
 
             INCS  = 	$(INCDIR) $(IOINCS) $(GOTMINCS) $(BIOINCS)\
-			 $(VISITINCPATH) $(PROJINCS) $(DTINCS) \
+			 $(VISITINCPATH) $(PROJINCS) $(DTINCS) $(PARTINCS)\
 			 $(PETSC_FC_INCLUDES)
