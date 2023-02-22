@@ -64,6 +64,10 @@
    USE MOD_DAM   !Jadon
 #  endif
 
+#  if defined (VEGETATION)
+   USE MOD_VEGETATION
+#  endif
+
    IMPLICIT NONE
    REAL(SP) :: XFLUX(0:NT,KB),YFLUX(0:NT,KB)
    REAL(SP) :: PSTX_TM(0:NT,KB),PSTY_TM(0:NT,KB)

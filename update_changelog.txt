@@ -58,3 +58,5 @@ Add sediment heatflux module - mod_heatflux_sediment.F, bcond_gcn.F, vdif_ts.F, 
 Add module for vector coordinate projection - mod_vector_projection.F, fvcom.F, internal_step.F, mod_main.F, mod_ncdio.F, makefile
 
 Add wave-current vortex module - adv_uv_edge_gcn.F, adv_uv_edge_gcn.F, fvcom.F, internal_step.F, mod_ncdio.F, mod_wave_current_interaction.F
+
+Add vegetation module - mod_vegetation.F, adv_uv_edge_gcn.F, extuv_edge.F, fvcom.F, internal_step.F, make.inc, makefile, mod_gotm.F, mod_ncdio.F, namelist.F, open_all.F, vdif_q.F
