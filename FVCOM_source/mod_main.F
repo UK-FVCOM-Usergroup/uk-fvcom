@@ -272,6 +272,9 @@ MODULE CONTROL
     LOGICAL NC_GROUNDWATER
     LOGICAL NC_BIO
     LOGICAL NC_WQM
+    LOGICAL NC_UARD_OBCN
+    LOGICAL NC_CT
+    LOGICAL NC_KBTT
 
     CHARACTER(LEN=80) NC_FILE_NAME !!NAME OF NC FILE
     ! ONLY VALID TILL THE NAME IS INCRIMENTED IF THE STKCNT IS EXCEEDED
@@ -311,18 +314,10 @@ MODULE CONTROL
 # endif
          & NC_BIO,           &
          & NC_WQM,           &
-# if defined (DATA_ASSIM)
-	 & NC_VORTICITY,     &
-    
-    ! lwang added for mld_output Jul 09, 2019
-!         & NC_MLD,           & ! Siqi Li, @20210809
-    ! lwang added for ERSEM oflline Aug 26, 2019
-         & NC_UARD_OBCN
-    ! lwang
-# else
-	 & NC_VORTICITY
-# endif
-
+         & NC_UARD_OBCN,     &
+	     & NC_VORTICITY,     &
+         & NC_CT,            &
+         & NC_KBTT 
 
     !--Parameters in NameList NML_NETCDF_SURFACE
     LOGICAL NCSF_ON
