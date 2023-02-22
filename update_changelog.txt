@@ -54,3 +54,5 @@ Add metis partition - partition.c, make.inc, makefile, mod_par.F, mod_par_specia
 Add option for NUIPIC to make libfvcom - make.inc, mod_main.F, fvcom.F, extuv_edge.F
 
 Add sediment heatflux module - mod_heatflux_sediment.F, bcond_gcn.F, vdif_ts.F, makefile
+
+Add module for vector coordinate projection - mod_vector_projection.F, fvcom.F, internal_step.F, mod_main.F, mod_ncdio.F, makefile
