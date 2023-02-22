@@ -40,3 +40,5 @@ Prevent diffusive flux between dry and wet nodes - mod_wqm.F, mod_non_hydro.F, m
 Change river adjust_ts mode so it can be either 'average' or 'maximum' (the previous default in uk-fvcom) - adjust_ts.F, mod_input.F, mod_main.F
 
 Seperate parameters for freshwater and saltwater ice - icemechred.F, ice_therm_vertical.F
+
+Add river inflow for ice module - mod_ice.F
