@@ -32,3 +32,5 @@ Bug fix doubled up variable name - mod_ncdio.F
 Bug fix END DO spelling - mod_wave_current_interactions.F
 
 Add new BIO model (mostly just tidier code) - BIO_source/*
+
+Define wetting and drying and spehrical coordinates in non hydro - mod_non_hydro.F
