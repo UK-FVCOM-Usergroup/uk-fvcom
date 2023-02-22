@@ -16,3 +16,5 @@ Change GASDEV and RAN2 from function to sub routine - mod_enkfassim.F, mod_etkf.
 Remove erroneous continue - mod_flocmod.F
 
 Remove uneeded commends - mod_force.F
+
+Bug fix incorrect variable used - mod_assim.F

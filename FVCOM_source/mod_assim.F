@@ -4040,7 +4040,9 @@ in:  DO WHILE(.TRUE.)
 !------------------------------------------------------------------------------|
 ! param: inverse of the correlation length                                     |
 !------------------------------------------------------------------------------|
-   REAL(SP) :: PARAM(2,N_ASSIM_TS)
+! lwang 20211018
+!   REAL(SP) :: PARAM(2,N_ASSIM_TS)
+   REAL(SP) :: PARAM(2,N_ASSIM_TS_W)
 
    INTEGER  :: I,J,MM   
    INTEGER ID
@@ -4055,7 +4057,9 @@ in:  DO WHILE(.TRUE.)
 !------------------------------------------------------------------------------|   
 ! param is the inverse of the correlation length                               |
 !------------------------------------------------------------------------------|
-   PARAM = 1.0_SP/TS_PARAM             
+! lwang 20211018 TS_PARAM is for all obs during the whole runing period
+! but here we need PARAM(2,N_ASSIM_TS_W) 
+!   PARAM = 1.0_SP/TS_PARAM             
  
    MM = TS_N_INFLU
 
@@ -4071,6 +4075,8 @@ in:  DO WHILE(.TRUE.)
      ID = ID_STATION(I)
      X(1,I) = TS_OBS(Id)%X
      X(2,I) = TS_OBS(Id)%Y
+     !lwang 20211018
+     PARAM(:,I) = 1.0_SP/TS_PARAM(:,ID)
    END DO  
 
 !------------------------------------------------------------------------------|
