@@ -792,6 +792,9 @@
    VARFR  = .FALSE.
    VARWLV = .FALSE.                                                    
    VARAST = .FALSE.       ! True means spatially variable air-sea t.d. 
+#  if defined (VEGETATION)
+   VARNPL = .FALSE.
+#  endif
    U10    = 0.
    WDIP   = 0.
    INRHOG = 0                                                          
@@ -1065,8 +1068,14 @@
    JHSIBC = 25                                                         
    JHS    = 26                                                         
    JURSEL = 27                                                         
-   JPBOT  = 28                                                         
-   MCMVAR = 28                                                         
+   JPBOT  = 28                           
+#  if defined (VEGETATION)                              
+   JNPLA2 = 29
+   JNPLA3 = 30
+   MCMVAR = 30      !28 before vegetation
+#  else
+   MCMVAR = 28
+#  endif                                                         
 !  subarray sequence number 1 is used only for unused subarrays        
    JFRC2 = 1                                                           
    JFRC3 = 1                                                           
@@ -1093,7 +1102,12 @@
    JP4S   = 6
    JP4D   = 7
    JPTRI  = 8
+#  if defined (VEGETATION)
+   JPVEGT = 9
+   MTSVAR = 9
+#  else
    MTSVAR = 8
+#  endif
 !
 !  ***** test output control *****
    ITEST  = 1                                                          
@@ -3559,6 +3573,9 @@ END IF
   USE MOD_FORCE, ONLY : UPDATE_WIND2WAVE
   USE CONTROL, ONLY : WIND_ON
   USE ALL_VARS, ONLY : UUWIND,VVWIND
+# if defined (VEGETATION)
+  USE MOD_VEGETATION, ONLY : VEG,nveg,pdens
+# endif
       
   IMPLICIT NONE
 
@@ -3602,6 +3619,12 @@ END IF
     COMPDA(1,JASTD2) = 0.                                             
     COMPDA(1,JASTD3) = 0.                                             
   END IF
+# if defined (VEGETATION)
+  IF (VARNPL) THEN
+    COMPDA(1,JNPLA2) = 0.
+    COMPDA(1,JNPLA3) = 0.
+  ENDIF
+# endif
 
   IF(VARWI) CALL UPDATE_WIND2WAVE(WaveTime,UWWIND,VWWIND)
 
@@ -3910,6 +3933,17 @@ END IF
 !JQI             COMPDA(INDX,JASTD3) = ASTD                                   
     END IF
   END DO
+
+# if defined (VEGETATION)
+!
+!     ***** compute number of plants per square meter *****               40.55
+!
+          IF (VARNPL) THEN
+!JZGE        XNPL = SVALQI (XP, YP, 11, NPLAF, 1 ,IX ,IY)               
+             COMPDA(INDX,JNPLA2) = sum(VEG % plant(INDX,1:nveg,pdens))
+             COMPDA(INDX,JNPLA3) = sum(VEG % plant(INDX,1:nveg,pdens))
+          ENDIF
+# endif
 !
 !   *** initialise setup and saved depth ***                            
 !

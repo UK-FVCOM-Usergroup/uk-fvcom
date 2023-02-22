@@ -284,6 +284,10 @@
 7114 FORMAT('                      : IWCAP  ',I12  ,' IWIND ',I12)
      WRITE(PRINTF,7015) ITRIAD,IQUAD
 7015 FORMAT('                      : ITRIAD ',I12  ,' IQUAD ',I12)
+# if defined (VEGETATION)
+     WRITE(PRINTF,7016) IVEG
+7016 FORMAT('                      : IVEG   ',I12)
+# endif
      WRITE(PRINTF,7104) EXP(ALOG(SHIG/SLOW)/REAL(MSC-1))-1.,DDIR/DEGRAD
 7104 FORMAT(' Spectral bin         : df/f   ',E12.4,' DDIR  ',E12.4)   
      WRITE(PRINTF,7003) GRAV_W, RHO_W                                      
@@ -374,6 +378,16 @@
        WRITE (PRINTF, *) 'Bottom friction is off'
      ENDIF
 !
+# if defined (VEGETATION)
+!
+      IF (IVEG.EQ.1) THEN
+         WRITE(PRINTF,7006)
+ 7006    FORMAT(' Vegetation due to Dalrymple (1984)')
+      ELSE
+         WRITE (PRINTF, *) 'Vegetation is off'
+      ENDIF
+!
+# endif
      IF(IWCAP == 1)THEN
        WRITE(PRINTF,6005) PWCAP(1),PWCAP(2)
 6005   FORMAT(' W-cap Komen (`84)    : EMPCOF ',E12.4,' APM   ',E12.4)
@@ -1648,6 +1662,9 @@
      ISSTOP              ,SWTSDA(1,1,1,JPWNDA),SWTSDA(1,1,1,JPWNDB),   &
      SWTSDA(1,1,1,JPWCAP),SWTSDA(1,1,1,JPBTFR),SWTSDA(1,1,1,JPWBRK),   &
      SWTSDA(1,1,1,JP4S)  ,SWTSDA(1,1,1,JP4D)  ,SWTSDA(1,1,1,JPTRI) ,   &
+#    if defined (VEGETATION)
+     SWTSDA(1,1,1,JPVEGT),COMPDA(1,JNPLA2)                         ,   &
+#    endif
      HS                  ,ETOT                ,QBLOC               ,   &
      THETAW              ,HM                  ,FPM                 ,   &
      WIND10              ,ETOTW               ,GROWW               ,   &
@@ -1869,6 +1886,7 @@
 !     40.31, Jul. 03: some improvements and corrections w.r.t. OpenMP
 !     40.41, Aug. 04: add some test output for checking accuracy
 !     40.41, Oct. 04: common blocks replaced by modules, include files removed
+!     40.55, Dec. 05: introducing vegetation model
 !
 !  2. Purpose
 !
@@ -2847,6 +2865,9 @@
 		      ISSTOP     ,PLWNDA     ,PLWNDB     ,      &
 		      PLWCAP     ,PLBTFR     ,PLWBRK     ,      &
 		      PLNL4S     ,PLNL4D     ,PLTRI      ,      &
+# if defined (VEGETATION)
+                      PLVEGT     ,NPLA2      ,                  &
+# endif
 		      HS         ,ETOT       ,QBLOC      ,      &
 		      THETAW     ,HM         ,FPM        ,      &
 		      WIND10     ,ETOTW      ,GROWW      ,      &
@@ -2922,6 +2943,10 @@
 !     Call SBOT  to compute the source term due to bottom friction
 !      according to Hasselmann et al. (1974), Putnam and Jonsson (1949)
 !      or Madsen et al. (1991)
+!   ------------------------------------------------------------
+!   If SVEG is on (IVEG > 0 ) then,
+!     Call SVEG  to compute the source term due to vegetation
+!      dissipation according to Dalrymple (1984)
 !   ------------------------------------------------------------
 !   If SSURF is on (ISURF > 0 ) then,
 !     Call SSURF to compute the source term due to wave breaking
@@ -3031,6 +3056,10 @@
    REAL  :: PLNL4S(MDC,MSC,NPTST)
    REAL  :: PLNL4D(MDC,MSC,NPTST)
    REAL  :: PLTRI(MDC,MSC,NPTST)
+#  if defined (VEGETATION)
+   REAL  :: PLVEGT(MDC,MSC,NPTST)
+   REAL  :: NPLA2(MT)
+#  endif
    REAL  :: WWAWG(*)
    REAL  :: WWSWG(*)
    REAL  :: CGO(MSC,MICMAX)                                            
@@ -3075,6 +3104,19 @@
 		IDCMAX   ,ISSTOP   ,VARFR    ,FRCOEF   ,IG       ,     &
 		IMATRA   )
    END IF
+!
+#  if defined (VEGETATION)
+   IF ( IVEG.GE.1 ) THEN
+!
+!     *** wave-vegetation interactions ***       
+!
+!        *** energy dissipation according to Dalrymple (1984)  
+!
+         CALL SVEG (DEP2   ,IMATDA   ,ETOT   ,SMEBRK    ,  KMESPC &
+              &,PLVEGT   ,  IDCMIN , IDCMAX   ,ISSTOP ,DISSC1    ,   &
+              & NPLA2    ,      IG , IMATRA  )
+   END IF
+#  endif
 !
 !   PRINT*,'ISURF=',ISURF
    IF(ISURF >= 1)THEN
