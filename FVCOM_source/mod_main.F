@@ -264,6 +264,10 @@ MODULE CONTROL
     LOGICAL NC_NH_QP
     LOGICAL NC_NH_RHS
     LOGICAL NC_ICE
+# if defined (STRUCTURE)
+    LOGICAL NC_KBTT
+    LOGICAL NC_CT
+# endif
 # if defined (ICENORKYST)
     LOGICAL NC_ICENORKYST
 # endif    
@@ -319,6 +323,10 @@ MODULE CONTROL
          & NC_GROUNDWATER,   &
 # if defined(ICE)
          & NC_ICE,           &
+# endif
+# if defined(STRUCTURE)
+         & NC_KBTT,           &
+         & NC_CT,           &
 # endif
 # if defined(ICENORKYST)
          & NC_ICENORKYST,           &
