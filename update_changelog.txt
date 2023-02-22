@@ -8,3 +8,5 @@ ocpids.F, ocpmix.F, swancom3.F, swancom4.F, swancom5.F, input/mod_init.F, input/
 Tidy up error codes - mod_input.F, mod_esmf_nesting.F, mod_nesting.F
 
 Make parameters single precision - coare40vn.F and mod_mld_rho.F
+
+Remove +1 for indexing and sediment dimension - mod_obcs.F, mod_scal.F, mod_sed.F, mod_sed_cstms.F
