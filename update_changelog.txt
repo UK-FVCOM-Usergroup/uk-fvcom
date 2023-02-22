@@ -20,3 +20,5 @@ Remove uneeded commends - mod_force.F
 Bug fix incorrect variable used - mod_assim.F
 
 Bug fix initialise some varaibles - mod_gotm.F, mod_ice.F
+
+Bug fix incorrect index loop (from Karsten) - mod_force.F
