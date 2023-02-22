@@ -35,6 +35,6 @@ Add new BIO model (mostly just tidier code) - BIO_source/*
 
 Define wetting and drying and spehrical coordinates in non hydro - mod_non_hydro.F
 
-Prevent diffusive flux between dry and wet nodes - mod_wqm.F, mod_non_hydro.F, mod_dye.F, adv_q.F, adv_s.F, and adv_t.F
+Prevent diffusive flux between dry and wet nodes - mod_wqm.F, mod_non_hydro.F, mod_dye.F, mod_scal.F, adv_q.F, adv_s.F, and adv_t.F
 
 Change river adjust_ts mode so it can be either 'average' or 'maximum' (the previous default in uk-fvcom) - adjust_ts.F, mod_input.F, mod_main.F
