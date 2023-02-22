@@ -44,3 +44,5 @@ Seperate parameters for freshwater and saltwater ice - icemechred.F, ice_therm_v
 Add river inflow for ice module - mod_ice.F
 
 Remove modifications to 2d ice model made for global runs - mod_ice2d.F
+
+Add basal ice stess to 2d ice model - mod_ice2d.F
