@@ -34,3 +34,5 @@ Bug fix END DO spelling - mod_wave_current_interactions.F
 Add new BIO model (mostly just tidier code) - BIO_source/*
 
 Define wetting and drying and spehrical coordinates in non hydro - mod_non_hydro.F
+
+Prevent diffusive flux between dry and wet nodes - mod_wqm.F, mod_non_hydro.F, mod_dye.F, adv_q.F, adv_s.F, and adv_t.F
