@@ -54,6 +54,7 @@ SUBROUTINE VDIF_TS(NCON1,F)
   USE MOD_DAM,only : NODE_DAM1_N,NODE_DAM2_N,NODE_DAM3_N&
                       &,I_NODE_DAM1_N,I_NODE_DAM2_N,I_NODE_DAM3_N,KDAM
 # endif
+  USE MOD_HEATFLUX_SEDIMENT
 
   IMPLICIT NONE
   INTEGER :: I,K,NCON1,J,KI,hutemp
@@ -64,7 +65,7 @@ SUBROUTINE VDIF_TS(NCON1,F)
   REAL(DP) :: TMP,TMP1,TMP2,TMP3,QTMP,GW,ZDEP,FKH,UMOLPR,WETFAC
   REAL(SP), DIMENSION(0:MT,KB)  :: F
   REAL(DP), DIMENSION(M,KB)     :: FF,AF,CF,VHF,VHPF,RAD
-  REAL(DP), DIMENSION(M)        :: KHBOTTOM,WFSURF,SWRADF,SASURF
+  REAL(DP), DIMENSION(M)        :: KHBOTTOM,WFSURF,SWRADF,SASURF,WTHEAT
   REAL(DP), DIMENSION(M)        :: COSGAMA1,COSGAMA2
 
 # if defined (THIN_DAM)
@@ -78,6 +79,7 @@ SUBROUTINE VDIF_TS(NCON1,F)
   UMOLPR = UMOL*1.E0_SP
   SASURF = 0.0_SP
   GW = 0.0_DP
+  WTHEAT(1:M) = 0.0_SP
   !
   !------------------------------------------------------------------------------!
   !                                                                              !
@@ -124,6 +126,12 @@ SUBROUTINE VDIF_TS(NCON1,F)
      SWRADF = 0.0_SP
 
      WFSURF(1:M)=WTSURF(1:M)
+
+     IF(HEATFLUX_SEDIMENT_ON)THEN
+! =============== Added code (heat flux at tidal flat) ykcho===================|
+       WTHEAT(1:M)=WHEAT1(1:M)
+! =============================================================================|
+     END IF
 
 #    if !defined (ICE)
 !
@@ -311,8 +319,9 @@ SUBROUTINE VDIF_TS(NCON1,F)
 !!$           END IF
 
 
-           FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)-GW+DTI*(RAD(I,KBM1)-RAD(I,KB)-TMP)/(D(I)*DZ(I,KBM1))) &
-                /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
+           FF(I,KBM1) = (CF(I,KBM1)*VHPF(I,KBM2)-FF(I,KBM1)-GW    &
+	            +DTI*(WTHEAT(I)+RAD(I,KBM1)-RAD(I,KB)-TMP)/(D(I)*DZ(I,KBM1))) &
+                    /(CF(I,KBM1)*(1._SP-VHF(I,KBM2))-1._SP)
 
 
 #  if defined (WET_DRY)

@@ -79,6 +79,7 @@
 #  if defined (HEATING_SOLAR)
    USE MOD_SOLAR, ONLY : HEATING_SOLAR_ON
 #  endif
+   USE MOD_HEATFLUX_SEDIMENT
 
    IMPLICIT NONE
    INTEGER, INTENT(IN) :: IDX
@@ -703,7 +704,11 @@
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
       IF (HEATING_ON) THEN
          CALL UPDATE_HEAT(IntTime,SWRAD_WATTS,WTSURF_WATTS)
-         
+	 
+         IF(HEATFLUX_SEDIMENT_ON)THEN
+ 	   CALL CALCULATE_HEATFLUX_SEDIMENT
+         END IF
+	 
          ! LOAD INTO THES VARIABLE TO SAVE THE FORCING IN THE CORRECT UNITS
          SWRAD_WATTS  = SWRAD_WATTS * RAMP
          WTSURF_WATTS = WTSURF_WATTS * RAMP
@@ -714,6 +719,10 @@
          
          WTSURF    = -WTSURF_WATTS/SPRO
          SWRAD     = -SWRAD_WATTS/SPRO
+
+         IF(HEATFLUX_SEDIMENT_ON)THEN
+           WHEAT1    = -WHEAT1/SPRO*RAMP
+         END IF
 
 # if defined (MULTIPROCESSOR)
          IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,SWRAD_WATTS,WTSURF_WATTS)         
@@ -945,5 +954,3 @@
    
  END SUBROUTINE BCOND_GCN
 !==============================================================================|
-
-
