@@ -3819,18 +3819,15 @@ CONTAINS
     ! FIND FIRST LINE of CONNECTIVITY ARRAY
     rewind GRIDUNIT
     DO WHILE(.TRUE.)
-       READ(GRIDUNIT,*,IOSTAT=IOS,END=99)J,N1,N2,N3
+       READ(GRIDUNIT,*,IOSTAT=IOS)J,N1,N2,N3
        if (IOS == 0) then
           BackSpace GRIDUNIT
           exit
+       elseif(IOS< 0) Then
+         Call FATAL_ERROR('Improper formatting of GRID FILE:',&
+              &'Reached end of file with out finding CONNECTIVITY data?',&
+              &'FORMAT: CELL# NODE# NODE# NODE# (ALL INTEGERS)')
        end if
-
-       CYCLE
-       
-99 Call FATAL_ERROR('Improper formatting of GRID FILE:',&
-           &'Reached end of file with out finding CONNECTIVITY data?',&
-           &'FORMAT: CELL# NODE# NODE# NODE# (ALL INTEGERS)')
-          
     END DO
 
     ! READ IN CONNECTIVITY
@@ -3934,18 +3931,15 @@ CONTAINS
    ! FIND FIRST LINE of )BC ARRAY
     rewind OBCUNIT
     DO WHILE(.TRUE.)
-       READ(OBCUNIT,*,IOSTAT=IOS,END=99)N1,N2,N3
+       READ(OBCUNIT,*,IOSTAT=IOS)N1,N2,N3
        if (IOS == 0) then
           BackSpace OBCUNIT
           exit
+       elseif(IOS < 0) Then
+         Call FATAL_ERROR('Improper formatting of OBC FILE:',&
+              &'Reached end of file with out finding OBC data?',&
+              &'FORMAT: OBCNODE# GLNODE# TYPE# (ALL INTEGERS)')
        end if
-
-       CYCLE
-       
-99 Call FATAL_ERROR('Improper formatting of OBC FILE:',&
-           &'Reached end of file with out finding OBC data?',&
-           &'FORMAT: OBCNODE# GLNODE# TYPE# (ALL INTEGERS)')
-          
     END DO
     ALLOCATE(I_OBC_GL(IOBCN_GL))
     ALLOCATE(TYPE_OBC_GL(IOBCN_GL))
@@ -4037,18 +4031,15 @@ CONTAINS
    ! FIND FIRST LINE of )BC ARRAY
     rewind LSFUNIT
     DO WHILE(.TRUE.)
-       READ(LSFUNIT,*,IOSTAT=IOS,END=99)N1,N2,R1,R2
+       READ(LSFUNIT,*,IOSTAT=IOS)N1,N2,R1,R2
        if (IOS == 0) then
           BackSpace LSFUNIT
           exit
+       elseif(IOS < 0) THEN
+         Call FATAL_ERROR('Improper formatting of LongShore Flow FILE:',&
+              &'Reached end of file with out finding LSF data?',&
+              &'FORMAT: LSFNODE# GLNODE# GEO WND (last two are real 0<=X<=1)')
        end if
-
-       CYCLE
-       
-99 Call FATAL_ERROR('Improper formatting of LongShore Flow FILE:',&
-           &'Reached end of file with out finding LSF data?',&
-           &'FORMAT: LSFNODE# GLNODE# GEO WND (last two are real 0<=X<=1)')
-          
     END DO
     ALLOCATE(I_GL(N_GL))
     ALLOCATE(GEO_GL(N_GL))
@@ -4189,18 +4180,15 @@ CONTAINS
    ! FIND FIRST LINE of CONNECTIVITY ARRAY
     rewind DEPTHUNIT
     DO WHILE(.TRUE.)
-       READ(DEPTHUNIT,*,IOSTAT=IOS,END=99)X1,Y1,HDEP
+       READ(DEPTHUNIT,*,IOSTAT=IOS)X1,Y1,HDEP
        if (IOS == 0) then
           BackSpace DEPTHUNIT
           exit
+       elseif(IOS < 0) Then
+         Call FATAL_ERROR('Improper formatting of DEPTH FILE:',&
+              &'Reached end of file with out finding DEPTH data?',&
+              &'FORMAT: X Y H (ALL REALS)')
        end if
-
-       CYCLE
-       
-99 Call FATAL_ERROR('Improper formatting of DEPTH FILE:',&
-           &'Reached end of file with out finding DEPTH data?',&
-           &'FORMAT: X Y H (ALL REALS)')
-          
     END DO
 
     I = 0
@@ -4297,16 +4285,15 @@ CONTAINS
     ! FIND FIRST LINE of CORIOLIS DATA
     rewind CORIOLISUNIT
     DO WHILE(.TRUE.)
-       READ(CORIOLISUNIT,*,IOSTAT=IOS,END=99)X1,Y1,C1
+       READ(CORIOLISUNIT,*,IOSTAT=IOS)X1,Y1,C1
        if (IOS == 0) then
           BackSpace CORIOLISUNIT
           exit
+       elseif(IOS < 0) Then
+         Call FATAL_ERROR('Improper formatting of CORIOLIS FILE:',&
+              &'Reached end of file with out finding CORIOLIS data?',&
+              &'FORMAT: X Y COR (ALL REALS)')
        end if
-
-       CYCLE
-99 Call FATAL_ERROR('Improper formatting of CORIOLIS FILE:',&
-           &'Reached end of file with out finding CORIOLIS data?',&
-           &'FORMAT: X Y COR (ALL REALS)')
     END DO
 
     ! READ IN CORIOLIS DATA
@@ -4409,18 +4396,15 @@ CONTAINS
    ! FIND FIRST LINE of )BC ARRAY
     rewind SPONGEUNIT
     DO WHILE(.TRUE.)
-       READ(SPONGEUNIT,*,IOSTAT=IOS,END=99)N1,R1,R2
+       READ(SPONGEUNIT,*,IOSTAT=IOS)N1,R1,R2
        if (IOS == 0) then
           BackSpace SPONGEUNIT
           exit
+       elseif(IOS < 0) THEN
+         Call FATAL_ERROR('Improper formatting of SPONGE FILE:',&
+              &'Reached end of file with out finding sponge data?',&
+              &'FORMAT: GLBNODE#  RADIUS SPGVAL (INT, REAL, REAL)')
        end if
-
-       CYCLE
-       
-99 Call FATAL_ERROR('Improper formatting of SPONGE FILE:',&
-           &'Reached end of file with out finding sponge data?',&
-           &'FORMAT: GLBNODE#  RADIUS SPGVAL (INT, REAL, REAL)')
-          
     END DO
 
     ALLOCATE(N_SPG(NSPONGE)); N_SPG = 0
@@ -4526,7 +4510,6 @@ CONTAINS
                & 'The header must conatain "SIGMA POWER"',&
                & 'Followed by a real value (1.0 is uniform sigma coordinates)')
        END IF
-       
        
        if(DBG_SET(dbg_log)) then
           WRITE(IPT,*)'!  Finished Reading SIGMA File'

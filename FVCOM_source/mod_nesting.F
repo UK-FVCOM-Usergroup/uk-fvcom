@@ -718,20 +718,17 @@ CONTAINS
        REWIND NESTUNIT
 
        DO WHILE(.TRUE.)
-          READ(NESTUNIT,*,IOSTAT=IOS,END=199)N1,N2,N3
+          READ(NESTUNIT,*,IOSTAT=IOS)N1,N2,N3
           if (IOS == 0) then
              BackSpace NESTUNIT
              exit
+          elseif(IOS < 0) then
+            Call FATAL_ERROR('Improper formatting of NESTING NODE FILE:',&
+                &'Reached end of file with out finding NESTING data?',&
+                &'FORMAT: NEST# SUBDOMAIN# LARGEDOMAIN# (ALL INTEGERS)')
           end if
-
-          CYCLE
-
-199       Call FATAL_ERROR('Improper formatting of NESTING NODE FILE:',&
-               &'Reached end of file with out finding NESTING data?',&
-               &'FORMAT: NEST# SUBDOMAIN# LARGEDOMAIN# (ALL INTEGERS)')
-
        END DO
-       
+
        ALLOCATE(nodes(nnode))
 
        I = 0
@@ -2341,7 +2338,7 @@ END SUBROUTINE GENMAP_NESTING
 
     IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START DUMP_NCNEST_FILE_WAVE" 
 
-    NULLIFY(TEMP1) 
+    NULLIFY(TEMP1)  
 
     DO I =1,NCNEST_NUM_WAVE
 
