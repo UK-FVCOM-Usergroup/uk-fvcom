@@ -455,17 +455,8 @@ end if !dwang
                CALL ICE_UV(K)
                UICE2  = UICE2F
                VICE2  = VICE2F
-
-!dwang
-               !for global case: limit ice velocity of the new ice near the open water
-               IF(K==4) then
-                  DO I=1,N
-                     UICE2(I)=MAX(MIN(UICE2(i),1.00_SP),-1.00_SP)
-                     VICE2(I)=MAX(MIN(VICE2(i),1.00_SP),-1.00_SP)
-                  END DO
-               ENDIF
-
-!dwang
+!                UICE2 = 0.0_SP
+!                VICE2 = 0.0_SP
 
                !EXCHANGE ELEMENT-BASED VALUES ACROSS THE INTERFACE
 #     if defined (MULTIPROCESSOR)
@@ -505,16 +496,6 @@ end if !dwang
 
       Divu(1:M,1) =DivuN(1:M)
       Delta(1:M,1)=DeltaN(1:M)
-
-      !gao for global case
-      DO I=1,M
-       !IF(I==NODE_NORTHPOLE) THEN
-       IF(VY(I)>=89.5_SP) THEN
-          Divu (I,1)=0.0_SP
-          Delta(I,1)=0.0_SP
-       END IF
-      END DO
-
 
 !==========================================================================
       DEALLOCATE(UICE2N,VICE2N)
