@@ -2474,31 +2474,33 @@ MODULE MOD_WQM
 !
    SRCD = 0.04
 
-1000 CONTINUE
-   N_0  = N_0 + 1
+   DO WHILE(.TRUE.)
+     N_0  = N_0 + 1
 !
 ! Calculate value of function (F2) and derivative of function (FF or FP4)
 !
-   EF  = EXP(-SRCD*WINDS/UT_0)
-   F1  = LOG((WH/ZE) + (WH*LAM/VA_0)*SRCD*WINDS*EF)
-   F2  = F1 - VKA/SRCD
-   FP1 = 1.0_SP/((WH/ZE) + (WH*LAM/VA_0)*SRCD*WINDS*EF)
-   FP2 = ((WH*LAM)/(VA_0*UT_0))*SRCD*WINDS**2*EF
-   FP3 = (WH*LAM/VA_0)*WINDS*EF
-   FP4 = FP1*(FP2 + FP3) + (VKA/(SRCD**2))
+     EF  = EXP(-SRCD*WINDS/UT_0)
+     F1  = LOG((WH/ZE) + (WH*LAM/VA_0)*SRCD*WINDS*EF)
+     F2  = F1 - VKA/SRCD
+     FP1 = 1.0_SP/((WH/ZE) + (WH*LAM/VA_0)*SRCD*WINDS*EF)
+     FP2 = ((WH*LAM)/(VA_0*UT_0))*SRCD*WINDS**2*EF
+     FP3 = (WH*LAM/VA_0)*WINDS*EF
+     FP4 = FP1*(FP2 + FP3) + (VKA/(SRCD**2))
 !
 ! Calculate a new guess for square root of Drag coefficient and compare
 ! to previous guess and loop back through N-R with new guess if 
 ! appropriate
 !
-   SRCD2 = SRCD - F2/FP4
-   ERR   = ABS(SRCD - SRCD2)
-   IF(ERR > 0.005_SP .AND. N_0 < 8) THEN
-     SRCD = SRCD2
-     GOTO 1000
-   END IF
-        
-   IF(ERR > 0.005_SP .AND. N_0 >= 8) THEN 
+     SRCD2 = SRCD - F2/FP4
+     ERR   = ABS(SRCD - SRCD2)
+     IF(ERR > 0.005_SP .AND. N_0 < 8) THEN
+       SRCD = SRCD2
+     ELSE
+       EXIT
+     END IF
+   ENDDO
+
+   IF(ERR > 0.005_SP .AND. N_0 >= 8) THEN
      WRITE(6,'(5X,"SOLUTION DID NOT CONVERGE")')
      CALL PSTOP
    ELSE

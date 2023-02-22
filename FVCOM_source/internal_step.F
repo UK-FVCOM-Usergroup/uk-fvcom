@@ -108,6 +108,9 @@ SUBROUTINE INTERNAL_STEP
   REAL(DP) :: DPDAYS
   REAL(SP) :: SPDAYS
 # endif
+# if defined (WAVE_ONLY)
+  LOGICAL :: wa_on
+# endif
   integer :: i1,i2
 
   REAL(SP), ALLOCATABLE :: TB1(:,:),SB1(:,:),Q2B(:,:),Q2LB(:,:),UB(:,:),VB(:,:)
@@ -491,7 +494,8 @@ SUBROUTINE INTERNAL_STEP
 # endif
 
 # if defined (WAVE_ONLY)
-  goto 5501
+  wa_on = .false.
+  IF(wa_on) THEN
 # endif
 
 # if !defined(ONE_D_MODEL) && !defined (SEMI_IMPLICIT)
@@ -1796,7 +1800,7 @@ SUBROUTINE INTERNAL_STEP
 # endif
 
 # if defined (WAVE_ONLY)
-   5501 continue
+  END IF
 # endif
 
 !!$  CALL DUMP_PROBE_DATA 
