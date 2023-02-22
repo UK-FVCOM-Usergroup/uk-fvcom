@@ -3,7 +3,7 @@ Change log - updating to v5
 
 Tidy up code by removing GOTO statements and ambiguos error codes. Affects:
 mod_dam.F, mod_enkf.F, mod_enkf_obs.F, mod_interp.F, mod_newimp.F, mod_pwp.F, mod_rrk.F, mod_rrkassim.F, mod_rrkf_obs.F, mod_semi_implicit.F, mod_sng.F, mod_solar.F, opcre.F, 
-ocpids.F, ocpmix.F, swancom3.F, swancom4.F, swancom5.F, input/mod_init.F, input/mod_obcreate.F, surface_forcing/wrf_to_fvcom.f90, bcond_gcn.F, internal_step.F, mod_assim.F, mod_bio_3D.F, mod_enkfassim.F, mod_etkf.F, mod_obcs.F, mod_utils.F, mod_wqm.F, swancom1.F, swancom2.F, swanmain.F
+ocpids.F, ocpmix.F, swancom3.F, swancom4.F, swancom5.F, input/mod_init.F, input/mod_obcreate.F, surface_forcing/wrf_to_fvcom.f90, bcond_gcn.F, internal_step.F, mod_assim.F, mod_bio_3D.F, mod_enkfassim.F, mod_etkf.F, mod_obcs.F, mod_utils.F, mod_wqm.F, swancom1.F, swancom2.F, swanmain.F, bcond_gcy.F
 
 Tidy up error codes - mod_input.F, mod_esmf_nesting.F, mod_nesting.F
 
