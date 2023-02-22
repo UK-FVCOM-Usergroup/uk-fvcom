@@ -7497,6 +7497,16 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:V_STOKES_3D")
        V_STOKES_3D = 0.0_sp
 
+# if defined (VORTEX_FORCE)
+       allocate(W_STOKES_3D(NGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:W_STOKES_3D")
+       W_STOKES_3D = 0.0_sp
+
+       allocate(WW_STOKES_3D(NGL,KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WW_STOKES_3D")
+       WW_STOKES_3D = 0.0_sp
+# endif
+
        allocate(WAVESTRX_3D(NGL,KB),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WAVESTRX_3D")
        WAVESTRX_3D = 0.0_sp
@@ -7559,6 +7569,84 @@ CONTAINS
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
+
+# if defined (VORTEX_FORCE)
+    ! W_STOKES_3D
+    VAR  => NC_MAKE_AVAR(name='w_stokes_3d',&
+         & values=W_STOKES_3D, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Omega Stokes Velocity')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m/s')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+    ! WW_STOKES_3D
+    VAR  => NC_MAKE_AVAR(name='ww_stokes_3d',&
+         & values=WW_STOKES_3D, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Upward Stokes Velocity')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m/s')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    ! U_STOKES_2D
+    VAR  => NC_MAKE_AVAR(name='u_stokes_2d',&
+         & values=U_STOKES_2D, DIM1= DIM_nele, DIM2 = DIM_time)
+
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Eastward Stokes Velocity')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m/s')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+
+    ! V_STOKES_2D
+    VAR  => NC_MAKE_AVAR(name='v_stokes_2d',&
+         & values=V_STOKES_2D, DIM1= DIM_nele, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Northward Stokes Velocity')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m/s')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+# endif
 
     ! U_STRESS_3D
     VAR  => NC_MAKE_AVAR(name='u_stress_3d',&

@@ -877,7 +877,7 @@ PROGRAM FVCOM
         !==============================================================================!
 
 !for Eulerian velocity output
-# if defined (WAVE_CURRENT_INTERACTION)
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
 !         U = U-U_STOKES_3D
 !         V = V-V_STOKES_3D
 !         UA=UA-U_STOKES_2D
@@ -886,7 +886,7 @@ PROGRAM FVCOM
 
         CALL ARCHIVE
 
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
 !Convert Eulerian velocity back to Lagrangian velocity to maintain consistent with Mellor's equation
 !         U = U+U_STOKES_3D
 !         V = V+V_STOKES_3D
@@ -1041,7 +1041,7 @@ PROGRAM FVCOM
              ! do nothing
            ELSE
 !for Eulerian velocity output
-# if defined (WAVE_CURRENT_INTERACTION)
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
 !         U = U-U_STOKES_3D
 !         V = V-V_STOKES_3D
 !         UA=UA-U_STOKES_2D
@@ -1050,7 +1050,7 @@ PROGRAM FVCOM
 
              CALL ARCHIVE
 
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
 !Convert Eulerian velocity back to Lagrangian velocity to maintain consistent with Mellor's equation
 !         U = U+U_STOKES_3D
 !         V = V+V_STOKES_3D
@@ -2070,7 +2070,7 @@ PROGRAM FVCOM
         !==============================================================================!
 
 !for Eulerian velocity output
-# if defined (WAVE_CURRENT_INTERACTION)
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
 !         U = U-U_STOKES_3D
 !         V = V-V_STOKES_3D
 !         UA=UA-U_STOKES_2D
@@ -2104,7 +2104,7 @@ IF (ENKF_memberCONTR ==1 ) THEN
     END IF
 
 
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE) 
 !Convert Eulerian velocity back to Lagrangian velocity to maintain consistent with Mellor's equation
 !         U = U+U_STOKES_3D
 !         V = V+V_STOKES_3D

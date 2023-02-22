@@ -449,6 +449,7 @@ dashL= $(empty) -L
 #        WAVE-CURRENT INTERACTION
 #--------------------------------------------------------------------------
 #             FLAG_32 =  -DWAVE_CURRENT_INTERACTION
+#             FLAG_321 = -DVORTEX_FORCE
 #             FLAG_33 =  -DPLBC
 #           NOTE! THis option is for wave code          
 #             FLAG_34 =  -DEXPLICIT

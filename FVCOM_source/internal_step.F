@@ -486,15 +486,20 @@ SUBROUTINE INTERNAL_STEP
 
 # if !defined (WAVE_ONLY)
 # if !defined (TWO_D_MODEL)
+# if !defined (VORTEX_FORCE)
   CALL RADIATION_STRESS_3D
+# else
+!Xia et al. (2020)
+  CALL VORTEX_FORMALISM_3D
+# endif
 # else
   CALL RADIATION_STRESS_2D
 # endif
 # endif
 # if defined (DATA_ASSIM)
   END IF
-# endif     
-  
+# endif
+
 # endif
 
 # if defined (WAVE_ONLY)
@@ -1147,7 +1152,7 @@ SUBROUTINE INTERNAL_STEP
 #   endif
   CALL N2E3D(KM,KM1)
 
-# if defined (WAVE_CURRENT_INTERACTION)
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
 !     U=U-U_STOKES_3D
 !     V=V-V_STOKES_3D
 # endif
