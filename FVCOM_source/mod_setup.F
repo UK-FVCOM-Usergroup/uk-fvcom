@@ -377,6 +377,7 @@ CONTAINS
     
   END SUBROUTINE SETUP_BOTTOM_ROUGHNESS
 
+# if defined (STRUCTURE)
   !==============================================================================|
   !   SET STRUCTURES PARAMETERS                                                       |
   !==============================================================================|
@@ -391,7 +392,6 @@ CONTAINS
        end if
 
        CALL LOAD_STRUCTURE_PARAMETERS(KBTT, ARTT, NTT, CT)
-              
     else
        
        KBTT      = 0.0
@@ -404,7 +404,7 @@ CONTAINS
     end if
     
   END SUBROUTINE SETUP_STRUCTURES
-
+# endif
   !==============================================================================|
   !   SET UP LOCAL MESH (BATHYMETRIC DEPTH)                                      |
   !==============================================================================|

@@ -406,7 +406,7 @@ MODULE CONTROL
          & NCAV_SURFACE_HEAT,   &
          & NCAV_GROUNDWATER,    &
          & NCAV_BIO,            &
-# if defined(FABM)
+# if defined (FABM)
          & NCAV_FABM,           &
 # endif
          & NCAV_WQM,            &
@@ -514,13 +514,15 @@ MODULE CONTROL
          & WETTING_DRYING_ON,            &
          & ADCOR_ON,                     &
 	 & EQUATOR_BETA_PLANE,           &
-         & NOFLUX_BOT_CONDITION      &
 # if defined (STRUCTURE)
+         & NOFLUX_BOT_CONDITION,      &
          & STRUCTURE_ON,             &
          & STRUCTURE_FILE,           &
          & STRUCTURE_KIND,           &
          & STRUCTURE_CT,             &
          & STRUCTURE_ARTT
+# else
+         & NOFLUX_BOT_CONDITION
 # endif
 
     !--Parameters in NameList NML_SURFACE_FORCING
