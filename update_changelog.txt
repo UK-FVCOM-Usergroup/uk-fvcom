@@ -46,3 +46,5 @@ Add river inflow for ice module - mod_ice.F
 Remove modifications to 2d ice model made for global runs - mod_ice2d.F
 
 Add basal ice stess to 2d ice model - mod_ice2d.F
+
+Add psigma_distribution for if psigma == 1 - mod_input.F, mod_main.F, mod_setup.F
