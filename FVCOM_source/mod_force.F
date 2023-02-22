@@ -12802,7 +12802,7 @@ CONTAINS
              HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
 	   END IF  
 	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
-           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+           RAIN(I) = QPREC(I)*3600.0_SP*1000.0_SP  ! change unit to mm/hr  from m/s
 	   ZI40 = fmiss
            CP40 = Cwave(I)
            SIGH = HSC1(I)
@@ -13000,7 +13000,7 @@ CONTAINS
              HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
 	   END IF  
 	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
-           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+           RAIN(I) = QPREC(I)*3600.0_SP*1000.0_SP  ! change unit to mm/hr  from m/s
 	   ZI40 = fmiss
            CP40 = Cwave(I)
            SIGH = HSC1(I)
@@ -13150,7 +13150,7 @@ CONTAINS
              HEAT_RLN(I)  =emmiss*(DLW_AIR(I)+ulw_airf)	     
 	   END IF  
 	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
-           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+           RAIN(I) = QPREC(I)*3600.0_SP*1000.0_SP  ! change unit to mm/hr  from m/s
 	   ZI40 = fmiss
            CP40 = Cwave(I)
            SIGH = HSC1(I)
