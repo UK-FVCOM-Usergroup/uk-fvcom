@@ -14,3 +14,5 @@ Remove +1 for indexing and sediment dimension - mod_obcs.F, mod_scal.F, mod_sed.
 Change GASDEV and RAN2 from function to sub routine - mod_enkfassim.F, mod_etkf.F
 
 Remove erroneous continue - mod_flocmod.F
+
+Remove uneeded commends - mod_force.F
