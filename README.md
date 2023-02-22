@@ -47,3 +47,11 @@ The ERSEM biogeochemical model can be requested from the Shelf Seas Biogeochemis
 Development of FABM coupling for the ERSEM biogeochemical model is taking place in this repository, under the [FABM-ERSEM](https://gitlab.ecosystem-modelling.pml.ac.uk/fvcom/uk-fvcom/tree/FABM-ERSEM) branch.
 
 We always aim to maintain this branch in sink with the latest FVCOM release. FVCOM4.3 is now included in [FABM-ERSEM 4.3](https://gitlab.ecosystem-modelling.pml.ac.uk/fvcom/uk-fvcom/tree/FABM-ERSEM_v4.3) branch. This branch includes all the developments that have been carried out by partners of the uk-FVCOM group.
+
+
+EnergyVeg Branch
+----------------
+
+This has additional elements to represent vertically resolved momentum sink which has been used to represent tidal turbines and mangrove forests.
+
+As used in De Dominicis et al 2023 https://doi.org/10.1038/s43247-022-00672-7 
