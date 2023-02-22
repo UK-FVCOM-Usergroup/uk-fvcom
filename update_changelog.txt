@@ -30,3 +30,5 @@ Bug fix wrongly excluding variable when DATA_ASSIM flag wasn't active - mod_main
 Bug fix doubled up variable name - mod_ncdio.F
 
 Bug fix END DO spelling - mod_wave_current_interactions.F
+
+Add new BIO model (mostly just tidier code) - BIO_source/*
