@@ -1,6 +1,8 @@
 !===============================================================================|
 !   UPDATE THE TIDAL TURBINE THRUST COEFFICIENT, TO BE CALLED EVERY TIME STEP   |
 !===============================================================================|
+# if defined (STRUCTURE)
+
 SUBROUTINE TT_THRUST_UPDATE
 	USE ALL_VARS
 	IMPLICIT NONE
@@ -47,4 +49,4 @@ SUBROUTINE TT_AREA_UPDATE
         END WHERE
 
 END SUBROUTINE TT_AREA_UPDATE
-
+# endif

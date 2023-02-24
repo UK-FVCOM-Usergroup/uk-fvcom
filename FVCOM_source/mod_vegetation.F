@@ -1,6 +1,6 @@
-	MODULE mod_vegetation 
+#if defined (VEGETATION)
+    MODULE mod_vegetation 
 
-	# if defined VEGETATION
 	  Use Mod_Par
 	  Use Mod_Prec 
 	  Use Mod_Types
@@ -10,9 +10,9 @@
 							  FIND_FILE, FIND_DIM, FIND_VAR,        &
 							  NC_INIT, NC_OPEN, NC_LOAD, NC_CONNECT_AVAR, &
 							  NC_READ_VAR, NC_DISCONNECT
-	# if defined (WAVE_CURRENT_INTERACTION)
-	  USE MOD_WAVE_CURRENT_INTERACTION
-	# endif
+# if defined (WAVE_CURRENT_INTERACTION)
+     USE MOD_WAVE_CURRENT_INTERACTION
+# endif
 	  !
 	  implicit none
 	  !
@@ -150,17 +150,11 @@
 	  integer :: phght, pdens, pdiam, pthck
 	  integer :: ipdens,iphght,ipdiam,ipthck
 
-	  !#ifdef VEG_BIOMASS 
 	  integer :: pabbm, pbgbm
 	  integer :: ipabbm, ipbgbm
-	  !#endif 
-	  !#ifdef VEG_STREAMING 
 	  integer :: idWdvg
-	  !#endif 
 	  integer, allocatable :: idvprp(:)
-	  !#ifdef MARSH_WAVE_THRUST 
 	  integer ::  idTims, idTmsk, idTmax, idTton
-	  !#endif 
 	  !
 	  real(sp), allocatable :: E_VEG(:)
 	  real(sp), allocatable :: CD_VEG(:)
@@ -221,28 +215,18 @@
 		 real(sp), allocatable :: step2d_uveg(:)
 		 real(sp), allocatable :: step2d_vveg(:)
 		 real(sp), allocatable :: Lveg(:,:)
-		 !# ifdef VEG_FLEX 
 		 real(sp), allocatable :: bend(:,:)
-		 !# endif         
-		 !# ifdef VEG_TURB
 		 real(sp), allocatable :: tke_veg(:,:)
 		 real(sp), allocatable :: gls_veg(:,:)
-		 !# endif 
-		 !# ifdef VEG_HMIXING
 		 real(sp), allocatable :: visc2d_r_veg(:)
 		 real(sp), allocatable :: visc3d_r_veg(:,:)
-		 !# endif 
-		 !# if defined VEG_SWAN_COUPLING && defined VEG_STREAMING
 		 real(sp), allocatable :: dissip_veg(:)
 		 real(sp), allocatable :: BWDXL_veg(:,:)
 		 real(sp), allocatable :: BWDYL_veg(:,:)
-		 !# endif 
-		 !# ifdef MARSH_WAVE_THRUST
 		 real(sp), allocatable :: marsh_mask(:)
 		 real(sp), allocatable :: mask_thrust(:)
 		 real(sp), allocatable :: Thrust_max(:)
 		 real(sp), allocatable :: Thrust_tonelli(:)
-		 !# endif
 
 	  END TYPE T_VEG
 
@@ -251,7 +235,7 @@
 
 	  character(len=500) :: vegfile ! input file for vegetation type and parameters
 
-	  real(sp),parameter :: rhow = 1025.0 ! constant sea water density
+	  real(sp),parameter :: rhow_v = 1025.0 ! constant sea water density
 
 	  !-----------------------------------------------------------------------
 	  !  Generic Length Scale parameters.
@@ -850,7 +834,7 @@ CONTAINS
     VEG%rv_veg=Inival
     VEG%Lveg=Inival
     !
-# if defined (WET_DRY)
+# if defined(WET_DRY)
     !
     !  Set limiting factor for drag force. The drag force is adjusted
     !  to not change the direction of momentum.  It only should slow down
@@ -879,7 +863,7 @@ CONTAINS
                 !
                 ! Buoyancy parameter
                 !
-                buoy=(rhow-veg_massdens(iveg))*grav*VEG%plant(i,iveg,pdiam)*&
+                buoy=(rhow_v-veg_massdens(iveg))*grav*VEG%plant(i,iveg,pdiam)*&
                      &              VEG%plant(i,iveg,pthck)*                              &
                      &              VEG%plant(i,iveg,phght)**3.0_sp/(E_veg(iveg)*sma)
                 !
@@ -891,7 +875,7 @@ CONTAINS
                 !
                 ! Cauchy number
                 !
-                Ca=0.5_sp*rhow*Cd_veg(iveg)*VEG%plant(i,iveg,pdiam)*     &
+                Ca=0.5_sp*rhow_v*Cd_veg(iveg)*VEG%plant(i,iveg,pdiam)*     &
                      &                   Umag**2.0_sp*VEG%plant(i,iveg,phght)**3.0_sp/    &
                      &                       (E_veg(iveg)*sma)
                 !
@@ -950,7 +934,7 @@ CONTAINS
              !
              VEG%ru_veg(i,k)=VEG%ru_loc_veg(i,k,iveg)+VEG%ru_veg(i,k)
 
-# ifdef WET_DRY
+# if defined (WET_DRY)
              if(WETTING_DRYING_ON)then
                 cff4=cff*dt(i)*dz(i,k)
                 VEG%ru_veg(i,k)=SIGN(1.0_sp, VEG%ru_veg(i,k))*                &
@@ -975,7 +959,7 @@ CONTAINS
              !
              VEG%rv_veg(i,k)=VEG%rv_loc_veg(i,k,iveg)+VEG%rv_veg(i,k)
 
-# ifdef WET_DRY
+# if defined (WET_DRY)
              if(WETTING_DRYING_ON)then
                 cff4=cff*dt(i)*dz(i,k)
                 VEG%rv_veg(i,k)=SIGN(1.0_sp, VEG%rv_veg(i,k))*                &
@@ -1604,73 +1588,7 @@ CONTAINS
     CALL NC_READ_VAR(VAR)
     CALL NC_DISCONNECT(VAR)
 
-
-
-!!$    ! FIND THE 'density' variable
-!!$    VAR => FIND_VAR(NCF,'plant_density',FOUND)
-!!$    IF(.not. FOUND) CALL FATAL_ERROR &
-!!$         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_density' in:",&
-!!$         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
-!!$
-!!$    CALL NC_CONNECT_AVAR(VAR,plant(:,:,1))
-!!$    CALL NC_READ_VAR(VAR)
-!!$    CALL NC_DISCONNECT(VAR)
-!!$
-!!$    ! FIND THE 'height' variable
-!!$    VAR => FIND_VAR(NCF,'plant_height',FOUND)
-!!$    IF(.not. FOUND) CALL FATAL_ERROR &
-!!$         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_height' in:",&
-!!$         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
-!!$
-!!$    CALL NC_CONNECT_AVAR(VAR,plant(:,:,2))
-!!$    CALL NC_READ_VAR(VAR)
-!!$    CALL NC_DISCONNECT(VAR)
-!!$
-!!$    ! FIND THE 'diameter' variable
-!!$    VAR => FIND_VAR(NCF,'plant_diameter',FOUND)
-!!$    IF(.not. FOUND) CALL FATAL_ERROR &
-!!$         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_diameter' in:",&
-!!$         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
-!!$
-!!$    CALL NC_CONNECT_AVAR(VAR,plant(:,:,3))
-!!$    CALL NC_READ_VAR(VAR)
-!!$    CALL NC_DISCONNECT(VAR)
-!!$
-!!$    ! FIND THE 'thickness' variable
-!!$    VAR => FIND_VAR(NCF,'plant_thickness',FOUND)
-!!$    IF(.not. FOUND) CALL FATAL_ERROR &
-!!$         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_thickness' in:",&
-!!$         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
-!!$
-!!$    CALL NC_CONNECT_AVAR(VAR,plant(:,:,4))
-!!$    CALL NC_READ_VAR(VAR)
-!!$    CALL NC_DISCONNECT(VAR)
-!!$
-!!$    IF(VEG_BIOMASS)THEN
-!!$       ! FIND THE 'thickness' variable
-!!$       VAR => FIND_VAR(NCF,'plant_biomass_above_ground',FOUND)
-!!$       IF(.not. FOUND) CALL FATAL_ERROR &
-!!$            & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_biomass_above_ground' in:",&
-!!$            & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
-!!$
-!!$       CALL NC_CONNECT_AVAR(VAR,plant(:,:,5))
-!!$       CALL NC_READ_VAR(VAR)
-!!$       CALL NC_DISCONNECT(VAR)
-!!$
-!!$       ! FIND THE 'thickness' variable
-!!$       VAR => FIND_VAR(NCF,'plant_biomass_below_ground',FOUND)
-!!$       IF(.not. FOUND) CALL FATAL_ERROR &
-!!$            & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_biomass_below_ground' in:",&
-!!$            & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
-!!$
-!!$       CALL NC_CONNECT_AVAR(VAR,plant(:,:,6))
-!!$       CALL NC_READ_VAR(VAR)
-!!$       CALL NC_DISCONNECT(VAR)
-!!$
-!!$    END IF
-
   END SUBROUTINE LOAD_VEGETATION_FIELDS
 
-#endif
-
 END MODULE mod_vegetation
+# endif
