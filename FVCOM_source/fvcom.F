@@ -522,6 +522,10 @@ PROGRAM FVCOM
   USE MOD_PWP
 # endif
 
+# if defined (VEGETATION)
+  USE MOD_VEGETATION
+# endif
+
   USE MOD_STATION_TIMESERIES 
   USE MOD_SPARSE_TIMESERIES
 
@@ -638,6 +642,15 @@ PROGRAM FVCOM
    IF(SEDIMENT_MODEL) &
   &  CALL SETUP_SED(SEDIMENT_MODEL_FILE,IOBCN,IOBCN_GL,N_SED,N_SED_MAX,SED_NAMES)
 #  endif
+ 
+  !==============================================================================!
+  ! SETUP THE VEGETATION MODEL
+  ! ! 
+  !==============================================================================!
+#  if defined (VEGETATION)
+   IF(VEGETATION_MODEL)CALL SETUP_VEGETATION
+#  endif 
+
   !=============================================================================!
   ! SETUP TVD ADVECTION                                                         !
   !=============================================================================!

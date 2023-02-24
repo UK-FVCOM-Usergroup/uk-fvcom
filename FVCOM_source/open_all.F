@@ -63,6 +63,10 @@ SUBROUTINE OPEN_ALL
 #    if defined (WAVE_CURRENT_INTERACTION)
      IF(NESTING_ON_WAVE) CALL OPEN_NESTING_FILE_WAVE
 #    endif     
+
+#    if defined (VEGETATION)
+     CALL OPEN_FORCING_VEGETATION
+#    endif
      
      !=================================================
      ! CRASHSTART 
@@ -83,6 +87,10 @@ SUBROUTINE OPEN_ALL
 #    if defined (WAVE_CURRENT_INTERACTION)
      IF(NESTING_ON_WAVE) CALL OPEN_NESTING_FILE_WAVE
 #    endif     
+
+#    if defined (VEGETATION)
+     CALL OPEN_FORCING_VEGETATION
+#    endif 
 
      !=================================================
      ! COLDSTART 
@@ -128,8 +136,11 @@ SUBROUTINE OPEN_ALL
      IF(NESTING_ON_WAVE) CALL OPEN_NESTING_FILE_WAVE
 #    endif     
 
-  END SELECT
+#    if defined (VEGETATION)
+     CALL OPEN_FORCING_VEGETATION
+#    endif
 
+  END SELECT
 
 
 END SUBROUTINE OPEN_ALL

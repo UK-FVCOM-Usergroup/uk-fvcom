@@ -77,6 +77,9 @@ SUBROUTINE INTERNAL_STEP
   USE MOD_SED_CSTMS
 # endif
 # endif
+# if defined (VEGETATION)
+  USE MOD_VEGETATION
+# endif
 # if defined (DYE_RELEASE)
   USE MOD_DYE
 # endif
@@ -1166,7 +1169,17 @@ SUBROUTINE INTERNAL_STEP
      !     TKE  = TKEF
      !     TEPS = TEPSF
      CALL ADVANCE_GOTM            !!Solve TKE/TEPS eqns for KH/KM/KQ
-     
+    
+#  if defined (VEGETATION)
+      if(VEGETATION_MODEL.and.VEG_TURB)then
+      !
+      !  Add the effect of vegetation on Q2 and Q2L
+      !      
+        Q2  = Q2  +  VEG % tke_veg
+        Q2L = Q2L +  VEG % tke_veg*L
+      end if
+#  endif 
+
 #   else     
      !===================Original FVCOM MY-2.5/Galperin 1988 Model=============!
 #    if defined (SEMI_IMPLICIT)     
@@ -1284,6 +1297,12 @@ SUBROUTINE INTERNAL_STEP
   IF(BIOLOGICAL_MODEL)CALL BIO_3D1D
                            
 #   endif
+
+# if defined (VEGETATION)
+  if(VEGETATION_MODEL)then
+     CALL UPDATE_VEGETATION
+  end if
+# endif
 
 #   if defined (FABM)
 # if defined (DATA_ASSIM)

@@ -52,6 +52,10 @@
    USE MOD_WAVE_CURRENT_INTERACTION
 #  endif
 
+#  if defined (VEGETATION)
+   USE MOD_VEGETATION
+#  endif
+
    IMPLICIT NONE
    INTEGER, INTENT(IN) :: K
    REAL(SP), DIMENSION(0:NT) :: RESX,RESY,TMP
@@ -130,6 +134,13 @@
        RESY(I) = ADY2D(I)+ADVVA(I)+DRY2D(I)+PSTY(I)+COR(I)*UA(I)*D1(I)*ART(I)  &
                  -(WVSURF2(I)+WVBOT(I))*ART(I)+NHQ2DY(I)
 #      endif
+
+# if defined (VEGETATION)
+       IF(VEGETATION_MODEL.and.VEG_DRAG)THEN
+         RESX(I) = RESX(I) + step2d_uveg(i)*ART(I)
+         RESY(I) = RESY(I) + step2d_vveg(i)*ART(I)
+       END IF
+# endif
 
 # if defined (STRUCTURE)
    !ADD STRUCTURE DRAG FORCE IN THE 'J' SIGMA LAYER

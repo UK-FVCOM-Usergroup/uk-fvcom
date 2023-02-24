@@ -486,6 +486,14 @@ dashL= $(empty) -L
              FLAG_43 = -DSTRUCTURE
 
 #--------------------------------------------------------------------------
+#        Vegetation Impact on FLows, Waves and Sediment (with FLAG_32 turned on)
+#--------------------------------------------------------------------------
+#             FLAG_45 = -DVEGETATION
+
+#--------------------------------------------------------------------------
+
+
+#--------------------------------------------------------------------------
 #        DEVELOPMENT FLAGS
 #            FOR BETA WORK ONLY 
 #--------------------------------------------------------------------------
@@ -555,7 +563,7 @@ dashL= $(empty) -L
    $(FLAG_31) $(FLAG_32) $(FLAG_33) $(FLAG_34) \
    $(FLAG_35) $(FLAG_36) $(FLAG_37) $(FLAG_38) \
    $(FLAG_39) $(FLAG_40) $(FLAG_41) $(FLAG_42) \
-   $(FLAG_43) $(FLAG_44) $(FLAG_80)$(FLAG_LAM)\
+   $(FLAG_43) $(FLAG_44) ${FLAG_45} $(FLAG_80)$(FLAG_LAM)\
    $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)\
    $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261) $(FLAG_262)\
    $(FLAG_USE_NETCDF4) $(FLAG_USE_COMPRESSION)
