@@ -6183,7 +6183,7 @@ CONTAINS
 
      IOPROC_ALLOCATED = .true.
 
-     ALLOCATE(FABM_ALL(MGL,KB,size(model%state_variables)),STAT=STATUS)
+     ALLOCATE(FABM_ALL(MGL,KB,size(model%interior_state_variables)),STAT=STATUS)
      IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:FABM_ALL")
      FABM_ALL = 0.0_SP
 
@@ -6200,13 +6200,13 @@ CONTAINS
   ! ALLOCATE THE NEW FILE OBJECT
    NCF => NEW_FILE()
 
-   DO II=1,size(model%state_variables)
+   DO II=1,size(model%interior_state_variables)
    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
    ! SHOULD HAVE THE SAME NAME A THOSE USED ON THE OTHER PROCESSORS!
-     IF (model%state_variables(II)%output/=output_none.or.ISET==3) THEN
+     IF (model%interior_state_variables(II)%output/=output_none.or.ISET==3) THEN
        pdata => FABM_ALL(1:M,1:KB,II)
-       VAR => ADD_FABM_VARIABLE(model%state_variables(II),pdata=pdata)
+       VAR => ADD_FABM_VARIABLE(model%interior_state_variables(II),pdata=pdata)
        NCF  => ADD(NCF,VAR)
      END IF
    END DO
@@ -6229,16 +6229,16 @@ CONTAINS
 
    IF (ISET/=3.AND.FABM_DIAG_OUT) THEN
       ! Normal output, not restart, so include diagnostics.
-      DO II=1,size(model%diagnostic_variables)
-        IF (model%diagnostic_variables(II)%save) THEN
-          VAR => ADD_FABM_VARIABLE(model%diagnostic_variables(II),pdata=fabm_get_bulk_diagnostic_data(model,II))
+      DO II=1,size(model%interior_diagnostic_variables)
+        IF (model%interior_diagnostic_variables(II)%save) THEN
+          VAR => ADD_FABM_VARIABLE(model%interior_diagnostic_variables(II),pdata=model%get_interior_diagnostic_data(II))
           NCF  => ADD(NCF,VAR)
         END IF
       END DO
 
       DO II=1,size(model%horizontal_diagnostic_variables)
         IF (model%horizontal_diagnostic_variables(II)%save) THEN
-          VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=fabm_get_horizontal_diagnostic_data(model,II))
+          VAR => ADD_FABM_VARIABLE(model%horizontal_diagnostic_variables(II),pdata_hz=model%get_horizontal_diagnostic_data(II))
           NCF  => ADD(NCF,VAR)
         END IF
       END DO
@@ -6262,8 +6262,8 @@ CONTAINS
 
   FUNCTION ADD_FABM_VARIABLE(variable,pdata,pdata_hz,pdata3) result(VAR)
      USE fabm 
-     class (type_external_variable),intent(in) :: variable
-   
+     class (type_fabm_variable),intent(in) :: variable
+
      REAL(SP), POINTER, OPTIONAL :: pdata3(:,:,:)
      REAL(SP), POINTER, OPTIONAL :: pdata(:,:)
      REAL(SP), POINTER, OPTIONAL :: pdata_hz(:)

@@ -1520,15 +1520,6 @@ END SUBROUTINE GENMAP_NESTING
        ALLOCATE(HYW_NEST(0:G%MT,KB),stat=status)
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:HYW_NEST")
 
-# if defined (FABM)
-       IF(FABM_NESTING_ON) THEN
-          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,size(model%state_variables)),stat=status)
-          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_NEST")
-!          ALLOCATE(FABM_ALL_BLK(0:G%MT,KB,NESTING_BLOCKSIZE,size(model%state_variables)),stat=status)
-!          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_BLK")
-       END IF
-# endif
-
        ALLOCATE(WCELL_NEST(0:G%NT),stat=status)
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:WCELL_NEST")
       
@@ -1536,8 +1527,19 @@ END SUBROUTINE GENMAP_NESTING
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:WNODE_NEST")
 
        MEMCNT = MEMCNT + G%NT * (2 + 2*KB)* NDB + G%MT * (1 + 3*KB)* NDB
+# if defined (FABM)
+       IF(FABM_NESTING_ON) THEN
+          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,IFABMadv),stat=status) !RJT restricting nesting actions to advectable variables only
+!          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,size(model%interior_state_variables)),stat=status)
+          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_NEST")
+!          ALLOCATE(FABM_ALL_BLK(0:G%MT,KB,NESTING_BLOCKSIZE,size(model%interior_state_variables)),stat=status)
+!          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_BLK")
+       END IF
 
-       ! ALLOCATE SPACE FOR INTERPOLATED DATA
+       MEMCNT = MEMCNT + G%MT * KB * IFABMadv
+# endif
+
+      ! ALLOCATE SPACE FOR INTERPOLATED DATA
        ALLOCATE(U_NEST_L(0:G%NT,KB_L),stat=status)
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:U_NEST_L")
 
@@ -1593,7 +1595,7 @@ END SUBROUTINE GENMAP_NESTING
 
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
-          ALLOCATE(D%FABM_ALL_BLK(0:G%MT,KB_L,NESTING_BLOCKSIZE,size(model%state_variables)),stat=status)
+          ALLOCATE(D%FABM_ALL_BLK(0:G%MT,KB_L,NESTING_BLOCKSIZE,IFABMadv),stat=status) !RJT restricting nesting actions to advectable variables only
           if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:D%FABM_ALL_BLK")
          ALLOCATE(D%FABM_ALL_TMP(0:G%MT,KB_L,NESTING_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:FABM_ALL_TMP")
@@ -1664,9 +1666,10 @@ END SUBROUTINE GENMAP_NESTING
          ALLOCATE(D%WNODE_BLK(0:G%M,NCNEST_BLOCKSIZE),stat=status)
          if(status /= 0) call fatal_error("ALLOC_BLK: can not allocate:WNODE_BLK")
 # if defined (FABM)
-!       IF(FABM_NCNEST_ON) THEN
-          ALLOCATE(D%FABM_ALL_BLK(0:G%M,KB,NCNEST_BLOCKSIZE,size(model%state_variables)),stat=status)
+!       IF(FABM_NCNEST_ON) THEN ! active as long as NCNEST is on
+          ALLOCATE(D%FABM_ALL_BLK(0:G%M,KB,NCNEST_BLOCKSIZE,IFABMadv),stat=status)! RJT Use only advectable variables
           if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:D%FABM_ALL_BLK")
+         MEMCNT = MEMCNT + G%M * KB * IFABMadv * NCNEST_BLOCKSIZE
 !       END IF
 # endif
          MEMCNT = MEMCNT + G%N * (2 + 2*KB)* NDB * NCNEST_BLOCKSIZE &
@@ -1820,15 +1823,23 @@ END SUBROUTINE GENMAP_NESTING
 
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
-       DO IFABM = 1,size(model%state_variables)
-         VAR => FIND_VAR(NESTING_FILE,TRIM(model%state_variables(IFABM)%name),FOUND)
-         IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO"// &
-            & TRIM(model%state_variables(IFABM)%name)//"  FOUND?")
-!         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM))
-!         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
-         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)
-         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
-         NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM)=NESTING_DATA%FABM_ALL_TMP
+         IFABMnest = 0 ! Initialise count of nesting variables present in file
+         IFABMnest_idx = IFABMadv_idx
+       DO IFABM = 1,IFABMadv
+!         WRITE (6,*) 'Index ', IFABM,IFABMadv_idx(IFABM), 'Name ',TRIM(model%interior_state_variables(IFABMadv_idx(IFABM))%name)
+         VAR => FIND_VAR(NESTING_FILE,TRIM(model%interior_state_variables(IFABMadv_idx(IFABM))%name),FOUND) ! RJT looping only through advectable variables
+! If the variable is in the file
+         IF(FOUND) THEN
+! increase counter
+            IFABMnest = IFABMnest + 1
+! populate variable mapping index
+            IFABMnest_idx(IFABMnest) = IFABMadv_idx(IFABM)
+            CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)
+            CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
+            NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABMnest)=NESTING_DATA%FABM_ALL_TMP
+! Report variable to log file
+            WRITE(IPT,*) "Found Variable ",TRIM(model%interior_state_variables(IFABMadv_idx(IFABM))%name) , " in nesting file, with nesting index ", IFABMnest
+         END IF
        END DO
        END IF
 # endif
@@ -1951,7 +1962,7 @@ END SUBROUTINE GENMAP_NESTING
 # if defined (FABM)
 !       IF(FABM_NCNEST_ON) THEN
 ! this needs a variable with size IFABM... 
-         ALLOCATE(D%FABM_ALL_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE,size(model%state_variables)),STAT=STATUS)
+         ALLOCATE(D%FABM_ALL_BLK(Dim_node%dim,KB,NCNEST_BLOCKSIZE,IFABMadv),STAT=STATUS)
          IF (STATUS /=0 )  &
             & CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA: D%FABM_ALL_BLK")
          D%FABM_ALL_BLK = 0.0_SP
@@ -2132,11 +2143,11 @@ END SUBROUTINE GENMAP_NESTING
     NCF  => ADD(NCF,VAR)
 ! Can I do this??
 #   if defined (FABM)
-   DO II=1,size(model%state_variables)
+   DO II=1,IFABMadv
        pdata3 => D%FABM_ALL_BLK(1:,:,:,II)
-       VAR => ADD_FABM_VARIABLE(model%state_variables(II),pdata3=pdata3)
+       VAR => ADD_FABM_VARIABLE(model%interior_state_variables(IFABMadv_idx(II)),pdata3=pdata3)
        NCF  => ADD(NCF,VAR)
-!    write(ipt,*) "Done adding variable ,",trim(model%state_variables(II)%name)
+   write(ipt,*) "Done adding variable ,",trim(model%interior_state_variables(II)%name)
    END DO
 #   endif
 
@@ -2706,8 +2717,8 @@ END SUBROUTINE GENMAP_NESTING
     D%S1_BLK(:,:,D%IDX) = S1(G%NLID(:),:)
     D%T1_BLK(:,:,D%IDX) = T1(G%NLID(:),:)
 # if defined (FABM)
-   DO II=1,size(model%state_variables)
-    D%FABM_ALL_BLK(:,:,D%IDX,II)=FABM_ALL(G%NLID(:),1:KB,II)
+   DO II=1,IFABMadv ! RJT only for advectable variables size(model%interior_state_variables)
+    D%FABM_ALL_BLK(:,:,D%IDX,II)=FABM_ALL(G%NLID(:),1:KB,IFABMadv_idx(II))
    END DO
 # endif
 # if defined (NH)
@@ -2792,7 +2803,7 @@ END SUBROUTINE GENMAP_NESTING
     D%HYW_BLK=  -99.0_SP
     D%TIME_BLK =  zerotime
 # if defined (FABM)
-   DO II=1,size(model%state_variables)
+   DO II=1,IFABMadv !size(model%interior_state_variables)
     D%FABM_ALL_BLK=-99.0_SP
    END DO
 # endif
@@ -3011,7 +3022,7 @@ END SUBROUTINE GENMAP_NESTING
 # if defined (FABM)
     ELSEIF(PRESENT(FABM_ALL)) THEN
     IF(FABM_NESTING_ON) THEN
-    DO IFABM = 1,size(model%state_variables) 
+    DO IFABM = 1,IFABMnest !IFABMadv !size(model%state_variables)
        FABM_ALL_NEST(:,:,IFABM) =   NESTING_DATA%FABM_ALL_BLK(:,:,PREV,IFABM) * PREV_W +&
                 &  NESTING_DATA%FABM_ALL_BLK(:,:,NEXT,IFABM) * NEXT_W
 
@@ -3021,7 +3032,8 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%MT
           I_TMP = NESTING_GRID%NLID_X(I)
-          FABM_ALL(I_TMP,:,IFABM) =  FABM_ALL_NEST(I,:,IFABM) * WNODE_NEST(I) + FABM_ALL(I_TMP,:,IFABM) * (1_SP - WNODE_NEST(I))
+          FABM_ALL(I_TMP,:,IFABMnest_idx(IFABM)) =  FABM_ALL_NEST(I,:,IFABM) * WNODE_NEST(I) + FABM_ALL(I_TMP,:,IFABMnest_idx(IFABM)) * (1_SP - WNODE_NEST(I))
+          FABM_ALL(I_TMP,:,IFABMnest_idx(IFABM)) =  FABM_ALL(I_TMP,:,IFABMnest_idx(IFABM)) * RAMP
        END DO
     END DO
     END IF
@@ -3194,10 +3206,10 @@ END SUBROUTINE GENMAP_NESTING
     CALL NC_READ_VAR(VAR_HYW,STKRNG=NESTING_DATA%RNG)
 # if defined (FABM)
        IF(FABM_NESTING_ON) THEN
-       DO IFABM = 1,size(model%state_variables)
-         VAR => FIND_VAR(NESTING_FILE,TRIM(model%state_variables(IFABM)%name),FOUND)
-         IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO"// &
-            & TRIM(model%state_variables(IFABM)%name)//"  FOUND?")
+       DO IFABM = 1,IFABMnest
+         VAR => FIND_VAR(NESTING_FILE,TRIM(model%interior_state_variables(IFABMnest_idx(IFABM))%name),FOUND)! RJT looping only through advectable variables
+         IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO "// &
+            & TRIM(model%interior_state_variables(IFABMnest_idx(IFABM))%name)//"  FOUND?")
 !         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM))
 !         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
          CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)

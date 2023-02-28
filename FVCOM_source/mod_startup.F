@@ -2151,11 +2151,11 @@ CONTAINS
 
     STKCNT = NC_START%FTIME%PREV_STKCNT
 
-    DO IFABM = 1,size(model%state_variables)
+    DO IFABM = 1,size(model%interior_state_variables)
       ! LOAD FABM PELAGIC STATE VARIABLES
-      VAR => FIND_VAR(NC_START,TRIM(model%state_variables(IFABM)%name),FOUND)
+      VAR => FIND_VAR(NC_START,TRIM(model%interior_state_variables(IFABM)%name),FOUND)
       IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE "//    &
-         & TRIM(model%state_variables(IFABM)%name)//" IN THE HOTSTART FILE OBJECT")
+         & TRIM(model%interior_state_variables(IFABM)%name)//" IN THE HOTSTART FILE OBJECT")
       FABM_TMP => FABM_ALL(1:,1:,IFABM)
       CALL NC_CONNECT_PVAR(VAR,FABM_TMP)
       CALL NC_READ_VAR(VAR,STKCNT)
