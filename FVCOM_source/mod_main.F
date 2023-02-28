@@ -1480,483 +1480,483 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: KBTT(:,:)        !!THE FRACTION OF EACH SIGMA LAYER THAT THE STRUCTURE ARE LOCATED, FOR EACH ELEMENT
    REAL(SP), ALLOCATABLE,TARGET :: NTT(:)           !!THE NUMBER OF STRUCTURES IN EACH ELEMENT
    REAL(SP), ALLOCATABLE,TARGET :: ARTT(:)          !!THE ROTOR SWEPT AREA/FLOW FACING AREA OF THE STRUCTURES IN EACH ELEMENT
-   REAL(SP), ALLOCATABLE,TARGET :: CT(:)            !!TURBINE THRUST/STRUCTURE DRAG COEFF
+       REAL(SP), ALLOCATABLE,TARGET :: CT(:)            !!TURBINE THRUST/STRUCTURE DRAG COEFF
 # endif
-   ! ICING MODEL DATA
-   REAL(SP), ALLOCATABLE,TARGET :: ICING_WNDX(:)
-   REAL(SP), ALLOCATABLE,TARGET :: ICING_WNDY(:)
-   REAL(SP), ALLOCATABLE,TARGET :: ICING_SATMP(:)
-   REAL(SP), ALLOCATABLE,TARGET :: ICING_0kts(:)
-   REAL(SP), ALLOCATABLE,TARGET :: ICING_10kts(:)
+       ! ICING MODEL DATA
+       REAL(SP), ALLOCATABLE,TARGET :: ICING_WNDX(:)
+       REAL(SP), ALLOCATABLE,TARGET :: ICING_WNDY(:)
+       REAL(SP), ALLOCATABLE,TARGET :: ICING_SATMP(:)
+       REAL(SP), ALLOCATABLE,TARGET :: ICING_0kts(:)
+       REAL(SP), ALLOCATABLE,TARGET :: ICING_10kts(:)
 
-   ! NOT SURE WHETHER RIVER STUFF BELONGS HERE OR IN ALL_VARS???
+       ! NOT SURE WHETHER RIVER STUFF BELONGS HERE OR IN ALL_VARS???
 
-   ! RIVER STUFF
-   INTEGER,  ALLOCATABLE,TARGET :: INODEQ(:)        !!LOCAL FRESH WATER INFLOW NODES
-   INTEGER,  ALLOCATABLE,TARGET :: ICELLQ(:)        !!LOCAL FRESH WATER INFLOW ELEMENT 
-   INTEGER,  ALLOCATABLE,TARGET :: N_ICELLQ(:,:)    !!TWO NODES BOUNDING THE INFLOW ELEMENT
-   REAL(SP), ALLOCATABLE,TARGET :: VQDIST(:,:)      !!DISCHARGE VERTICAL DISTRIBUTION
-   INTEGER,  ALLOCATABLE,TARGET :: RIV_GL2LOC(:)
+       ! RIVER STUFF
+       INTEGER,  ALLOCATABLE,TARGET :: INODEQ(:)        !!LOCAL FRESH WATER INFLOW NODES
+       INTEGER,  ALLOCATABLE,TARGET :: ICELLQ(:)        !!LOCAL FRESH WATER INFLOW ELEMENT 
+       INTEGER,  ALLOCATABLE,TARGET :: N_ICELLQ(:,:)    !!TWO NODES BOUNDING THE INFLOW ELEMENT
+       REAL(SP), ALLOCATABLE,TARGET :: VQDIST(:,:)      !!DISCHARGE VERTICAL DISTRIBUTION
+       INTEGER,  ALLOCATABLE,TARGET :: RIV_GL2LOC(:)
 
-   REAL(SP), ALLOCATABLE,TARGET :: QDIS(:)          !!RIVER FLUX AT CURRENT TIME
-!# if !defined (SEMI_IMPLICIT)
-   REAL(SP), ALLOCATABLE,TARGET :: QDIS2(:)         !!RIVER FLUX (EXT MODE, NOT USED) 
-!# endif
-   REAL(SP), ALLOCATABLE,TARGET :: TDIS(:)          !!RIVER WATER TEMP AT CURRENT TIME
-   REAL(SP), ALLOCATABLE,TARGET :: SDIS(:)          !!RIVER WATER SLNT AT CURRENT TIME
-   REAL(SP), ALLOCATABLE,TARGET :: QAREA(:)         !!AREA OF RIVER DISCHARGE 
-   REAL(SP), ALLOCATABLE,TARGET :: RDISQ(:,:)       !!AREA OF FLUX                    
-   REAL(SP), ALLOCATABLE,TARGET :: ANGLEQ(:)        !!RIVER DISCHARGE ANGLE           
-   REAL(SP), ALLOCATABLE,TARGET :: VLCTYQ(:)        !!RIVER DISCHARGE VELOCITY
-   
-   ! PLUME STUFF                                     ADDED BY QIN, 04/03/2019
-# if defined (PLUME)
-   INTEGER,  ALLOCATABLE,TARGET :: INODEPLM(:)       !!LOCAL PLUME INFLOW NODES
-   INTEGER,  ALLOCATABLE,TARGET :: KSIGPLM(:)        !!PLUME RELEASE SIGMA LAYER
-   REAL(SP), ALLOCATABLE,TARGET :: QPLMDIS(:)        !!PLUME FLUX DISCHARGE AT CURRENT TIME 
-   REAL(SP), ALLOCATABLE,TARGET :: TPLMDIS(:)        !!PLUME TEMP DISCHARGE AT CURRENT TIME 
-   REAL(SP), ALLOCATABLE,TARGET :: SPLMDIS(:)        !!PLUME SALINITY DISCHARGE AT CURRENT TIME 
-   REAL(SP), ALLOCATABLE,TARGET :: FLXPLM(:,:)       !!PLUME FLUX FROM PLUME MODEL
-   REAL(SP), ALLOCATABLE,TARGET :: TPLM(:,:)         !!PLUME TEMP FROM PLUME MODEL
-   REAL(SP), ALLOCATABLE,TARGET :: SPLM(:,:)         !!PLUME SALINITY FROM PLUME MODEL
-# if defined (FABM)
-   REAL(SP), ALLOCATABLE,TARGET :: FABMPLM(:,:,:)    !!PLUME FABM TRACERS FROM PLUME MODEL
-   REAL(SP), ALLOCATABLE,TARGET :: FPLM_TMP(:,:)     !!TEMPORARY PLUME STORAGE (SHOULD NOT BE HERE, STORE IT IN THE MODULE)!!!
-# endif                   
-# endif
-
-
-   ! PUMP STUFF
-# if defined (PUMP)
-   INTEGER,  ALLOCATABLE,TARGET :: INODEPUMP(:)       !!LOCAL PUMP NODES
-   REAL(SP), ALLOCATABLE,TARGET :: PVDIST(:,:)        !!PUMP VERTICAL DISTRIBUTION
-   REAL(SP), ALLOCATABLE,TARGET :: QPUMP(:)           !!PUMP FLUX AT CURRENT TIME                   
-# endif
-   
-   
-   ! SURFACE MET STUFF
-   REAL(SP), ALLOCATABLE,TARGET :: UUWIND(:)        !!SURFACE X-WIND 
-   REAL(SP), ALLOCATABLE,TARGET :: VVWIND(:)        !!SURFACE Y-WIND
-   ! PRECIP/EVAP are in units of meters/second
-!# if !defined (SEMI_IMPLICIT)
-   REAL(SP), ALLOCATABLE,TARGET :: QPREC2(:)        !!SURFACE PRECIPITATION FOR EXT
-   REAL(SP), ALLOCATABLE,TARGET :: QEVAP2(:)        !!SURFACE EVAPORATION FOR EXT
-!# endif
-   REAL(SP), ALLOCATABLE,TARGET :: QPREC(:)        !!SURFACE PRECIPITATION FOR INT
-   REAL(SP), ALLOCATABLE,TARGET :: QEVAP(:)        !!SURFACE EVAPORATION FOR INT
-
-   REAL(SP), ALLOCATABLE,TARGET :: WHS(:)          !!SURFACE WAVE HEIGHT
-   REAL(SP), ALLOCATABLE,TARGET :: WDIR(:)         !!SURFACE WAVE DIRECTION
-   REAL(SP), ALLOCATABLE,TARGET :: WPER(:)         !!SURFACE WAVE PERIOD
-   REAL(SP), ALLOCATABLE,TARGET :: WLENGTH(:)      !!SURFACE WAVE LENGTH
-   REAL(SP), ALLOCATABLE,TARGET :: WPER_BOT(:)     !!BOTTOM WAVE PERIOD
-   REAL(SP), ALLOCATABLE,TARGET :: WUB_BOT(:)      !!BOTTOM ORBITAL VELOCITY
-
-# if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_U(:,:)  !! OFFLINE U VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_V(:,:)  !! OFFLINE V VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_W(:,:)  !! OFFLINE W VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_S1(:,:) !! OFFLINE SALINITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_T1(:,:) !! OFFLINE TEMPERATURE
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_EL(:)   !! OFFLINE ELEVATION
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_KH(:,:) !! OFFLINE KH
-# if defined (GOTM)
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_TEPS(:,:) !! OFFLINE TEPS
-# else
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_Q2(:,:) !! OFFLINE Q2
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_Q2L(:,:)!! OFFLINE Q2L
-# endif
-   INTEGER , ALLOCATABLE,TARGET :: OFFLINE_WN(:)   !! OFFLINE WET NODES
-   INTEGER , ALLOCATABLE,TARGET :: OFFLINE_WC(:)   !! OFFLINE WET CELLS
-# endif
-# if defined (OFFLINE_FABM)
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_U(:,:)  !! OFFLINE U VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_V(:,:)  !! OFFLINE V VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_W(:,:)  !! OFFLINE W VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_S1(:,:) !! OFFLINE SALINITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_T1(:,:) !! OFFLINE TEMPERATURE
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_EL(:)   !! OFFLINE ELEVATION
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_KH(:,:) !! OFFLINE KH
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_UARD_OBCN(:) !! OFFLINE UARD_OBCN It can't be allocated here
-   INTEGER , ALLOCATABLE,TARGET :: OFFLINEB_WN(:)   !! OFFLINE WET NODES
-   INTEGER , ALLOCATABLE,TARGET :: OFFLINEB_WC(:)   !! OFFLINE WET CELLS
-# endif
-
-!----------------boundary conditions: meteo conditions-----------------!
-# if defined (ICE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || (HEATING_SOLAR)
-   REAL(SP), ALLOCATABLE,TARGET  :: T_AIR(:)         !!BULK AIR TEMPERATURE( deg C ) AT HEIGHT 2(m)
-# endif
-# if defined (ICE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
-   REAL(SP), ALLOCATABLE,TARGET  :: RH_AIR(:)        !!RELATIVE HUMIDITY
-   REAL(SP), ALLOCATABLE,TARGET  :: DLW_AIR(:)       !!DOWNWARD LONGWAVE RADIATION
-   REAL(SP), ALLOCATABLE,TARGET  :: DSW_AIR(:)       !!DOWNWARD SHORTWAVE RADIATION
-# endif
-# if defined (OBSICE)
-   REAL(SP), ALLOCATABLE,TARGET  :: ICE_COV(:)        !!ICE COVER FROM OBSERVATIONS
-   REAL(SP), ALLOCATABLE,TARGET  :: ICE_TIK(:)        !!ICE COVER FROM OBSERVATIONS
-   REAL(SP), ALLOCATABLE,TARGET  :: FMELT(:)          !!HEAT FLUX FOR MELTING
-   REAL(SP), ALLOCATABLE,TARGET  :: DHDT_MELT(:)      !!ICE MELTING (THIKNESS VAR) m/s
-   REAL(SP), ALLOCATABLE,TARGET  :: DHDT_FREEZ(:)     !!ICE FREEZING (THIKNESS VAR) m/s
-   REAL(SP), ALLOCATABLE,TARGET  :: HEAT_FREEZ(:)     !!HEAT FLUX FOR ICING 
-   REAL(SP), ALLOCATABLE,TARGET  :: TSO(:)     	      !!TEMPERATURE SURFACE OLD
-   REAL(SP), ALLOCATABLE,TARGET  :: TSN(:)     	      !!TEMPERATURE SURFACE NEW 
-   REAL(SP), PARAMETER :: COSW 		= 0.9063_SP  		! cos(ocean turning angle) !turning angle = 25.
-   REAL(SP), PARAMETER :: SINW 		= 0.4226_SP  		! sin(ocean turning angle) !turning angle = 25.   
-   REAL(SP), PARAMETER :: cp_ice 	= 2106.0_SP         	! specific heat of fresh ice and snow (J/kg/K) 
-   REAL(SP), PARAMETER :: h_snow 	= 0.2_SP		! snow thichness  
-   REAL(SP), PARAMETER :: rhow   	= 1026.0_SP   		! density of seawater (kg/m^3)
-   REAL(SP), PARAMETER :: DRAGW 	= 0.0055_SP*rhow  	! drag coefficient for water on ice *rhow (kg/m^3)
-   REAL(SP), PARAMETER :: hcsw		= 3993.0_SP		! heat capacity of sea water (J kg^-1 K^-1)
-   REAL(SP), PARAMETER :: hcfw		= 4187.0_SP		! heat capacity of fresh water (J kg^-1 K^-1)
-   REAL(SP), PARAMETER :: tstan		= 0.0057_SP		! turbulant Stanton number
-   REAL(SP), PARAMETER :: dragcoef 	= 0.002_SP		! drag coefficient
-   REAL(SP), PARAMETER :: c1i 		= 0.0_SP		! zero initial	
-   REAL(SP), PARAMETER :: lhffw		= 334000.0_SP		! latent heat of fusion for fresh water (J K^-1)	
-   REAL(SP), PARAMETER :: cp_air    	= 1005.0_SP		! specific heat of air (J/kg/K)
-   REAL(SP), PARAMETER :: rho_air   	= 1.25_SP	      	! ambient air density (kg/m^3)
-   REAL(SP), PARAMETER :: cmomE		= 0.0013_SP		! transfer (momentum) coefficient  Ce Bulk tranfer coefficient; Table 2 in Isemer et al. (1989)
-   REAL(SP), PARAMETER :: cmomH		= 0.94_SP*cmomE		! transfer (sensible) coefficient Ch = 0.94 Ce; Table 2 in Isemer et al. (1989); (Maykut, 1986)
-   REAL(SP), PARAMETER :: lh_coef1	= 6.112_SP		! coef1
-   REAL(SP), PARAMETER :: lh_coef2	= 17.67_SP		! coef2
-   REAL(SP), PARAMETER :: lh_coef3	= 243.5_SP		! coef3
-   REAL(SP), PARAMETER :: lh_coef4	= 0.622_SP		! coef4
-   REAL(SP), PARAMETER :: Lvap      	= 2502000.0_SP		! latent heat, vaporization freshwater (J/kg)
-   REAL(SP), PARAMETER :: albedo_obs	= 0.8_SP		! Maximum albedo for snow (NERSC Technical report No. 304, A multi-category sea-ice model)
-   
-   !LH =  0.622*rhoa*Lvap*Cbulk*UIS*(RH_AIR(I)*ESA - ESS)/PA_AIR(I)  !Latent heat. Check unit of air pressure. See Tonboe_DMI.pdf for constants
-             ! rhow=1028.1 sea water density at Temp= Press=0, rhow = 1026.0 fresh water
-            ! cw = 3993.0 [J kg^-1 K^-1] heat capacity of seawater , ch = 0.006
-            ! cw = 4187.0 fress water
-            ! L = 330000.0 [J K^-1], latent heat of fusion for seawater 
-            ! L = 334000.0 freshwater
-
-# endif
-# if defined (ICE)
-   REAL(SP), ALLOCATABLE,TARGET  :: QA_AIR(:)        !!SPECIFIC HUMIDITY  (KG/KG)
-!   REAL(SP), ALLOCATABLE,TARGET  :: CLOUD(:)         !!Total Cloud Cover
-   REAL(SP), ALLOCATABLE,TARGET  :: WSSURF(:)        !!  sea surface salinity    flux
-   REAL(SP), ALLOCATABLE,TARGET  :: WHSURF(:)        !!  sea surface heat        flux
-   REAL(SP), ALLOCATABLE,TARGET  :: FWtSURF(:)       !!  sea surface fresh water flux
-
-!!============yding=============================================================
-   REAL(SP), ALLOCATABLE,TARGET :: QPICE(:)         !!SURFACE ice volume FOR INT
-!!============yding end===========================================================
-
-#   if defined (ICE_EMBEDDING)
-   REAL(SP), ALLOCATABLE,TARGET :: QFLICE(:)         !!water volume FOR INT
-
-   REAL(SP), ALLOCATABLE,TARGET :: QTHICE(:)         !!ice thickness in the water
-   REAL(SP), ALLOCATABLE,TARGET :: mlt_lat(:)         !!ice thickness in the water
-   REAL(SP), ALLOCATABLE,TARGET :: QTHICERK(:)       !!ice thickness in the water
-   REAL(SP), ALLOCATABLE,TARGET :: QTHICE_incr(:)    !!ice thickness increament
-   REAL(SP), ALLOCATABLE,TARGET :: QTHICE1(:)         !!ice thickness in the water
-
-#   endif
-
-# endif
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || (PLUME) || (PLUME_CALCULATED) 
-   REAL(SP), ALLOCATABLE,TARGET  :: PA_AIR(:)        !!SURFACE PRESSURE
-# endif
-# if defined (ICE) || (HEATING_SOLAR)
-   REAL(SP), ALLOCATABLE,TARGET  :: CLOUD(:)         !!Total Cloud Cover
-# endif
-# if defined (HEATING_SOLAR)
-   REAL(SP), ALLOCATABLE,TARGET  :: TDEW(:)         !!Dew Point
-# endif
-
-!-----------------------2-d flow fluxes--------------------------------------------!
-
-   REAL(SP), ALLOCATABLE,TARGET :: PSTX(:)           !!EXT MODE BAROTROPIC TERMS
-   REAL(SP), ALLOCATABLE,TARGET :: PSTY(:)           !!EXT MODE BAROTROPIC TERMS
-   REAL(SP), ALLOCATABLE,TARGET :: ADVUA(:) 
-   REAL(SP), ALLOCATABLE,TARGET :: ADVVA(:) 
-   REAL(SP), ALLOCATABLE,TARGET :: ADX2D(:) 
-   REAL(SP), ALLOCATABLE,TARGET :: ADY2D(:) 
-   REAL(SP), ALLOCATABLE,TARGET :: DRX2D(:) 
-   REAL(SP), ALLOCATABLE,TARGET :: DRY2D(:) 
-   REAL(SP), ALLOCATABLE,TARGET :: TPS(:)            !!WORKING ARRAY             
-   REAL(SP), ALLOCATABLE,TARGET :: ADVX(:,:)      
-   REAL(SP), ALLOCATABLE,TARGET :: ADVY(:,:)     
-
-!---------------- internal mode   arrays-(element based)----------------------------!
-
-   REAL(SP), ALLOCATABLE,TARGET :: U(:,:)         !X-VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: V(:,:)         !Y-VELOCITY
-
-   REAL(SP), ALLOCATABLE,TARGET :: UBETA(:,:)     !X-VELOCITY temp time step
-   REAL(SP), ALLOCATABLE,TARGET :: VBETA(:,:)     !Y-VELOCITY temp time step
-
-   REAL(SP), ALLOCATABLE :: UBETA2D(:)
-   REAL(SP), ALLOCATABLE :: VBETA2D(:)
-
-   REAL(SP), ALLOCATABLE, TARGET :: partition(:) !gwc
-
-   REAL(SP), ALLOCATABLE,TARGET :: W(:,:)         !VERTICAL VELOCITY IN SIGMA SYSTEM
-   REAL(SP), ALLOCATABLE,TARGET :: WW(:,:)        !Z-VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: UF(:,:)        !X-VELOCITY FROM PREVIOUS TIMESTEP
-   REAL(SP), ALLOCATABLE,TARGET :: VF(:,:)        !Y-VELOCITY FROM PREVIOUS TIMESTEP
-   REAL(SP), ALLOCATABLE,TARGET :: WT(:,:)        !Z-VELOCITY FROM PREVIOUS TIMESTEP
-   REAL(SP), ALLOCATABLE,TARGET :: RHO(:,:)       !DENSITY AT ELEMENTS
-   REAL(SP), ALLOCATABLE,TARGET :: RMEAN(:,:)     !INITIAL DENSITY AT ELEMENTS
-   REAL(SP), ALLOCATABLE,TARGET :: T(:,:)         !TEMPERATURE AT ELEMENTS
-   REAL(SP), ALLOCATABLE,TARGET :: TMEAN(:,:)     !INITIAL TEMPERATURE AT ELEMENTS
-   REAL(SP), ALLOCATABLE,TARGET :: S(:,:)         !SALINITY AT ELEMENTS
-   REAL(SP), ALLOCATABLE,TARGET :: SMEAN(:,:)     !INITIAL SALINITY AT ELEMENTS
-   REAL(SP), ALLOCATABLE,TARGET :: Q2(:,:)        !2 X TURBULENT KINETIC ENERGY AT NODES
-   REAL(SP), ALLOCATABLE,TARGET :: L(:,:)         !TURBULENT LENGTH MACROSCALE 
-   REAL(SP), ALLOCATABLE,TARGET :: Q2L(:,:)       !2 X TURBULENT KE X LENGTH AT NODES
-#  if defined (GOTM)
-  REAL(SP), ALLOCATABLE,TARGET :: TKE(:,:)       !TURBULENT KINETIC ENERGY AT NODES
-  REAL(SP), ALLOCATABLE,TARGET :: TKEF(:,:)      !TURBULENT KINETIC ENERGY AT PREVIOUS TIME
-  REAL(SP), ALLOCATABLE,TARGET :: TEPS(:,:)      !TURBULENT DISSIPATION AT NODES
-  REAL(SP), ALLOCATABLE,TARGET :: TEPSF(:,:)     !TURBULENT DISSIPATION AT PREVIOUS TIME
-#  endif
-  REAL(SP), ALLOCATABLE,TARGET :: KM(:,:)        !TURBULENT EDDY VISCOSITY FOR MOMENTUM 
-  REAL(SP), ALLOCATABLE,TARGET :: KH(:,:)        !TURBULENT DIFFUSIVITY FOR SALINITY/TEMP 
-  REAL(SP), ALLOCATABLE,TARGET :: KQ(:,:)        !TURBULENT DIFFUSIVITY FOR Q2/Q2L 
-  REAL(SP), ALLOCATABLE,TARGET :: AAM(:,:)       !STORAGE FOR OUTPUT OF HORIZONTAL VISCOSITY
-  REAL(SP), ALLOCATABLE,TARGET :: Q2F(:,:)       !WORKING ARRAY FOR UPDATING Q2
-  REAL(SP), ALLOCATABLE,TARGET :: Q2LF(:,:)      !WORKING ARRAY FOR UPDATING Q2F 
-  REAL(SP), ALLOCATABLE,TARGET :: KM1(:,:)       !TURBULENT EDDY VISCOSITY FOR MOMENTUM 
-
-  ! VARIABLE HORIZONTAL VISCOSITY COEFFICENTS  
-  REAL(SP), ALLOCATABLE :: CC_HVC(:)
-  REAL(SP), ALLOCATABLE :: NN_HVC(:)
-
-  !-----------------------3d variable arrays-(node based)-----------------------------!
-
-  REAL(SP), ALLOCATABLE,TARGET :: T1(:,:)         !!TEMPERATURE AT NODES               
-  REAL(SP), ALLOCATABLE,TARGET :: S1(:,:)         !!SALINITY AT NODES               
-  REAL(SP), ALLOCATABLE,TARGET :: RHO1(:,:)       !!DENSITY AT NODES               
-  REAL(SP), ALLOCATABLE,TARGET :: TF1(:,:)        !!TEMPERATURE FROM PREVIOUS TIME
-  REAL(SP), ALLOCATABLE,TARGET :: SF1(:,:)        !!SALINITY FROM PREVIOUS TIME 
-!J. Ge for tracer advection
-  REAL(SP), ALLOCATABLE,TARGET :: T0(:,:)         !!TEMPERATURE AT NODES AT PREVIOUS TIME STEP
-  REAL(SP), ALLOCATABLE,TARGET :: T2(:,:)         !!TEMPERATURE AT NODES AT PREVIOUS TWO STEP
-  REAL(SP), ALLOCATABLE,TARGET :: S0(:,:)         !!SALINITY AT NODES AT PREVIOUS TIME STEP
-  REAL(SP), ALLOCATABLE,TARGET :: S2(:,:)         !!SALINITY AT NODES AT PREVIOUS TWO STEP
-!J. Ge for tracer advection
-  REAL(SP), ALLOCATABLE,TARGET :: TMEAN1(:,:)     !!MEAN INITIAL TEMP
-  REAL(SP), ALLOCATABLE,TARGET :: SMEAN1(:,:)     !!MEAN INITIAL SALINITY 
-  REAL(SP), ALLOCATABLE,TARGET :: RMEAN1(:,:)     !!MEAN INITIAL DENSITY 
-  REAL(SP), ALLOCATABLE,TARGET :: WTS(:,:)        !!VERTICAL VELOCITY IN SIGMA SYSTEM
-  REAL(SP), ALLOCATABLE,TARGET :: WTTS(:,:)       !!WTS FROM PREVIOUS TIMESTEP        
-
-  !---------------------------internal mode fluxes------------------------------------!
-
-  REAL(SP), ALLOCATABLE,TARGET :: DRHOX(:,:)      !!BAROCLINIC PG IN X DIRECTION
-  REAL(SP), ALLOCATABLE,TARGET :: DRHOY(:,:)      !!BAROCLINIC PG IN Y DIRECTION
-
-  !------------shape coefficient arrays and control volume metrics--------------------!
-
-  REAL(SP), ALLOCATABLE,TARGET :: A1U(:,:)      
-  REAL(SP), ALLOCATABLE,TARGET :: A2U(:,:)     
-  REAL(SP), ALLOCATABLE,TARGET :: AWX(:,:)   
-  REAL(SP), ALLOCATABLE,TARGET :: AWY(:,:)  
-  REAL(SP), ALLOCATABLE,TARGET :: AW0(:,:) 
-  REAL(SP), ALLOCATABLE,TARGET :: ALPHA(:)
+       REAL(SP), ALLOCATABLE,TARGET :: QDIS(:)          !!RIVER FLUX AT CURRENT TIME
+    !# if !defined (SEMI_IMPLICIT)
+       REAL(SP), ALLOCATABLE,TARGET :: QDIS2(:)         !!RIVER FLUX (EXT MODE, NOT USED) 
+    !# endif
+       REAL(SP), ALLOCATABLE,TARGET :: TDIS(:)          !!RIVER WATER TEMP AT CURRENT TIME
+       REAL(SP), ALLOCATABLE,TARGET :: SDIS(:)          !!RIVER WATER SLNT AT CURRENT TIME
+       REAL(SP), ALLOCATABLE,TARGET :: QAREA(:)         !!AREA OF RIVER DISCHARGE 
+       REAL(SP), ALLOCATABLE,TARGET :: RDISQ(:,:)       !!AREA OF FLUX                    
+       REAL(SP), ALLOCATABLE,TARGET :: ANGLEQ(:)        !!RIVER DISCHARGE ANGLE           
+       REAL(SP), ALLOCATABLE,TARGET :: VLCTYQ(:)        !!RIVER DISCHARGE VELOCITY
+       
+       ! PLUME STUFF                                     ADDED BY QIN, 04/03/2019
+    # if defined (PLUME)
+       INTEGER,  ALLOCATABLE,TARGET :: INODEPLM(:)       !!LOCAL PLUME INFLOW NODES
+       INTEGER,  ALLOCATABLE,TARGET :: KSIGPLM(:)        !!PLUME RELEASE SIGMA LAYER
+       REAL(SP), ALLOCATABLE,TARGET :: QPLMDIS(:)        !!PLUME FLUX DISCHARGE AT CURRENT TIME 
+       REAL(SP), ALLOCATABLE,TARGET :: TPLMDIS(:)        !!PLUME TEMP DISCHARGE AT CURRENT TIME 
+       REAL(SP), ALLOCATABLE,TARGET :: SPLMDIS(:)        !!PLUME SALINITY DISCHARGE AT CURRENT TIME 
+       REAL(SP), ALLOCATABLE,TARGET :: FLXPLM(:,:)       !!PLUME FLUX FROM PLUME MODEL
+       REAL(SP), ALLOCATABLE,TARGET :: TPLM(:,:)         !!PLUME TEMP FROM PLUME MODEL
+       REAL(SP), ALLOCATABLE,TARGET :: SPLM(:,:)         !!PLUME SALINITY FROM PLUME MODEL
+    # if defined (FABM)
+       REAL(SP), ALLOCATABLE,TARGET :: FABMPLM(:,:,:)    !!PLUME FABM TRACERS FROM PLUME MODEL
+       REAL(SP), ALLOCATABLE,TARGET :: FPLM_TMP(:,:)     !!TEMPORARY PLUME STORAGE (SHOULD NOT BE HERE, STORE IT IN THE MODULE)!!!
+    # endif                   
+    # endif
 
 
-  !-----salinity and temperature bottom diffusion condition/bottom depth gradients----!
+       ! PUMP STUFF
+    # if defined (PUMP)
+       INTEGER,  ALLOCATABLE,TARGET :: INODEPUMP(:)       !!LOCAL PUMP NODES
+       REAL(SP), ALLOCATABLE,TARGET :: PVDIST(:,:)        !!PUMP VERTICAL DISTRIBUTION
+       REAL(SP), ALLOCATABLE,TARGET :: QPUMP(:)           !!PUMP FLUX AT CURRENT TIME                   
+    # endif
+       
+       
+       ! SURFACE MET STUFF
+       REAL(SP), ALLOCATABLE,TARGET :: UUWIND(:)        !!SURFACE X-WIND 
+       REAL(SP), ALLOCATABLE,TARGET :: VVWIND(:)        !!SURFACE Y-WIND
+       ! PRECIP/EVAP are in units of meters/second
+    !# if !defined (SEMI_IMPLICIT)
+       REAL(SP), ALLOCATABLE,TARGET :: QPREC2(:)        !!SURFACE PRECIPITATION FOR EXT
+       REAL(SP), ALLOCATABLE,TARGET :: QEVAP2(:)        !!SURFACE EVAPORATION FOR EXT
+    !# endif
+       REAL(SP), ALLOCATABLE,TARGET :: QPREC(:)        !!SURFACE PRECIPITATION FOR INT
+       REAL(SP), ALLOCATABLE,TARGET :: QEVAP(:)        !!SURFACE EVAPORATION FOR INT
 
-  REAL(SP), ALLOCATABLE,TARGET :: PHPN(:)   
-  REAL(SP), ALLOCATABLE,TARGET :: PFPXB(:)   
-  REAL(SP), ALLOCATABLE,TARGET :: PFPYB(:)   
-  REAL(SP), ALLOCATABLE,TARGET :: SITA_GD(:)  
-  REAL(SP), ALLOCATABLE,TARGET :: AH_BOTTOM(:)  
+       REAL(SP), ALLOCATABLE,TARGET :: WHS(:)          !!SURFACE WAVE HEIGHT
+       REAL(SP), ALLOCATABLE,TARGET :: WDIR(:)         !!SURFACE WAVE DIRECTION
+       REAL(SP), ALLOCATABLE,TARGET :: WPER(:)         !!SURFACE WAVE PERIOD
+       REAL(SP), ALLOCATABLE,TARGET :: WLENGTH(:)      !!SURFACE WAVE LENGTH
+       REAL(SP), ALLOCATABLE,TARGET :: WPER_BOT(:)     !!BOTTOM WAVE PERIOD
+       REAL(SP), ALLOCATABLE,TARGET :: WUB_BOT(:)      !!BOTTOM ORBITAL VELOCITY
 
-  !-----arrays used for averaging of flow quantities for output-----------------------!
+    # if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_U(:,:)  !! OFFLINE U VELOCITY
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_V(:,:)  !! OFFLINE V VELOCITY
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_W(:,:)  !! OFFLINE W VELOCITY
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_S1(:,:) !! OFFLINE SALINITY
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_T1(:,:) !! OFFLINE TEMPERATURE
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_EL(:)   !! OFFLINE ELEVATION
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_KH(:,:) !! OFFLINE KH
+    # if defined (GOTM)
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_TEPS(:,:) !! OFFLINE TEPS
+    # else
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_Q2(:,:) !! OFFLINE Q2
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_Q2L(:,:)!! OFFLINE Q2L
+    # endif
+       INTEGER , ALLOCATABLE,TARGET :: OFFLINE_WN(:)   !! OFFLINE WET NODES
+       INTEGER , ALLOCATABLE,TARGET :: OFFLINE_WC(:)   !! OFFLINE WET CELLS
+    # endif
+    # if defined (OFFLINE_FABM)
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_U(:,:)  !! OFFLINE U VELOCITY
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_V(:,:)  !! OFFLINE V VELOCITY
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_W(:,:)  !! OFFLINE W VELOCITY
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_S1(:,:) !! OFFLINE SALINITY
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_T1(:,:) !! OFFLINE TEMPERATURE
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_EL(:)   !! OFFLINE ELEVATION
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_KH(:,:) !! OFFLINE KH
+       REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_UARD_OBCN(:) !! OFFLINE UARD_OBCN It can't be allocated here
+       INTEGER , ALLOCATABLE,TARGET :: OFFLINEB_WN(:)   !! OFFLINE WET NODES
+       INTEGER , ALLOCATABLE,TARGET :: OFFLINEB_WC(:)   !! OFFLINE WET CELLS
+    # endif
 
-  REAL(SP), ALLOCATABLE,TARGET :: U_AVE(:,:)   !U AVERAGED OVER INT_AVGE ITERATIONS
-  REAL(SP), ALLOCATABLE,TARGET :: V_AVE(:,:)   !V AVERAGED OVER INT_AVGE ITERATIONS
-  REAL(SP), ALLOCATABLE,TARGET :: W_AVE(:,:)   !WW AVERAGED OVER INT_AVGE ITERATIONS
-  REAL(SP), ALLOCATABLE,TARGET :: KM_AVE(:,:)  !KM AVERAGED OVER INT_AVGE ITERATIONS
-  REAL(SP), ALLOCATABLE,TARGET :: KH_AVE(:,:)  !KH AVERAGED OVER INT_AVGE ITERATIONS
-  REAL(SP), ALLOCATABLE,TARGET :: T_AVE(:,:)   !T1 AVERAGED OVER INT_AVGE ITERATIONS
-  REAL(SP), ALLOCATABLE,TARGET :: S_AVE(:,:)   !S1 AVERAGED OVER INT_AVGE ITERATIONS
-  REAL(SP), ALLOCATABLE,TARGET :: R_AVE(:,:)   !RHO1 AVERAGED OVER INT_AVGE ITERATIONS
-  REAL(SP), ALLOCATABLE,TARGET :: EL_AVE(:)    !EL AVERAGED OVER INT_AVGE ITERATIONS
+    !----------------boundary conditions: meteo conditions-----------------!
+    # if defined (ICE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || (HEATING_SOLAR)
+       REAL(SP), ALLOCATABLE,TARGET  :: T_AIR(:)         !!BULK AIR TEMPERATURE( deg C ) AT HEIGHT 2(m)
+    # endif
+    # if defined (ICE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
+       REAL(SP), ALLOCATABLE,TARGET  :: RH_AIR(:)        !!RELATIVE HUMIDITY
+       REAL(SP), ALLOCATABLE,TARGET  :: DLW_AIR(:)       !!DOWNWARD LONGWAVE RADIATION
+       REAL(SP), ALLOCATABLE,TARGET  :: DSW_AIR(:)       !!DOWNWARD SHORTWAVE RADIATION
+    # endif
+    # if defined (OBSICE)
+       REAL(SP), ALLOCATABLE,TARGET  :: ICE_COV(:)        !!ICE COVER FROM OBSERVATIONS
+       REAL(SP), ALLOCATABLE,TARGET  :: ICE_TIK(:)        !!ICE COVER FROM OBSERVATIONS
+       REAL(SP), ALLOCATABLE,TARGET  :: FMELT(:)          !!HEAT FLUX FOR MELTING
+       REAL(SP), ALLOCATABLE,TARGET  :: DHDT_MELT(:)      !!ICE MELTING (THIKNESS VAR) m/s
+       REAL(SP), ALLOCATABLE,TARGET  :: DHDT_FREEZ(:)     !!ICE FREEZING (THIKNESS VAR) m/s
+       REAL(SP), ALLOCATABLE,TARGET  :: HEAT_FREEZ(:)     !!HEAT FLUX FOR ICING 
+       REAL(SP), ALLOCATABLE,TARGET  :: TSO(:)     	      !!TEMPERATURE SURFACE OLD
+       REAL(SP), ALLOCATABLE,TARGET  :: TSN(:)     	      !!TEMPERATURE SURFACE NEW 
+       REAL(SP), PARAMETER :: COSW 		= 0.9063_SP  		! cos(ocean turning angle) !turning angle = 25.
+       REAL(SP), PARAMETER :: SINW 		= 0.4226_SP  		! sin(ocean turning angle) !turning angle = 25.   
+       REAL(SP), PARAMETER :: cp_ice 	= 2106.0_SP         	! specific heat of fresh ice and snow (J/kg/K) 
+       REAL(SP), PARAMETER :: h_snow 	= 0.2_SP		! snow thichness  
+       REAL(SP), PARAMETER :: rhow   	= 1026.0_SP   		! density of seawater (kg/m^3)
+       REAL(SP), PARAMETER :: DRAGW 	= 0.0055_SP*rhow  	! drag coefficient for water on ice *rhow (kg/m^3)
+       REAL(SP), PARAMETER :: hcsw		= 3993.0_SP		! heat capacity of sea water (J kg^-1 K^-1)
+       REAL(SP), PARAMETER :: hcfw		= 4187.0_SP		! heat capacity of fresh water (J kg^-1 K^-1)
+       REAL(SP), PARAMETER :: tstan		= 0.0057_SP		! turbulant Stanton number
+       REAL(SP), PARAMETER :: dragcoef 	= 0.002_SP		! drag coefficient
+       REAL(SP), PARAMETER :: c1i 		= 0.0_SP		! zero initial	
+       REAL(SP), PARAMETER :: lhffw		= 334000.0_SP		! latent heat of fusion for fresh water (J K^-1)	
+       REAL(SP), PARAMETER :: cp_air    	= 1005.0_SP		! specific heat of air (J/kg/K)
+       REAL(SP), PARAMETER :: rho_air   	= 1.25_SP	      	! ambient air density (kg/m^3)
+       REAL(SP), PARAMETER :: cmomE		= 0.0013_SP		! transfer (momentum) coefficient  Ce Bulk tranfer coefficient; Table 2 in Isemer et al. (1989)
+       REAL(SP), PARAMETER :: cmomH		= 0.94_SP*cmomE		! transfer (sensible) coefficient Ch = 0.94 Ce; Table 2 in Isemer et al. (1989); (Maykut, 1986)
+       REAL(SP), PARAMETER :: lh_coef1	= 6.112_SP		! coef1
+       REAL(SP), PARAMETER :: lh_coef2	= 17.67_SP		! coef2
+       REAL(SP), PARAMETER :: lh_coef3	= 243.5_SP		! coef3
+       REAL(SP), PARAMETER :: lh_coef4	= 0.622_SP		! coef4
+       REAL(SP), PARAMETER :: Lvap      	= 2502000.0_SP		! latent heat, vaporization freshwater (J/kg)
+       REAL(SP), PARAMETER :: albedo_obs	= 0.8_SP		! Maximum albedo for snow (NERSC Technical report No. 304, A multi-category sea-ice model)
+       
+       !LH =  0.622*rhoa*Lvap*Cbulk*UIS*(RH_AIR(I)*ESA - ESS)/PA_AIR(I)  !Latent heat. Check unit of air pressure. See Tonboe_DMI.pdf for constants
+                 ! rhow=1028.1 sea water density at Temp= Press=0, rhow = 1026.0 fresh water
+                ! cw = 3993.0 [J kg^-1 K^-1] heat capacity of seawater , ch = 0.006
+                ! cw = 4187.0 fress water
+                ! L = 330000.0 [J K^-1], latent heat of fusion for seawater 
+                ! L = 334000.0 freshwater
 
-  REAL(SP), ALLOCATABLE,TARGET :: VISCOFH(:,:)
-  REAL(SP), ALLOCATABLE,TARGET :: VISCOFM(:,:)
+    # endif
+    # if defined (ICE)
+       REAL(SP), ALLOCATABLE,TARGET  :: QA_AIR(:)        !!SPECIFIC HUMIDITY  (KG/KG)
+    !   REAL(SP), ALLOCATABLE,TARGET  :: CLOUD(:)         !!Total Cloud Cover
+       REAL(SP), ALLOCATABLE,TARGET  :: WSSURF(:)        !!  sea surface salinity    flux
+       REAL(SP), ALLOCATABLE,TARGET  :: WHSURF(:)        !!  sea surface heat        flux
+       REAL(SP), ALLOCATABLE,TARGET  :: FWtSURF(:)       !!  sea surface fresh water flux
 
-  REAL(SP), ALLOCATABLE,TARGET :: HYW(:,:)
+    !!============yding=============================================================
+       REAL(SP), ALLOCATABLE,TARGET :: QPICE(:)         !!SURFACE ice volume FOR INT
+    !!============yding end===========================================================
 
-# if defined (EQUI_TIDE)
-  INTEGER,  ALLOCATABLE :: EQUI_ID(:)
-  REAL*8,   ALLOCATABLE :: EQUI_VN(:)
-  REAL*8,   ALLOCATABLE :: EQUI_U(:,:)
-  REAL*8,   ALLOCATABLE :: EQUI_F(:,:)
+    #   if defined (ICE_EMBEDDING)
+       REAL(SP), ALLOCATABLE,TARGET :: QFLICE(:)         !!water volume FOR INT
 
-  INTEGER :: month_equi = 0
-  TYPE(TIME):: TIME_16DAY
+       REAL(SP), ALLOCATABLE,TARGET :: QTHICE(:)         !!ice thickness in the water
+       REAL(SP), ALLOCATABLE,TARGET :: mlt_lat(:)         !!ice thickness in the water
+       REAL(SP), ALLOCATABLE,TARGET :: QTHICERK(:)       !!ice thickness in the water
+       REAL(SP), ALLOCATABLE,TARGET :: QTHICE_incr(:)    !!ice thickness increament
+       REAL(SP), ALLOCATABLE,TARGET :: QTHICE1(:)         !!ice thickness in the water
 
-  TYPE :: ASTR
-    INTEGER  :: II   = 0
-    INTEGER  :: JJ   = 0
-    INTEGER  :: KK   = 0
-    INTEGER  :: LL   = 0
-    INTEGER  :: MM   = 0
-    INTEGER  :: NN   = 0
-    REAL*8   :: SEMI = 0.0D0
-    INTEGER  :: NJ   = 0
-    INTEGER, DIMENSION(10) ::   LDEL = 0
-    INTEGER, DIMENSION(10) ::   MDEL = 0
-    INTEGER, DIMENSION(10) ::   NDEL = 0
-    REAL*8,  DIMENSION(10) ::   PH   = 0.0D0
-    REAL*8,  DIMENSION(10) ::   EE   = 0.0D0
-    INTEGER, DIMENSION(10) ::   IR   = 0
-  END TYPE ASTR
+    #   endif
 
-  TYPE(ASTR) EQUI_ASTR(8)
-# endif
+    # endif
+    # if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL) || (PLUME) || (PLUME_CALCULATED) 
+       REAL(SP), ALLOCATABLE,TARGET  :: PA_AIR(:)        !!SURFACE PRESSURE
+    # endif
+    # if defined (ICE) || (HEATING_SOLAR)
+       REAL(SP), ALLOCATABLE,TARGET  :: CLOUD(:)         !!Total Cloud Cover
+    # endif
+    # if defined (HEATING_SOLAR)
+       REAL(SP), ALLOCATABLE,TARGET  :: TDEW(:)         !!Dew Point
+    # endif
 
-CONTAINS
+    !-----------------------2-d flow fluxes--------------------------------------------!
+
+       REAL(SP), ALLOCATABLE,TARGET :: PSTX(:)           !!EXT MODE BAROTROPIC TERMS
+       REAL(SP), ALLOCATABLE,TARGET :: PSTY(:)           !!EXT MODE BAROTROPIC TERMS
+       REAL(SP), ALLOCATABLE,TARGET :: ADVUA(:) 
+       REAL(SP), ALLOCATABLE,TARGET :: ADVVA(:) 
+       REAL(SP), ALLOCATABLE,TARGET :: ADX2D(:) 
+       REAL(SP), ALLOCATABLE,TARGET :: ADY2D(:) 
+       REAL(SP), ALLOCATABLE,TARGET :: DRX2D(:) 
+       REAL(SP), ALLOCATABLE,TARGET :: DRY2D(:) 
+       REAL(SP), ALLOCATABLE,TARGET :: TPS(:)            !!WORKING ARRAY             
+       REAL(SP), ALLOCATABLE,TARGET :: ADVX(:,:)      
+       REAL(SP), ALLOCATABLE,TARGET :: ADVY(:,:)     
+
+    !---------------- internal mode   arrays-(element based)----------------------------!
+
+       REAL(SP), ALLOCATABLE,TARGET :: U(:,:)         !X-VELOCITY
+       REAL(SP), ALLOCATABLE,TARGET :: V(:,:)         !Y-VELOCITY
+
+       REAL(SP), ALLOCATABLE,TARGET :: UBETA(:,:)     !X-VELOCITY temp time step
+       REAL(SP), ALLOCATABLE,TARGET :: VBETA(:,:)     !Y-VELOCITY temp time step
+
+       REAL(SP), ALLOCATABLE :: UBETA2D(:)
+       REAL(SP), ALLOCATABLE :: VBETA2D(:)
+
+       REAL(SP), ALLOCATABLE, TARGET :: partition(:) !gwc
+
+       REAL(SP), ALLOCATABLE,TARGET :: W(:,:)         !VERTICAL VELOCITY IN SIGMA SYSTEM
+       REAL(SP), ALLOCATABLE,TARGET :: WW(:,:)        !Z-VELOCITY
+       REAL(SP), ALLOCATABLE,TARGET :: UF(:,:)        !X-VELOCITY FROM PREVIOUS TIMESTEP
+       REAL(SP), ALLOCATABLE,TARGET :: VF(:,:)        !Y-VELOCITY FROM PREVIOUS TIMESTEP
+       REAL(SP), ALLOCATABLE,TARGET :: WT(:,:)        !Z-VELOCITY FROM PREVIOUS TIMESTEP
+       REAL(SP), ALLOCATABLE,TARGET :: RHO(:,:)       !DENSITY AT ELEMENTS
+       REAL(SP), ALLOCATABLE,TARGET :: RMEAN(:,:)     !INITIAL DENSITY AT ELEMENTS
+       REAL(SP), ALLOCATABLE,TARGET :: T(:,:)         !TEMPERATURE AT ELEMENTS
+       REAL(SP), ALLOCATABLE,TARGET :: TMEAN(:,:)     !INITIAL TEMPERATURE AT ELEMENTS
+       REAL(SP), ALLOCATABLE,TARGET :: S(:,:)         !SALINITY AT ELEMENTS
+       REAL(SP), ALLOCATABLE,TARGET :: SMEAN(:,:)     !INITIAL SALINITY AT ELEMENTS
+       REAL(SP), ALLOCATABLE,TARGET :: Q2(:,:)        !2 X TURBULENT KINETIC ENERGY AT NODES
+       REAL(SP), ALLOCATABLE,TARGET :: L(:,:)         !TURBULENT LENGTH MACROSCALE 
+       REAL(SP), ALLOCATABLE,TARGET :: Q2L(:,:)       !2 X TURBULENT KE X LENGTH AT NODES
+    #  if defined (GOTM)
+      REAL(SP), ALLOCATABLE,TARGET :: TKE(:,:)       !TURBULENT KINETIC ENERGY AT NODES
+      REAL(SP), ALLOCATABLE,TARGET :: TKEF(:,:)      !TURBULENT KINETIC ENERGY AT PREVIOUS TIME
+      REAL(SP), ALLOCATABLE,TARGET :: TEPS(:,:)      !TURBULENT DISSIPATION AT NODES
+      REAL(SP), ALLOCATABLE,TARGET :: TEPSF(:,:)     !TURBULENT DISSIPATION AT PREVIOUS TIME
+    #  endif
+      REAL(SP), ALLOCATABLE,TARGET :: KM(:,:)        !TURBULENT EDDY VISCOSITY FOR MOMENTUM 
+      REAL(SP), ALLOCATABLE,TARGET :: KH(:,:)        !TURBULENT DIFFUSIVITY FOR SALINITY/TEMP 
+      REAL(SP), ALLOCATABLE,TARGET :: KQ(:,:)        !TURBULENT DIFFUSIVITY FOR Q2/Q2L 
+      REAL(SP), ALLOCATABLE,TARGET :: AAM(:,:)       !STORAGE FOR OUTPUT OF HORIZONTAL VISCOSITY
+      REAL(SP), ALLOCATABLE,TARGET :: Q2F(:,:)       !WORKING ARRAY FOR UPDATING Q2
+      REAL(SP), ALLOCATABLE,TARGET :: Q2LF(:,:)      !WORKING ARRAY FOR UPDATING Q2F 
+      REAL(SP), ALLOCATABLE,TARGET :: KM1(:,:)       !TURBULENT EDDY VISCOSITY FOR MOMENTUM 
+
+      ! VARIABLE HORIZONTAL VISCOSITY COEFFICENTS  
+      REAL(SP), ALLOCATABLE :: CC_HVC(:)
+      REAL(SP), ALLOCATABLE :: NN_HVC(:)
+
+      !-----------------------3d variable arrays-(node based)-----------------------------!
+
+      REAL(SP), ALLOCATABLE,TARGET :: T1(:,:)         !!TEMPERATURE AT NODES               
+      REAL(SP), ALLOCATABLE,TARGET :: S1(:,:)         !!SALINITY AT NODES               
+      REAL(SP), ALLOCATABLE,TARGET :: RHO1(:,:)       !!DENSITY AT NODES               
+      REAL(SP), ALLOCATABLE,TARGET :: TF1(:,:)        !!TEMPERATURE FROM PREVIOUS TIME
+      REAL(SP), ALLOCATABLE,TARGET :: SF1(:,:)        !!SALINITY FROM PREVIOUS TIME 
+    !J. Ge for tracer advection
+      REAL(SP), ALLOCATABLE,TARGET :: T0(:,:)         !!TEMPERATURE AT NODES AT PREVIOUS TIME STEP
+      REAL(SP), ALLOCATABLE,TARGET :: T2(:,:)         !!TEMPERATURE AT NODES AT PREVIOUS TWO STEP
+      REAL(SP), ALLOCATABLE,TARGET :: S0(:,:)         !!SALINITY AT NODES AT PREVIOUS TIME STEP
+      REAL(SP), ALLOCATABLE,TARGET :: S2(:,:)         !!SALINITY AT NODES AT PREVIOUS TWO STEP
+    !J. Ge for tracer advection
+      REAL(SP), ALLOCATABLE,TARGET :: TMEAN1(:,:)     !!MEAN INITIAL TEMP
+      REAL(SP), ALLOCATABLE,TARGET :: SMEAN1(:,:)     !!MEAN INITIAL SALINITY 
+      REAL(SP), ALLOCATABLE,TARGET :: RMEAN1(:,:)     !!MEAN INITIAL DENSITY 
+      REAL(SP), ALLOCATABLE,TARGET :: WTS(:,:)        !!VERTICAL VELOCITY IN SIGMA SYSTEM
+      REAL(SP), ALLOCATABLE,TARGET :: WTTS(:,:)       !!WTS FROM PREVIOUS TIMESTEP        
+
+      !---------------------------internal mode fluxes------------------------------------!
+
+      REAL(SP), ALLOCATABLE,TARGET :: DRHOX(:,:)      !!BAROCLINIC PG IN X DIRECTION
+      REAL(SP), ALLOCATABLE,TARGET :: DRHOY(:,:)      !!BAROCLINIC PG IN Y DIRECTION
+
+      !------------shape coefficient arrays and control volume metrics--------------------!
+
+      REAL(SP), ALLOCATABLE,TARGET :: A1U(:,:)      
+      REAL(SP), ALLOCATABLE,TARGET :: A2U(:,:)     
+      REAL(SP), ALLOCATABLE,TARGET :: AWX(:,:)   
+      REAL(SP), ALLOCATABLE,TARGET :: AWY(:,:)  
+      REAL(SP), ALLOCATABLE,TARGET :: AW0(:,:) 
+      REAL(SP), ALLOCATABLE,TARGET :: ALPHA(:)
 
 
-!==============================================================================|
-   SUBROUTINE N2E3D(NVAR,EVAR)
-!==============================================================================|
-   IMPLICIT NONE 
-   REAL(SP), DIMENSION(0:MT,1:KB), INTENT(IN)  :: NVAR  
-   REAL(SP), DIMENSION(0:NT,1:KB), INTENT(INOUT) :: EVAR  
-   INTEGER I,K
-!------------------------------------------------------------------------------|
-   DO K=1,KB
-     DO I = 1, NT
-       EVAR(I,K) = ONE_THIRD*(NVAR(NV(I,1),K)+NVAR(NV(I,2),K)+NVAR(NV(I,3),K))
-     END DO
-   END DO
-   RETURN
-   END SUBROUTINE N2E3D 
-!==============================================================================|
+      !-----salinity and temperature bottom diffusion condition/bottom depth gradients----!
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      REAL(SP), ALLOCATABLE,TARGET :: PHPN(:)   
+      REAL(SP), ALLOCATABLE,TARGET :: PFPXB(:)   
+      REAL(SP), ALLOCATABLE,TARGET :: PFPYB(:)   
+      REAL(SP), ALLOCATABLE,TARGET :: SITA_GD(:)  
+      REAL(SP), ALLOCATABLE,TARGET :: AH_BOTTOM(:)  
 
-!==============================================================================|
-   SUBROUTINE N2E2D(NVAR,EVAR)
-!==============================================================================|
-   IMPLICIT NONE
-   REAL(SP), DIMENSION(0:MT), INTENT(IN)  :: NVAR 
-   REAL(SP), DIMENSION(0:NT), INTENT(INOUT) :: EVAR  
-   INTEGER I,K
-!------------------------------------------------------------------------------|
-   DO I = 1, NT
-     EVAR(I) = ONE_THIRD*(NVAR(NV(I,1))+NVAR(NV(I,2))+NVAR(NV(I,3)))
-   END DO
-   RETURN
-   END SUBROUTINE N2E2D
-!==============================================================================|
+      !-----arrays used for averaging of flow quantities for output-----------------------!
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+      REAL(SP), ALLOCATABLE,TARGET :: U_AVE(:,:)   !U AVERAGED OVER INT_AVGE ITERATIONS
+      REAL(SP), ALLOCATABLE,TARGET :: V_AVE(:,:)   !V AVERAGED OVER INT_AVGE ITERATIONS
+      REAL(SP), ALLOCATABLE,TARGET :: W_AVE(:,:)   !WW AVERAGED OVER INT_AVGE ITERATIONS
+      REAL(SP), ALLOCATABLE,TARGET :: KM_AVE(:,:)  !KM AVERAGED OVER INT_AVGE ITERATIONS
+      REAL(SP), ALLOCATABLE,TARGET :: KH_AVE(:,:)  !KH AVERAGED OVER INT_AVGE ITERATIONS
+      REAL(SP), ALLOCATABLE,TARGET :: T_AVE(:,:)   !T1 AVERAGED OVER INT_AVGE ITERATIONS
+      REAL(SP), ALLOCATABLE,TARGET :: S_AVE(:,:)   !S1 AVERAGED OVER INT_AVGE ITERATIONS
+      REAL(SP), ALLOCATABLE,TARGET :: R_AVE(:,:)   !RHO1 AVERAGED OVER INT_AVGE ITERATIONS
+      REAL(SP), ALLOCATABLE,TARGET :: EL_AVE(:)    !EL AVERAGED OVER INT_AVGE ITERATIONS
 
-!==============================================================================|
-   SUBROUTINE E2N2D(EVAR,NVAR)
-!==============================================================================|
-   IMPLICIT NONE
-   REAL(SP), DIMENSION(0:NT), INTENT(IN ) :: EVAR  
-   REAL(SP), DIMENSION(0:MT), INTENT(INOUT) :: NVAR 
+      REAL(SP), ALLOCATABLE,TARGET :: VISCOFH(:,:)
+      REAL(SP), ALLOCATABLE,TARGET :: VISCOFM(:,:)
 
-   INTEGER I,K
-!------------------------------------------------------------------------------|
-   DO I=1,M
-     NVAR(I) = SUM(EVAR(NBVE(I,1:NTVE(I))))/FLOAT(NTVE(I))
-   END DO
-   RETURN
-   END SUBROUTINE E2N2D
-!==============================================================================|
+      REAL(SP), ALLOCATABLE,TARGET :: HYW(:,:)
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    # if defined (EQUI_TIDE)
+      INTEGER,  ALLOCATABLE :: EQUI_ID(:)
+      REAL*8,   ALLOCATABLE :: EQUI_VN(:)
+      REAL*8,   ALLOCATABLE :: EQUI_U(:,:)
+      REAL*8,   ALLOCATABLE :: EQUI_F(:,:)
 
-!==============================================================================|
-   SUBROUTINE E2N3D(EVAR,NVAR)
-!==============================================================================|
-   IMPLICIT NONE
-   REAL(SP), DIMENSION(0:NT,1:KB), INTENT(IN ) :: EVAR  
-   REAL(SP), DIMENSION(0:MT,1:KB), INTENT(INOUT) :: NVAR 
-   INTEGER I,K
-!------------------------------------------------------------------------------|
-   DO K=1,KB
-     DO I=1,M
-       NVAR(I,K) = SUM(EVAR(NBVE(I,1:NTVE(I)),K))/FLOAT(NTVE(I))
-     END DO
-   END DO
-   RETURN
-   END SUBROUTINE E2N3D
-!==============================================================================|
-   
-!==============================================================================|
-!    Allocate and Initialize Most Arrays                                       !
-!==============================================================================|
-   
-   SUBROUTINE ALLOC_VARS(dbg_set)
-     
-!==============================================================================!
-   IMPLICIT NONE
-   logical,intent(in) :: dbg_set
-   INTEGER NCT,NDB
-!==============================================================================!
-# if !defined (DOUBLE_PRECISION)
-   NDB = 1       !!GWC BASE THIS ON KIND
-# else
-   NDB = 2
-# endif
+      INTEGER :: month_equi = 0
+      TYPE(TIME):: TIME_16DAY
 
-   NCT = NT*3 ! A DIMENSION USED FOR ALLOCATION!
-   
-!==============================================================================!
-!  ALLOCATE:                                                                   !
-!==============================================================================!
-   
-!--------------------------Grid Metrics---------------------------------------------!
-   
-   ALLOCATE(LON(0:MT))           ;LON  = ZERO   !!LONGITUDE AT THE NODE
-   ALLOCATE(LAT(0:MT))           ;LAT  = ZERO   !!LATITUDE AT THE NODE
-   ALLOCATE(LONC(0:NT))          ;LONC = ZERO   !!LONGITUDE AT THE NODE
-   ALLOCATE(LATC(0:NT))          ;LATC = ZERO   !!LATITUDE AT THE NODE
-   ALLOCATE(XM(0:MT))            ;XM   = ZERO   !!X-COORD AT NODE IN METERS
-   ALLOCATE(YM(0:MT))            ;YM   = ZERO   !!Y-COORD AT NODE IN METERS
-   ALLOCATE(XMC(0:NT))           ;XMC  = ZERO   !!X-COORD AT FACE CENTER IN METERS 
-   ALLOCATE(YMC(0:NT))           ;YMC  = ZERO   !!Y-COORD AT FACE CENTER IN METERS
-   ALLOCATE(XC(0:NT))            ;XC   = ZERO   !!X-COORD AT FACE CENTER 
-   ALLOCATE(YC(0:NT))            ;YC   = ZERO   !!Y-COORD AT FACE CENTER
-   ALLOCATE(VX(0:MT))            ;VX   = ZERO   !!X-COORD AT GRID POINT
-   ALLOCATE(VY(0:MT))            ;VY   = ZERO   !!Y-COORD AT GRID POINT
-   ALLOCATE(ART(0:NT))           ;ART  = ZERO   !!AREA OF ELEMENT
-   ALLOCATE(ART1(0:MT))          ;ART1 = ZERO   !!AREA OF NODE-BASE CONTROl VOLUME
-   ALLOCATE(ART2(0:MT))          ;ART2 = ZERO   !!AREA OF ELEMENTS AROUND NODE
-   ALLOCATE(GRAV_N(0:MT))        ;GRAV_N = zero !! VARIABLE GRAVITY
-   ALLOCATE(GRAV_E(0:NT))        ;GRAV_E = zero !! VARIABLE GRAVITY
+      TYPE :: ASTR
+        INTEGER  :: II   = 0
+        INTEGER  :: JJ   = 0
+        INTEGER  :: KK   = 0
+        INTEGER  :: LL   = 0
+        INTEGER  :: MM   = 0
+        INTEGER  :: NN   = 0
+        REAL*8   :: SEMI = 0.0D0
+        INTEGER  :: NJ   = 0
+        INTEGER, DIMENSION(10) ::   LDEL = 0
+        INTEGER, DIMENSION(10) ::   MDEL = 0
+        INTEGER, DIMENSION(10) ::   NDEL = 0
+        REAL*8,  DIMENSION(10) ::   PH   = 0.0D0
+        REAL*8,  DIMENSION(10) ::   EE   = 0.0D0
+        INTEGER, DIMENSION(10) ::   IR   = 0
+      END TYPE ASTR
 
-   MEMCNT = MT*9*NDB + NT*8*NDB + MEMCNT
+      TYPE(ASTR) EQUI_ASTR(8)
+    # endif
 
-!----------------Node, Boundary Condition, and Control Volume-----------------------!
+    CONTAINS
 
-! ALLOCATED IN setup_domain.F But count the memory here
-!   ALLOCATE(NV(0:NT,4))          ;NV       = 0  !!NODE NUMBERING FOR ELEMENTS
-!   ALLOCATE(NVGL(0:NT,3))        ;NVGL     = 0  !!GLOBAL NODE NUMBERING FOR LOCAL ELEMENTS
-   ALLOCATE(NBE(0:NT,3))         ;NBE      = 0 !!INDICES OF ELMNT NEIGHBORS
-   ALLOCATE(NTVE(0:MT))          ;NTVE     = 0 
-   ALLOCATE(NTSN(0:MT))          ;NTSN     = 0 
-   ALLOCATE(ISONB(0:MT))         ;ISONB    = 0  !!NODE MARKER = 0,1,2
-   ALLOCATE(ISONB_W(0:MT))       ;ISONB_W  = 0  !!NODE MARKER = 0,1,2
-   ALLOCATE(ISBCE(0:NT))         ;ISBCE    = 0 
-   ALLOCATE(NIEC(NCT,2))         ;NIEC     = 0
-   ALLOCATE(NTRG(NCT))           ;NTRG     = 0
 
-   ! POSITION OF NODAL CONTROL VOLUME CORNERS 
-   ALLOCATE(XIJE(NCT,2))         ;XIJE     = ZERO
-   ALLOCATE(YIJE(NCT,2))         ;YIJE     = ZERO 
-   ! LENGTH OF NODAL CONTROL VOLUME EDGES
-   ALLOCATE(DLTXE(NCT))          ;DLTXE    = ZERO
-   ALLOCATE(DLTYE(NCT))          ;DLTYE    = ZERO
-   ALLOCATE(DLTXYE(NCT))         ;DLTXYE   = ZERO !! TOTAL LENGTH
-   ALLOCATE(SITAE(NCT))          ;SITAE    = ZERO !! ANGLE
+    !==============================================================================|
+       SUBROUTINE N2E3D(NVAR,EVAR)
+    !==============================================================================|
+       IMPLICIT NONE 
+       REAL(SP), DIMENSION(0:MT,1:KB), INTENT(IN)  :: NVAR  
+       REAL(SP), DIMENSION(0:NT,1:KB), INTENT(INOUT) :: EVAR  
+       INTEGER I,K
+    !------------------------------------------------------------------------------|
+       DO K=1,KB
+         DO I = 1, NT
+           EVAR(I,K) = ONE_THIRD*(NVAR(NV(I,1),K)+NVAR(NV(I,2),K)+NVAR(NV(I,3),K))
+         END DO
+       END DO
+       RETURN
+       END SUBROUTINE N2E3D 
+    !==============================================================================|
 
-   ! LENGTH BETWEEN NODE AND CONTROL VOLUMEN EDGE CENTER
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    !==============================================================================|
+       SUBROUTINE N2E2D(NVAR,EVAR)
+    !==============================================================================|
+       IMPLICIT NONE
+       REAL(SP), DIMENSION(0:MT), INTENT(IN)  :: NVAR 
+       REAL(SP), DIMENSION(0:NT), INTENT(INOUT) :: EVAR  
+       INTEGER I,K
+    !------------------------------------------------------------------------------|
+       DO I = 1, NT
+         EVAR(I) = ONE_THIRD*(NVAR(NV(I,1))+NVAR(NV(I,2))+NVAR(NV(I,3)))
+       END DO
+       RETURN
+       END SUBROUTINE N2E2D
+    !==============================================================================|
+
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    !==============================================================================|
+       SUBROUTINE E2N2D(EVAR,NVAR)
+    !==============================================================================|
+       IMPLICIT NONE
+       REAL(SP), DIMENSION(0:NT), INTENT(IN ) :: EVAR  
+       REAL(SP), DIMENSION(0:MT), INTENT(INOUT) :: NVAR 
+
+       INTEGER I,K
+    !------------------------------------------------------------------------------|
+       DO I=1,M
+         NVAR(I) = SUM(EVAR(NBVE(I,1:NTVE(I))))/FLOAT(NTVE(I))
+       END DO
+       RETURN
+       END SUBROUTINE E2N2D
+    !==============================================================================|
+
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    !==============================================================================|
+       SUBROUTINE E2N3D(EVAR,NVAR)
+    !==============================================================================|
+       IMPLICIT NONE
+       REAL(SP), DIMENSION(0:NT,1:KB), INTENT(IN ) :: EVAR  
+       REAL(SP), DIMENSION(0:MT,1:KB), INTENT(INOUT) :: NVAR 
+       INTEGER I,K
+    !------------------------------------------------------------------------------|
+       DO K=1,KB
+         DO I=1,M
+           NVAR(I,K) = SUM(EVAR(NBVE(I,1:NTVE(I)),K))/FLOAT(NTVE(I))
+         END DO
+       END DO
+       RETURN
+       END SUBROUTINE E2N3D
+    !==============================================================================|
+       
+    !==============================================================================|
+    !    Allocate and Initialize Most Arrays                                       !
+    !==============================================================================|
+       
+       SUBROUTINE ALLOC_VARS(dbg_set)
+         
+    !==============================================================================!
+       IMPLICIT NONE
+       logical,intent(in) :: dbg_set
+       INTEGER NCT,NDB
+    !==============================================================================!
+    # if !defined (DOUBLE_PRECISION)
+       NDB = 1       !!GWC BASE THIS ON KIND
+    # else
+       NDB = 2
+    # endif
+
+       NCT = NT*3 ! A DIMENSION USED FOR ALLOCATION!
+       
+    !==============================================================================!
+    !  ALLOCATE:                                                                   !
+    !==============================================================================!
+       
+    !--------------------------Grid Metrics---------------------------------------------!
+       
+       ALLOCATE(LON(0:MT))           ;LON  = ZERO   !!LONGITUDE AT THE NODE
+       ALLOCATE(LAT(0:MT))           ;LAT  = ZERO   !!LATITUDE AT THE NODE
+       ALLOCATE(LONC(0:NT))          ;LONC = ZERO   !!LONGITUDE AT THE NODE
+       ALLOCATE(LATC(0:NT))          ;LATC = ZERO   !!LATITUDE AT THE NODE
+       ALLOCATE(XM(0:MT))            ;XM   = ZERO   !!X-COORD AT NODE IN METERS
+       ALLOCATE(YM(0:MT))            ;YM   = ZERO   !!Y-COORD AT NODE IN METERS
+       ALLOCATE(XMC(0:NT))           ;XMC  = ZERO   !!X-COORD AT FACE CENTER IN METERS 
+       ALLOCATE(YMC(0:NT))           ;YMC  = ZERO   !!Y-COORD AT FACE CENTER IN METERS
+       ALLOCATE(XC(0:NT))            ;XC   = ZERO   !!X-COORD AT FACE CENTER 
+       ALLOCATE(YC(0:NT))            ;YC   = ZERO   !!Y-COORD AT FACE CENTER
+       ALLOCATE(VX(0:MT))            ;VX   = ZERO   !!X-COORD AT GRID POINT
+       ALLOCATE(VY(0:MT))            ;VY   = ZERO   !!Y-COORD AT GRID POINT
+       ALLOCATE(ART(0:NT))           ;ART  = ZERO   !!AREA OF ELEMENT
+       ALLOCATE(ART1(0:MT))          ;ART1 = ZERO   !!AREA OF NODE-BASE CONTROl VOLUME
+       ALLOCATE(ART2(0:MT))          ;ART2 = ZERO   !!AREA OF ELEMENTS AROUND NODE
+       ALLOCATE(GRAV_N(0:MT))        ;GRAV_N = zero !! VARIABLE GRAVITY
+       ALLOCATE(GRAV_E(0:NT))        ;GRAV_E = zero !! VARIABLE GRAVITY
+
+       MEMCNT = MT*9*NDB + NT*8*NDB + MEMCNT
+
+    !----------------Node, Boundary Condition, and Control Volume-----------------------!
+
+    ! ALLOCATED IN setup_domain.F But count the memory here
+    !   ALLOCATE(NV(0:NT,4))          ;NV       = 0  !!NODE NUMBERING FOR ELEMENTS
+    !   ALLOCATE(NVGL(0:NT,3))        ;NVGL     = 0  !!GLOBAL NODE NUMBERING FOR LOCAL ELEMENTS
+       ALLOCATE(NBE(0:NT,3))         ;NBE      = 0 !!INDICES OF ELMNT NEIGHBORS
+       ALLOCATE(NTVE(0:MT))          ;NTVE     = 0 
+       ALLOCATE(NTSN(0:MT))          ;NTSN     = 0 
+       ALLOCATE(ISONB(0:MT))         ;ISONB    = 0  !!NODE MARKER = 0,1,2
+       ALLOCATE(ISONB_W(0:MT))       ;ISONB_W  = 0  !!NODE MARKER = 0,1,2
+       ALLOCATE(ISBCE(0:NT))         ;ISBCE    = 0 
+       ALLOCATE(NIEC(NCT,2))         ;NIEC     = 0
+       ALLOCATE(NTRG(NCT))           ;NTRG     = 0
+
+       ! POSITION OF NODAL CONTROL VOLUME CORNERS 
+       ALLOCATE(XIJE(NCT,2))         ;XIJE     = ZERO
+       ALLOCATE(YIJE(NCT,2))         ;YIJE     = ZERO 
+       ! LENGTH OF NODAL CONTROL VOLUME EDGES
+       ALLOCATE(DLTXE(NCT))          ;DLTXE    = ZERO
+       ALLOCATE(DLTYE(NCT))          ;DLTYE    = ZERO
+       ALLOCATE(DLTXYE(NCT))         ;DLTXYE   = ZERO !! TOTAL LENGTH
+       ALLOCATE(SITAE(NCT))          ;SITAE    = ZERO !! ANGLE
+
+       ! LENGTH BETWEEN NODE AND CONTROL VOLUMEN EDGE CENTER
    ALLOCATE(DLTXNCVE(NCT,2))     ; DLTXNCVE   = ZERO  !! DeLTa X Node to Control Volume Edge 
    ALLOCATE(DLTYNCVE(NCT,2))     ; DLTYNCVE   = ZERO  !! DeLTa Y Node to Control Volume Edge 
 

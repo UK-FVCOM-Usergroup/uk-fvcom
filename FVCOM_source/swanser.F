@@ -265,25 +265,22 @@
    LENTXT = LEN (TEXT)
    IF = 1
    FOUND = .FALSE.
-100 IF(IF <= LENTXT .AND. .NOT. FOUND)THEN
+   DO WHILE(IF <= LENTXT .AND. .NOT. FOUND)
      IF(.NOT. (TEXT(IF:IF) ==  ' ' .OR.                   &
        ICHAR(TEXT(IF:IF)) == ITABVL))THEN
        FOUND = .TRUE.
      ELSE
        IF = IF + 1
      ENDIF
-     GOTO 100
-   ENDIF
+   ENDDO
    IL = LENTXT + 1
    FOUND = .FALSE.
-200 IF(IL > 1 .AND. .NOT. FOUND)THEN
-    IL = IL - 1
-     IF(.NOT. (TEXT(IL:IL) ==  ' ' .OR.                   &
-       ICHAR(TEXT(IL:IL)) == ITABVL))THEN
+   DO WHILE(IL > 1 .AND. .NOT. FOUND)
+     IL = IL - 1
+     IF(.NOT. (TEXT(IL:IL) ==  ' ' .OR. ICHAR(TEXT(IL:IL)) == ITABVL))THEN
        FOUND = .TRUE.
      ENDIF
-     GOTO 200
-   ENDIF
+   ENDDO
 
    RETURN
    END SUBROUTINE TXPBLA
@@ -527,7 +524,11 @@
 !
 !     MMT     input    number of frequency points
 !
-      INTEGER   MMT
+
+      ! ------- new Karsten Lettmann, 2016, March ----
+      ! INTEGER   MMT  ! original line
+      INTEGER, INTENT(IN) ::   MMT 
+      ! ---------- end new ---------------------------
 !
 !     CG      output   group velocity
 !     D       input    local depth
@@ -537,8 +538,14 @@
 !     SIG     input    rel. frequency for which wave parameters
 !                      must be determined
 !
-      REAL      CG(MMT), D,                                    &
-                K(MMT), N(MMT), ND(MMT), SIG(MMT)
+
+!     -------- new : Karsten Lettmann, 2016 march ---------------
+!      REAL      CG(MMT), D,                                    &
+!                & K(MMT), N(MMT), ND(MMT), SIG(MMT)
+      REAL, INTENT(OUT) :: CG(MMT), K(MMT), N(MMT), ND(MMT)
+      REAL, INTENT(IN)  :: D, SIG(MMT)
+!     --------- end new -----------------------------------------
+
 !
 !  6. Local variables
 !
@@ -752,11 +759,9 @@
 ! 13. Source text
 !
       IPOS = 1
- 100  CONTINUE
-      IF (IVAL/10**IPOS.GE.1.) THEN
-         IPOS = IPOS + 1
-         GO TO 100
-      END IF
+      DO WHILE(IVAL/10**IPOS.GE.1.)
+        IPOS = IPOS + 1
+      ENDDO
       ALLOCATE(CVAL(IPOS))
 
       DO I=IPOS,1,-1
@@ -814,10 +819,10 @@
       TMP=X+FPF
       TMP=(X+HALF)*LOG(TMP)-TMP
       SER=ONE
-      DO 11 J=1,6
+      DO J=1,6
         X=X+ONE
         SER=SER+COF(J)/X
-11    CONTINUE
+      ENDDO
       GAMMLN=TMP+LOG(STP*SER)
       RETURN
       END FUNCTION GAMMLN
@@ -1026,21 +1031,22 @@
 !     compute spectral shape using peak period PKPER                      
 !
       FAC  = 1.
- 100  FPK  = (1./PKPER)                                                   
-      FPK4 = FPK**4
-      IF(LSHAPE == 1)THEN
-        SALPHA = ((SPPARM(1) ** 2) * (FPK4)) * 5. / 16.
-      ELSE IF(LSHAPE == 2)THEN
+      DO WHILE(.TRUE.)
+        FPK  = (1./PKPER)
+        FPK4 = FPK**4
+        IF(LSHAPE == 1)THEN
+          SALPHA = ((SPPARM(1) ** 2) * (FPK4)) * 5. / 16.
+        ELSE IF(LSHAPE == 2)THEN
 !       *** SALPHA = alpha*(grav**2)/(2.*pi)**4)
-        SALPHA = (SPPARM(1)**2 * FPK4) /                            &
+          SALPHA = (SPPARM(1)**2 * FPK4) /                            &
 	         ((0.06533*(PSHAPE(1)**0.8015)+0.13467)*16.)
-      ELSE IF(LSHAPE == 4)THEN
-        AUX1 = SPPARM(1)**2 / ( 16.* SQRT (PI2_W) * PSHAPE(2))
-        AUX3 = 2. * PSHAPE(2)**2
-      ENDIF
+        ELSE IF(LSHAPE == 4)THEN
+          AUX1 = SPPARM(1)**2 / ( 16.* SQRT (PI2_W) * PSHAPE(2))
+          AUX3 = 2. * PSHAPE(2)**2
+        ENDIF
 !
-      CTOTT = 0.
-      DO IS = 1, MSC                                                  
+        CTOTT = 0.
+        DO IS = 1, MSC
 !
         IF(LSHAPE == 1)THEN
 !         *** LSHAPE = 1 : Pierson and Moskowitz ***
@@ -1145,10 +1151,12 @@
   72    FORMAT (' SSHAPE iter=', I2, '  period values:', 3F7.2)
         IF(ABS(MPER-SPPARM(2)) > 0.01*SPPARM(2))THEN
 !         modification suggested by Mauro Sclavo
-          PKPER = (SPPARM(2) / MPER) * PKPER                              
-          GOTO 100
+            PKPER = (SPPARM(2) / MPER) * PKPER
+            CYCLE
+          ENDIF
         ENDIF
-      ENDIF
+        EXIT
+      ENDDO
 !
       IF (ITPER >= 10)THEN
         CALL MSGERR(3, 'No convergence calculating the spectrum')         
@@ -1560,18 +1568,45 @@
       END IF    
 !-------------------WAVE_SPARSE_TIMESERIES-----yzhang&jqi---
 
+      ! ------- estimate significant wave height ----------
       DO IG = 1, MT
           INDX = IG    !KGRPNT(IX,IY)
 !          IF ( HSIBC(INDX) .GT. 1.E-25 ) THEN
 !           *** compute Hs for boundary point (without tail) ***
             ETOT  = 0.
             DO ID = 1, MDC
-              DO IS = 1, MSC                                              
-                ETOT = ETOT + SPCSIG(IS)**2 * AC2(ID,IS,INDX) 
-              ENDDO
+              ! ------ new Karsten Lettmann, Nov. 2018 ----              
+              ! original Rieman method
+              ! here, the logarithmic spaced sigma are used:
+              ! see Eq. (3.77) in Swan tech manual
+              !DO IS = 1, MSC                                              
+              !  ETOT = ETOT + SPCSIG(IS)**2 * AC2(ID,IS,INDX) 
+              !ENDDO
+              
+              ! use trapezoidal rule with first integration method
+              ! see Eq. (3.73) in Swan tech manual with adding DDIR
+              DO IS=2,MSC
+                DS=SPCSIG(IS)-SPCSIG(IS-1)                              
+                EDI = 0.5*(SPCSIG(IS)*AC2(ID,IS,IG)+              &
+                           SPCSIG(IS-1)*AC2(ID,IS-1,IG))*DS*DDIR        
+                ETOT = ETOT + EDI
+              END DO
+              ! ------ end new: trapezoidal rule ------------
+              
+              ! ----- new: Karsten Lettmann, 2018 Okt ---------
+              ! add the high frequency tail for Hsig in output
+              !AC2(ID,MSC,IG) = 1e-4   ! for testing           
+              EHFR = AC2(ID,MSC,IG) * SPCSIG(MSC)
+              EFTAIL = 1. / (PWTAIL(1) - 1.)
+              ETOT = ETOT + DDIR * EHFR * SPCSIG(MSC) * EFTAIL
+              ! -----------------------------------------------                
             ENDDO
+
             IF (ETOT .GT. 1.E-8) THEN
-              HSC = 4. * SQRT(ETOT*FRINTF*DDIR)
+              ! ---- new Karsten Lettmann, 2018 Okt -----
+              !HSC = 4. * SQRT(ETOT*FRINTF*DDIR) ! original line with Rieman
+              HSC = 4. * SQRT(ETOT)  ! this corresponds to trapez rule
+              ! -----------------------------------------
             ELSE
               HSC = 0.
             ENDIF
@@ -1579,7 +1614,8 @@
 
 	    HSC1(IG) = HSC
 	   
-!--------
+            !--- end of Hsig calculation ---------------
+
             ETOT = 0.
             EEX  = 0.
             EEY  = 0.
@@ -1668,20 +1704,19 @@
          EKTOT = FRINTF * EKTOT
          IF (MSC .GT. 3) THEN                                           
 !          contribution of tail to total energy density
-           PPTAIL = PWTAIL(1) - 1.                                     
-           CETAIL = 1. / (PPTAIL * (1. + PPTAIL * (FRINTH-1.)))        
-           PPTAIL = PWTAIL(1) - 1. - 2.                      
-!           PPTAIL = PWTAIL(1) - 1. - 2.*OUTPAR(3)                      
+           PPTAIL = PWTAIL(1) - 1.
+           CETAIL = 1. / (PPTAIL * (1. + PPTAIL * (FRINTH-1.)))
+           PPTAIL = PWTAIL(1) - 1. - 2.
+!           PPTAIL = PWTAIL(1) - 1. - 2.*OUTPAR(3)
            IF (PPTAIL.LE.0.) THEN
              CALL MSGERR (2,'error tail computation')
-             GOTO 480
-           END IF
-           CKTAIL = 1. / (PPTAIL * (1. + PPTAIL * (FRINTH-1.)))        
-           DO ID=1,MDC
-             ETOT   = ETOT + CETAIL * SIG2 * AC2(ID,MSC,IG)             
-             EKTOT  = EKTOT + CKTAIL * SKK * AC2(ID,MSC,IG)             
-           END DO
- 480       CONTINUE
+           ELSE
+             CKTAIL = 1. / (PPTAIL * (1. + PPTAIL * (FRINTH-1.)))
+             DO ID=1,MDC
+               ETOT   = ETOT + CETAIL * SIG2 * AC2(ID,MSC,IG)
+               EKTOT  = EKTOT + CKTAIL * SKK * AC2(ID,MSC,IG)
+             END DO
+           ENDIF
          END IF
          IF (ETOT > 0.)THEN
 !           WLMEAN = PI2 * (ETOT / EKTOT) ** (1./OUTPAR(3))           
@@ -1689,7 +1724,7 @@
          END IF
 
          WLEN(IG) = WLMEAN
-	 
+
 !	   if(mod(it,12) == 0)write(400,*) vx(ig),vy(ig),HSC,it
 !	   write(400+myid,*) vx(ig),vy(ig),HSC
             HSREL = ABS(HSIBC(INDX) - HSC) / HSIBC(INDX)                  

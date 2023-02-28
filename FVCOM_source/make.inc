@@ -483,7 +483,7 @@ dashL= $(empty) -L
 #        STRUCTURE
 #        Turn on the structure code from De Dominics et al 2022
 #--------------------------------------------------------------------------
-             FLAG_43 = -DSTRUCTURE
+#             FLAG_43 = -DSTRUCTURE
 
 #--------------------------------------------------------------------------
 #        Vegetation Impact on FLows, Waves and Sediment (with FLAG_32 turned on)
