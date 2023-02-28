@@ -6164,7 +6164,6 @@ CONTAINS
 # if defined (FABM)
   FUNCTION FABM_FILE_OBJECT(iset) RESULT(NCF)
    USE MOD_FABM_DATA
-   USE fabm, ONLY: fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
    USE fabm_types, ONLY: output_none
    IMPLICIT NONE
 

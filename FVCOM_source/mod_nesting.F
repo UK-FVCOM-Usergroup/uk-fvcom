@@ -1891,7 +1891,6 @@ END SUBROUTINE GENMAP_NESTING
     USE MOD_CLOCK
 # if defined (FABM)
  USE MOD_FABM_DATA
-!   USE fabm, ONLY: fabm_get_bulk_diagnostic_data, fabm_get_horizontal_diagnostic_data
 !   USE fabm_types, ONLY: output_none
 # endif 
     IMPLICIT NONE
