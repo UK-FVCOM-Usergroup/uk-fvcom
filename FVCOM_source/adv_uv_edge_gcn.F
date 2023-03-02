@@ -990,6 +990,14 @@
        YFLUX(I,K) = YFLUX(I,K) + WAVESTRY_3D(I,K)
 #  endif   
 
+#  if defined (VEGETATION)
+       if(VEGETATION_MODEL.and.VEG_DRAG)then 
+          XFLUX(I,K) = XFLUX(I,K) + ru_veg(i,k)*DT1(I)*DZ1(I,K)*ART(I)
+          YFLUX(I,K) = YFLUX(I,K) + rv_veg(i,k)*DT1(I)*DZ1(I,K)*ART(I)
+       end if
+#  endif
+
+
 # if defined(STRUCTURE)
          !ADD STRUCTURE DRAG FORCE IN THE 'K' SIGMA LAYER
          !STRUCTURES: TIDAL STREAM TURBINES, VEGETATION OR OFFSHORE WIND UNDERWATER STRUCTURES

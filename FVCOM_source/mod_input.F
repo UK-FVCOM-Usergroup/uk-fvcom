@@ -548,6 +548,12 @@ CONTAINS
     SEDIMENT_MIXING_RATIO =  1.0
     BEDFLAG_TYPE = "DO NOT ADD UNTIL FVCOM IS RUNNING BY ITS SELF FIRST"
     BEDFLAG_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+# if defined (VEGETATION)
+    VEGETATION_MODEL = .FALSE.
+    VEGETATION_MODEL_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+    VEGETATION_FIELDS_TYPE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+    VEGETATION_FIELDS_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
+# endif
     ICE_MODEL= .FALSE.
     ICE_FORCING_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     ICE_FORCING_KIND ="Options:"//TRIM(CNSTNT)//","//TRIM(STTC)&
@@ -2166,6 +2172,30 @@ CONTAINS
     END IF
 # endif
 
+# if defined (VEGETATION)
+    ! LOAD VEGETATION FILEDS
+    IF (VEGETATION_FIELDS_TYPE /= UNIFORM) THEN
+
+       ! TEST FILE NAME
+       charnum = index (VEGETATION_FIELDS_FILE,".nc",back)
+       if (charnum /= len_trim(VEGETATION_FIELDS_FILE)-2)&
+            & CALL WARNING("Sediment parameter file does not end in .nc", &
+            & trim(VEGETATION_FIELDS_FILE))
+       
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(VEGETATION_FIELDS_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+       
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+       
+    END IF
+# endif
+
   END SUBROUTINE OPEN_FORCING
 
   SUBROUTINE LOAD_HORIZONTAL_MIXING_COEFFICIENT(NN,CC)
@@ -2273,6 +2303,130 @@ CONTAINS
     CALL NC_DISCONNECT(VAR)
     
   END SUBROUTINE LOAD_BOTTOM_ROUGHNESS
+
+# if defined (VEGETATION)
+  SUBROUTINE LOAD_VEGETATION_FIELDS(PLANT,NVEG2,NVEGP2)
+    USE CONTROL
+    IMPLICIT NONE
+    REAL(SP),ALLOCATABLE  :: PLANT(:,:,:)
+    INTEGER,INTENT(IN)    :: NVEG2
+    INTEGER,INTENT(IN)    :: NVEGP2
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM1
+    TYPE(NCDIM),  POINTER :: DIM2
+    TYPE(NCDIM),  POINTER :: DIM3
+    integer status,I,IERR
+
+    LOGICAL FOUND
+
+    ! FIND THE VEGETATION FIELDS FILE OBJECT
+    NCF => FIND_FILE(FILEHEAD,trim(VEGETATION_FIELDS_FILE),FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND VEGETATION FIELDS FILE OBJECT",&
+         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE)) 
+
+    DIM1 => FIND_DIM(NCF,'node',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND VEGETATION_FIELDS_FILE DIMENSION 'node' in:",&
+         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+    IF (DIM1%DIM /= MGL)CALL FATAL_ERROR &
+         & ("Dimension 'node' in the VEGETATION_FIELDS_FILE does not match MGL for this model?",&
+         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+
+    DIM2 => FIND_DIM(NCF,'nveg',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND VEGETATION_FIELDS_FILE DIMENSION 'nveg' in:",&
+         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+    IF (DIM2%DIM /= nveg2)CALL FATAL_ERROR &
+         & ("Dimension 'nveg' in the VEGETATION_FIELDS_FILE does not match MGL for this model?",&
+         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+
+    DIM3 => FIND_DIM(NCF,'nvegp',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND VEGETATION_FIELDS_FILE DIMENSION 'nveg' in:",&
+         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+    IF (DIM3%DIM /= nvegp2)CALL FATAL_ERROR &
+         & ("Dimension 'nvegp' in the VEGETATION_FIELDS_FILE does not match MGL for this model?",&
+         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+
+    ! FIND THE 'plant' variable
+    VAR => FIND_VAR(NCF,'plant',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant' in:",&
+         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+
+    CALL NC_CONNECT_AVAR(VAR,plant)
+    CALL NC_READ_VAR(VAR)
+    CALL NC_DISCONNECT(VAR)
+
+
+
+!!$    ! FIND THE 'density' variable
+!!$    VAR => FIND_VAR(NCF,'plant_density',FOUND)
+!!$    IF(.not. FOUND) CALL FATAL_ERROR &
+!!$         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_density' in:",&
+!!$         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+!!$
+!!$    CALL NC_CONNECT_AVAR(VAR,plant(:,:,1))
+!!$    CALL NC_READ_VAR(VAR)
+!!$    CALL NC_DISCONNECT(VAR)
+!!$
+!!$    ! FIND THE 'height' variable
+!!$    VAR => FIND_VAR(NCF,'plant_height',FOUND)
+!!$    IF(.not. FOUND) CALL FATAL_ERROR &
+!!$         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_height' in:",&
+!!$         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+!!$
+!!$    CALL NC_CONNECT_AVAR(VAR,plant(:,:,2))
+!!$    CALL NC_READ_VAR(VAR)
+!!$    CALL NC_DISCONNECT(VAR)
+!!$
+!!$    ! FIND THE 'diameter' variable
+!!$    VAR => FIND_VAR(NCF,'plant_diameter',FOUND)
+!!$    IF(.not. FOUND) CALL FATAL_ERROR &
+!!$         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_diameter' in:",&
+!!$         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+!!$
+!!$    CALL NC_CONNECT_AVAR(VAR,plant(:,:,3))
+!!$    CALL NC_READ_VAR(VAR)
+!!$    CALL NC_DISCONNECT(VAR)
+!!$
+!!$    ! FIND THE 'thickness' variable
+!!$    VAR => FIND_VAR(NCF,'plant_thickness',FOUND)
+!!$    IF(.not. FOUND) CALL FATAL_ERROR &
+!!$         & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_thickness' in:",&
+!!$         & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+!!$
+!!$    CALL NC_CONNECT_AVAR(VAR,plant(:,:,4))
+!!$    CALL NC_READ_VAR(VAR)
+!!$    CALL NC_DISCONNECT(VAR)
+!!$
+!!$    IF(VEG_BIOMASS)THEN
+!!$       ! FIND THE 'thickness' variable
+!!$       VAR => FIND_VAR(NCF,'plant_biomass_above_ground',FOUND)
+!!$       IF(.not. FOUND) CALL FATAL_ERROR &
+!!$            & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_biomass_above_ground' in:",&
+!!$            & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+!!$
+!!$       CALL NC_CONNECT_AVAR(VAR,plant(:,:,5))
+!!$       CALL NC_READ_VAR(VAR)
+!!$       CALL NC_DISCONNECT(VAR)
+!!$
+!!$       ! FIND THE 'thickness' variable
+!!$       VAR => FIND_VAR(NCF,'plant_biomass_below_ground',FOUND)
+!!$       IF(.not. FOUND) CALL FATAL_ERROR &
+!!$            & ("COULD NOT FIND VEGETATION_FIELDS_FILE VARIABLE 'plant_biomass_below_ground' in:",&
+!!$            & "FILE NAME: "//TRIM(VEGETATION_FIELDS_FILE))
+!!$
+!!$       CALL NC_CONNECT_AVAR(VAR,plant(:,:,6))
+!!$       CALL NC_READ_VAR(VAR)
+!!$       CALL NC_DISCONNECT(VAR)
+!!$
+!!$    END IF
+
+  END SUBROUTINE LOAD_VEGETATION_FIELDS
+# endif
 
 # if defined (STRUCTURE)
   SUBROUTINE LOAD_STRUCTURE_PARAMETERS(TTSIGMA, TTAREA, TTNUMBER, TTTHRUST)

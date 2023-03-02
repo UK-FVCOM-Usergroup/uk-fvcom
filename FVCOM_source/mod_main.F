@@ -940,6 +940,298 @@ MODULE CONTROL
     CHARACTER(LEN=80) BEDFLAG_TYPE 
     CHARACTER(LEN=80) BEDFLAG_FILE 
 
+# if defined (VEGETATION)
+
+  !  ************************************************************************
+  !  **                                                                    **
+  !  ** This module declares vegetation model internal parameters.  Some   **
+  !  ** of these parameters are usually read from the appropriate input    **
+  !  ** script.                                                            **
+  !  **                                                                    **
+  !  ** The current design allows the user to have a lot of latitude for   **
+  !  ** customizing or expanding the vegetation model.                     **
+  !  **                                                                    **
+  !  ** The vegetatation model is composed of several files:               **
+  !  **                                                                    **
+  !  **   *  Vegetation modifies rhs3d terms:                              **
+  !  **                                                                    **
+  !  **        vegetation_drag.F                                           **
+  !  **                                                                    **
+  !  **   *  Vegetation modifies turbulence terms:                         **
+  !  **                                                                    **
+  !  **        vegetation_turb_cal.F                                       **
+  !  **                                                                    **
+  !  **   *  Vegetation modifies streaming terms:                          **
+  !  **                                                                    **
+  !  **        vegetation_stream.F                                         **
+  !  **                                                                    **
+  !  **   *  Wave Thrust on Marsh calculation:                             **
+  !  **                                                                    **
+  !  **        marsh_wave_thrust.F                                         ** 
+  !  **                                                                    **
+  !  **   *  Vegetation biomass calculation:                               **
+  !  **                                                                    **
+  !  **        vegetation_biomass.F                                        **
+  !  **                                                                    **
+  !  **   *  Internal model parameters declarations:                       **
+  !  **                                                                    **
+  !  **        vegetation_mod.h                                            **
+  !  **                                                                    **
+  !  **   *  Model parameters standard input script:                       **
+  !  **                                                                    **
+  !  **        vegetation.in                                               **
+  !  **                                                                    **
+  !  **   *  Code to read input model parameters:                          **
+  !  **                                                                    **
+  !  **        vegetation_inp.h                                            **
+  !  **                                                                    **
+  !  **   *  Code to assign indices to model variables during the          **
+  !  **      reading of metadata information from "varinfo.dat":           **
+  !  **                                                                    **
+  !  **        vegetation_var.h                                            **
+  !  **                                                                    **
+  !  **   *  Code to define input model parameters in all output           **
+  !  **      NetCDF files:                                                 **
+  !  **                                                                    **
+  !  **        vegetation_def_his.h                                        **
+  !  **                                                                    **
+  !  **   *  Code to write out input model parameters in all output        **
+  !  **      NetCDF files:                                                 **
+  !  **                                                                    **
+  !  **        vegetation_wrt_his.h                                        **
+  !  **                                                                    **
+  !  ** Note that all the files are located in ROMS/Nonlinear/Vegetation   **
+  !  ** and the *.h files are included within  <...> to allow the user     **
+  !  ** customize any of them in the project directory, while  keeping     **
+  !  ** the distributed code intact (check build scripts for details).     **
+  !  **                                                                    **
+  !  ************************************************************************
+  !  */
+
+
+  !svn $Id: vegetation_mod.h 429 2015-06-10 17:30:26Z arango $
+  !================================================== Hernan G. Arango ===
+  !  Copyright (c) 2002-2017 The ROMS/TOMS Group                         !
+  !    Licensed under a MIT/X style license                              !
+  !    See License_ROMS.txt                                              !
+  !================================================= John C. Warner =====!   
+  !================================================= Neil K. Ganju ======!   
+  !================================================= Alexis Beudin ======!   
+  !================================================= Tarandeep S. Kalra =!
+  !=======================================================================
+  !                                                                      !
+  !  Vegetation Model Kernel Variables:                                  !
+  !  =================================                                   !
+  !  NVEG          Number of vegetation types                            !
+  !  NVEGP         Number of vegetation array properties                 !
+  !  CD_VEG        Drag coefficient for each veg type                    ! 
+  !  E_VEG         Youngs modulus for each veg type                      !
+  !  VEG_MASSDEN   Mass density for each veg type                        !
+  !  VEGHMIXCOEF   Viscosity coefficient for vegetation boundary         ! 
+  !                                                                      ! 
+  !  Plant Property indices:                                             !
+  !  ======================                                              !
+  !  pdens         Density                                               !
+  !  phght         Height                                                !
+  !  pdiam         Diameter                                              !
+  !  pthck         Thickness                                             !
+  !  pabbm         Above ground biomass                                  !
+  !  pbgbm         Below ground biomass                                  !
+  !                                                                      !
+  !  Plant Property indices:                                             !
+  !  ======================                                              !
+  !  idvprp        Indices for storing plant properties                  ! 
+  !                                                                      !
+  !  Plant Property Output IDs:                                          !
+  !  ==========================                                          !
+  !  ipdens         Id to output plant density                           !
+  !  iphght         Id to output plant height                            !
+  !  ipdiam         Id to output plant diameter                          !
+  !  ipthck         Id to output plant thickness                         !
+  !  ipupbm         Id to output above ground biomass                    !
+  !  ipdwbm         Id to output below ground biomass                    !
+  !  idWdvg         Id to output wave dissipation from vegetation        !
+  !                                                                      !
+  !  Wave Thrust on Marsh Output:                                        !
+  !  ==========================                                          !
+  !  idTims        Initial masking for the marsh                         ! 
+  !  idTmsk        Masking for getting thrust due to waves at rho pts.   ! 
+  !  idTmax        Maximum thrust due to waves                           !
+  !  idTton        Tonelli masking based thrust due to waves             !
+  !=======================================================================
+  !
+
+  ! Main controls for vegetation
+  LOGICAL :: VEG_BIOMASS
+  LOGICAL :: VEG_STREAMING
+  LOGICAL :: MARSH_WAVE_THRUST
+  LOGICAL :: VEG_FLEX
+  LOGICAL :: VEG_HMIXING
+  LOGICAL :: VEG_TURB
+  LOGICAL :: VEG_DRAG
+  LOGICAL :: VEG_SWAN_COUPLING
+
+  integer :: NVEG, NVEGP
+  integer :: counter
+  integer :: phght, pdens, pdiam, pthck
+  integer :: ipdens,iphght,ipdiam,ipthck
+
+  !#ifdef VEG_BIOMASS 
+  integer :: pabbm, pbgbm   
+  integer :: ipabbm, ipbgbm   
+  !#endif 
+  !#ifdef VEG_STREAMING 
+  integer :: idWdvg
+  !#endif 
+  integer, allocatable :: idvprp(:)    
+  !#ifdef MARSH_WAVE_THRUST 
+  integer ::  idTims, idTmsk, idTmax, idTton 
+  !#endif 
+  !
+  real(sp), allocatable :: E_VEG(:)
+  real(sp), allocatable :: CD_VEG(:)
+  real(sp), allocatable :: VEG_MASSDENS(:)
+  real(sp), allocatable :: VEGHMIXCOEF(:)
+  character(len=20), allocatable ::vegname(:)
+  !======================================================================!
+  !                                                                      !
+  !  Vegetation Model Kernel Variables:                                  !
+  !  plant         Vegetation variable properties:                       !
+  !                   plant(:,:,:,phght) => height                       !
+  !                   plant(:,:,:,pdens) => density                      !
+  !                   plant(:,:,:,pthck) => thickness                    !
+  !                   plant(:,:,:,pdiam) => diameter                     !
+  !                   plant(:,:,:,pabbm) => above ground biomass         !
+  !                   plant(:,:,:,pbgbm) => below ground biomass         !
+  !  ru_veg         Momentum term for x direction(takes account for all  !
+  !                 vegetation types)                                    !
+  !  rv_veg         Momentum term for x direction(takes account for all  !
+  !                 vegetation types)                                    !
+  !  ru_veg_loc     Momentum term for x direction(takes account for only !
+  !                 local vegetation type)                               !
+  !  rv_veg_loc     Momentum term for x direction(takes account for all  !
+  !                 local vegetation types)                              !
+  !  step2d_uveg    Momentum term for 2d x direction                     !
+  !  step2d_vveg    Momentum term for 2d y direction                     !
+  !  bend           Bending for each vegetation                          !
+  !  Lveg           Effective blade length                               ! 
+  !  tke_veg        Turbulent kinetic energy from vegetation             !
+  !  gls_veg        Length scale change from vegetation                  !
+  !  dissip_veg     Dissipation from the SWAN model due to vegetation    !
+  !  BWDXL_veg      Wave streaming effect due to vegetation              !
+  !  BWDYL_veg      Wave streaming effect due to vegetation              !
+  !  visc2d_r_veg   Effect of viscosity change at vegetation interface   ! 
+  !  visc3d_r_veg   Effect of viscosity change at vegetation interface   ! 
+  !  marsh_mask     User input of marsh masking at MSL                   ! 
+  !  mask_thrust    Tonellis masking for wave thrust on marshes          !
+  !  Thrust_max     Maximum thrust from wave to marshes                  !
+  !  Thrust_tonelli Reduced thrust from tonelli's masking                !
+  !                                                                      !
+  !======================================================================!
+  TYPE T_VEG
+     !
+     !  Nonlinear model state.
+     !
+     real(sp), allocatable :: plant(:,:,:)
+     character(len=20),pointer :: vegname(:)
+     character(len=20),pointer :: paraname(:)
+     character(len=20),pointer :: vegunits(:)
+
+     !  Momentum terms go back to act as sink in rhs
+     real(sp), allocatable :: ru_veg(:,:)
+     real(sp), allocatable :: rv_veg(:,:)
+
+     !  Momentum terms feed to the turbulence model 
+     real(sp), allocatable :: ru_loc_veg(:,:,:)
+     real(sp), allocatable :: rv_loc_veg(:,:,:)
+     real(sp), allocatable :: step2d_uveg(:)
+     real(sp), allocatable :: step2d_vveg(:)
+     real(sp), allocatable :: Lveg(:,:)
+     !# ifdef VEG_FLEX 
+     real(sp), allocatable :: bend(:,:)
+     !# endif         
+     !# ifdef VEG_TURB
+     real(sp), allocatable :: tke_veg(:,:)
+     real(sp), allocatable :: gls_veg(:,:)
+     !# endif 
+     !# ifdef VEG_HMIXING
+     real(sp), allocatable :: visc2d_r_veg(:)
+     real(sp), allocatable :: visc3d_r_veg(:,:)
+     !# endif 
+     !# if defined VEG_SWAN_COUPLING && defined VEG_STREAMING
+     real(sp), allocatable :: dissip_veg(:)
+     real(sp), allocatable :: BWDXL_veg(:,:)
+     real(sp), allocatable :: BWDYL_veg(:,:)
+     !# endif 
+     !# ifdef MARSH_WAVE_THRUST
+     real(sp), allocatable :: marsh_mask(:)
+     real(sp), allocatable :: mask_thrust(:)
+     real(sp), allocatable :: Thrust_max(:)
+     real(sp), allocatable :: Thrust_tonelli(:) 
+     !# endif
+
+  END TYPE T_VEG
+
+  TYPE (T_VEG), target :: VEG
+  !
+
+  character(len=500) :: vegfile ! input file for vegetation type and parameters
+
+  real(sp),parameter :: rhow = 1025.0 ! constant sea water density
+
+  !-----------------------------------------------------------------------
+  !  Generic Length Scale parameters.
+  !-----------------------------------------------------------------------
+  !
+  !    gls_Gh0
+  !    gls_Ghcri
+  !    gls_Ghmin
+  !    gls_Kmin      Minimum value of specific turbulent kinetic energy.
+  !    gls_Pmin      Minimum Value of dissipation.
+  !    gls_cmu0      Stability coefficient (non-dimensional).
+  !    gls_c1        Shear production coefficient (non-dimensional).
+  !    gls_c2        Dissipation coefficient (non-dimensional).
+  !    gls_c3m       Buoyancy production coefficient (minus).
+  !    gls_c3p       Buoyancy production coefficient (plus).
+  !    gls_E2
+  !    gls_m         Turbulent kinetic energy exponent (non-dimensional).
+  !    gls_n         Turbulent length scale exponent (non-dimensional).
+  !    gls_p         Stability exponent (non-dimensional).
+  !    gls_sigk      Constant Schmidt number (non-dimensional) for
+  !                    turbulent kinetic energy diffusivity.
+  !    gls_sigp      Constant Schmidt number (non-dimensional) for
+  !                    turbulent generic statistical field, "psi".
+  real(sp) :: gls_m
+  real(sp) :: gls_n
+  real(sp) :: gls_p
+  real(sp) :: gls_sigk
+  real(sp) :: gls_sigp
+  real(sp) :: gls_cmu0
+  real(sp) :: gls_cmupr
+  real(sp) :: gls_c1
+  real(sp) :: gls_c2
+  real(sp) :: gls_c3m
+  real(sp) :: gls_c3p
+  real(sp) :: gls_Kmin
+  real(sp) :: gls_Pmin
+
+  !  Momentum terms go back to act as sink 
+  real(sp), allocatable :: ru_veg(:,:)
+  real(sp), allocatable :: rv_veg(:,:)
+  real(sp), allocatable :: step2d_uveg(:)
+  real(sp), allocatable :: step2d_vveg(:)
+ !  Node-based velocity
+  real(sp), allocatable :: uu_veg(:,:)
+  real(sp), allocatable :: vv_veg(:,:)
+
+
+    LOGICAL VEGETATION_MODEL
+    CHARACTER(LEN=80) VEGETATION_MODEL_FILE
+    CHARACTER(LEN=80) VEGETATION_FIELDS_TYPE
+    CHARACTER(LEN=80) VEGETATION_FIELDS_FILE
+    INTEGER,PARAMETER :: VegStrLen = 20
+# endif
+
     LOGICAL ICING_MODEL
     CHARACTER(LEN=80) ICING_FORCING_FILE
     CHARACTER(LEN=80) ICING_FORCING_KIND
