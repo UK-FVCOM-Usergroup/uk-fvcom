@@ -45,7 +45,7 @@ MODULE MOD_STARTUP
   USE MOD_ISF
 # endif
 
-# if defined (ICESHELF)
+# if defined (ICENORKYST)
  USE MOD_ICENORKYST
 # endif
 
