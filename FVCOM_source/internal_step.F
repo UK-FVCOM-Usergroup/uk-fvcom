@@ -42,6 +42,12 @@ SUBROUTINE INTERNAL_STEP
 # if defined(ICENORKYST)
   USE MOD_ICENORKYST
 # endif
+
+# if defined (ICENUDGE)
+  USE MOD_ICENUDGE
+# endif
+
+  USE MOD_NORTHPOLE
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
@@ -777,6 +783,21 @@ SUBROUTINE INTERNAL_STEP
 #   endif
 # endif
 
+# if defined (ICENUDGE)
+ !     Surface ice-ocean stress
+      CALL ICENUDGE_STRESS
+       DO I=1,NT
+         IF(AICEU(I)>=1.0E-5_SP) THEN
+	        WUSURF(I) =WUSURF(I) *(1.0_SP-AICEU(I)) +STROCNX(I)*AICEU(I)*1.0E-3
+            WVSURF(I) =WVSURF(I) *(1.0_SP-AICEU(I)) +STROCNY(I)*AICEU(I)*1.0E-3
+          ENDIF  
+       END DO
+		
+#   if defined (MULTIPROCESSOR)
+        IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,WUSURF,WVSURF)
+#   endif
+#   endif
+
 # if defined (ICENORKYST)
 
   DO I =1,NT
@@ -1354,6 +1375,12 @@ SUBROUTINE INTERNAL_STEP
 #   endif
         !end !defined (ONE_D_MODEL)                                    !                          !
 
+#   if defined (ICENUDGE)
+    
+    CALL ICENUDGE_THERMODYN1
+	
+#   endif		
+		
      IF(CASENAME(1:3) == 'gom')THEN
         CALL VDIF_TS_GOM(1,TF1)
      ELSE  
@@ -1460,7 +1487,11 @@ SUBROUTINE INTERNAL_STEP
      IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_S       !Conservation Correction   !
      !#                                                   endif
 #   endif
-     !end !defined (ONE_D_MODEL)                                    !                          !
+     !end !defined (ONE_D_MODEL)   
+     	 
+#   if defined (ICENUDGE)
+    CALL ICENUDGE_THERMODYN2
+#   endif
 
      IF(CASENAME(1:3) == 'gom')THEN
         CALL VDIF_TS_GOM(2,SF1)

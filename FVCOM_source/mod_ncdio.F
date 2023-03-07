@@ -718,7 +718,12 @@ CONTAINS
        END IF
 # endif
 
-       
+! mainly for the purpose of diagnostics
+#  if defined (ICENUDGE_DIAGNOSIS)
+        NCF2 => ICENUDGE_DATA_STATE_FILE_OBJECT()
+        NCF => ADD(NCF,NCF2)
+# endif
+   
        IF (STARTUP_TYPE /= "crashrestart") THEN
 
           ! IF CRASH RESTART - OVER RIDE THE STKCNT
@@ -974,6 +979,11 @@ CONTAINS
     END IF
 # endif
 
+! mainly for the purpose of diagnostics
+#  if defined (ICENUDGE_DIAGNOSIS)
+     NCF_TMP => ICENUDGE_DATA_STATE_FILE_OBJECT()
+     NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+# endif
 
     !===================================================================
     ! MAKE A COPY OF THE DATA POINTER FILE TO IN WHICH TO DO THE SUM

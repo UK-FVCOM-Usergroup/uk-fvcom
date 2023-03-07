@@ -467,6 +467,25 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: WAVES_PER_BOT_N,   WAVES_PER_BOT_P   ! BOTTOM PERIOD
   TYPE(NCVAR), POINTER :: WAVES_UB_BOT_N,    WAVES_UB_BOT_P    ! BOTTOM VELOCITY
   ! =================================================================
+  ! Qin, ICE NUDGE FILE DATA
+# if defined (ICENUDGE) 
+  INTEGER :: ICENUDGE_FORCING_TYPE
+
+  INTEGER, PARAMETER :: ICENUDGE_ARE_WRFGRID   = 0
+  INTEGER, PARAMETER :: ICENUDGE_ARE_FVCOMGRID = 1
+ 
+  TYPE(NCFILE), POINTER :: ICENUDGE_FILE
+  CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE:: ICENUDGE_FORCING_COMMENTS(:)
+  TYPE(INTERP_WEIGHTS),POINTER :: ICENUDGE_INTP_N
+  TYPE(INTERP_WEIGHTS),POINTER :: ICENUDGE_INTP_C
+  TYPE(NCVAR), POINTER :: ICENUDGE_AREA_N,         ICENUDGE_AREA_P            ! ICE AREA
+  TYPE(NCVAR), POINTER :: ICENUDGE_THICKNESS_N,    ICENUDGE_THICKNESS_P       ! ICE THICKNESS
+  TYPE(NCVAR), POINTER :: ICENUDGE_SALINITY_N,     ICENUDGE_SALINITY_P       ! ICE SALINITY
+  TYPE(NCVAR), POINTER :: ICENUDGE_VEL_X_N,        ICENUDGE_VEL_X_P          ! ICE X-VELOCITY
+  TYPE(NCVAR), POINTER :: ICENUDGE_VEL_Y_N,        ICENUDGE_VEL_Y_P          ! ICE Y-VELOCITY
+# endif
+
+   !==================================================================
   ! SURFACE PRECIPTATION DATA
   INTEGER :: PRECIP_FORCING_TYPE
 
@@ -543,6 +562,9 @@ MODULE MOD_FORCE
 # endif
   PUBLIC :: UPDATE_WIND
   PUBLIC :: UPDATE_WAVE
+# if defined (ICENUDGE)
+  PUBLIC :: UPDATE_ICENUDGE
+# endif  
 
 # if defined (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
   PUBLIC :: UPDATE_HEAT_CALCULATED
@@ -648,6 +670,14 @@ CONTAINS
          & WAVES_PERIOD_N,    WAVES_PERIOD_P,     &
          & WAVES_PER_BOT_N,   WAVES_PER_BOT_P,    &
          & WAVES_UB_BOT_N,    WAVES_UB_BOT_P        )
+# if defined (ICENUDGE)
+    NULLIFY(ICENUDGE_FILE,ICENUDGE_INTP_N,ICENUDGE_INTP_C, &
+         & ICENUDGE_AREA_N,    ICENUDGE_AREA_P,     &
+         & ICENUDGE_THICKNESS_N,    ICENUDGE_THICKNESS_P,     &
+         & ICENUDGE_SALINITY_N, ICENUDGE_SALINITY_P,  & 
+         & ICENUDGE_VEL_X_N,    ICENUDGE_VEL_X_P,     &
+         & ICENUDGE_VEL_Y_N,   ICENUDGE_VEL_Y_P    )
+# endif
 
 # if defined (OFFLINE_SEDIMENT)
     NULLIFY(SEDIMENTS_FILE,SEDIMENTS_INTP_N,SEDIMENTS_INTP_C, &
@@ -763,7 +793,11 @@ CONTAINS
     CALL SURFACE_WAVE
 # endif
 
-    CALL GROUND_WATER
+# if defined (ICENUDGE)
+   CALL ICENUDGE_FORCING
+# endif
+
+  CALL GROUND_WATER
 
     ! ORDER IS IMPORTANT! ICE AND ICING MAY USE THE SAME POINTERS TO
     ! REFERENCE FILE! THEY MUST BE SET UP LAST.
@@ -8586,7 +8620,7 @@ CONTAINS
   END SUBROUTINE SURFACE_HEATING_SOLAR
 # endif
   !================================================================
-  !================================================================
+# if defined (ICE)
   SUBROUTINE ICE_MODEL_FORCING
     IMPLICIT NONE
     ! SOME NC POINTERS
@@ -9164,6 +9198,108 @@ CONTAINS
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END ICE MODEL FORCING"
   END SUBROUTINE ICE_MODEL_FORCING
+# endif
+  !================================================================
+  !================================================================
+# if defined (ICESHELF)
+  SUBROUTINE ICESHELF_DRAFT
+    IMPLICIT NONE
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT, ATT_DATE
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    LOGICAL :: FOUND
+
+    REAL(SP), POINTER :: STORAGE_ARR(:,:), storage_vec(:)
+    TYPE(TIME) :: TIMETEST
+
+    INTEGER :: LATS, LONS, I, Ntimes
+
+    INTEGER :: STATUS
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START ICESHELF DRAFT"
+
+    IF (.NOT. ICESHELF_DRAFT_VARYING) THEN
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! ICESHELF DRAFT VARYING IS OFF!"
+
+       ALLOCATE(ICESHELF_DRAFT_COMMENTS(1))
+       ICESHELF_DRAFT_COMMENTS(1) = "ICESHELF DRAFT VARYING IS OFF"
+       RETURN
+    END IF
+
+    NULLIFY(ATT,DIM,VAR,STORAGE_ARR,STORAGE_VEC)
+
+
+
+    ! DETERMINE HOW TO LOAD THE DATA
+
+       ICESHELF_FILE => FIND_FILE(FILEHEAD,trim(ICESHELF_DRAFT_UPD_FILE),FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND ICESHELF DRAFT UPDATE FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICESHELF_DRAFT_UPD_FILE))
+
+       ! CHECK DIMENSIONS
+       DIM => FIND_UNLIMITED(ICESHELF_FILE,FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICESHELF DRAFT FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICESHELF_DRAFT_UPD_FILE),&
+            &"COULD NOT FIND UNLIMITED DIMENSION")
+
+       NTIMES = DIM%DIM
+
+       ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
+       TIMETEST = get_file_time(ICESHELF_FILE,1)
+       IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+            & ("IN ICESHELF DRAFT FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICESHELF_DRAFT_UPD_FILE),&
+            &"THE MODEL RUN STARTS BEFORE THE ICESHELF DRAFT TIME SERIES")
+
+       TIMETEST = get_file_time(ICESHELF_FILE,ntimes)
+       IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+            & ("IN ICESHELF DRAFT FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICESHELF_DRAFT_UPD_FILE),&
+            &"THE MODEL RUN ENDS AFTER THE ICESHELF DRAFT TIME SERIES")
+
+           !--------- READ ICESHELF DRAFT-------------------------------
+           ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_DIM(ICESHELF_FILE,'node',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICESHELF DRAFT FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICESHELF_DRAFT_UPD_FILE),&
+            & "COULD NOT FIND DIMENSION 'node'")
+
+       if (mgl /= dim%dim) CALL FATAL_ERROR&
+            &("ICESHELF DRAFT : the number of nodes in the file does not match the fvcom grid?")
+
+       ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
+
+       ! ICESHELF DRAFT DATA
+
+          VAR => FIND_VAR(ICESHELF_FILE,"zisf",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(ICESHELF_FILE,"zisf",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN ICESHELF DRAFT FILE OBJECT",&
+               & "FILE NAME: "//TRIM(ICESHELF_DRAFT_UPD_FILE),&
+               & "COULD NOT FIND VARIABLE 'zisf'")
+
+          ! MAKE SPACE FOR THE DATA FROM THE FILE
+          ZISF_N => reference_var(var)
+          ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+          IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICESHELF DRAFT")
+          CALL NC_CONNECT_PVAR(ZISF_N,STORAGE_VEC)
+          NULLIFY(STORAGE_VEC)
+
+
+          ! MAKE SPACE FOR THE DATA FROM THE FILE
+          ZISF_P => reference_var(var)
+          ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+          IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICESHELF DRAFT")
+          CALL NC_CONNECT_PVAR(ZISF_P,STORAGE_VEC)
+          NULLIFY(STORAGE_VEC)
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END ICESHELF DRAFT"
+  END SUBROUTINE ICESHELF_DRAFT
+# endif
   !================================================================
   !================================================================
   SUBROUTINE ICING_FORCING
@@ -9421,12 +9557,12 @@ CONTAINS
        ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
 
        ! SEA LEVEL AIR TEMPERATURE
-       IF(ASSOCIATED(ICE_FILE,ICING_FILE)) THEN
-          ! USE THE ALREADY LOADED DATA FROM THE ICE MODEL
-          ICING_SAT_N => ICE_SAT_N
-          ICING_SAT_P => ICE_SAT_P
+       !IF(ASSOCIATED(ICE_FILE,ICING_FILE)) THEN
+       !   ! USE THE ALREADY LOADED DATA FROM THE ICE MODEL
+       !   ICING_SAT_N => ICE_SAT_N
+       !   ICING_SAT_P => ICE_SAT_P
 
-       ELSE
+       !ELSE
 
           VAR => FIND_VAR(ICING_FILE,"T2",FOUND)
           !       IF(.not. FOUND) VAR => FIND_VAR(ICING_FILE,"T2",FOUND)
@@ -9462,7 +9598,7 @@ CONTAINS
           CALL NC_CONNECT_PVAR(ICING_SAT_P,STORAGE_VEC)
           NULLIFY(STORAGE_VEC)
 
-       END IF
+      ! END IF
 
        ! NET WIND SPEED X
        VAR => FIND_VAR(HEAT_FILE,"U10",FOUND)
@@ -9564,14 +9700,14 @@ CONTAINS
        ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
 
        ! Sea Surface Air Temperature
-       IF(ASSOCIATED(ICE_FILE,ICING_FILE)) THEN
-          ! USE THE SAME MEMORY USED FOR OCEAN MODEL HEAT FLUX
+     !  IF(ASSOCIATED(ICE_FILE,ICING_FILE)) THEN
+     !     ! USE THE SAME MEMORY USED FOR OCEAN MODEL HEAT FLUX
           
-          ICING_SAT_N => ICE_SAT_N
+     !     ICING_SAT_N => ICE_SAT_N
 
-          ICING_SAT_P => ICE_SAT_P
+     !    ICING_SAT_P => ICE_SAT_P
 
-       ELSE       
+     !  ELSE       
           VAR => FIND_VAR(ICING_FILE,"T2",FOUND)
           IF(.not. FOUND) CALL FATAL_ERROR &
                & ("IN SURFACE ICING BOUNDARY CONDITION FILE OBJECT",&
@@ -9593,7 +9729,7 @@ CONTAINS
           CALL NC_CONNECT_PVAR(ICING_SAT_P,STORAGE_VEC)
           NULLIFY(STORAGE_VEC)
           
-       END IF
+      ! END IF
        
        ! Wind Speed X
        VAR => FIND_VAR(HEAT_FILE,"U10",FOUND)
@@ -11895,6 +12031,311 @@ CONTAINS
 
 !================================================================
 
+# if defined (ICENUDGE)
+
+  SUBROUTINE ICENUDGE_FORCING
+    IMPLICIT NONE
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT, ATT_DATE
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    LOGICAL :: FOUND
+    REAL(SP), POINTER :: STORAGE_ARR(:,:), storage_vec(:)
+    TYPE(TIME) :: TIMETEST
+    INTEGER :: LATS, LONS, I, Ntimes
+    INTEGER :: STATUS
+    CHARACTER(len=60) :: icenudge_area, icenudge_thickness,icenudge_salinity,icenudge_vel_x,icenudge_vel_y
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START ICEDUGE_FORCING"
+
+    NULLIFY(ATT,DIM,VAR,STORAGE_ARR,STORAGE_VEC)
+
+
+    IF (.NOT. ICENUDGE_ON ) THEN
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! ICENUDGE FORCING IS OFF!"
+       ALLOCATE(ICENUDGE_FORCING_COMMENTS(1))
+       ICENUDGE_FORCING_COMMENTS(1) = "ICENUDGE FORCING IS OFF"
+       RETURN
+    END IF
+
+
+! DETERMINE HOW TO LOAD THE DATA
+    SELECT CASE(ICENUDGE_KIND)
+    CASE (CNSTNT)
+
+       write(icenudge_area,     '(f8.4)') ICENUDGE_AREA
+       write(icenudge_thickness,    '(f8.4)') ICENUDGE_THICKNESS
+       write(icenudge_salinity,    '(f8.4)') ICENUDGE_SALINITY
+       write(icenudge_vel_x,    '(f8.4)') ICENUDGE_VEL_X
+       write(icenudge_vel_y,'(f8.4)') ICENUDGE_VEL_Y
+
+          
+       IF(DBG_SET(DBG_LOG)) THEN
+         WRITE(IPT,*)"! SETTING UP CONSTANT ICE NUDGE FORCING: " 
+         WRITE(IPT,*)"  icenudge area   : "//trim(icenudge_area)
+         WRITE(IPT,*)"  icenudge thickness   : "//trim(icenudge_thickness)
+         WRITE(IPT,*)"  icenudge salinity : "//trim(icenudge_salinity)
+         WRITE(IPT,*)"  icenudge_vel_x   : "//trim(icenudge_vel_x)
+         WRITE(IPT,*)"  icenudge_vel_y  : "//trim(icenudge_vel_y)
+       END IF
+          
+       ALLOCATE(ICENUDGE_FORCING_COMMENTS(6))
+       ICENUDGE_FORCING_COMMENTS(1) = "Using constant ice nudging forcing from run file:"
+       ICENUDGE_FORCING_COMMENTS(2) = "  icenudge area   : "//trim(icenudge_area)
+       ICENUDGE_FORCING_COMMENTS(3) = "  icenudge thickness   : "//trim(icenudge_thickness)
+       ICENUDGE_FORCING_COMMENTS(4) = "  icenudge salinity : "//trim(icenudge_salinity)
+       ICENUDGE_FORCING_COMMENTS(5) = "  icenudge_vel_x   : "//trim(icenudge_vel_x)
+       ICENUDGE_FORCING_COMMENTS(6) = "  icenudge_vel_y  : "//trim(icenudge_vel_y)
+       RETURN
+
+
+   CASE(STTC)
+
+       CALL FATAL_ERROR("STATIC ICENUDGE Not Set Up Yet")
+
+    CASE(TMDPNDNT)
+
+       CALL FATAL_ERROR("TIME DEPENDENT ICENUDGE Not Set Up Yet")
+
+    CASE(PRDC)
+      
+       CALL FATAL_ERROR("PERIODIC ICENUDGE Not Set Up Yet")
+
+ 
+    CASE(VRBL)
+
+       ICENUDGE_FILE => FIND_FILE(FILEHEAD,trim(ICENUDGE_FORCING_FILE),FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND ICENUDGE BOUNDARY CONDINTION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE))
+
+       ! DETERMINE GRID TYPE BASED ON SOURCE ATTRIBUTE   
+       ATT => FIND_ATT(ICENUDGE_FILE,"source",FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(ICENUDGE_FILE,"Source",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            &"COULD NOT FIND GLOBAL ATTRIBUTE: 'source'")
+       
+       IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
+            & TRIM(wrf2fvcom_source)) THEN
+          ICENUDGE_FORCING_TYPE = ICENUDGE_ARE_WRFGRID 
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
+            & TRIM(fvcom_grid_source).or.(ATT%CHR(1)(1:5)=='fvcom')) THEN
+          ICENUDGE_FORCING_TYPE = ICENUDGE_ARE_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
+            & TRIM(fvcom_cap_grid_source).or.(ATT%CHR(1)(1:5)=='FVCOM')) THEN
+          ICENUDGE_FORCING_TYPE = ICENUDGE_ARE_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(wrf_grid_source)) ==&
+            & TRIM(wrf_grid_source)) THEN
+          ICENUDGE_FORCING_TYPE = ICENUDGE_ARE_WRFGRID
+
+       ELSE
+          CALL PRINT_FILE(ICENUDGE_FILE)
+          CALL FATAL_ERROR("CAN NOT RECOGNIZE ICENUDGE FILE!",&
+               & "UNKNOWN SOURCE STRING:",TRIM(ATT%CHR(1)))
+       END IF
+       ! GOT GRID TYPE
+
+       ALLOCATE(ICENUDGE_FORCING_COMMENTS(4))
+       ICENUDGE_FORCING_COMMENTS(1) = "FVCOM variable ICENUDGE FORCING forcing:"
+       ICENUDGE_FORCING_COMMENTS(2) = "FILE NAME:"//TRIM(ICENUDGE_FORCING_FILE)
+       
+       ICENUDGE_FORCING_COMMENTS(3) = "SOURCE:"//TRIM(ATT%CHR(1))
+       
+       ATT_DATE => FIND_ATT(ICENUDGE_FILE,"START_DATE",FOUND)
+       IF (FOUND) THEN
+          ICENUDGE_FORCING_COMMENTS(4) ="MET DATA START DATE:"//TRIM(ATT_DATE%CHR(1))
+       ELSE
+          ICENUDGE_FORCING_COMMENTS(4) = "Unknown start date meta data format"
+       END IF
+              
+       ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_UNLIMITED(ICENUDGE_FILE,FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            &"COULD NOT FIND THE UNLIMITED DIMENSION")
+       
+       NTIMES = DIM%DIM
+       
+       ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
+       TIMETEST = get_file_time(ICENUDGE_FILE,1)
+       IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            &"THE MODEL RUN STARTS BEFORE THE FORCING TIME SERIES")
+       
+       TIMETEST = get_file_time(ICENUDGE_FILE,ntimes)
+       IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            &"THE MODEL RUN ENDS AFTER THE FORCING TIME SERIES")
+       
+    CASE DEFAULT
+       CALL FATAL_ERROR("SURFACE_ICENUDGE: UNKNOWN ICENUDGE KIND?")
+    END SELECT
+
+!==============================================================
+    SELECT CASE(ICENUDGE_FORCING_TYPE)
+!==============================================================
+    CASE(ICENUDGE_ARE_WRFGRID)
+!==============================================================
+
+       CALL FATAL_ERROR("ICENUDGE based on WRF grid Not Set Up Yet")
+
+!==============================================================
+    CASE(ICENUDGE_ARE_FVCOMGRID)
+!==============================================================
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP ICENUDGE FORCING FROM A 'FVCOM GRID' FILE"
+
+       DIM => FIND_DIM(ICENUDGE_FILE,'node',FOUND)  
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            & "COULD NOT FIND DIMENSION 'node'")
+
+       if (mgl /= dim%dim) CALL FATAL_ERROR&
+            &("Surface ICENUDGE: the number of nodes in the file does not match the fvcom grid?")
+
+
+       ! SETUP THE ACTUAL VARIABLES USED TO LOAD DATA!
+
+
+       
+       ! ICE AREA
+       VAR => FIND_VAR(ICENUDGE_FILE,"AICE",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            & "COULD NOT FIND VARIABLE 'AICE' ")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_AREA_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICENUDGE AREA")
+       CALL NC_CONNECT_PVAR(ICENUDGE_AREA_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_AREA_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICENUDGE AREA")
+       CALL NC_CONNECT_PVAR(ICENUDGE_AREA_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! ICENUDGE THICKNESS
+       VAR => FIND_VAR(ICENUDGE_FILE,"HICE",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            & "COULD NOT FIND VARIABLE 'HICE' ")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_THICKNESS_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICENUDGE THICKNESS")
+       CALL NC_CONNECT_PVAR(ICENUDGE_THICKNESS_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_THICKNESS_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICENUDGE THICKNESS")
+       CALL NC_CONNECT_PVAR(ICENUDGE_THICKNESS_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+      ! ICENUDGE BULK SALINITY
+       VAR => FIND_VAR(ICENUDGE_FILE,"ISALT",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            & "COULD NOT FIND VARIABLE 'ISALT' ")
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_SALINITY_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICE BULK SALINITY")
+       CALL NC_CONNECT_PVAR(ICENUDGE_SALINITY_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_SALINITY_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICE BULK SALINITY")
+       CALL NC_CONNECT_PVAR(ICENUDGE_SALINITY_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+ 
+      ! ICENUDGE X-VELOCITY
+       VAR => FIND_VAR(ICENUDGE_FILE,"UICE",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            & "COULD NOT FIND VARIABLE 'UICE' ")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_VEL_X_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICENUDGE VEL_X")
+       CALL NC_CONNECT_PVAR(ICENUDGE_VEL_X_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_VEL_X_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICENUDGE VEL_X")
+       CALL NC_CONNECT_PVAR(ICENUDGE_VEL_X_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! ICENUDGE Y-VELOCITY
+       VAR => FIND_VAR(ICENUDGE_FILE,"VICE",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN ICENUDGE FORCING BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICENUDGE_FORCING_FILE),&
+            & "COULD NOT FIND VARIABLE 'VICE' ")
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_VEL_Y_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICENUDGE VEL_Y")
+       CALL NC_CONNECT_PVAR(ICENUDGE_VEL_Y_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICENUDGE_VEL_Y_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:NT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN ICENUDGE VEL_Y")
+       CALL NC_CONNECT_PVAR(ICENUDGE_VEL_Y_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+!==============================================================
+    CASE DEFAULT
+!==============================================================
+       CALL FATAL_ERROR("CAN NOT RECOGNIZE ICENUDGE FILE TYPE!")
+!==============================================================
+    END SELECT
+!==============================================================
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END ICENUDGE_FORCING"
+  END SUBROUTINE ICENUDGE_FORCING
+
+!================================================================
+
+# endif               ! ICEDUGNE
 
 
 !================================================================
@@ -16089,8 +16530,129 @@ CONTAINS
 
 
   END SUBROUTINE UPDATE_WAVE
-  !==============================================================================|
+!==============================================================================|
+# if defined (ICENUDGE)
+  SUBROUTINE UPDATE_ICENUDGE (NOW,AICE,HICE,ISALT,UICE,VICE)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    TYPE(TIME)             :: PTIME
+    REAL(SP), ALLOCATABLE  :: AICE(:),HICE(:),ISALT(:),UICE(:),VICE(:)
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS
 
+    
+    IF(.NOT. ALLOCATED(AICE)) CALL FATAL_ERROR &
+         &("THE  ICENUDGE  AREA VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(HICE)) CALL FATAL_ERROR &
+         &("THE  ICENUDGE  THICKNESS VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(ISALT)) CALL FATAL_ERROR &
+         &("THE  ICENUDGE  BULK SALINITY VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(UICE)) CALL FATAL_ERROR &
+         &("THE  ICENUDGE  X-VELOCITY VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+    IF(.NOT. ALLOCATED(VICE)) CALL FATAL_ERROR &
+         &("THE  ICENUDGE  Y-VELOCITY VARIABLE VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+!===================================================
+    SELECT CASE(ICENUDGE_KIND)
+!===================================================
+    CASE (CNSTNT)
+       
+       AICE(1:MT)      =  ICENUDGE_AREA
+       HICE(1:MT)      =  ICENUDGE_THICKNESS
+       ISALT(1:MT)     =  ICENUDGE_SALINITY
+       UICE(1:NT)      =  ICENUDGE_VEL_X
+       VICE(1:NT)      =  ICENUDGE_VEL_Y
+
+       RETURN
+
+    CASE(STTC)
+
+       CALL FATAL_ERROR("STATIC ICENUDGE Not Set Up Yet")
+
+    CASE(TMDPNDNT)
+
+       CALL FATAL_ERROR("TIME DEPENDENT ICENUDGE Not Set Up Yet")
+
+    CASE(PRDC)
+
+      CALL FATAL_ERROR("PERIODIC ICENUDGE Not Set Up Yet")
+
+    CASE(VRBL)
+
+       PTIME = NOW
+    END SELECT
+!===================================================
+
+!===================================================
+    SELECT CASE(ICENUDGE_FORCING_TYPE)
+!===================================================
+    CASE(ICENUDGE_ARE_WRFGRID)
+!==================================================
+    CASE(ICENUDGE_ARE_FVCOMGRID)
+!===================================================
+
+       FTM =>  ICENUDGE_FILE%FTIME
+       
+       !  ICENUDGE  AREA
+       CALL UPDATE_VAR_BRACKET(ICENUDGE_FILE, ICENUDGE_AREA_P, ICENUDGE_AREA_N,PTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE ICENUDGE  AREA BRACKET: BOUNDS EXCEEDED?")
+       end if
+       
+       CALL NC_POINT_VAR(ICENUDGE_AREA_N,VNP)
+       CALL NC_POINT_VAR(ICENUDGE_AREA_P,VPP)   
+       AICE = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+       !  ICENUDGE  THICKNESS
+       CALL UPDATE_VAR_BRACKET(ICENUDGE_FILE, ICENUDGE_THICKNESS_P, ICENUDGE_THICKNESS_N,PTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE  ICENUDGE  THICKNESS BRACKET: BOUNDS EXCEEDED?")
+       end if
+       
+       CALL NC_POINT_VAR(ICENUDGE_THICKNESS_N,VNP)
+       CALL NC_POINT_VAR(ICENUDGE_THICKNESS_P,VPP)   
+       HICE = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       
+
+       !  ICENUDGE BULK SALINITY
+       CALL UPDATE_VAR_BRACKET(ICENUDGE_FILE, ICENUDGE_SALINITY_P, ICENUDGE_SALINITY_N,PTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE  ICENUDGE  LENGTH BRACKET: BOUNDS EXCEEDED?")
+       end if
+       
+       CALL NC_POINT_VAR(ICENUDGE_SALINITY_N,VNP)
+       CALL NC_POINT_VAR(ICENUDGE_SALINITY_P,VPP)   
+       ISALT = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+
+       !  ICENUDGE  X-VELOCITY
+       CALL UPDATE_VAR_BRACKET(ICENUDGE_FILE, ICENUDGE_VEL_X_P, ICENUDGE_VEL_X_N,PTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE  ICENUDGE  X-VELOCITY BRACKET: BOUNDS EXCEEDED?")
+       end if
+       
+       CALL NC_POINT_VAR(ICENUDGE_VEL_X_N,VNP)
+       CALL NC_POINT_VAR(ICENUDGE_VEL_X_P,VPP)   
+       UICE = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       
+       !  ICENUDGE  Y-VELOCITY
+       CALL UPDATE_VAR_BRACKET(ICENUDGE_FILE, ICENUDGE_VEL_Y_P, ICENUDGE_VEL_Y_N,PTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE  ICENUDGE  Y-VELOCITY BRACKET: BOUNDS EXCEEDED?")
+       end if
+       
+       CALL NC_POINT_VAR(ICENUDGE_VEL_Y_N,VNP)
+       CALL NC_POINT_VAR(ICENUDGE_VEL_Y_P,VPP)   
+       VICE = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       
+    CASE DEFAULT
+       CALL FATAL_ERROR("UNKNOWN  ICENUDGE _FORCING_TYPE IN UPDATE  ICENUDGE ")
+    END SELECT
+
+
+  END SUBROUTINE UPDATE_ICENUDGE 
+# endif
 
 
 
@@ -16676,6 +17238,7 @@ CONTAINS
 # endif  
   !==============================================================================|
   !==============================================================================|
+# if defined (ICE)
   SUBROUTINE UPDATE_ICE(NOW,SAT,SWV,SPQ,CLD)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
@@ -16843,6 +17406,7 @@ CONTAINS
     END SELECT
 !===================================================
   END SUBROUTINE UPDATE_ICE
+# endif
 
 !==============================================================================|
 !==============================================================================|

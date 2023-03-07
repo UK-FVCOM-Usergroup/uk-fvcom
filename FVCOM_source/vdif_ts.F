@@ -50,6 +50,10 @@ SUBROUTINE VDIF_TS(NCON1,F)
   USE MOD_WD
 #  endif
 
+#  if defined (ICENUDGE)
+  USE MOD_ICENUDGE
+#  endif
+
 # if defined (THIN_DAM)
   USE MOD_DAM,only : NODE_DAM1_N,NODE_DAM2_N,NODE_DAM3_N&
                       &,I_NODE_DAM1_N,I_NODE_DAM2_N,I_NODE_DAM3_N,KDAM
@@ -221,6 +225,9 @@ SUBROUTINE VDIF_TS(NCON1,F)
      SWRADF   = 0.0_SP
      WFSURF   =0.0_SP
      COSGAMA1 =1.0_SP
+# if defined (ICENUDGE) 
+     WFSURF(1:M)   = WFSURF(1:M)-FVSALT1(1:M) -FVSALT2(1:M)
+# endif 
 !---Considering the salinity conservation, the sea surface salinity flux-----!
 !---can be set as zero, that is----------------------------------------------!
      SASURF   = 0.0_SP

@@ -639,6 +639,12 @@
          CALL UPDATE_WAVE(IntTime,WHS,WDIR,WPER,WLENGTH,WPER_BOT,WUB_BOT)
       END IF
 # endif
+
+# if defined (ICENUDGE)
+     IF (ICENUDGE_ON) THEN
+        CALL UPDATE_ICENUDGE(IntTime,AICE,HICE,ISALT,UICE,VICE)
+     END IF
+# endif
 # if defined (OFFLINE_SEDIMENT)
       CALL UPDATE_OFFLINE_FORCING(IntTime,offline_u,  offline_v, offline_w&
                                         &,offline_s1, offline_el,offline_kh&

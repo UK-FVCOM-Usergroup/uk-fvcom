@@ -1,5 +1,5 @@
 MODULE MOD_ACTION_EX
-      
+# if !defined(ICENUDGE)      
   IMPLICIT NONE
   SAVE
    
@@ -1447,5 +1447,6 @@ MODULE MOD_ACTION_EX
   RETURN
   END SUBROUTINE ACTT2
 !==============================================================================|
-
+#  endif
 END MODULE MOD_ACTION_EX
+

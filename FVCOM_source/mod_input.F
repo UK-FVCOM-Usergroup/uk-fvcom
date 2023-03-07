@@ -410,6 +410,15 @@ CONTAINS
     WAVE_PERIOD     = 0.0_SP
     WAVE_PER_BOT    = 0.0_SP
     WAVE_UB_BOT     = 0.0_SP
+!   Qin
+    ICENUDGE_ON = .FALSE.
+    ICENUDGE_FORCING_FILE = trim(casename)//"_icen.nc"
+    ICENUDGE_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)//","//TRIM(TMDPNDNT)//","//TRIM(PRDC)//","//TRIM(VRBL)
+    ICENUDGE_AREA            = 0.0_SP
+    ICENUDGE_THICKNESS       = 0.0_SP
+    ICENUDGE_SALINITY        = 0.0_SP 
+    ICENUDGE_VEL_X      = 0.0_SP
+    ICENUDGE_VEL_Y      = 0.0_SP
 
     !--Parameters in NameList NML_RIVER_TYPE
     RIVER_NUMBER = -1
@@ -1707,6 +1716,28 @@ CONTAINS
           CALL NC_LOAD(NCF)
            FILEHEAD => ADD(FILEHEAD,NCF)
         end if
+    end if
+
+    ! Check Ice nudge file and open
+    if (ICENUDGE_ON .and. ICENUDGE_KIND/= CNSTNT) then
+
+       ! TEST FILE NAME
+       charnum = index (ICENUDGE_FORCING_FILE,".nc",back)
+       if (charnum /= len_trim(ICENUDGE_FORCING_FILE)-2)&
+            & CALL WARNING("ICENUDGE FILE does not end in .nc", &
+            & trim(ICENUDGE_FORCING_FILE))
+
+       ! INITIALIZE TYPE TO HOLD FILE METAData
+       pathnfile = trim(INPUT_DIR)//trim(ICENUDGE_FORCING_FILE)
+       CALL NC_INIT(NCF,pathnfile)
+
+       ! OPEN THE FILE AND LOAD METADATA
+       If(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+
     end if
 
 # if defined (OFFLINE_SEDIMENT)

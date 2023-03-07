@@ -579,6 +579,16 @@ MODULE CONTROL
     REAL(SP) :: WAVE_PER_BOT
     REAL(SP) :: WAVE_UB_BOT
 
+    LOGICAL ICENUDGE_ON               
+    CHARACTER(LEN=80) ICENUDGE_FORCING_FILE    
+    CHARACTER(LEN=80) ICENUDGE_KIND
+    REAL(SP) :: ICENUDGE_AREA
+    REAL(SP) :: ICENUDGE_THICKNESS
+    REAL(SP) :: ICENUDGE_SALINITY
+    REAL(SP) :: ICENUDGE_VEL_X
+    REAL(SP) :: ICENUDGE_VEL_Y
+   
+
     ! FORCING KINDS
     CHARACTER(LEN=80),parameter:: CNSTNT   = "constant"
     CHARACTER(LEN=80),parameter:: STTC     = "static"
@@ -627,7 +637,16 @@ MODULE CONTROL
          & WAVE_DIRECTION,                  &
          & WAVE_PERIOD,                     &
          & WAVE_PER_BOT,                    &
-         & WAVE_UB_BOT  
+         & WAVE_UB_BOT,                     &
+         & ICENUDGE_ON,                     &   
+         & ICENUDGE_FORCING_FILE,           &
+         & ICENUDGE_KIND,                   &
+         & ICENUDGE_AREA,                   &
+         & ICENUDGE_THICKNESS,              &
+         & ICENUDGE_SALINITY,               &
+         & ICENUDGE_VEL_X,                  &
+         & ICENUDGE_VEL_Y     
+
 
     !--Parameters in NameList NML_RIVER_TYPE
     CHARACTER(LEN=80) RIVER_TS_SETTING ! METHOD TO CALCULATE T&S AT
@@ -2420,6 +2439,24 @@ MODULE ALL_VARS
    ALLOCATE(WPER_BOT(0:MT))      ;WPER_BOT = ZERO
    ALLOCATE(WUB_BOT(0:MT))       ;WUB_BOT  = ZERO
 # endif
+
+# if defined (ICENUDGE)
+    ALLOCATE(AICE(0:MT))           ;AICE      = ZERO
+    ALLOCATE(AICEU(0:NT))          ;AICEU     = ZERO
+    ALLOCATE(HICE(0:MT))           ;HICE      = ZERO
+    ALLOCATE(ISALT(0:MT))          ;ISALT     = ZERO
+    ALLOCATE(UICE(0:NT))           ;UICE      = ZERO
+    ALLOCATE(VICE(0:NT))           ;VICE      = ZERO
+    ALLOCATE(STROCNX(0:NT))        ;STROCNX   = ZERO
+    ALLOCATE(STROCNY(0:NT))        ;STROCNY   = ZERO
+    ALLOCATE(USTAR(0:MT))          ;USTAR     = ZERO
+    ALLOCATE(FVSALT1(0:MT))        ;FVSALT1   = ZERO
+    ALLOCATE(FVSALT2(0:MT))        ;FVSALT2   = ZERO
+    ALLOCATE(T_f(0:MT))            ;T_f       = ZERO
+    ALLOCATE(S_TMP(0:MT))          ;S_TMP       = ZERO
+    ALLOCATE(FHEAT(0:MT))          ;FHEAT     = ZERO
+    ALLOCATE(FSWTHRU(0:MT))        ;FSWTHRU   = ZERO
+# endif 
 
 # if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
    ALLOCATE(OFFLINE_U(0:NT,KB) )    ;OFFLINE_U   = ZERO
