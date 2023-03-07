@@ -27,7 +27,10 @@
 !/===========================================================================/
 
 MODULE EQS_OF_STATE
-
+ 
+# if defined (ICESHELF)
+  USE MOD_ISF
+# endif
 
   ! THIS MODULE CONTAINS THREE EQUATIONS OF STATE WHICH CAN BE ACCESSED
   ! USING A NUMBER OF DIFFERENT INTERFACES. THE ORIGINAL FVCOM
@@ -241,7 +244,11 @@ CONTAINS
     ! The thickness of the water column
     ! Is not the depth realtive to z=0
     DO K=1,KBM1
+# if defined (ICESHELF)
+       RZU(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:)-ZISF(:))*0.1_SP
+# else
        RZU(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:))*0.1_SP
+# endif
     END DO
 
     CALL FOFONOFF_MILLARD_2D(S1,T1,RZU,PR,RHO1)
@@ -849,7 +856,11 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START: DENS3"
 
     DO K=1,KBM1
+# if defined (ICESHELF)
+       MYP(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:)-ZISF(:))*0.01_SP
+# else
        MYP(:,K) = -GRAV_N(:)*1.025_SP*ZZ(:,K)*D(:) *0.01_SP
+# endif
     END DO
 
     CALL JACKET_MCDOUGALL_2D(S1,T1,MYP,RHO1)

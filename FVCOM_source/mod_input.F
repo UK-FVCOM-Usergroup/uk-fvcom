@@ -279,6 +279,9 @@ CONTAINS
     NC_SURFACE_HEAT = .False.
     NC_GROUNDWATER  = .False.
     NC_VORTICITY    = .False.
+#  if defined (ICESHELF)
+    NC_ICESHELF     = .False.
+#  endif
     NC_WQM          = .False.
     NC_BIO          = .False.
 #if defined (FABM)
@@ -313,6 +316,9 @@ CONTAINS
     NCAV_EVAP_PRECIP  = .False.
     NCAV_SURFACE_HEAT = .False.
     NCAV_GROUNDWATER  = .False.
+#  if defined (ICESHELF)
+    NCAV_ICESHELF     = .False.
+#  endif
     NCAV_VORTICITY    = .False.
     NCAV_WQM          = .False.
     NCAV_BIO          = .False.
@@ -573,8 +579,16 @@ CONTAINS
     ICE_CLOUD_COVER        = 0.0
     ICE_SHORTWAVE          = 0.0
     ICE_LONGWAVE_TYPE      = "'PW' or 'RM'" !PW -- longwave as in Parkinson and Washington (1979)
-                                            !RM -- longwave, Rosati and Miyakoda, JPO 18, p. 1607 (1988)
-
+                                           !RM -- longwave, Rosati and Miyakoda, JPO 18, p. 1607 (1988)
+    ICE_THRESHOLD          = 0.0
+    ICE_TIMESTEP           = 0.0
+    ICESHELF_MODEL= .FALSE.
+    ICESHELF_DRAFT_INI_FILE = trim(casename)//"_zisf_ini.nc"
+    ICESHELF_DRDZ                    = 0.0
+    ICESHELF_GAMAT                   = 0.0
+    ICESHELF_DRAG_COEFFICIENT        = 0.0
+    ICESHELF_DRAFT_VARYING = .FALSE.
+    ICESHELF_DRAFT_UPD_FILE = trim(casename)//"_zisf_upd.nc"
     ICING_MODEL= .FALSE.
     ICING_FORCING_FILE = "DO NOT ADD UNTILL FVCOM IS RUNNING BY ITS SELF FIRST"
     ICING_FORCING_KIND ="Options:"//TRIM(CNSTNT)//","//TRIM(STTC)&
@@ -2087,6 +2101,46 @@ CONTAINS
        end if
        
     END IF
+        
+        ! CHECK ICESHELF INITIAL DRAFT FILE AND OPEN
+    IF (ICESHELF_MODEL) THEN
+        ! TEST FILE NAME
+       charnum = index (ICESHELF_DRAFT_INI_FILE,".nc",back)
+       if (charnum /= len_trim(ICESHELF_DRAFT_INI_FILE)-2)&
+            & CALL WARNING("ICESHELF DRAFT INITIAL FILE does not end in .nc", &
+            & trim(ICESHELF_DRAFT_INI_FILE))
+
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(ICESHELF_DRAFT_INI_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+     END IF
+
+      ! CHECK ICESHELF DRAFT UPDATE FILE AND OPEN
+     IF (ICESHELF_MODEL .and. ICESHELF_DRAFT_VARYING) THEN
+        ! TEST FILE NAME
+       charnum = index (ICESHELF_DRAFT_UPD_FILE,".nc",back)
+       if (charnum /= len_trim(ICESHELF_DRAFT_UPD_FILE)-2)&
+            & CALL WARNING("ICESHELF DRAFT UPDATE FILE does not end in .nc", &
+            & trim(ICESHELF_DRAFT_UPD_FILE))
+
+       ! INITIALIZE TYPE TO HOLD FILE METADATA
+       pathnfile= trim(INPUT_DIR)//trim(ICESHELF_DRAFT_UPD_FILE)
+       CALL  NC_INIT(NCF,pathnfile)
+
+       ! OPEN THE FILE AND LOAD METADATA
+       if(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+     END IF
 
     ! LOAD HORIZONTAL MIXING FILE
     IF (HORIZONTAL_MIXING_KIND /= CNSTNT) THEN
@@ -2655,6 +2709,47 @@ CONTAINS
 
 # endif
 
+#if defined (ICESHELF)
+   SUBROUTINE LOAD_ICESHELF_DRAFT(ZISF)
+    USE CONTROL
+    IMPLICIT NONE
+    REAL(SP),ALLOCATABLE :: ZISF(:)
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM1
+    TYPE(NCDIM),  POINTER :: DIM2
+    integer status,I,IERR
+
+    LOGICAL FOUND
+
+    ! FIND THE ICESHELF INITIAL DRAFT FILE OBJECT
+    NCF => FIND_FILE(FILEHEAD,trim(ICESHELF_DRAFT_INI_FILE),FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND ICESHELF_DRAFT_INI_FILE OBJECT",&
+         & "FILE NAME: "//TRIM(ICESHELF_DRAFT_INI_FILE))
+    DIM1 => FIND_DIM(NCF,'node',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND ICESHELF_DRAFT_FILE DIMENSION 'node' in:",&
+         & "FILE NAME: "//TRIM(ICESHELF_DRAFT_INI_FILE))
+    IF (DIM1%DIM /= MGL)CALL FATAL_ERROR &
+         & ("Dimension 'node' in the ICESHELF_DRAFT_FILE does not match NGL for this model?",&
+         & "FILE NAME: "//TRIM(ICESHELF_DRAFT_INI_FILE))
+
+
+    !    FIND THE 'zisf' variable
+    VAR => FIND_VAR(NCF,'zisf',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR &
+         & ("COULD NOT FIND ICESHELF_DRAFT_FILE VARIABLE 'zisf' in:",&
+         & "FILE NAME: "//TRIM(ICESHELF_DRAFT_INI_FILE))
+
+     CALL NC_CONNECT_AVAR(VAR,ZISF)
+     CALL NC_READ_VAR(VAR)
+     CALL NC_DISCONNECT(VAR)
+
+
+  END SUBROUTINE LOAD_ICESHELF_DRAFT
+
+# endif
 
   SUBROUTINE LOAD_GRID_TYPE(NCF,G)
     IMPLICIT NONE

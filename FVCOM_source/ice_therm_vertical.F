@@ -52,6 +52,9 @@
       use ALL_VARS, only : mlt_lat, QTHICE           !!yding
 #   endif
 
+#  if defined (ICESHELF)
+      use mod_isf, only : ISISFN
+#  endif
 
 !      use ice_diagnostics, only: print_state
 !      use ice_diagnostics  ! print_state
@@ -591,6 +594,10 @@
  
          rside(i,j) = max(c0i,min(rside(i,j),c1i))
 
+# if defined (ICESHELF)
+     IF(ISISFN(i)==1) rside(i,j) = 0.0_SP
+# endif
+
       enddo                     ! ij
 
       !-----------------------------------------------------------------
@@ -1035,44 +1042,45 @@
       ! If Tin is out of bounds, print diagnostics and exit.
       !-----------------------------------------------------------------
      
-         if (tice_high) then
-            do ij = 1, icells
-               i = indxi(ij)
-               j = indxj(ij)
+ !        if (tice_high) then
+ !           do ij = 1, icells
+ !              i = indxi(ij)
+ !              j = indxj(ij)
 
-               if (Tin(i,j,k) > Tmax(i,j)) then
-!                  write(nu_diag,*) ' '
-!                  write(nu_diag,*) 'Starting thermo, T > Tmax, cat',&
-!                       ni,', layer',k                                 
-!                  write(nu_diag,*) 'Tin=',Tin(i,j,k),', Tmax=',Tmax(i,j)
-!                  write(nu_diag,*) 'istep1, my_task, i, j:',        &
-!                       istep1, my_task, i, j
-!                  write(nu_diag,*) 'qin',qin(i,j,k)
+ !              if (Tin(i,j,k) > Tmax(i,j)) then
+ !                 write(nu_diag,*) ' '
+ !                 write(nu_diag,*) 'Starting thermo, T > Tmax, cat',&
+ !                      ni,', layer',k                                 
+ !                 write(nu_diag,*) 'Tin=',Tin(i,j,k),', Tmax=',Tmax(i,j)
+ !                 write(nu_diag,*) 'istep1, my_task, i, j:',        &
+ !                      istep1, my_task, ngid(i), j
+ !                 write(nu_diag,*) 'qin',qin(i,j,k)
 !                  stoplabel = 'ice state at stop'
 !                  call print_state(stoplabel,i,j)
 !                  call abort_ice('vertical thermo: Tin must be <= Tmax')
-               endif
-               
-            enddo               ! ij
-         endif                  ! tice_high   
+ !              endif
+ !              
+ !           enddo               ! ij
+ !        endif                  ! tice_high   
 
          if (tice_low) then
             do ij = 1, icells
                i = indxi(ij)
                j = indxj(ij)
                
-!               if (Tin(i,j,k) < Tmin) then
-!                  write(nu_diag,*) ' '
-!                  write(nu_diag,*) 'Starting thermo T < Tmin, cat',  &
-!                       ni,', layer',k                                  
-!                  write(nu_diag,*) 'Tin =', Tin(i,j,k)                
-!                  write(nu_diag,*) 'Tmin =', Tmin                     
-!!                  write(nu_diag,*) 'istep1, my_task, i, j:',         &
-!                       istep1, my_task, i, j
+               if (Tin(i,j,k) < Tmin) then
+                  write(nu_diag,*) ' '
+                  write(nu_diag,*) 'Starting thermo T < Tmin, cat',  &
+                       ni,', layer',k                                  
+                  write(nu_diag,*) 'Tin =', Tin(i,j,k)                
+                  write(nu_diag,*) 'Tmin =', Tmin                     
+                  write(nu_diag,*) 'istep1, my_task, i, j:',         &
+                       istep1, my_task, i, j
+                 call pstop
 !                  stoplabel = 'ice state at stop'
 !                  call print_state(stoplabel,i,j)
 !                  call abort_ice('vertical_thermo: Tin must be > Tmin') 
-!               endif
+               endif
             enddo               ! ij
          endif                  ! tice_low
 
@@ -2450,6 +2458,9 @@
             Ts = (Lfresh + qsn(i,j)/rhos) / cp_ice
             if (Ts > c0i) then
                dhs = cp_ice*Ts*hsn(i,j) / Lfresh
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhs = 0.0_SP    
+# endif
                hsn(i,j) = hsn(i,j) - dhs
                qsn(i,j) = -rhos*Lfresh
             endif
@@ -2466,6 +2477,9 @@
                Ti = (Lfresh + qin(i,j,k)/rhoi) / cp_ice
                if (Ti > c0i) then
                   dhi = cp_ice*Ti*hnew(i,j,k) / Lfresh
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhi = 0.0_SP
+# endif
                   hnew(i,j,k) = hnew(i,j,k) - dhi
                   qin(i,j,k) = -rhoi*Lfresh
                endif
@@ -2496,10 +2510,16 @@
 
          if (hsn(i,j) > puny) then    ! add snow with enthalpy qsn
             dhs = econ / (qsn(i,j) - rhos*Lvap)      ! econ < 0, dhs > 0
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhs = 0.0_SP
+# endif
             hsn(i,j) = hsn(i,j) + dhs
             mvap(i,j) = mvap(i,j) + dhs*rhos
          else                   ! add ice with enthalpy qin(i,j,1)
-            dhi = econ / (qin(i,j,1) - rhoi*Lvap)    ! econ < 0, dhi > 0  
+            dhi = econ / (qin(i,j,1) - rhoi*Lvap)    ! econ < 0, dhi > 0
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhi = 0.0_SP
+# endif  
             hnew(i,j,1) = hnew(i,j,1) + dhi
             mvap(i,j) = mvap(i,j) + dhi*rhoi
          endif
@@ -2509,6 +2529,9 @@
          !--------------------------------------------------------------
          qsub = qsn(i,j) - rhos*Lvap                 ! qsub < 0
          dhs  = max (-hsn(i,j), esub(i,j)/qsub)      ! esub > 0, dhs < 0
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhs = 0.0_SP
+# endif
          hsn(i,j) = hsn(i,j) + dhs
          esub(i,j) = esub(i,j) - dhs*qsub
          esub(i,j) = max(esub(i,j), c0i)   ! in case of roundoff error
@@ -2528,6 +2551,9 @@
             j = indxj(ij)
             qsub = qin(i,j,k) - rhoi*Lvap            ! qsub < 0
             dhi = max (-hnew(i,j,k), esub(i,j)/qsub) ! esub < 0, dhi < 0
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhi = 0.0_SP
+# endif
             hnew(i,j,k) = hnew(i,j,k) + dhi   
             esub(i,j) = esub(i,j) - dhi*qsub  
             esub(i,j) = max(esub(i,j), c0i)
@@ -2554,7 +2580,10 @@
 !         w1 = (fsurf(i,j) - fcondtop(i,j)) * dt
          w1 = (fsurf(i,j) - fcondtop(i,j)) * dtice
          etop_mlt(i,j) = max(w1, c0i)                  ! etop_mlt > 0
-         dhs = max(-hsn(i,j), etop_mlt(i,j)/qsn(i,j)) ! qsn < 0, dhs < 0 
+         dhs = max(-hsn(i,j), etop_mlt(i,j)/qsn(i,j)) ! qsn < 0, dhs < 0
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhs = 0.0_SP
+# endif 
          hsn(i,j) = hsn(i,j) + dhs
          etop_mlt(i,j) = etop_mlt(i,j) - dhs*qsn(i,j)
          etop_mlt(i,j) = max(etop_mlt(i,j), c0i) ! in case of roundoff error
@@ -2578,6 +2607,9 @@
             j = indxj(ij)
 
             dhi = max(-hnew(i,j,k), etop_mlt(i,j)/qin(i,j,k)) 
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhi = 0.0_SP
+# endif
             hnew(i,j,k) = hnew(i,j,k) + dhi           ! qin < 0, dhi < 0
             etop_mlt(i,j) = etop_mlt(i,j) - dhi*qin(i,j,k)
             etop_mlt(i,j) = max(etop_mlt(i,j), c0i)
@@ -2615,7 +2647,10 @@
                        + Lfresh * (c1i-Tmlt(nilyr+1)/Tbot(i,j))        &
                        - cp_ocn * Tmlt(nilyr+1))                       
          qbot = min (qbot, qbotmax) ! in case Tbot is close to Tmlt    
-         dhi  = ebot_gro / qbot     ! dhi > 0                          
+         dhi  = ebot_gro / qbot     ! dhi > 0   
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhi = 0.0_SP
+# endif                       
                                                                        
          hqtot = hnew(i,j,nilyr)*qin(i,j,nilyr) + dhi*qbot             
          hnew(i,j,nilyr) = hnew(i,j,nilyr) + dhi                       
@@ -2644,6 +2679,9 @@
             j = indxj(ij)
 
             dhi = max(-hnew(i,j,k), ebot_mlt(i,j)/qin(i,j,k))
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhi = 0.0_SP
+# endif
             hnew(i,j,k) = hnew(i,j,k) + dhi           ! qin < 0, dhi < 0
             ebot_mlt(i,j) = ebot_mlt(i,j) - dhi*qin(i,j,k)
             ebot_mlt(i,j) = max(ebot_mlt(i,j), c0i)
@@ -2666,6 +2704,9 @@
          j = indxj(ij)
 
          dhs = max(-hsn(i,j), ebot_mlt(i,j)/qsn(i,j))
+# if defined (ICESHELF)
+            IF(ISISFN(I)==1) dhs = 0.0_SP
+# endif
          hsn(i,j) = hsn(i,j) + dhs                    ! qsn < 0, dhs < 0
          ebot_mlt(i,j) = ebot_mlt(i,j) - dhs*qsn(i,j)
          ebot_mlt(i,j) = max(ebot_mlt(i,j), c0i)

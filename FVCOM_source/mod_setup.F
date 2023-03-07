@@ -35,7 +35,9 @@ MODULE MOD_SETUP
   USE MOD_UTILS
   USE MOD_OBCS
   USE MOD_FORCE
-
+# if defined (ICESHELF)
+  USE MOD_isf
+# endif
   IMPLICIT NONE
 
   SAVE
@@ -340,6 +342,23 @@ CONTAINS
     
     
   END SUBROUTINE SETUP_HORIZONTAL_MIXING_COEFFICIENT
+
+ !==============================================================================|
+ !   SET ICESHELF DRAFT                                      |
+ !==============================================================================|
+# if defined (ICESHELF) 
+ SUBROUTINE SETUP_ICESHELF_DRAFT
+    IMPLICIT NONE
+
+       if(DBG_SET(DBG_LOG)) then
+          write(IPT,*) "! "
+          write(IPT,*) "! Setting Iceshelf Draft"
+       end if
+
+       CALL LOAD_ICESHELF_DRAFT(ZISF)
+
+  END SUBROUTINE SETUP_ICESHELF_DRAFT
+# endif
   !==============================================================================|
   !   SET BOTTOM ROUGHNESS                                                       |
   !==============================================================================|

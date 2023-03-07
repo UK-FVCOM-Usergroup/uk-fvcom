@@ -53,6 +53,10 @@
    USE MOD_PERIODIC_LBC
 # endif
 
+# if defined (ICESHELF)
+  USE MOD_ISF
+# endif
+
 # if defined (THIN_DAM)
    USE MOD_DAM    !Jadon
 # endif
@@ -552,8 +556,11 @@
          END IF                                  !!yding
 
 #   else
-
+#       if defined (ICESHELF)
+         DTFA(I)=TMP1+H(I)-(H(I)+EL(I)-D(I))
+#       else
          DTFA(I)=TMP1+H(I)
+#       endif
 #   endif
 
          DO K=2,KB

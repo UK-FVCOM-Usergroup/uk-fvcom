@@ -42,6 +42,10 @@ MODULE MOD_STARTUP
 #  endif
 
 # if defined (ICESHELF)
+  USE MOD_ISF
+# endif
+
+# if defined (ICESHELF)
  USE MOD_ICENORKYST
 # endif
 
@@ -160,6 +164,10 @@ CONTAINS
 # endif
 
 
+# if defined (ICESHELF)
+  CALL READ_ICESHELF
+# endif
+
 # if defined (ICENORKYST)
   CALL READ_ZICE
 # endif
@@ -230,6 +238,9 @@ CONTAINS
 
        CALL SET_WATER_DEPTH
        IF(WETTING_DRYING_ON) CALL SET_WD_DATA
+# if defined (ICESHELF)
+  CALL SET_ISF_INI
+# endif
 
 ! =================================================
     CASE DEFAULT
@@ -499,6 +510,11 @@ CONTAINS
 # endif
 
 #   endif
+
+#  if defined (ICESHELF)
+   USE MOD_ISF, only: zisf
+#  endif
+
     IMPLICIT NONE
     TYPE(NCVAR),  POINTER :: VAR
     TYPE(NCDIM),  POINTER :: DIM
@@ -540,19 +556,40 @@ CONTAINS
     ENDIF
 #   endif
 
+  !---------------------------------------------------------------------
+   !  Read ice draft if ice shelf module is defined
+   !--------------------------------------------------------------------
+
+#   if defined(ICESHELF)
+    VAR => FIND_VAR(NC_START,'zisf',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR("COULD NOT FIND VARIABLE 'zisf'&
+         & IN THE HOTSTART FILE OBJECT")
+    CALL NC_CONNECT_AVAR(VAR, ZISF)
+    CALL NC_READ_VAR(VAR,STKCNT)
+#   endif
+
 
     !----------------------------------------------------------------
     ! Given SSH and Bathy, Update the Bathymetry 
     !----------------------------------------------------------------
+#   if defined (ICESHELF)
+     D  = H + EL-ZISF
+     DT = H + ET-ZISF
+     WHERE (D<=MIN_DEPTH)  D   =  MIN_DEPTH
+     WHERE (DT<=MIN_DEPTH) DT  =  MIN_DEPTH
+     CALL N2E2D(H,H1)
+     CALL N2E2D(EL,EL1)
+     CALL N2E2D(D,D1)
+     CALL N2E2D(DT,DT1)
+     CALL N2E2D(ZISF,ZISF1)
+#   else  
     D  = H + EL
     DT = H + ET
-
-    
     CALL N2E2D(H,H1)
     CALL N2E2D(EL,EL1)
     CALL N2E2D(D,D1)
     CALL N2E2D(DT,DT1)
-
+# endif
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: READ_SSH"
 
   END SUBROUTINE READ_SSH
@@ -693,6 +730,53 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_ATMO"
 
   END SUBROUTINE READ_ATMO
+
+!==============================================================================!
+# if defined (ICESHELF)
+ SUBROUTINE READ_ICESHELF
+    IMPLICIT NONE
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCDIM),  POINTER :: DIM
+    LOGICAL :: FOUND
+    INTEGER :: STKCNT
+
+    ALLOCATE(ISISFN(0:MT)); ISISFN = ZERO !
+    ALLOCATE(ISISFC(0:NT)); ISISFC = ZERO ! 
+
+
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "START: READ_ICESHELF"
+
+    STKCNT = NC_START%FTIME%PREV_STKCNT
+
+    ! LOAD ISISFN
+    VAR => FIND_VAR(NC_START,'isisfn',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR&
+         &("COULD NOT FIND VARIABLE 'isisfn' IN THE HOTSTART FILE OBJECT")
+    CALL NC_CONNECT_AVAR(VAR, ISISFN)
+    CALL NC_READ_VAR(VAR,STKCNT)
+
+  ! LOAD ISISFC
+    VAR => FIND_VAR(NC_START,'isisfc',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR&
+         &("COULD NOT FIND VARIABLE 'isisfn' IN THE HOTSTART FILE OBJECT")
+    CALL NC_CONNECT_AVAR(VAR, ISISFC)
+    CALL NC_READ_VAR(VAR,STKCNT)
+
+    ! LOAD ZISF
+    ! ZISF from the hotstart file is already read in subroutine READ_SSH,so ignore here
+
+  ! LOAD MELTRATE
+    VAR => FIND_VAR(NC_START,'meltrate',FOUND)
+    IF(.not. FOUND) CALL FATAL_ERROR&
+         &("COULD NOT FIND VARIABLE 'meltrate' IN THE HOTSTART FILE OBJECT")
+    CALL NC_CONNECT_AVAR(VAR, M_w)
+    CALL NC_READ_VAR(VAR,STKCNT)
+
+
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "End: READ_ICESHELF"
+
+  END SUBROUTINE READ_ICESHELF
+# endif
 !==============================================================================!
   SUBROUTINE READ_EQI
     IMPLICIT NONE
@@ -1021,7 +1105,12 @@ CONTAINS
     ! NOW INTERPOLATE FROM STANDARD LEVELS TO THE VALUE AT EACH NODE
     DO I=1,MT
        DO K=1,KBM1
-          ZI(K)=ZZ(I,K)*D(I)+EL(I)
+# if defined (ICESHELF)
+        ! replace zisf with h+el-d to avoid negative water column thickness
+        ZI(K)=ZZ(I,K)*D(I)+EL(I)-(H(I)+EL(I)-D(I))
+# else
+        ZI(K)=ZZ(I,K)*D(I)+EL(I)
+# endif
        END DO
        
        ! LEVEL AVERAGE T AND S
@@ -1062,7 +1151,11 @@ CONTAINS
 
        ! SET MEAN DENSITY
        DO K=1,KBM1
-          PRESSURE(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:))*0.1_SP
+# if defined (ICESHELF)
+        PRESSURE(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:)-(H(:)+EL(:)-D(:)))*0.1_SP
+# else
+        PRESSURE(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:))*0.1_SP
+# endif
        END DO
        CALL FOFONOFF_MILLARD(SMEAN1,TMEAN1,PRESSURE,0.0_SP,RMEAN1)
        RMEAN1(0,:)=0.0_SP
@@ -1085,7 +1178,11 @@ CONTAINS
      
       ! SET MEAN DENSITY
        DO K=1,KBM1
+# if defined (ICESHELF)
+         PRESSURE(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:)-(H(:)+EL(:)-D(:)))*0.01_SP
+# else
           PRESSURE(:,K) = -GRAV_N*1.025_SP*(ZZ(:,K)*D(:))*0.01_SP
+# endif
        END DO
        CALL JACKET_MCDOUGALL(SMEAN1,TMEAN1,PRESSURE,RMEAN1)
        RMEAN1(0,:)=0.0_SP
@@ -1147,7 +1244,11 @@ CONTAINS
     DO I = 1, MT
        DO K=1,KBM1
           ! CALCULATE ZI relative to z=0
+# if defined (ICESHELF)
+          ZI(K)=ZZ(I,K)*D(I)+EL(I)-(H(I)+EL(I)-D(I))
+# else    
           ZI(K)=ZZ(I,K)*D(I)+EL(I)
+# endif
        END DO
     
        CALL SINTER_EXTRP_UP(ZA,TA,ZI,TI,KSL,KBM1)
@@ -1485,9 +1586,15 @@ CONTAINS
 !  ADJUST STATIC HEIGHT AND CALCULATE DYNAMIC DEPTHS (D) AND (DT)
 !
    H  = H + STATIC_SSH_ADJ
+# if defined (ICESHELF)
+   D  = H + EL-ZISF
+   DT = H + ET-ZISF
+   WHERE (D<=MIN_DEPTH)  D   =  MIN_DEPTH
+   WHERE (DT<=MIN_DEPTH) DT  =  MIN_DEPTH
+# else
    D  = H + EL
    DT = H + ET
-
+# endif
 !
 !  ADJUST SIGMA VALUES ON OUTER BOUNDARY 
 !
@@ -1522,11 +1629,19 @@ CONTAINS
 ! 
 !  CALCULATE FACE-CENTERED VALUES OF BATHYMETRY AND DEPTH
 !
-   DO I=1,NT    
+   DO I=1,NT   
+# if defined (ICESHELF)
+     H1(I)  = (H(NV(I,1))+H(NV(I,2))+H(NV(I,3)))/3.0_SP
+     ZISF1(I)  = (ZISF(NV(I,1))+ZISF(NV(I,2))+ZISF(NV(I,3)))/3.0_SP
+     D1(I)  = H1(I)+EL1(I)-ZISF1(I)
+     DT1(I) = H1(I)+ET1(I)-ZISF1(I)
+     WHERE (D1<=MIN_DEPTH)  D1   =  MIN_DEPTH
+     WHERE (DT1<=MIN_DEPTH) DT1  =  MIN_DEPTH
+# else 
      H1(I)  = (H(NV(I,1))+H(NV(I,2))+H(NV(I,3)))/3.0_SP
      D1(I)  = H1(I)+EL1(I)
      DT1(I) = H1(I)+ET1(I)
-     
+# endif     
      DO K = 1,KB
        Z1(I,K)=(Z(NV(I,1),K)+Z(NV(I,2),K)+Z(NV(I,3),K))/3.0_SP
      END DO  

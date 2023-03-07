@@ -47,6 +47,9 @@ MODULE MOD_ICE
    USE MOD_UTILS
    use mod_ice2d
 
+# if defined (ICESHELF)
+  USE MOD_ISF
+# endif
 !====================================================================
 !--------------------------------------------------------------
 !   for cice code
@@ -501,6 +504,9 @@ MODULE MOD_ICE
 
          frzmlt(i,j) = (Tf(i,j)-sst(i,j))*cp_ocn*rhow*(D(I))*DZ(I,1)/dtice
          frzmlt(i,j) = min(max(frzmlt(i,j),-c1000),c1000)
+# if defined (ICESHELF)
+         IF(ISISFN(I)==1) frzmlt(i,j) = 0.0_SP
+# endif
 
          if (sst(i,j) <= Tf(i,j)) then
             sst(i,j) = Tf(i,j)
@@ -877,6 +883,9 @@ MODULE MOD_ICE
        IMASS(I) = (RHOI*VICE(I,1) + RHOS*VSNO(I,1)) ! kg/m^2
        IF (IMASS(I) >p01) ISICEN(I) =1
        END IF
+# if defined (ICESHELF)
+     IF(ISISFN(I)==1) ISICEN(I) = 0
+# endif
      END DO
 
 # if defined (MULTIPROCESSOR)
@@ -902,6 +911,10 @@ MODULE MOD_ICE
       IF(sum(ISICEN(NV(I,1:3))) > 0 .and.IMASS1(I)>p01  &
          .and. AIU(I)>ITHRD) &
       ISICEC(i)=1
+# if defined (ICESHELF)
+     IF(ISISFC(I)==1) ISICEC(I) = 0
+# endif
+
    END DO
 
    Deallocate(AICETMP)
@@ -1064,7 +1077,7 @@ MODULE MOD_ICE
       J=1
       do i = 1,imt_local
           do ni=1,ncat
-           !IF(Tsfcn(i,j,ni) .le.T_air(I)) Tsfcn(i,j,ni) =T_air(i)
+           IF(Tsfcn(i,j,ni) .le.T_air(I)) Tsfcn(i,j,ni) =T_air(i)
           enddo
       enddo
 

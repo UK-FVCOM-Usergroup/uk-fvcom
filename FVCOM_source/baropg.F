@@ -37,6 +37,11 @@
    USE MOD_SPHERICAL
    USE MOD_NORTHPOLE
    USE MOD_WD
+   
+# if defined (ICESHELF)
+    USE MOD_ISF
+# endif
+
 
    IMPLICIT NONE
    REAL(SP) :: RIJK(0:N,3,KBM1), DRIJK1(0:N,3,KBM1), DRIJK2(0:N,KBM1)
@@ -44,6 +49,14 @@
    INTEGER  :: I,K,J,J1,J2,IJK
 #  if defined (SPHERICAL)
    REAL(SP) :: XTMP,XTMP1
+#  endif
+
+#  if defined (ICESHELF)                                
+   REAL (SP) :: DRIJK3(0:N,KBM1)               !  DRIJK3 is the density difference in the triangle center
+   REAL (SP) :: DRHO3,ZISFIJ                   !  DRHO3 is the extra term related to ICESHELF, ZISFIJ is the ice draft along the triangle edge
+   REAL (SP) :: DRHO4,R1IJ                     !  DRHO4 is the extra term related to iceshelf pressure term                                    
+                                               !   R1IJ  is the top layer density at each  triangle edge
+   REAL (SP) ::  TMPZI(0:MT), TMPZI1(0:NT)     ! TMPZI TMPZI1 are temporary iceshelf drafts on nodes and cells respectively
 #  endif
 !==============================================================================|
 
@@ -65,6 +78,12 @@
    RIJK       = 0.0_SP
    DRIJK1     = 0.0_SP
    DRIJK2     = 0.0_SP
+# if defined (ICESHELF)
+   DRIJK3     = 0.0_SP
+   TMPZI      = 0.0_SP
+   TMPZI1     = 0.0_SP
+# endif
+ 
 
 !----------CALCULATE AVERAGE DENSITY ON EACH EDGE------------------------------!
 
@@ -95,7 +114,20 @@
        DRIJK2(I,K)=DRIJK2(I,K-1)+DRIJK2(I,K)
      END DO
    END DO
-
+   
+# if defined (ICESHELF)
+ DO K=1,KBM1
+     DO I=1,N
+           DRIJK3(I,K)  = RHO(I,1)-RHO(I,K)
+     END DO
+ END DO
+! replace zisf with h+el-d to avoid computing pressure gradient with absolute
+! ice draft on dry nodes
+  TMPZI  = H  +  EL - D 
+  TMPZI1 = H1 + EL1 - D1
+# endif
+   
+   
    DO I = 1, N
 #  if defined (WET_DRY)
     IF(ISWETCT(I)*ISWETC(I) == 1 .AND. &
@@ -107,17 +139,34 @@
           J2=J+2-INT((J+2)/4)*3
           IJK=NBE(I,J)
           DIJ=0.5_SP*(DT(NV(I,J1))+DT(NV(I,J2)))
-
-#         if defined (SPHERICAL)
+#        if defined (ICESHELF)
+           ZISFIJ=0.5_SP*(TMPZI(NV(I,J1))+TMPZI(NV(I,J2)))
+           R1IJ  =0.5_SP*(RHO1(NV(I,J1),1)+RHO1(NV(I,J2),1))
+#         endif
+#    if defined (SPHERICAL)
           DRHO1=-DELTUY(I,J)*DRIJK1(I,J,K)*DT1(I)
           DRHO2=-DELTUY(I,J)*DIJ*DRIJK2(I,K)
-#         else
+#         if defined (ICESHELF)
+           DRHO3=-DELTUY(I,J)*DRIJK3(I,K)*ZISFIJ
+           DRHO4=TMPZI1(I)*(-DELTUY(I,J))*(R1IJ-(DRDZ*1e-3)*ZISFIJ)
+#         endif
+#    else
           DRHO1=(VY(NV(I,J1))-VY(NV(I,J2)))*DRIJK1(I,J,K)*DT1(I)
           DRHO2=(VY(NV(I,J1))-VY(NV(I,J2)))*DIJ*DRIJK2(I,K)
-#         endif
-          DRHOX(I,K)=DRHOX(I,K)+DRHO1+DRHO2
+#       if defined (ICESHELF)
+         DRHO3=(VY(NV(I,J1))-VY(NV(I,J2)))*DRIJK3(I,K)*ZISFIJ
+         DRHO4=TMPZI1(I)*(VY(NV(I,J1))-VY(NV(I,J2)))*(R1IJ-(DRDZ*1e-3)*ZISFIJ)
+#       endif	
+#    endif
 
-#         if defined (SPHERICAL)
+#  if defined (ICESHELF)
+      DRHOX(I,K)=DRHOX(I,K)+DRHO1+DRHO2+DRHO3+DRHO4	 
+#  else
+      DRHOX(I,K)=DRHOX(I,K)+DRHO1+DRHO2
+#  endif 
+         
+
+#    if defined (SPHERICAL)
           XTMP  = VX(NV(I,J2))*TPI-VX(NV(I,J1))*TPI
           XTMP1 = VX(NV(I,J2))-VX(NV(I,J1))
           IF(XTMP1 >  180.0_SP)THEN
@@ -128,25 +177,42 @@
 
           DRHO1=XTMP*COS(DEG2RAD*YC(I))*DRIJK1(I,J,K)*DT1(I)
           DRHO2=XTMP*COS(DEG2RAD*YC(I))*DIJ*DRIJK2(I,K)
-!          DRHO1=DELTUX(I,J)*DRIJK1(I,J,K)*DT1(I)
-!          DRHO2=DELTUX(I,J)*DIJ*DRIJK2(I,K)
-#         else
-	  DRHO1=(VX(NV(I,J2))-VX(NV(I,J1)))*DRIJK1(I,J,K)*DT1(I)
-          DRHO2=(VX(NV(I,J2))-VX(NV(I,J1)))*DIJ*DRIJK2(I,K)
-#         endif
-          DRHOY(I,K)=DRHOY(I,K)+DRHO1+DRHO2
+#       if defined (ICESHELF)	
+         DRHO3=XTMP*COS(DEG2RAD*YC(I))*DRIJK3(I,K)*ZISFIJ
+         DRHO4=TMPZI1(I)*XTMP*COS(DEG2RAD*YC(I))*(R1IJ-(DRDZ*1e-3)*ZISFIJ)           
+#       endif 	  
 
-       END DO
+#    else
+	      DRHO1=(VX(NV(I,J2))-VX(NV(I,J1)))*DRIJK1(I,J,K)*DT1(I)
+          DRHO2=(VX(NV(I,J2))-VX(NV(I,J1)))*DIJ*DRIJK2(I,K)
+#        if defined (ICESHELF)	
+          DRHO3=(VX(NV(I,J2))-VX(NV(I,J1)))*DRIJK3(I,K)*ZISFIJ
+          DRHO4=TMPZI1(I)*(VX(NV(I,J2))-VX(NV(I,J1)))*(R1IJ-(DRDZ*1e-3)*ZISFIJ)
+#        endif 	  
+		  
+#        endif
+
+#  if defined (ICESHELF) 		 
+          DRHOY(I,K)=DRHOY(I,K)+DRHO1+DRHO2+DRHO3+DRHO4
+#  else 
+          DRHOY(I,K)=DRHOY(I,K)+DRHO1+DRHO2
+#  endif 
+      END DO
      END DO
 #  if defined (WET_DRY)
     END IF
 #  endif
    END DO
+   
+! for north pole   
 
 #  if defined (SPHERICAL)
-   CALL BAROPG_XY(DRIJK1,DRIJK2)
-#  endif  
-
+#  if defined (ICESHELF)
+!    CALL BAROPG_XY_ISF(DRIJK1,DRIJK2)
+#  else
+     CALL BAROPG_XY(DRIJK1,DRIJK2)
+#  endif   
+#  endif 
 
 !----------MULTIPLY BY GRAVITY AND ELEMENT DEPTH-------------------------------!
 

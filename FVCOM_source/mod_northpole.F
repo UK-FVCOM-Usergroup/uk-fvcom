@@ -31,6 +31,9 @@ MODULE MOD_NORTHPOLE
    USE MOD_SPHERICAL
    USE MOD_PAR
    USE MOD_UTILS
+# if defined (ICESHELF)
+   USE MOD_ISF, ONLY: ZISF1
+# endif   
 
    IMPLICIT NONE
    SAVE
@@ -2168,11 +2171,18 @@ MODULE MOD_NORTHPOLE
 !
      UARK_TMP = -VARK(I)*COS(XC(I)*DEG2RAD)-UARK(I)*SIN(XC(I)*DEG2RAD)
      VARK_TMP = -VARK(I)*SIN(XC(I)*DEG2RAD)+UARK(I)*COS(XC(I)*DEG2RAD)
-
+# if defined (ICESHELF)
+     UAF_TMP = (UARK_TMP*(H1(I)+ELRK1(I)-ZISF1(I))              &
+               -ALPHA_RK(K)*DTE*RESX(I)/ART(I))/(H1(I)+ELF1(I)-ZISF1(I))
+     VAF_TMP = (VARK_TMP*(H1(I)+ELRK1(I)-ZISF1(I))              &
+               -ALPHA_RK(K)*DTE*RESY(I)/ART(I))/(H1(I)+ELF1(I)-ZISF1(I))
+# else
      UAF_TMP = (UARK_TMP*(H1(I)+ELRK1(I))              &
                -ALPHA_RK(K)*DTE*RESX(I)/ART(I))/(H1(I)+ELF1(I))
      VAF_TMP = (VARK_TMP*(H1(I)+ELRK1(I))              &
                -ALPHA_RK(K)*DTE*RESY(I)/ART(I))/(H1(I)+ELF1(I))
+
+# endif
 		       
      UAF(I)  = VAF_TMP*COS(XC(I)*DEG2RAD)-UAF_TMP*SIN(XC(I)*DEG2RAD)
      VAF(I)  = UAF_TMP*COS(XC(I)*DEG2RAD)+VAF_TMP*SIN(XC(I)*DEG2RAD)

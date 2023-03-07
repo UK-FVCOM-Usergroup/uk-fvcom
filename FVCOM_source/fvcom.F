@@ -484,6 +484,11 @@ PROGRAM FVCOM
   USE MOD_TVD
 # endif
 
+! Added by Qin at Akvaplan-niva 2019
+# if defined (ICESHELF)
+    USE MOD_ISF
+# endif
+
 ! Added by Akvaplan-niva 2019, still under development - but we use it in projects
 # if defined (PLUME_CALCULATED)
   USE MOD_PLUME_GRID
@@ -703,6 +708,10 @@ PROGRAM FVCOM
 
 # if defined (ICE)
   IF(ICE_MODEL) CALL ICE_INIT_0
+# endif
+
+# if defined (ICESHELF)
+    CALL ISF_INIT_0
 # endif
 
 # if defined (ICENORKYST)

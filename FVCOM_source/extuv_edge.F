@@ -182,9 +182,14 @@
 !
 !--UPDATE----------------------------------------------------------------------|
 !
-
+# if defined (ICESHELF)
+       UAF(I)  =  (UARK(I)*(H1(I)+ELRK1(I)-ZISF1(I))-ALPHA_RK(K)*DTE*RESX(I)/ART(I))/(H1(I)+ELF1(I)-ZISF1(I))
+       VAF(I)  =  (VARK(I)*(H1(I)+ELRK1(I)-ZISF1(I))-ALPHA_RK(K)*DTE*RESY(I)/ART(I))/(H1(I)+ELF1(I)-ZISF1(I))
+# else
        UAF(I)  =  (UARK(I)*(H1(I)+ELRK1(I))-ALPHA_RK(K)*DTE*RESX(I)/ART(I))/(H1(I)+ELF1(I))
        VAF(I)  =  (VARK(I)*(H1(I)+ELRK1(I))-ALPHA_RK(K)*DTE*RESY(I)/ART(I))/(H1(I)+ELF1(I))
+# endif
+
 #  if defined (WET_DRY)
      ELSE
        UAF(I) = 0.0_SP

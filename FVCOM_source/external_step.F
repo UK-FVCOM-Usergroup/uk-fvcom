@@ -35,6 +35,9 @@ SUBROUTINE EXTERNAL_STEP
   USE MOD_TIME
   USE MOD_OBCS
   USE MOD_WD
+# if defined (ICESHELF)
+  USE MOD_ISF
+# endif
 
 # if defined (ICENUDGE)
   USE MOD_ICENUDGE
@@ -103,6 +106,21 @@ SUBROUTINE EXTERNAL_STEP
   CALL BCOND_GCN(9,0)
 # else
   CALL BCOND_GCY(9,0)
+# endif
+
+# if defined (ICESHELF)
+     ! Qin call sub-ice shelf shear stress
+     ! not sure what is the reasonable value for  ramp
+     CALL BOTTOM_ROUGHNESS_ICESHELF
+    DO I=1,NT
+    IF (ABS(ISISFC(I))==1)  THEN
+       WUSURF2(I)=WUISF(I)
+       WVSURF2(I)=WVISF(I)
+   ENDIF
+      END DO
+# if defined (MULTIPROCESSOR)
+       IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,WUSURF2,WVSURF2)
+#  endif
 # endif
 
 # if defined (ICE)
@@ -392,8 +410,17 @@ SUBROUTINE EXTERNAL_STEP
      CALL N2E2D(EL,EL1)
      
      !UPDATE DEPTH AND VERTICALLY AVERAGED VELOCITY FIELD
+# if defined (ICESHELF)
+!  SET D (D1) to MIN_DEPTH WHEN D (D1) IS SMALLER THAN MINIMUM WATER DEPTH
+     D   = H + EL-ZISF                                                                                   
+     D1  = H1 + EL1-ZISF1
+     WHERE (D<=MIN_DEPTH)  D  =  MIN_DEPTH
+     WHERE (D1<=MIN_DEPTH) D1 =  MIN_DEPTH                                                                                    
+# else
      D   = H + EL
      D1  = H1 + EL1
+# endif
+
      UA  = UAF
      VA  = VAF
      DTFA = D

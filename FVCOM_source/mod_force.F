@@ -537,7 +537,14 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: ICE_CLD_N, ICE_CLD_P   ! CLOUD COVER
 # endif
 
-  ! =================================================================
+ !==================================================================
+# if defined (ICESHELF)
+  ! ICESHELF DRAFT DATA
+  TYPE(NCFILE), POINTER :: ICESHELF_FILE
+  CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE:: ICESHELF_DRAFT_COMMENTS(:)
+  TYPE(NCVAR), POINTER :: ZISF_N, ZISF_P   ! ICESHELF DRAFT
+# endif
+ !=================================================================
   ! ICING MODEL DATA
   INTEGER :: ICING_FORCING_TYPE
 
@@ -611,6 +618,9 @@ MODULE MOD_FORCE
 # endif
 # if defined(ICE)
   PUBLIC :: UPDATE_ICE
+# endif
+# if defined (ICESHELF)
+  PUBLIC :: UPDATE_ICESHELF_DRAFT
 # endif
   PUBLIC :: UPDATE_ICING
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -802,6 +812,9 @@ CONTAINS
     ! ORDER IS IMPORTANT! ICE AND ICING MAY USE THE SAME POINTERS TO
     ! REFERENCE FILE! THEY MUST BE SET UP LAST.
     CALL ICING_FORCING
+# if defined (ICESHELF)
+    IF(ICESHELF_DRAFT_VARYING)    CALL ICESHELF_DRAFT
+# endif
 
 # if defined (ICE)
     CALL ICE_MODEL_FORCING
@@ -17407,7 +17420,38 @@ CONTAINS
 !===================================================
   END SUBROUTINE UPDATE_ICE
 # endif
+!==============================================================================|
+!==============================================================================|
+# if defined (ICESHELF)
+SUBROUTINE UPDATE_ICESHELF_DRAFT(NOW,ZISF)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    TYPE(TIME)             :: WTIME
+    REAL(SP), ALLOCATABLE  :: ZISF(:)
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS
 
+    IF(.NOT. ALLOCATED(ZISF)) CALL FATAL_ERROR &
+         &("THE ICESHELF DRAFT VARIABLE PASSED TO UPDATE ICESHELF DRAFT IS NOT ALLOCATED")
+
+       WTIME = NOW
+
+       FTM => ICESHELF_FILE%FTIME
+
+
+       ! THE ICESHELF DRAFT
+       CALL UPDATE_VAR_BRACKET(ICESHELF_FILE,ZISF_P,ZISF_N,WTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE ICESHELF DRAFT BRACKET: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(ZISF_N,VNP)
+       CALL NC_POINT_VAR(ZISF_P,VPP)
+       ZISF = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+
+  END SUBROUTINE UPDATE_ICESHELF_DRAFT
+# endif
 !==============================================================================|
 !==============================================================================|
   SUBROUTINE UPDATE_ICING(NOW,SAT,WSPDX,WSPDY)

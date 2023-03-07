@@ -264,6 +264,9 @@ MODULE CONTROL
     LOGICAL NC_NH_QP
     LOGICAL NC_NH_RHS
     LOGICAL NC_ICE
+#  if defined (ICESHELF)
+    LOGICAL NC_ICESHELF
+#   endif    
 # if defined (STRUCTURE)
     LOGICAL NC_KBTT
     LOGICAL NC_CT
@@ -324,6 +327,9 @@ MODULE CONTROL
 # if defined(ICE)
          & NC_ICE,           &
 # endif
+# if defined(ICESHELF)
+         & NC_ICESHELF,      &
+# endif
 # if defined(STRUCTURE)
          & NC_KBTT,           &
          & NC_CT,           &
@@ -358,8 +364,10 @@ MODULE CONTROL
     LOGICAL NCAV_NH_QP
     LOGICAL NCAV_NH_RHS
     LOGICAL NCAV_ICE
-
-    ! FORCING DATA
+# if defined (ICESHELF)
+    LOGICAL NCAV_ICESHELF
+# endif   
+   ! FORCING DATA
     LOGICAL NCAV_WIND_VEL
     LOGICAL NCAV_WIND_STRESS
 # if defined (AIR_PRESSURE) || (HEATING_CALCULATED) || (HEATING_CALCULATED_GL)
@@ -400,6 +408,10 @@ MODULE CONTROL
          
 # if defined(ICE)
          & NCAV_ICE,          &
+# endif
+
+# if defined(ICESHELF)
+         & NCAV_ICESHELF,          &
 # endif
          & NCAV_WIND_VEL,       &
          & NCAV_WIND_STRESS,    &
@@ -1271,6 +1283,23 @@ MODULE CONTROL
     REAL(SP) :: ICE_TIMESTEP !! ice timestep input from namelist 
     LOGICAL HIGH_LATITUDE_WAVE
 
+   LOGICAL ICESHELF_MODEL
+   CHARACTER(LEN=80)  ICESHELF_DRAFT_INI_FILE
+   REAL(SP) :: ICESHELF_DRDZ               !! an assumed constant linear dependency of densith with water depth.
+   REAL(SP) :: ICESHELF_GAMAT              !! Nondimensional heat-transfer coefficient.
+   REAL(SP) :: ICESHELF_DRAG_COEFFICIENT   !! Drag coefficient beneath the ice shelf draft.
+   LOGICAL   ICESHELF_DRAFT_VARYING 
+   CHARACTER(LEN=80)  ICESHELF_DRAFT_UPD_FILE
+
+
+   ! FVCOM names
+    REAL(SP) :: DRDZ
+    REAL(SP) :: GAMA_T
+    REAL(SP) :: ISFCBC
+    REAL(SP) :: ITHRD 
+    REAL(SP) :: DTICE 
+ 
+
     !ADDITIONAL MODEL DATA
     INTEGER            :: N_SED
     INTEGER, PARAMETER :: N_SED_MAX = 10
@@ -1341,9 +1370,19 @@ MODULE CONTROL
          & ICE_AIR_TEMP,                  &
          & ICE_SPEC_HUMIDITY,             &
          & ICE_SHORTWAVE,                 &
-         & ICE_LONGWAVE_TYPE,                 &
+         & ICE_LONGWAVE_TYPE,             &
+         & ICE_THRESHOLD,                 &
+         & ICE_TIMESTEP,                  &
          & ICE_CLOUD_COVER,               &
-         & HIGH_LATITUDE_WAVE
+         & HIGH_LATITUDE_WAVE,            &
+         & ICESHELF_MODEL,                &
+         & ICESHELF_DRAFT_INI_FILE,       &
+         & ICESHELF_DRDZ,                 &
+         & ICESHELF_GAMAT,                &
+         & ICESHELF_DRAG_COEFFICIENT,     &
+         & ICESHELF_DRAFT_VARYING,        &
+         & ICESHELF_DRAFT_UPD_FILE 
+
 
     !--Parameters in NameList NML_PROBE
     LOGICAL PROBES_ON
@@ -1448,7 +1487,10 @@ MODULE CONTROL
    REAL(DP), PARAMETER :: ROFVROS   = 0.9775171065_DP!!RATIO OF THE DENSITY OF FRESH AND SEA WATER 1000./1023.   
    real(DP), parameter :: SLP0      = 101325.0_sp    !! mean sea surface pressure (Pa)
 
-
+# if defined (FISOC_DRAFT)
+    REAL(DP), PARAMETER ::  RHO_isf   = 0.918E3_DP     ! reference density of ice shelf
+    REAL(DP), PARAMETER ::  RHO_on    = 1.025E3_DP     ! reference density of ocean
+# endif  
 !--Parameter Controlling Vertical Coordinate Distribution------------
    !----------!
    CHARACTER(LEN=80) :: STYPE
@@ -1694,7 +1736,10 @@ MODULE ALL_VARS
 !# endif
    REAL(SP), ALLOCATABLE,TARGET :: COR(:)           !!CORIOLIS PARAMETER
    REAL(SP), ALLOCATABLE,TARGET :: F_ALFA(:)
-   REAL(SP), ALLOCATABLE,TARGET :: H1(:)            !!BATHYMETRIC DEPTH   
+   REAL(SP), ALLOCATABLE,TARGET :: H1(:)            !!BATHYMETRIC DEPTH  
+# if defined (ICESHELF)
+   REAL(SP), ALLOCATABLE,TARGET :: ZISF1(:)            !!ICE DRAFT AT ELEMENTS
+# endif 
    REAL(SP), ALLOCATABLE,TARGET :: D1(:)            !!CURRENT DEPTH
    REAL(SP), ALLOCATABLE,TARGET :: DT1(:)           !!DEPTH AT PREVIOUS TIME STEP
    REAL(SP), ALLOCATABLE,TARGET :: EL1(:)           !!CURRENT SURFACE ELEVATION
@@ -1709,6 +1754,17 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: CC_SPONGE(:)     !!SPONGE DAMPING COEFFICIENT FOR MOMENTUM
    
 !---------------2-d flow variable arrays at nodes----------------------------------!
+# if defined (ICESHELF)
+   REAL(SP), ALLOCATABLE,TARGET :: ZISF(:)          !!ICESHELF DRAFT
+   REAL(SP), ALLOCATABLE,TARGET :: M_w(:)           !! MELT RATE
+#  if defined (FVCOM_API)
+   REAL(SP), ALLOCATABLE,TARGET :: Melt_Avg(:)      !! AVERAGED MELT RATE
+#  endif
+# if defined (FISOC_DRAFT)
+   REAL(SP), ALLOCATABLE,TARGET :: ISF_DDDT(:)      !! RATE OF CHANGE OF DRAFT FROM FISOC
+   REAL(SP), ALLOCATABLE,TARGET :: ISF_DSDT(:)      !! RATE OF CHANGE OF UPPER SURFACE FROM FISOC
+# endif  
+# endif
 
    REAL(SP), ALLOCATABLE,TARGET :: H(:)     !!BATHYMETRIC DEPTH   
    REAL(SP), ALLOCATABLE,TARGET :: D(:)             !!CURRENT DEPTH   
@@ -1773,6 +1829,10 @@ MODULE ALL_VARS
 !# endif
    REAL(SP), ALLOCATABLE,TARGET :: WUBOT(:)         !!BOTTOM FRICTION
    REAL(SP), ALLOCATABLE,TARGET :: WVBOT(:)         !!BOTTOM FRICTION
+# if defined (ICESHELF)
+   REAL(SP), ALLOCATABLE,TARGET :: WUISF(:)         !!SUB-ICE SHELF FRICTION
+   REAL(SP), ALLOCATABLE,TARGET :: WVISF(:)         !!SUB-ICE SHELF FRICTION
+# endif
    REAL(SP), ALLOCATABLE,TARGET :: TAUBM(:)         !!BOTTOM FRICTION MAGNITUDE(Caution is Tau' [no Rho])
    REAL(SP), ALLOCATABLE,TARGET :: WUBOT_N(:)       !!BOTTOM FRICTION ON NODES (Caution is Tau' [no Rho])
    REAL(SP), ALLOCATABLE,TARGET :: WVBOT_N(:)       !!BOTTOM FRICTION ON NODES (Caution is Tau' [no Rho])
@@ -1864,6 +1924,25 @@ MODULE ALL_VARS
        REAL(SP), ALLOCATABLE,TARGET :: WLENGTH(:)      !!SURFACE WAVE LENGTH
        REAL(SP), ALLOCATABLE,TARGET :: WPER_BOT(:)     !!BOTTOM WAVE PERIOD
        REAL(SP), ALLOCATABLE,TARGET :: WUB_BOT(:)      !!BOTTOM ORBITAL VELOCITY
+
+# if defined (ICENUDGE)
+   REAL(SP), ALLOCATABLE,TARGET :: AICE(:)         !!ICENUDGE AREA
+   REAL(SP), ALLOCATABLE,TARGET :: AICEU(:)        !!ICENUDGE AREA on cell
+   REAL(SP), ALLOCATABLE,TARGET :: HICE(:)         !!ICENUDGE THICKNESS
+   REAL(SP), ALLOCATABLE,TARGET :: ISALT(:)        !!ICENUDGE SALINITY
+   REAL(SP), ALLOCATABLE,TARGET :: UICE(:)         !!ICENUDGE X-VELOCITY
+   REAL(SP), ALLOCATABLE,TARGET :: VICE(:)         !!ICENUDGE X-VELOCITY
+   REAL(SP), ALLOCATABLE,TARGET :: STROCNX(:)      !!ICE-OCEAN STRESS X
+   REAL(SP), ALLOCATABLE,TARGET :: STROCNY(:)      !!ICE-OCEAN STRESS Y
+   REAL(SP), ALLOCATABLE,TARGET :: USTAR(:)        !!FRICTION VELOCITY ON CELLS
+   REAL(SP), ALLOCATABLE,TARGET :: FVSALT1(:)      !!VIRTUAL SALT FLUX FROM MELTING
+   REAL(SP), ALLOCATABLE,TARGET :: FVSALT2(:)      !!VIRTUAL SALT FLUX FROM FREEZING
+   REAL(SP), ALLOCATABLE,TARGET :: T_f(:)          !!SALINITY DEPENDENT FREEZING TEMPERATURE
+   REAL(SP), ALLOCATABLE,TARGET :: S_TMP(:)        !!TEMPORARY UPPER LAYER SALINITY 
+   REAL(SP), ALLOCATABLE,TARGET :: FHEAT(:)        !!ICE-OCEAN HEAT FLUX
+   REAL(SP), ALLOCATABLE,TARGET :: FSWTHRU(:)       !!ICE-OCEAN SW THROUGH  FLUX
+
+# endif   
 
     # if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
        REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_U(:,:)  !! OFFLINE U VELOCITY
@@ -2327,6 +2406,10 @@ MODULE ALL_VARS
    ALLOCATE(ELF1(0:NT))          ;ELF1      = ZERO  !!SURFACE ELEVATION
    ALLOCATE(DTFA(0:MT))          ;DTFA      = ZERO  !!ADJUSTED DEPTH FOR MASS CONSERVATION
    ALLOCATE(ET1(0:NT))           ;ET1       = ZERO  !!SURFACE ELEVATION
+# if defined (ICESHELF)
+   ALLOCATE(ZISF1(0:NT))         ;ZISF1        = ZERO  !! ICESHELF DRAFT
+# endif
+
 # if !defined (SEMI_IMPLICIT)
    ALLOCATE(ELRK1(0:NT))         ;ELRK1     = ZERO  !!SURFACE ELEVATION
 # endif
@@ -2347,6 +2430,17 @@ MODULE ALL_VARS
    ALLOCATE(ELF(0:MT))           ;ELF  = ZERO       !!SURFACE ELEVATION
    ALLOCATE(ET(0:MT))            ;ET   = ZERO       !!SURFACE ELEVATION
    ALLOCATE(EGF(0:MT))           ;EGF  = ZERO       !!SURFACE ELEVATION
+# if defined (ICESHELF)
+  ALLOCATE(ZISF(0:MT))           ;ZISF    = ZERO     !! ICESHELF DRAFT
+  ALLOCATE(M_w(0:MT))            ;M_w    = ZERO       !! MELT RATE
+# if defined (FVCOM_API)
+  ALLOCATE(Melt_Avg(0:MT))       ;Melt_Avg   = ZERO    !! AVERAGED MELTRATE
+# endif 
+# if defined (FISOC_DRAFT)
+  ALLOCATE(ISF_DDDT(0:MT))       ; ISF_DDDT   = ZERO    !! ICESHELF DRAFT CHANGE from FISOC
+  ALLOCATE(ISF_DSDT(0:MT))       ; ISF_DSDT   = ZERO    !! ICESHELF DRAFT CHANGE from FISOC   
+# endif  
+# endif
 # if !defined (SEMI_IMPLICIT)
    ALLOCATE(ELRK(0:MT))          ;ELRK = ZERO       !!SURFACE ELEVATION
 # endif
@@ -2417,6 +2511,11 @@ MODULE ALL_VARS
    ALLOCATE(WTSURF(0:MT))        ;WTSURF = ZERO 
    ALLOCATE(SWRAD_WATTS(0:MT))  ;SWRAD_WATTS  = ZERO !!SURFACE INCIDENT RADIATION
    ALLOCATE(WTSURF_WATTS(0:MT)) ;WTSURF_WATTS = ZERO 
+
+#if defined (ICESHELF)
+   ALLOCATE(WUISF(0:NT))         ;WUISF  = ZERO     !!SUB-ICE SHELF FRICTION
+   ALLOCATE(WVISF(0:NT))         ;WVISF  = ZERO     !!SUB-ICE SHELF FRICTION
+# endif
 # if defined (STRUCTURE)
    ALLOCATE(KBTT(0:NT,KB))       ;KBTT = ZERO       !!SIGMA LAYER LOCATION AND FRACTION OF STRUCTURES
    ALLOCATE(NTT(0:NT))           ;NTT  = ZERO       !!NUMBER OF STRUCTURES IN EACH ELEMENT

@@ -53,6 +53,10 @@
    use mod_ice,only : isicen  !,fresh,RHOW
 #  endif
 
+# if defined (ICESHELF)
+   USE MOD_ISF, only: ISISFN
+# endif
+
 #  if defined (THIN_DAM)
    use mod_dam
 #  endif
@@ -141,6 +145,13 @@
 !!$        END IF
 !!$       END DO
 #  endif
+
+# if defined (ICESHELF)
+  WHERE(ABS(ISISFN)==1)
+     QPREC2 = 0.0_SP
+     QEVAP2 = 0.0_SP
+  END WHERE
+# endif
 
 !qxu   XFLUX = XFLUX+(QEVAP2-QPREC2)*ROFVROS*ART1 
 !qxu---the evap is negative for evaporating in ocean

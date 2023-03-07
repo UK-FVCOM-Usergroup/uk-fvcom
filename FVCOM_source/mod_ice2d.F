@@ -36,7 +36,10 @@ MODULE MOD_ICE2D
   USE MOD_NORTHPOLE
   !#  endif
 #  endif
-  
+ 
+# if defined (ICESHELF)
+  use mod_isf,only:isisfc,isisfn
+# endif 
 # if defined (MULTIPROCESSOR)
   USE MOD_PAR
 # endif
@@ -294,6 +297,9 @@ MODULE MOD_ICE2D
       IF (AICE(I,1) >ITHRD) then
       IMASS(I) = (RHOI*VICE(I,1) + RHOS*VSNO(I,1)) ! kg/m^2
       IF(IMASS(I) >P01)  ISICEN(I) =1
+# if defined (ICESHELF)
+     IF(ISISFN(I)==1) ISICEN(I) = 0
+# endif
       END IF
    END DO
 # if defined (MULTIPROCESSOR)
@@ -323,6 +329,10 @@ MODULE MOD_ICE2D
       IF(sum(ISICEN(NV(I,1:3))) > 1 .and.IMASS1(I)>p01  &
          .and. AIU(I)>ITHRD) &
       ISICEC(i)=1
+# if defined (ICESHELF)
+     IF(ISISFC(I)==1) ISICEC(I) = 0
+# endif
+
    END DO
 
 #    if defined (MULTIPROCESSOR)

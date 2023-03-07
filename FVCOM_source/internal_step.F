@@ -39,6 +39,9 @@ SUBROUTINE INTERNAL_STEP
   USE MOD_ICE
   USE MOD_ICE2D
   USE MOD_NORTHPOLE
+# if defined (ICESHELF)
+  USE MOD_ISF
+# endif
 # if defined(ICENORKYST)
   USE MOD_ICENORKYST
 # endif
@@ -436,7 +439,7 @@ SUBROUTINE INTERNAL_STEP
 
 # endif    
   !end !defined (TWO_D_MODEL)
-
+  
   !----SPECIFY THE BOTTOM ROUGHNESS AND CALCULATE THE BOTTOM STRESSES------------!
   CALL BOTTOM_ROUGHNESS
 
@@ -451,6 +454,65 @@ SUBROUTINE INTERNAL_STEP
          CALL TT_AREA_UPDATE
   END IF
 # endif
+
+! Here the iceshelf draft is updated in every internal time step, can be
+! optimized to be updated a day or a month 
+# if defined (ICESHELF)
+    IF(ICESHELF_MODEL)  THEN
+    IF (ICESHELF_DRAFT_VARYING) THEN
+         CALL   UPDATE_ICESHELF_DRAFT(IntTime,ZISF)
+         CALL    ISF_JUDGE
+         IF(WETTING_DRYING_ON)  CALL WET_JUDGE
+         D    =  H + EL-ZISF
+         DT   =  H + ET-ZISF
+         WHERE (D<=MIN_DEPTH)  D  =  MIN_DEPTH
+         WHERE (DT<=MIN_DEPTH) DT =  MIN_DEPTH
+         DTFA =  D
+         CALL N2E2D(D,D1)
+         CALL N2E2D(DT,DT1)
+         CALL N2E2D(ZISF,ZISF1)
+    END IF
+# if !defined (DEADICESHELF)
+         CALL ISF_COUPLING
+# endif
+    END IF
+# if defined (ICEDRAFTMORPHY)
+# if defined (FISOC_DRAFT)
+# if defined (FISOC_DDDT)
+# if defined (FISOC_DSDT)
+  !   update thick thickness with rate of change of upper and lower surface 
+  !   provided by FISOC,needs to be updated to a more advanced formula
+
+       ZISF      =  ZISF-(ISF_DDDT-ISF_DSDT)*DTI*RHO_isf/RHO_on
+
+# else
+        ZISF      =  ZISF-ISF_DDDT*DTI
+# endif
+# endif 
+# else          
+         ZISF=ZISF-M_W*DTI
+# endif        !  FISOC_DRAFT
+         CALL   ISF_JUDGE 
+         IF(WETTING_DRYING_ON) CALL WET_JUDGE
+         D   =  H + EL-ZISF
+         DT  =  H + ET-ZISF
+         WHERE (D<=MIN_DEPTH)  D  =  MIN_DEPTH
+         WHERE (DT<=MIN_DEPTH) DT =  MIN_DEPTH
+         DTFA = D
+         CALL N2E2D(D,D1)
+         CALL N2E2D(DT,DT1)
+         CALL N2E2D(ZISF,ZISF1)
+# endif         ! ICEDRAFTMORPHY
+
+   ! set QPREC and QEVAP to zero in the ice shelf cavity
+    IF (PRECIPITATION_ON) THEN
+       WHERE (ABS(ISISFN) ==1)  
+         QPREC = 0.0_SP
+         QEVAP = 0.0_SP
+       END WHERE
+    END IF
+# endif         ! ICESHELF
+
 
 # if defined (ICE)
 
@@ -686,8 +748,13 @@ SUBROUTINE INTERNAL_STEP
    CALL N2E2D(EL,EL1)
 
    !UPDATE DEPTH AND VERTICALLY AVERAGED VELOCITY FIELD
+# if defined (ICESHELF)
+   D   = H + EL-ZISF
+   D1  = H1 + EL1-ZISF1
+# else 
    D   = H + EL
    D1  = H1 + EL1
+# endif
    DTFA = D
 
 #  endif
@@ -757,6 +824,23 @@ SUBROUTINE INTERNAL_STEP
   !==============================================================================!
   !                                                    !
 !!
+
+# if defined (ICESHELF)
+     ! Qin call sub-ice shelf shear stress
+     ! not sure if we need ramp
+    CALL BOTTOM_ROUGHNESS_ICESHELF
+     DO I=1,NT
+       IF (ABS(ISISFC(I))==1) THEN
+       WUSURF(I)=-WUISF(I)
+       WVSURF(I)=-WVISF(I)
+       ENDIF
+     END DO
+  
+#   if defined (MULTIPROCESSOR)
+          IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,WUSURF,WVSURF)
+#   endif
+# endif
+
 # if defined (ICE)
        !  ggao 0104/2008 for ice ocean couple
        DO I=1,NT
