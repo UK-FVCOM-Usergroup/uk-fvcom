@@ -491,6 +491,10 @@ dashL= $(empty) -L
 #             FLAG_45 = -DVEGETATION
 
 #--------------------------------------------------------------------------
+# -DISOMIP 
+#            CPP_MISC = -DICESHELF -DICEDRAFTMORPHY -DFVCOM_API -DFISOC_DDDT -DFISOC_DSDT -DFISOC_DRAFT
+            CPP_MISC = -DICESHELF -DICEDRAFTMORPHY -DFVCOM_API -DFISOC_DDDT  -DFISOC_DRAFT
+
 
 
 #--------------------------------------------------------------------------
@@ -566,7 +570,7 @@ dashL= $(empty) -L
    $(FLAG_43) $(FLAG_44) ${FLAG_45} $(FLAG_80)$(FLAG_LAM)\
    $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)\
    $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261) $(FLAG_262)\
-   $(FLAG_USE_NETCDF4) $(FLAG_USE_COMPRESSION)
+   $(CPP_MISC) $(FLAG_USE_NETCDF4) $(FLAG_USE_COMPRESSION)
 #--------------------------------------------------------------------------
 #  Libraries           
 #--------------------------------------------------------------------------
