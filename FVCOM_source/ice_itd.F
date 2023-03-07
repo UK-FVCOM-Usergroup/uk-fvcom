@@ -37,7 +37,8 @@
       module ice_itd
 !
 ! !USES:
-!
+!    
+      USE ALL_VARS, ONLY: DTICE !, T_AIR
       use ice_kinds_mod
       use ice_model_size
       use ice_constants
@@ -1320,7 +1321,7 @@
 !
       use ice_flux
 !      use ice_calendar, only: dt
-      use ice_calendar, only: dtice
+!      use ice_calendar, only: dtice
 
 !
 ! !INPUT/OUTPUT PARAMETERS:

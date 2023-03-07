@@ -150,7 +150,7 @@
       istep0 = 0         ! number of steps taken in previous integrations,
                          ! real (dumped) or imagined (use to set calendar)
 !      dt = 3600.0_dbl_kind        ! time step, s 
-      dtice = 3600.0_dbl_kind        ! time step, s 
+!      dtice = 3600.0_dbl_kind        ! time step, s 
       npt = 99999        ! total number of time steps (dt) 
 !      diagfreq = 24      ! how often diag output is written
 !      print_points = .false.      ! if true, print point data
@@ -546,7 +546,7 @@
       enddo
 
       else ! ice_ic = 'default'
-
+      write(*,*) 'initilize with ice'
       ! initial category areas in cells with ice
       hbar = c3i  ! initial ice thickness with greatest area
                  ! Note: the resulting average ice thickness 

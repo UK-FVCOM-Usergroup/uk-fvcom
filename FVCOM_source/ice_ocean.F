@@ -32,7 +32,8 @@
       use ice_kinds_mod
       use ice_constants
 !      use ice_calendar, only: dt
-      use ice_calendar, only: dtice
+!      use ice_calendar, only: dtice
+       USE ALL_VARS, ONLY: DTICE
 !
 !EOP
 !

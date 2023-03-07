@@ -429,7 +429,6 @@ MODULE MOD_ICE
 
        call init_state          ! initialize the ice state
 
-      dtice = dti
       IF(DBG_SET(DBG_LOG)) write(ipt,*)' ICE time step set to DTI dtice =' , dtice
       call ALLOC_UVICE
 

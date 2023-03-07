@@ -63,7 +63,7 @@
 
       real (kind=dbl_kind) ::& 
 !         dt                & ! thermodynamics timestep (s)
-         dtice,                & ! thermodynamics timestep (s)
+!         dtice,                & ! thermodynamics timestep (s)
 !       defined in old ice model  dtice
         dyn_dt            & ! dynamics/transport/ridging timestep (s)
       ,  dtei              & ! 1/dte, where dte is the EVP timestep (1/s)
@@ -127,7 +127,7 @@
       sec=0             ! seconds into date
       stop_now = 0      ! end program execution if stop_now=1
 !      dyn_dt = dt/real(ndyn_dt,kind=dbl_kind) ! dynamics et al timestep
-      dyn_dt = dtice/real(ndyn_dt,kind=dbl_kind) ! dynamics et al timestep
+!      dyn_dt = dtice/real(ndyn_dt,kind=dbl_kind) ! dynamics et al timestep
 !      ggao 
       end subroutine init_calendar
 
