@@ -2330,17 +2330,6 @@ CONTAINS
     END IF
 # endif
 
-    ATT  => NC_MAKE_ATT(name='info2',values='Vegetation properties, if veg_biomass is activated, &
-                        5) plant_biomass_above_ground; 6)plant_biomass_below_ground')
-    VAR  => ADD(VAR,ATT)
-
-    ATT  => NC_MAKE_ATT(name='standard_name',values='Vegetation properties')
-    VAR  => ADD(VAR,ATT)
-
-    NCF  => ADD(NCF,VAR)
-    END IF
-# endif
-
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END GRID_FILE_OBJECT"
 
 
