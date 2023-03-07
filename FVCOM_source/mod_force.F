@@ -500,6 +500,7 @@ MODULE MOD_FORCE
 
   ! =================================================================
   ! ICE MODEL DATA
+# if defined (ICE)
   INTEGER :: ICE_FORCING_TYPE
 
   INTEGER,PARAMETER :: ICE_IS_WRFGRID     = 0
@@ -515,6 +516,7 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: ICE_SAT_N, ICE_SAT_P   ! SEA LEVEL AIR TEMPERATURE
   TYPE(NCVAR), POINTER :: ICE_SPQ_N, ICE_SPQ_P   ! SPECFIC HUMIDITY
   TYPE(NCVAR), POINTER :: ICE_CLD_N, ICE_CLD_P   ! CLOUD COVER
+# endif
 
   ! =================================================================
   ! ICING MODEL DATA
@@ -585,7 +587,9 @@ MODULE MOD_FORCE
 # if defined (FABM)
   PUBLIC :: UPDATE_OBC_FABM
 # endif
+# if defined(ICE)
   PUBLIC :: UPDATE_ICE
+# endif
   PUBLIC :: UPDATE_ICING
 # if defined (WAVE_CURRENT_INTERACTION)
   PUBLIC :: SURFACE_WIND2WAVE
@@ -765,8 +769,9 @@ CONTAINS
     ! REFERENCE FILE! THEY MUST BE SET UP LAST.
     CALL ICING_FORCING
 
+# if defined (ICE)
     CALL ICE_MODEL_FORCING
-
+# endif
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SETUP_FORCING"
   END SUBROUTINE SETUP_FORCING
   !================================================================

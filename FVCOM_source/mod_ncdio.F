@@ -1782,12 +1782,12 @@ CONTAINS
           ATT=> NC_Make_Runtime_Att_CHR(name='Icing_Model_Forcing',values=ICING_FORCING_COMMENTS)
           IF(ASSOCIATED(ATT)) NCF => ADD(NCF,ATT)
        END IF
-       
+# if defined (ICE)       
        IF (ICE_MODEL) THEN
           ATT=> NC_Make_Runtime_Att_CHR(name='Ice_Model_Forcing',values=ICE_FORCING_COMMENTS)
           IF(ASSOCIATED(ATT)) NCF => ADD(NCF,ATT)
        END IF
-       
+# endif       
        
        IF(OBC_LONGSHORE_FLOW_ON) THEN
           aTT=> NC_MAKE_ATT(name='Special_Physical_processes',&

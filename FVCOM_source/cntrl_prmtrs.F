@@ -197,8 +197,13 @@ SUBROUTINE CNTRL_PRMTRS
         ZETA1=0.0_SP
         ZETA2=0.0_SP
      END IF
-#    endif     
-     
+#    endif    
+
+# if defined (ICE)
+    IF(ICE_MODEL)  ITHRD  = ICE_THRESHOLD
+    IF(ICE_MODEL)  DTICE = ICE_TIMESTEP 
+# endif
+
      IF( .not. OBC_ON .or. .not. OBC_ELEVATION_FORCING_ON) THEN
         IF (OBC_LONGSHORE_FLOW_ON) THEN
            CALL FATAL_ERROR &
