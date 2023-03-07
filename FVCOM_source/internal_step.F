@@ -786,7 +786,9 @@ SUBROUTINE INTERNAL_STEP
 #  endif
 
    IF(NESTING_ON )THEN
-      CALL SET_VAR(IntTime,EL=ELF)
+# if !defined (ISOMIP)
+    CALL SET_VAR(IntTime,EL=ELF)
+# endif
    END IF
 
 # endif
@@ -977,8 +979,10 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (NH)
     IF(NESTING_ON )THEN
+# if !defined (ISOMIP)
       CALL SET_VAR(intTime,U=UF)
       CALL SET_VAR(intTime,V=VF)
+# endif
     END IF  
 #   endif
 
@@ -1175,8 +1179,10 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (NH)
     IF(NESTING_ON )THEN
+# if !defined (ISOMIP)
       CALL SET_VAR(intTime,U=UF)
       CALL SET_VAR(intTime,V=VF)
+# endif
     END IF
 #   endif
 
@@ -1340,8 +1346,13 @@ SUBROUTINE INTERNAL_STEP
 
 ! end if defined(GOTM)
   CASE('constant')
+#  if defined(ISOMIP)
+     KM = 0.0_SP
+     KH = 0.0_SP
+# else
      KM = UMOL
      KH = UMOL*VPRNU
+#  endif
   END SELECT
 
   

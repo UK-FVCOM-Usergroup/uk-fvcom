@@ -316,7 +316,9 @@ SUBROUTINE EXTERNAL_STEP
 #   endif
  
      IF(NESTING_ON )THEN
-        CALL SET_VAR(ExtTime,EL=ELF)
+# if !defined (ISOMIP)
+        CALL SET_VAR(ExtTime,EL=ELF)  
+# endif
      END IF
      
      DO I=1,IBCN(1)
@@ -376,8 +378,10 @@ SUBROUTINE EXTERNAL_STEP
 # endif
 
      IF(NESTING_ON )THEN
+# if !defined (ISOMIP)
        CALL SET_VAR(ExtTime,UA=UAF)
        CALL SET_VAR(ExtTime,VA=VAF)
+# endif
      END IF
 
 # if defined (MULTIPROCESSOR)
