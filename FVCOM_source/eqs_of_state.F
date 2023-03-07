@@ -90,6 +90,14 @@ MODULE EQS_OF_STATE
      MODULE PROCEDURE DENS2_2D
   END INTERFACE
 
+
+! QIN, for linear equation of state
+ INTERFACE DENS0G
+     MODULE PROCEDURE DENS0_1D
+     MODULE PROCEDURE DENS0_2D
+  END INTERFACE
+
+
   INTERFACE JACKET_MCDOUGALL
      MODULE PROCEDURE JACKET_MCDOUGALL_1D
      MODULE PROCEDURE JACKET_MCDOUGALL_2D
@@ -100,6 +108,12 @@ MODULE EQS_OF_STATE
 
   PRIVATE DENS2_1D
   PRIVATE DENS2_2D
+
+
+! QIN, for linear equation of state
+  PRIVATE DENS0_1D
+  PRIVATE DENS0_2D
+
 
   PRIVATE FOFONOFF_MILLARD_1D
   PRIVATE FOFONOFF_MILLARD_2D
@@ -401,6 +415,159 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END: DENS2"
     RETURN
   END SUBROUTINE DENS2
+  !==============================================================================|
+
+  !==============================================================================|
+  !    COMPUTE DENSITY USING THE LINEAR EQUATION OF STATE:
+  !           RHO(:,:,:)=R0-R0*TCOEF*(TEMP-T0)+R0*SCEOF(SALT-S0)
+  !
+  !  CALCULATES: RHO1(M) DENSITY AT NODES
+  !
+  !  CALCULATES: RHO (N) DENSITY AT ELEMENTS
+  !
+  !  BY QIN, REFERRED TO ISOMIP+
+  !==============================================================================|
+
+  SUBROUTINE DENS0_2D(MYS,MYT,MYRHO)
+
+    !==============================================================================|
+    IMPLICIT NONE
+    REAL(SP), INTENT(IN), DIMENSION(:,:) :: MYS,MYT
+    REAL(SP), INTENT(INOUT), DIMENSION(:,:):: MYRHO
+
+
+    INTEGER :: I,K,ub1,lb1,ub2,lb2
+    !==============================================================================|
+    !  Linear Equation of State parameters
+    !  R0  Background density value (Kg/m3)
+    !  T0  Background potential temperature (Celsius) constant
+    !  S0  Background salinity (PSU) constant
+    !  TCOEF  Thermal expansion coefficient in Linear Equation of State
+    !  SCOEF  Saline contraction coefficient in  Linear Equation of State
+    !
+# if !defined (DEADICESHELF)
+    REAL(SP), PARAMETER ::  R0 = 1027.510_SP
+    REAL(SP), PARAMETER ::  T0 = -1.00_SP
+    REAL(SP), PARAMETER ::  S0 = 34.20_SP
+    REAL(SP), PARAMETER ::  TCOEF = 3.7330e-05_SP
+    REAL(SP), PARAMETER ::  SCOEF = 7.8430e-04_SP
+# else
+    REAL(SP), PARAMETER ::  R0 = 1028.00_SP
+    REAL(SP), PARAMETER ::  T0 = 5.00_SP
+    REAL(SP), PARAMETER ::  S0 = 35.00_SP
+    REAL(SP), PARAMETER ::  TCOEF = 2.1161e-04_SP
+    REAL(SP), PARAMETER ::  SCOEF = 0.000_SP
+# endif
+
+
+
+    ! SET DIMS USING MY S
+    lb1 = lbound(MYS,1)
+    ub1 = ubound(MYS,1)
+
+    lb2 = lbound(MYS,2)
+    ub2 = ubound(MYS,2)
+
+    ! CHECK MY T
+    if(lb1 /= lbound(myt,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+    if(ub1 /= ubound(myt,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+
+    if(lb2 /= lbound(myt,2)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+    if(ub2 /= ubound(myt,2)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+
+    ! CHECK MY RHO
+    if(lb1 /= lbound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+    if(ub1 /= ubound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+
+    if(lb2 /= lbound(myrho,2)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+    if(ub2 /= ubound(myrho,2)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+
+
+    !
+    !  CALCULATE DENSITY FROM LINEAR  EQUATION OF STATE
+    !
+    MYRHO = R0-R0*TCOEF*(MYT-T0)+R0*SCOEF*(MYS-S0)
+     !
+    !  CALCULATE RHO
+    !
+     MYRHO=MYRHO-1000.0_SP
+    MYRHO =  MYRHO*1.e-3_SP
+
+
+  END SUBROUTINE DENS0_2D
+  !==============================================================================|
+  SUBROUTINE DENS0_1D(MYS,MYT,MYRHO)
+
+    !==============================================================================|
+    IMPLICIT NONE
+    REAL(SP), INTENT(IN), DIMENSION(:) :: MYS,MYT
+    REAL(SP), INTENT(INOUT), DIMENSION(:):: MYRHO
+
+    INTEGER :: I,K,ub1,lb1,ub2,lb2
+    !==============================================================================|
+# if !defined(DEADICESHELF)
+    REAL(SP), PARAMETER ::  R0 = 1027.510_SP
+    REAL(SP), PARAMETER ::  T0 = -1.0_SP
+    REAL(SP), PARAMETER ::  S0 = 34.20_SP
+    REAL(SP), PARAMETER ::  TCOEF = 3.7330e-05_SP
+    REAL(SP), PARAMETER ::  SCOEF = 7.8430e-04_SP
+#  else
+    REAL(SP), PARAMETER ::  R0 = 1028.00_SP
+    REAL(SP), PARAMETER ::  T0 = 5.00_SP
+    REAL(SP), PARAMETER ::  S0 = 35.00_SP
+    REAL(SP), PARAMETER ::  TCOEF = 2.1161e-04_SP
+    REAL(SP), PARAMETER ::  SCOEF = 0.000_SP
+# endif
+
+    ! SET DIMS USING MY S
+    lb1 = lbound(MYS,1)
+    ub1 = ubound(MYS,1)
+
+     ! CHECK MY T
+    if(lb1 /= lbound(myt,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+    if(ub1 /= ubound(myt,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+
+    ! CHECK MY RHO
+    if(lb1 /= lbound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+    if(ub1 /= ubound(myrho,1)) CALL FATAL_ERROR("EQS_OF_STATE:: Dimension mismatch!")
+
+    !
+      !
+    !  CALCULATE DENSITY FROM LINEAR  EQUATION OF STATE
+    !
+         MYRHO = R0-R0*TCOEF*(MYT-T0)+R0*SCOEF*(MYS-S0)
+     !
+    !  CALCULATE RHO
+    !
+    MYRHO=MYRHO-1000.0_SP
+    MYRHO =  MYRHO*1.e-3_SP
+
+
+  END SUBROUTINE DENS0_1D
+  !==============================================================================|
+  SUBROUTINE DENS0
+
+    !==============================================================================|
+    IMPLICIT NONE
+    !==============================================================================|
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START: DENS0"
+
+    !
+    !  CALCULATE DENSITY FROM EQUATION OF STATE
+    !
+    CALL DENS0_2D(S1,T1,RHO1)
+    RHO1(:,KB)=0.0_SP
+    RHO1(0,:)=0.0_SP
+
+
+    !
+    !  AVERAGE FROM NODES TO FACE CENTERS
+    !
+    CALL N2E3D(RHO1,RHO)
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END: DENS0"
+    RETURN
+  END SUBROUTINE DENS0
   !==============================================================================|
 
   !==============================================================================|

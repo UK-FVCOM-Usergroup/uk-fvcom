@@ -348,7 +348,7 @@ CONTAINS
 
     BAROCLINIC_PRESSURE_GRADIENT = "'sigma levels' or 'z coordinates'; select method of calculation"
 
-    SEA_WATER_DENSITY_FUNCTION = "'"//TRIM(SW_DENS1)//"', '"&
+    SEA_WATER_DENSITY_FUNCTION ="'"//TRIM(SW_DENS0)//"','"//TRIM(SW_DENS1)//"', '"&
          &//TRIM(SW_DENS2)//"', or '"//TRIM(SW_DENS3)//"; Select your equation of state (eqs_of_state.F)"
 
     RECALCULATE_RHO_MEAN = .FALSE.

@@ -482,7 +482,7 @@ MODULE CONTROL
 
     LOGICAL  RECALCULATE_RHO_MEAN
     CHARACTER(LEN=80) INTERVAL_RHO_MEAN
-
+    CHARACTER(LEN=80),parameter :: SW_DENS0 = 'dens0'
     CHARACTER(LEN=80),parameter :: SW_DENS1 = 'dens1'
     CHARACTER(LEN=80),parameter :: SW_DENS2 = 'dens2'
     CHARACTER(LEN=80),parameter :: SW_DENS3 = 'dens3'
