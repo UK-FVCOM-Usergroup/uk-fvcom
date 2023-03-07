@@ -45,20 +45,20 @@ MODULE MOD_ICENUDGE
     REAL(DP),PARAMETER :: ustar_min =0.005_DP  !! Minimum friction velocity for ocean heat flux (m/s)
     REAL(DP),PARAMETER :: rhoi = 917.0_DP !!  Density of ice (kg/m^3)
     REAL(DP),PARAMETER :: ISALT_ref  = 10.0_DP !!  Refrence salinity for new ice
-    REAL(DP),PARAMETER :: rhow = 1026.0_DP !!  Density of seawater (kg/m^3)
+    REAL(DP),PARAMETER :: rhow_in = 1026.0_DP !!  Density of seawater (kg/m^3)
     REAL(DP),PARAMETER :: rhofresh = 1000.0_DP !! Density of fresh water (kg/m^3)
     REAL(DP),PARAMETER :: depressT = 0.054_DP !! Tf:brine salinity ratio (C/ppt)
     REAL(DP),PARAMETER :: SPCP = 4.2173E3_DP !! Specific heat capacity, keep the same value as in bcond 
     ! drag force
     REAL(DP),PARAMETER ::  Cw = 0.0055_DP !! ocean-ice neutral drag coefficient
-    REAL(SP), PARAMETER :: COSW = 1.0_SP  !cos(ocean turning angle) !turning angle = 0.
-    REAL(SP), PARAMETER :: SINW = 0.0_SP  !sin(ocean turning angle) !turning angle = 0.
+    REAL(SP), PARAMETER :: COSW_in = 1.0_SP  !cos(ocean turning angle) !turning angle = 0.
+    REAL(SP), PARAMETER :: SINW_in = 0.0_SP  !sin(ocean turning angle) !turning angle = 0.
     ! shortwave
     REAL(SP), PARAMETER :: i0vis     = 0.70_DP   ! fraction of penetrating solar rad (visible)
     REAL(SP), PARAMETER :: albicev   = 0.78_DP   ! visible ice albedo for h > ahmax
     REAL(SP), PARAMETER :: ahmax     = 0.3_DP    ! thickness above which ice albedo constant (m)
     REAL(SP), PARAMETER :: c4i       = 4.0_DP
-    REAL(SP), PARAMETER :: c1i       = 1.0_DP
+    REAL(SP), PARAMETER :: c1i_in       = 1.0_DP
     REAL(SP), PARAMETER :: p001      = 0.001_DP
     REAL(SP), PARAMETER :: albocn    = 0.06_DP   !ocean albedo
     REAL(SP), PARAMETER :: kappav    = 1.4_DP   ! vis extnctn coef in ice, wvlngth<700nm (1/m)
@@ -103,11 +103,11 @@ MODULE MOD_ICENUDGE
     IF (ABS(ISISFC(I)==1) AICEU(I) = 0.0_SP
 # endif 
      IF(AICEU(I)>=1.0E-5_SP)  THEN	 
-       vrel = rhow*Cw*sqrt((U(I,1) - UICE(I))**2 + (V(I,1) - VICE(I))**2)  ! m/s
+       vrel = rhow_in*Cw*sqrt((U(I,1) - UICE(I))**2 + (V(I,1) - VICE(I))**2)  ! m/s
        ! turning angle is oppsite in the northen and southern hemisphere
-       STROCNX(I) =  vrel*((U(I,1) - UICE(I))*COSW - (V(I,1) - VICE(I))*SINW*SIGN(1.0_SP,COR(I)))   
-       STROCNY(I) =  vrel*((V(I,1) - VICE(I))*COSW + (U(I,1) - UICE(I))*SINW*SIGN(1.0_SP,COR(I)))
-       ustar_tmp(I) = sqrt(sqrt(STROCNX(I)**2+STROCNY(I)**2)/rhow)
+       STROCNX(I) =  vrel*((U(I,1) - UICE(I))*COSW_in - (V(I,1) - VICE(I))*SINW_in*SIGN(1.0_SP,COR(I)))   
+       STROCNY(I) =  vrel*((V(I,1) - VICE(I))*COSW_in + (U(I,1) - UICE(I))*SINW_in*SIGN(1.0_SP,COR(I)))
+       ustar_tmp(I) = sqrt(sqrt(STROCNX(I)**2+STROCNY(I)**2)/rhow_in)
      ENDIF
   END DO
 
@@ -166,7 +166,7 @@ MODULE MOD_ICENUDGE
     S_TMP = S1(:,1)	
     T_f    = -depressT*S_TMP 
    !  compute basal melting
-    SPRO = SPCP*rhow  
+    SPRO = SPCP*rhow_in  
     DO I = 1,M
 # if defined (ICESHELF)
       IF (ABS(ISISFN(I))==1) AICE(I) = 0.0_SP
@@ -175,7 +175,7 @@ MODULE MOD_ICENUDGE
 				 
          ! SW penetrating thru ice into ocean, only visible components (28% direct and 24% diffuse) absorbed 
           ! in the ice interior or transmitted to the ocean & assume frsnow = 0
-          fh = MIN(ATAN(HICE(i)*c4i)/ATAN(ahmax*c4i),c1i)
+          fh = MIN(ATAN(HICE(i)*c4i)/ATAN(ahmax*c4i),c1i_in)
           albv(I)  = albicev*fh  
           transbot(I) = EXP(-kappav*HICE(I))
           FSWTHRU(I) = SWRAD(I)*0.52*(1-albv(I))*i0vis*transbot(I)
@@ -190,15 +190,15 @@ MODULE MOD_ICENUDGE
           
 	  diffT   = (TF1(I,1)-T_f(I))
 	  IF (diffT > 0.0_SP) THEN                ! only consider the melting
-            Fbot(I) = -rhow*cp_ocn*c_h*MAX(USTAR(I),ustar_min)*diffT  !  <0 melting, ocean loses heat
+            Fbot(I) = -rhow_in*cp_ocn*c_h*MAX(USTAR(I),ustar_min)*diffT  !  <0 melting, ocean loses heat
             dhdt    = -Fbot(I)/(rhoi*Lfresh)              ! dhdt > 0, melting
             Du      = D(I)*DZ(I,1)
-            hw      =  rhoi*dhdt*DTI/rhow
+            hw      =  rhoi*dhdt*DTI/rhow_in
 		  
           ! virtual salt flux and fresh water flux, ocean gets water & salt when dhdt<0 melting
             FVSALT1(I) = (-1)*(Du/(Du+hw))*rhoi*dhdt*(S1(I,1)-ISALT(I))        ! g/m^2/s
             Fct(I)     = (-1)*cp_ocn*(Du/(Du+hw))*rhoi*dhdt*(TF1(I,1)-T_f(I))       ! w/m^2
-            S_TMP(I)   = S1(I,1) + (FVSALT1(I)*DTI)/(rhow*Du)
+            S_TMP(I)   = S1(I,1) + (FVSALT1(I)*DTI)/(rhow_in*Du)
 	  END IF	  		  
           ! sum the latent and sensbile heat flux
 
@@ -257,7 +257,7 @@ MODULE MOD_ICENUDGE
     DO I = 1,M
         Du   = D(I)*DZ(I,1)
         Tf   = -depressT*S_TMP(I)
-        frzmlt = rhow*cp_ocn*(Tf-T1(I,1))*Du/DTI  !  >0 freezing
+        frzmlt = rhow_in*cp_ocn*(Tf-T1(I,1))*Du/DTI  !  >0 freezing
 
 #  if defined (ICESHELF)
         IF(ABS(ISISFN(I)I==1)  frzmlt = 0.0_SP
@@ -265,7 +265,7 @@ MODULE MOD_ICENUDGE
  
         IF (frzmlt >0.0_SP) THEN  
             dhdt   = -frzmlt/(rhoi*Lfresh)              ! dhdt < 0, freezing
-            hw      =  rhoi*dhdt*DTI/rhow
+            hw      =  rhoi*dhdt*DTI/rhow_in
 		  
           ! virtual salt flux and fresh water flux, ocean gets water & salt when dhdt<0 melting
             FVSALT2(I) = (-1)*(Du/(Du+hw))*rhoi*dhdt*(S_TMP(I)-ISALT_ref)        ! g/m^2/s
