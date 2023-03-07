@@ -235,3 +235,38 @@ SUBROUTINE BOTTOM_ROUGHNESS
   RETURN
 END SUBROUTINE BOTTOM_ROUGHNESS
 !==============================================================================|
+# if defined (ICESHELF)
+SUBROUTINE BOTTOM_ROUGHNESS_ICESHELF
+
+  !==============================================================================!
+  USE ALL_VARS
+  USE MOD_UTILS
+  USE MOD_PAR
+
+  IMPLICIT NONE
+  INTEGER :: I,II
+  REAL(SP)  :: BTPS
+
+  !==============================================================================|
+  !  CALCULATE SHEAR STRESS ON ICE SHELF BOTTOM  --> WUISF/WVISF
+  !  |
+  !==============================================================================|
+  DO  I = 1, N
+     BTPS= ISFCBC*min(SQRT(U(I,1)**2+V(I,1)**2),1.0_sp)
+     WUISF(I) = BTPS *max(min(-U(I,1),1.0_sp),-1.0_sp)
+     WVISF(I) = BTPS *max(min(-V(I,1),1.0_sp),-1.0_sp)
+  END DO
+
+! Qin, not sure if we need the following setences
+# if defined (MULTIPROCESSOR)
+    IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,WUISF,WVISF)
+# endif
+
+  if(dbg_set(dbg_sbr)) write(ipt,*) "End: BOTTOM_ROUGHNESS_ICESHELF"
+
+  RETURN
+END SUBROUTINE BOTTOM_ROUGHNESS_ICESHELF
+# endif
+!==============================================================================|
+
+
