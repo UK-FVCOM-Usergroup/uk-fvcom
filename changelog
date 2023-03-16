@@ -27,3 +27,6 @@ mod_ice.F
 
 Add basal ice stress to ice model
 mod_ice2d.F
+
+Time fix for oned
+mod_obcs.F mod_onedtide.F

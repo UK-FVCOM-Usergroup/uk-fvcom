@@ -339,7 +339,10 @@ CONTAINS
 
          DO J = 1,nTideComps
 
-            TIME_FLT = SECONDS( (TIME_ELAPSED-(TIME_16DAY-SpecTime-time_adjust)) * PI2/PERIOD(J))
+!Michael Dunphy (Michael.Dunphy@dfo-mpo.gc.ca)
+!            TIME_FLT = SECONDS( (TIME_ELAPSED-(TIME_16DAY-SpecTime-time_adjust)) * PI2/PERIOD(J))
+            TIME_FLT = SECONDS((TIME_ELAPSED-(TIME_16DAY-SpecTime-time_adjust)))*PI2/PERIOD(J)
+!Michael Dunphy
             SELECT CASE(TIDE_TYPE(J))
             CASE(SEMIDIURNAL)
 
@@ -366,7 +369,10 @@ CONTAINS
 
          DO J = 1,nTideComps
 
-            TIME_FLT = SECONDS(TIME_ELAPSED * PI2/PERIOD(J))             
+!Michael Dunphy (Michael.Dunphy@dfo-mpo.gc.ca)
+!            TIME_FLT = SECONDS(TIME_ELAPSED * PI2/PERIOD(J))             
+            TIME_FLT = SECONDS(TIME_ELAPSED) * PI2/PERIOD(J)             
+!Michael Dunphy
             SELECT CASE(TIDE_TYPE(J))
             CASE(SEMIDIURNAL)
 
@@ -454,7 +460,10 @@ CONTAINS
        !-Non-Julian: Set Elevation of Equilibrium Tide -----------------------------|
        !
 
-       TIME_FLT = SECONDS(TIME_ELAPSED * PI2/S2PERIOD)
+!Michael Dunphy (Michael.Dunphy@dfo-mpo.gc.ca)
+!       TIME_FLT = SECONDS(TIME_ELAPSED * PI2/S2PERIOD)
+       TIME_FLT = SECONDS(TIME_ELAPSED) * PI2/S2PERIOD
+!Michael Dunphy
 
        DO I = 1, MT
           PHAI_IJ = LON(I)*PI2/360.0_SP
@@ -609,7 +618,10 @@ CONTAINS
           FORCE = 0.0_SP
           DO J = 1,nTideComps
              PHAI_IJ = PHAI(I,J)*PI2/360.0_SP
-             TIME_FLT = SECONDS(TIME_ELAPSED * PI2/PERIOD(J))
+!Michael Dunphy (Michael.Dunphy@dfo-mpo.gc.ca)
+!             TIME_FLT = SECONDS(TIME_ELAPSED * PI2/PERIOD(J))
+             TIME_FLT = SECONDS(TIME_ELAPSED) * PI2/PERIOD(J)
+!Michael Dunphy
              ! Take cosine of a double precision number to preserve accuracy!
              FORCE = APT(I,J)*DCOS(TIME_FLT -PHAI_IJ) + FORCE
           END DO
