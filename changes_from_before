@@ -1,0 +1,287 @@
+Add spherical adjustment to CURCOR
+adcor.F
+
+Add adjust river ts
+adjust_ts.F, mod_input.F, mod_main.F
+
+Remove diffusive flux wet-dry
+adv_q.F, adv_s.F, mod_dye.F, mod_scal.F, mod_wqm.F
+
+S12_A, S12B, T12_A, T12_B removed 
+adv_s.F, adv_t.F
+
+Norsk translate and tidy tvd
+adv_s.F, adv_t.F, mod_tvd.F, mod_wqm.F, mod_bio_3d.F
+
+Additional constraint on smoother
+adv_s.F
+
+S1m --> S1
+adv_s.F
+
+Add heating type surface
+adv_t.F, mod_input.F
+
+Add DZ term to heating type 'body'
+adv_t.F, vdif_ts.F
+
+Add vegetation module
+adv_uv_edge_gcn.F, extuv_edge.F, fvcom.F, internal_step.F, mod_gotm.F, mod_ncdio.F, namelist.F, open_all.F, swancom1.F, swancom2.F, swanmain.F, swanpre1.F, swmod1.F, swmod2.F, vdif_q.F
+
+Add vortex force
+adv_uv_edge_gcn.F, adv_uv_edge_gcy.F, fvcom.F, internal_step.F, mod_ncdio.F, mod_wave_current_interaction.F
+
+Adjustment to XFLUX in spherical
+adv_uv_edge_gcn.F,
+
+Add NUOPC
+adv_uv_edge_gcy.F, mod_main.F
+
+Add missing wetting and drying
+advave_edge_gcn.F, mod_non_hydro.F
+
+Add mod sediment heat flux
+bcond_gcn.F, 
+
+Tidy up continues and error messages
+bcond_gcn.F, bcond_gcy.F, internal_step.F, mod_assim.F, mod_bio_3D.F, mod_dam.F, mod_enkf.F, mod_enkf_obs.F, mod_enkfassim.F, mod_esmf_nesting.F, mod_etkf.F, mod_flocmod.F, mod_ice.F, mod_input.F, mod_interp.F, mod_lag.F, mod_nesting.F, mod_non_hydro.F, mod_obcs.F, mod_pwp.F, mod_rrk.F, mod_rrkassim.F, mod_rrkf_obs.F, mod_semi_implicit.F, mod_sng.F, mod_solar.F, mod_utils.F, mod_wqm.F, ocpcre.F, ocpids.F, ocpmix.F, swancom1.F, swancom2.F, swancom3.F, swancom4.F, swancom5.F, swanmain.F, swanser.F, swmod3.F, mod_bio_3d.F
+
+tidy up equals
+mod_fluid_mud.F
+
+move WU/VSURF ramp
+bcond_gcn.F
+
+Wave current interaction update_icin
+bcond_gcy.F, mod_bulk.F, mod_force.F, mod_input.F, mod_main.F, vdif_q.F
+
+Remove bottom roughness types
+brough.F, mod_input.F, mod_main.F, mod_setup.F
+
+Karsten lettman stability adjustments
+coare26z.F
+
+Remove default air pressure
+coare40vn.F
+Sort parameter precisions
+coare40vn.F, mod_interp.F
+
+Wet dry removed
+extel_edge.F, external_step.F, extuv_edge.F
+
+Add vector projection
+fvcom.F, mod_main.F, mod_ncdio.F
+
+MPI comm edit (mpi_comm_world --> mpi_fvcom_group etc), metis5
+fvcom.F, genmap.F, genmap_lsf.F, genmap_obc.F, ice_init.F, ice_coupling.F, mod_action_im.F, mod_assim.F, mod_boundshck.F, mod_dye.F, mod_enkf_obs.F, mod_enkfassim.F, mod_etkf.F, mod_ice2D.F, mod_input.F, mod_lag.F, mod_main.F, mod_meanflow.F, mod_ncdio.F, mod_nctools.F, mod_nesting.F, mod_newimp.F, mod_non_hydro.F, mod_obcs2.F, mod_par.F, mod_par_special.F, mod_petsc.F, mod_reduce.F, mod_rrk.F, mod_rrkassim.F, mod_rrkf_obs.F, mod_semi_implicit.F, mod_setup.F, mod_sparse_timeseries.F, mod_utils.F, mod_wavesetup.F, mod_wqm.F, print_vals.F, setup_domain.F, swancom1.F, swanmain.F, swanpre2.F
+
+Remove rho mean
+fvcom.F
+
+Bug fix doubled up variable
+grid_metrics.F
+
+Cray directives removed
+ice_albedo.F, ice_init.F, ice_ltd.F, ice_ltd_linear.F, ice_mechred.F, ice_therm_itd.F, ice_therm_vertical.F, swmod2.F
+
+Ice freshwater moved to namelist
+ice_mechred.F, ice_therm_vertical.F, mod_ice.F	
+
+Add comments
+init_sed.F
+
+Add mod_vector_projection
+internal_step.F
+
+SST MLD assimilation
+internal_step.F, mod_assim.F, mod_input.F, mod_main.F, mod_ncdio.F, namelist.F
+
+Extra vars
+internal_step.F
+
+add rk_3D
+internal_step.F, mod_input.F
+
+Add scalar positivity control
+internal_step.F
+
+Add semi-implicit
+internal_step.F, 
+
+Improved sst_assim
+internal_step.F,
+
+Add wave_only
+(poss others) mod_action_ex.F, swanmain.F
+
+precision changes
+mod_action_ex.F, mod_gotm.F, mod_utils.F
+
+assim bug fix abs current and OI_TS limit_control
+mod_assim.F
+
+Add ramp
+mod_assim.F
+
+Updated bio module
+bio folder, mod_bio_3d.F
+
+White space change
+mod_cstms_vars.F
+
+gasdev to its own function
+mod_enkfassim.F, mod_etkf.F
+
+gotm u_taub intiialisation
+mod_gotm.F
+
+Height of windspeed commented out
+mod_heatflux.F
+
+Heatflux in ice
+mod_ice.F
+
+Ice basal stress
+mod_ice2d.F
+
+wind_Stress methods
+mod_input.F, mod_main.F, mod_ncdio.F
+
+missing siglev input?
+mod_input.F
+
+add p_sigma_distribution
+mod_input.F, mod_main.F, mod_setup.F
+
+Add power10 function
+add wave speed
+mod_input.F, mod_main_wave.F
+
+ucf compile filags reinstated
+mod_ncdio.F
+
+add object ncnest
+mod_ncdio.F
+
+add heating freshwater
+mod_ncdio.F
+
+add drag coeff
+mod_ncdio.F
+
+inundation maps
+mod_ncdio.F, mod_wd.F
+
+comment correction
+mod_ncdio.F
+
+correct NH restart variable names
+mod_ncdio.F
+
+remove null allocation (not sure this should be done)
+mod_ncll.F, mod_nesting.F, mod_types.F
+
+mpi i/o
+mod_input.F, mod_nctools.F, mod_par.F, , mod_par_special.F
+
+netcdf compression tidy
+mod_nctools.F
+
+cube integer data correction - add -HUGE
+mod_nctools.F
+
+add nullify to nesting
+mod_nesting.F
+
+add z_l, temp5 to nesting, change CALC HYW --> W4ZT
+mod_nesting.F, nh_set_nesting.F	
+
+mod_nesting index change
+mod_nesting.F
+
+Add missing spherical
+mod_non_hydro.F
+
+remove zeta update
+mod_non_hydro.F
+
+remove +1 from dim IOBCN (already done by Riqui some places)
+mod_obcs.F, mod_scal.F, mod_sed_cstms.F
+
+Correction to time calc for brackets
+mod_obcs.F mod_onedtide.F
+
+change vflux method
+mod_scal.F
+
+eqv change
+mod_scal.F, mod_sed_cstms.F
+
+add isonb3
+mod_semi_implicit.F
+
+equatorial coriolis adjustment removed
+mod_setup.F
+
+add missing netcdf4
+enk_ncdio.F, mod_sparse_timeseries.F, mod_station_timeseries.F
+
+NH WW change
+mod_startup.F
+
+Add grid_edge
+mod_station_timeseries.F
+
+u to v bug fix
+mod_station_timeseries.F
+
+add nullify_grid_pointers
+mod_types.F
+
+Based on MELLOR(2015). For old code: KDMAX = 5.0_SP
+mod_wave_current_interaction.F 
+
+correct type enddo and missing multiproccessor
+mod_wave_current_interaction.F
+
+add wave_roller
+mod_wave_current_interaction.F
+
+add offset to freshwater flux with mpdata and single precision bodge
+mod_wqm.F
+
+dtfa adjustment for wqm
+mod_wqm.F
+
+add warnings for compile -- namelist mismatch
+namelist.F
+
+define variable type
+swanser.F
+
+correct waveheight
+swanser.F
+
+add mod_heatflux_sed
+vdif_ts.F
+
+add ice surface heat
+vdif_ts_gom.F
+
+
+ADDED FILES:
+adv_q_rk.F
+adv_s_rk.F
+adv_t_rk.F
+adv_uv_edge_gcn_rk.F
+adv_uv_edge_gcy_rk.F
+mod_heatflux_sediment.F
+mod_mkd_rho.F
+
+UPDATE MODULES:
+makefile
+makedepends
+
+CHANGE DOC:
+RELEASE_NOTES, fvcom.F, mod_utils.F
+

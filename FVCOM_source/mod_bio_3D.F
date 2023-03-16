@@ -235,8 +235,8 @@ END SUBROUTINE BIO_3D1D
 #  endif
 #  if defined (MPDATA)
    REAL(SP) :: WQMMIN,WQMMAX,XXXX
-   REAL(SP), DIMENSION(0:MT,KB)     :: WQM_S    !! temporary salinity in modified upwind
-   REAL(SP), DIMENSION(0:MT,KB)     :: WQM_SF   !! temporary salinity in modified upwind
+   REAL(SP), DIMENSION(0:MT,KB)     :: WQM_S    !! temporary BIO in modified upwind
+   REAL(SP), DIMENSION(0:MT,KB)     :: WQM_SF   !! temporary BIO in modified upwind
    REAL(SP), DIMENSION(0:MT,KB)     :: WWWS     
    REAL(SP), DIMENSION(0:MT,KB)     :: WWWSF   
    REAL(SP), DIMENSION(0:MT)        :: DTWWWS  
@@ -245,7 +245,7 @@ END SUBROUTINE BIO_3D1D
    REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
    REAL(SP), DIMENSION(0:MT,KB)     :: BETAOUT !! temporary beta coefficient in corrected part
    REAL(SP), DIMENSION(0:MT,KB)     :: BIO_FRESH    !! for source term
-
+   REAL(SP), DIMENSION(0:MT,KB,NTT) :: OFFS     !! Offset to avoid values less than zero.
    INTEGER ITERA, NTERA
 #  endif
 
@@ -526,16 +526,16 @@ END SUBROUTINE BIO_3D1D
 !   Physics, 54, 325-362, 1984
 !-----------------------------------------------------------------        
 
-	BIO_FRESH=BIO_ALL(:,:,N1)
+   BIO_FRESH=BIO_ALL(:,:,N1)
 
-   IF(RIVER TS_SETTING == 'calculated') THEN
+   IF(RIVER_TS_SETTING == 'calculated') THEN
      IF(RIVER_INFLOW_LOCATION == 'node') THEN
        IF(NUMQBC > 0) THEN
          DO J=1,NUMQBC
            JJ=INODEQ(J)
-           STPOINT=BIODIS(J)
+           STPOINT=BIODIS(J,N1)+OFFS(1,1,1)
            DO K=1,KBM1
-!	    S1_FRESH(JJ,K)=SDIS(J)   !NEED TO CHANGE FROM S TO BIO
+	    BIO_FRESH(JJ,K)=BIODIS(J,N1)+ OFFS(1,1,1)  
             XFLUX(JJ,K,N1)=XFLUX(JJ,K,N1) - QDIS(J)*VQDIST(J,K)*STPOINT
            END DO
          END DO
@@ -545,10 +545,10 @@ END SUBROUTINE BIO_3D1D
          DO J=1,NUMQBC
            J1=N_ICELLQ(J,1)
            J2=N_ICELLQ(J,2)
-           STPOINT=BIODIS(J) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+           STPOINT=BIODIS(J,N1)+OFFS(1,1,1) 
            DO K=1,KBM1
-!             S1_FRESH(J1,K)=SDIS(J)  !NEED BIO CONCENTRATION
-!             S1_FRESH(J1,K)=SDIS(J)
+             BIO_FRESH(J1,K)=BIODIS(J,N1)+OFFS(1,1,1)
+             BIO_FRESH(J2,K)=BIODIS(J,N1)+OFFS(1,1,1)
              XFLUX(J1,K,N1)=XFLUX(J1,K,N1)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
              XFLUX(J2,K,N1)=XFLUX(J2,K,N1)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
            END DO
@@ -562,7 +562,7 @@ END SUBROUTINE BIO_3D1D
    DO K=1,KBM1
      DO I=1,M
        IF(ISONB(I) == 2) THEN
-         XFLUX(I,K,N1)=0.
+         XFLUX(I,K,N1)=0._SP
        ENDIF
      END DO
    END DO
@@ -600,23 +600,27 @@ END SUBROUTINE BIO_3D1D
          END IF
          TEMP = 0.5_SP*TEMP 
 
-         IF(K /= 1)THEN
+         IF(K == 1)THEN
            WQMMAX = MAXVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
            WQMMIN = MINVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
-!           WQMMAX = MAX(WQMMAX,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_FRESH(I,K,N1))
-!           WQMMIN = MIN(WQMMIN,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_FRESH(I,K,N1))
-           WQMMAX = MAX(WQMMAX,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_FRESH(I,K))
-           WQMMIN = MIN(WQMMIN,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_FRESH(I,K))
+           WQMMAX = MAX(WQMMAX,BIO_ALL(I,K+1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
+           WQMMIN = MIN(WQMMIN,BIO_ALL(I,K+1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
+         ELSEIF(K == KBM1) THEN
+           WQMMAX = MAXVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
+           WQMMIN = MINVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
+           WQMMAX = MAX(WQMMAX,BIO_ALL(I,K-1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
+           WQMMIN = MIN(WQMMIN,BIO_ALL(I,K-1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
          ELSE
            WQMMAX = MAXVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
            WQMMIN = MINVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
-!           WQMMAX = MAX(WQMMAX,BIO_ALL(I,K+1,N1),BIO_FRESH(I,K,N1))
-!           WQMMIN = MIN(WQMMIN,BIO_ALL(I,K+1,N1),BIO_FRESH(I,K,N1))
-           WQMMAX = MAX(WQMMAX,BIO_ALL(I,K+1,N1),BIO_FRESH(I,K))
-           WQMMIN = MIN(WQMMIN,BIO_ALL(I,K+1,N1),BIO_FRESH(I,K))
+           WQMMAX = MAX(WQMMAX,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
+           WQMMIN = MIN(WQMMIN,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
          END IF
 
+         ! Total (horizontal + vertical) flux to the cell
          ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,N1)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
+
+         ! Updated variable without limiter minus current variable
          XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+BIO_ALL(I,K,N1)-BIO_ALL(I,K,N1)*DT(I)/DTFA(I) 
 
          BETA(I,K)=0.5*(1.-SIGN(1.,XXXX)) * (WQMMAX-BIO_ALL(I,K,N1))/(ABS(XXXX)+1.E-10) &
@@ -648,13 +652,13 @@ END SUBROUTINE BIO_3D1D
          WWWS(I,K)=TEMP*(WQM_S(I,K-1)-WQM_S(I,K))/(ABS(WQM_S(I,K-1))+ABS(WQM_S(I,K))+1.E-14)
 
          IF(TEMP < 0.0_SP .OR. WQM_S(I,K) == 0.0_SP)THEN 
-           WWWS(I,K)=0. 
+           WWWS(I,K)=0.0_SP 
          END IF
        END DO 
      END DO
 
      DO I=1,M
-       WWWS(I,1)=0.
+       WWWS(I,1)=0.0_SP
      END DO
 
      DO I=1,M
@@ -667,19 +671,19 @@ END SUBROUTINE BIO_3D1D
        BETAIN(I,1)=(WQMMAX-WQM_S(I,1))/(TEMP+1.E-10)
 
        TEMP=0.5*((WWWS(I,1)+ABS(WWWS(I,1)))*WQM_S(I,1)-        &
-	           (WWWS(I,2)-ABS(WWWS(I,2)))*WQM_S(I,1))*(DTI/DTFA(I))/DZ(I,1)
+	         (WWWS(I,2)-ABS(WWWS(I,2)))*WQM_S(I,1))*(DTI/DTFA(I))/DZ(I,1)
        BETAOUT(I,1)=(WQM_S(I,1)-WQMMIN)/(TEMP+1.E-10)
 
        WWWSF(I,1)=0.5*MIN(1.,BETAOUT(I,1))*(WWWS(I,1)+ABS(WWWS(I,1))) + &
-                    0.5*MIN(1.,BETAIN(I,1))*(WWWS(I,1)-ABS(WWWS(I,1)))
+                  0.5*MIN(1.,BETAIN(I,1))*(WWWS(I,1)-ABS(WWWS(I,1)))
      END DO
 
-     DO K=2,KBM1
+     DO K=2,KBM1-1
        DO I=1,M
          WQMMAX = MAXVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
          WQMMIN = MINVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
-         WQMMAX = MAX(WQMMAX,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_FRESH(I,K))
-         WQMMIN = MIN(WQMMIN,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_FRESH(I,K))
+         WQMMAX = MAX(WQMMAX,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
+         WQMMIN = MIN(WQMMIN,BIO_ALL(I,K+1,N1),BIO_ALL(I,K-1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
 
          TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*WQM_S(I,K+1)-  &
 	           (WWWS(I,K)-ABS(WWWS(I,K)))*WQM_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)
@@ -735,10 +739,11 @@ END SUBROUTINE BIO_3D1D
        IF(ISWETN(I)*ISWETNT(I) == 1 )THEN
          DO K = 1, KBM1
        XFLUX(I,K,N1) = XFLUX(I,K,N1) - RF(I,K,N1)*ART1(I)     !/DZ(K)
-#        if !defined (MPDATA) 
+#    if !defined (MPDATA) 
            BIO_F(I,K,N1)=(BIO_ALL(I,K,N1)-XFLUX(I,K,N1)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*   &
-                         (DT(I)/D(I)) 
-#        else
+                         (DT(I)/DTFA(I)) 
+!JQI 04/29/2019 D(I) -> DTFA   (DT(I)/D(I)) 
+#    else
            BIO_F(I,K,N1)=WQM_SF(I,K)
 #    endif  		 			 
          END DO 
@@ -750,16 +755,17 @@ END SUBROUTINE BIO_3D1D
      END DO
 #    else
      DO I = 1,M
-         DO K = 1, KBM1
-       XFLUX(I,K,N1) = XFLUX(I,K,N1) - RF(I,K,N1)*ART1(I)     !/DZ(K)
-#        if !defined (MPDATA) 
-           BIO_F(I,K,N1)=(BIO_ALL(I,K,N1)-XFLUX(I,K,N1)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*   &
-                         (DT(I)/D(I)) 
-#        else
-           BIO_F(I,K,N1)=WQM_SF(I,K)
-#        endif  		 			 
-         END DO 
-       END DO	 
+       DO K = 1, KBM1
+         XFLUX(I,K,N1) = XFLUX(I,K,N1) - RF(I,K,N1)*ART1(I)     !/DZ(K)
+#    if !defined (MPDATA) 
+         BIO_F(I,K,N1)=(BIO_ALL(I,K,N1)-XFLUX(I,K,N1)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*   &
+                       (DT(I)/DTFA(I)) 
+!JQI 04/29/2019 D(I) -> DTFA    (DT(I)/D(I)) 
+#    else
+         BIO_F(I,K,N1)=WQM_SF(I,K)
+#    endif  		 			 
+       END DO 
+     END DO	 
 #    endif
    END DO !do N1=1,ntt
    RETURN
