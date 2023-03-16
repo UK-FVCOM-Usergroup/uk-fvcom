@@ -6,3 +6,6 @@ BIO_source directory, mod_bio_3d.F
 
 Tidy up equals signs
 mod_fluid_mod.F
+
+Add warnings for namelist -- compile mismatch
+namelist.F
