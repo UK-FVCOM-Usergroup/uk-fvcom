@@ -24,3 +24,6 @@ mod_ice.F
 
 Ice mod add ice river outflow
 mod_ice.F
+
+Add basal ice stress to ice model
+mod_ice2d.F
