@@ -46,6 +46,11 @@ MODULE MOD_ICE
 
    USE MOD_UTILS
    use mod_ice2d
+! afm 20180723 -- begin
+#  if defined (HEATING_CALCULATED)
+   USE MOD_HEATFLUX, ONLY : HEATING_FRESHWATER
+#  endif
+! --end
 
 !====================================================================
 !--------------------------------------------------------------
@@ -696,14 +701,24 @@ MODULE MOD_ICE
 
 ! afm 20171115 for heat flux breakdown consistency-- begin
 # if defined (HEATING_CALCULATED)
-     SPCP = 4.21734E3_SP
-     ROSEA = 1.023E3_SP
-     SPRO  = SPCP*ROSEA
-# endif
-# if defined (HEATING_CALCULATED_GL)
-     SPCP = 4.186E3_SP
-     ROSEA = 1.000E3_SP
-     SPRO  = SPCP*ROSEA
+!     SPCP = 4.21734E3_SP
+!     ROSEA = 1.023E3_SP
+!     SPRO  = SPCP*ROSEA
+!# endif
+!# if defined (HEATING_CALCULATED_GL)
+!     SPCP = 4.186E3_SP
+!     ROSEA = 1.000E3_SP
+!     SPRO  = SPCP*ROSEA
+! afm 20180723 -- HEATING_CALCULATED_GL option is merged to HEATING_CALCULATED
+         IF(.NOT. HEATING_FRESHWATER)THEN
+           SPCP=4.2174E3_SP
+           ROSEA = 1.023E3_SP
+           SPRO = SPCP*ROSEA
+         ELSE
+           SPCP= 4.186E3_SP
+           ROSEA = 1.000E3_SP
+           SPRO = SPCP*ROSEA
+         END IF
 # endif
 # if defined (HEATING_SOLAR)
      SPCP = 4.186E3_SP

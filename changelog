@@ -12,3 +12,6 @@ namelist.F
 
 Add significant waveheight correction from Karsten Lettmann
 swanser.F
+
+Ice freshwater to compiler option
+ice_mechred.F, ice_therm_vertical.F, mod_ice.F
