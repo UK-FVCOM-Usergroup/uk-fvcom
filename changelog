@@ -21,3 +21,6 @@ ice_albedo.F, ice_init.F, ice_ltd.F, ice_ltd_linear.F, ice_mechred.F, ice_therm_
 
 Ice mod bounds fix
 mod_ice.F
+
+Ice mod add ice river outflow
+mod_ice.F
