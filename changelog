@@ -1,0 +1,8 @@
+Change log updating to FVCOM5
+-----------------------------
+
+Update BIO module
+BIO_source directory, mod_bio_3d.F
+
+Tidy up equals signs
+mod_fluid_mod.F
