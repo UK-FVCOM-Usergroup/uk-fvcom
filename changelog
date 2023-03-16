@@ -15,3 +15,6 @@ swanser.F
 
 Ice freshwater to compiler option
 ice_mechred.F, ice_therm_vertical.F, mod_ice.F
+
+Remove cray compiler directives
+ice_albedo.F, ice_init.F, ice_ltd.F, ice_ltd_linear.F, ice_mechred.F, ice_therm_itd.F, ice_therm_vertical.F, swmod2.F
