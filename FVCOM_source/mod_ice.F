@@ -255,12 +255,20 @@ MODULE MOD_ICE
        allocate( fhnet  (ilo:ihi,jlo:jhi))   ;fhnet   =ZERO  ! net heat flux to ocean (W/m^2)
        allocate( fswthru  (ilo:ihi,jlo:jhi)) ;fswthru =ZERO   ! shortwave penetrating to ocean (W/m^2)
        ! afm 20150513 for outputs of heat fluxes.
-       allocate( fsh(ilo:ihi,jlo:jhi))   ;fsh =ZERO    ! sensible heat flux at water surface (W/m^2)
-       allocate( flh(ilo:ihi,jlo:jhi))   ;flh =ZERO    ! latent heat flux at water surface (W/m^2)
-       allocate( flwup(ilo:ihi,jlo:jhi)) ;flwup =ZERO  ! outgoing longwave radiation at water surface (W/m^2)
-       allocate( flwtot(ilo:ihi,jlo:jhi)) ;flwtot =ZERO  ! net longwave radiation at water surface (W/m^2)
+!       allocate( fsh(ilo:ihi,jlo:jhi))   ;fsh =ZERO    ! sensible heat flux at water surface (W/m^2)
+!       allocate( flh(ilo:ihi,jlo:jhi))   ;flh =ZERO    ! latent heat flux at water surface (W/m^2)
+!       allocate( flwup(ilo:ihi,jlo:jhi)) ;flwup =ZERO  ! outgoing longwave radiation at water surface (W/m^2)
+!       allocate( flwtot(ilo:ihi,jlo:jhi)) ;flwtot =ZERO  ! net longwave radiation at water surface (W/m^2)
+! afm 20190807 - bounds fix
+       allocate( fsh(0:MT,jlo:jhi))   ;fsh =ZERO    ! sensible heat flux at water surface (W/m^2)
+       allocate( flh(0:MT,jlo:jhi))   ;flh =ZERO    ! latent heat flux at water surface (W/m^2)
+       allocate( flwup(0:MT,jlo:jhi)) ;flwup =ZERO  ! outgoing longwave radiation at water surface (W/m^2)
+       allocate( flwtot(0:MT,jlo:jhi)) ;flwtot =ZERO  ! net longwave radiation at water surface (W/m^2)
+
 ! afm 20170125 - hflx
-       allocate( flwitot(ilo:ihi,jlo:jhi)) ;flwitot =ZERO  ! net longwave radiation at ice surface (W/m^2)
+!       allocate( flwitot(ilo:ihi,jlo:jhi)) ;flwitot =ZERO  ! net longwave radiation at ice surface (W/m^2)
+! afm 20190807 - bounds fix
+       allocate( flwitot(0:MT,jlo:jhi)) ;flwitot =ZERO  ! net longwave radiation at ice surface (W/m^2)
 
        ! diagnostic 
 
@@ -737,9 +745,10 @@ MODULE MOD_ICE
       ! Use net heat flux (wtsurf) from COARE or SOLAR.
       ! Import latent, sensible heat fluxes and net longwave radiation
       ! for output purpose.
-      flh(:,jlo) = HLAT_WATTS(1:M)
-      fsh(:,jlo) = HSENS_WATTS(1:M)
-      flwtot(:,jlo) = LWRAD_WATTS(1:M)
+! afm 20190807 - bounds fix
+      flh(1:M,jlo) = HLAT_WATTS(1:M)
+      fsh(1:M,jlo) = HSENS_WATTS(1:M)
+      flwtot(1:M,jlo) = LWRAD_WATTS(1:M)
 # else
       ! Calculate net heat flux using CICE's algorithm. 
       ! Overwrite wtsurf.
@@ -892,8 +901,10 @@ LWRAD_WATTS(I) = flwitot(I,1)*aice(I,1) + flwtot(I,1)*(c1i-aice(i,jlo))
 
        DO I=1,M
         IF(ISICEN(i)==1) THEN
-         QEVAP(I)=(1-aice(i,1))*QEVAP(I) !+EVAP(I,1)/RHOFRESH
+! afm 20180801 moved QEVAP ice fractioning to the non ICE_FRESHWATER flag branch
+!         QEVAP(I)=(1-aice(i,1))*QEVAP(I) !+EVAP(I,1)/RHOFRESH
 # if !defined (ICE_FRESHWATER)
+         QEVAP(I)=(1-aice(i,1))*QEVAP(I) !+EVAP(I,1)/RHOFRESH
 # if !defined (SEMI_IMPLICIT)
          QPREC(I)=(1-aice(i,1))*QPREC(I)+(fresh(I,1)-evap(I,1))/rhofresh
 # else
@@ -914,9 +925,14 @@ LWRAD_WATTS(I) = flwitot(I,1)*aice(I,1) + flwtot(I,1)*(c1i-aice(i,jlo))
 ! this causes large omega (WTS) at surface, resulting in unrealistic water
 ! temperature. Temperature flux due to ice formation/melting still are taken
 ! account of in wtsurf.
-! Note: fresh & evap are already weighted by aicen, and fresh is a summation 
-!       of freshwater mass flux and evap, hence (fresh-evap) in the eq. above. 
-         QPREC(I)=(1-aice(i,1))*QPREC(I)
+! Note: fresh & evap are already weighted by aicen, and fresh is a summation
+!       of freshwater mass flux and evap, hence (fresh-evap) in the eq. above.
+
+  ! EJA test comment out line below to prevent ice-fractioning of precip
+! 20180801 afm incorporated the change in 3.2.5
+!         QPREC(I)=(1-aice(i,1))*QPREC(I)
+!         QEVAP(I)=(1-aice(i,1))*QEVAP(I) !+EVAP(I,1)/RHOFRESH
+
 # endif
 
           ! evap  :: flux of vapor, atmos to ice   (kg m-2 s-1)
@@ -1169,6 +1185,10 @@ LWRAD_WATTS(I) = flwitot(I,1)*aice(I,1) + flwtot(I,1)*(c1i-aice(i,jlo))
 !!--------------------------------------------------------------------------
 
      Irbuf=0.0_SP
+     
+! afm 20210226 initialize xflux_ice_obc (bug)
+     xflux_ice_obc = 0.0_SP
+
      DO K=1,narr
        Irbuf(1:M)=works(1:M,K)
 # if defined (MULTIPROCESSOR)
@@ -1269,7 +1289,6 @@ LWRAD_WATTS(I) = flwitot(I,1)*aice(I,1) + flwtot(I,1)*(c1i-aice(i,jlo))
          enddo
       enddo
 
-150     continue
       call check_state
 
      call aggregate           ! aggregate state variables over categories
