@@ -9,3 +9,6 @@ mod_fluid_mod.F
 
 Add warnings for namelist -- compile mismatch
 namelist.F
+
+Add significant waveheight correction from Karsten Lettmann
+swanser.F
