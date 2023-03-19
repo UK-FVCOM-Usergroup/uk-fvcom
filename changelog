@@ -30,3 +30,6 @@ mod_ice2d.F
 
 Time fix for oned
 mod_obcs.F mod_onedtide.F
+
+Fix grid edge in station_timeseries
+mod_station_timeseries.F
