@@ -434,7 +434,13 @@ CONTAINS
     WAVE_PERIOD     = 0.0_SP
     WAVE_PER_BOT    = 0.0_SP
     WAVE_UB_BOT     = 0.0_SP
-
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+    !    yzhang1
+    ICEIN_ON = .FALSE.
+    ICEIN_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(VRBL)
+    ICEIN_FILE = trim(casename)//"_icein.nc"
+    CICE = 0.0_SP
+# endif
     !--Parameters in NameList NML_RIVER_TYPE
     RIVER_NUMBER = -1
     RIVER_KIND = "Options:"//TRIM(PRDC)//" or "//TRIM(VRBL)
@@ -608,7 +614,7 @@ CONTAINS
 
 
   SUBROUTINE NAME_LIST_READ
-     USE CONTROL
+    USE CONTROL
     IMPLICIT NONE
     integer :: ios, i
     Character(Len=120):: FNAME
@@ -1499,6 +1505,29 @@ CONTAINS
        end if
 
     end if
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+        ! Check icein file and open
+    if (ICEIN_ON .and. ICEIN_KIND /= CNSTNT) then
+
+       ! TEST FILE NAME
+       charnum = index (ICEIN_FILE,".nc",back)
+       if (charnum /= len_trim(ICEIN_FILE)-2)&
+            & CALL WARNING("ICEIN FILE does not end in .nc", &
+            & trim(ICEIN_FILE))
+
+       ! INITIALIZE TYPE TO HOLD FILE METAData
+       pathnfile = trim(INPUT_DIR)//trim(ICEIN_FILE)
+       CALL NC_INIT(NCF,pathnfile)
+
+       ! OPEN THE FILE AND LOAD METADATA       
+       If(.not. NCF%OPEN) then
+          Call NC_OPEN(NCF)
+          CALL NC_LOAD(NCF)
+          FILEHEAD => ADD(FILEHEAD,NCF)
+       end if
+
+    end if
+# endif
 
     ! Check Heat file and open
 #   if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)

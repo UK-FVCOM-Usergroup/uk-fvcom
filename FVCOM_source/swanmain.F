@@ -197,8 +197,15 @@
    UWWIND = 0.0_SP     !ZERO
    VWWIND = 0.0_SP     !ZERO      
 
+# if !defined (WAVE_ONLY)
    CALL SWRBC 
-
+# else
+   IF(ICEIN_ON)THEN
+     CALL SWRBC_ICE
+   ELSE
+     CALL SWRBC 
+   END IF   
+# endif
    IF(.NOT.ALLOCATED(AC2)) ALLOCATE(AC2(MDC,MSC,0:MT))     
 !  --- allocate AC1 in case of non-stationary situation or in case   
 !      of using the S&L scheme                                       
@@ -2589,6 +2596,236 @@
   END SUBROUTINE FLFILE1
 
 !********************************************************************
+!********************************************************************
+!
+# if defined (WAVE_ONLY)
+!**********************************************************************
+!
+  SUBROUTINE FLFILE1_ICE (IGR1, IGR2, JX1, JX2, JX3, JY1,     &
+                      JY2, JY3, COSFC, SINFC, IERR)
+!
+!**********************************************************************
+!
+!     Update boundary conditions, update nonstationary input fields
+!
+!**********************************************************************
+
+  USE TIMECOMM                                                        
+  USE OCPCOMM4                                                        
+  USE SWCOMM2                                                         
+  USE SWCOMM3                                                         
+# if defined (MULTIPROCESSOR)
+  USE MOD_PAR
+# endif  
+  USE VARS_WAVE, ONLY : M,MT,INP_WI_NTIME,COMPDA,PAR,MYID,NPROCS,    &
+                        WaveTime,IMDTW,NTVE,NBVE,UWWIND,VWWIND
+  USE MOD_TIME
+  USE MOD_FORCE, ONLY : UPDATE_WIND2WAVE
+  USE CONTROL, ONLY : WIND_ON
+  USE ALL_VARS, ONLY : UUWIND,VVWIND,CICE_TEST
+  USE MOD_NORTHPOLE
+  IMPLICIT NONE
+
+  LOGICAL STPNOW                                                      
+!
+  INTEGER :: IGR1, IGR2, JX1, JX2, JX3, JY1, JY2, JY3, IERR
+  REAL    :: COSFC, SINFC
+!JQIJQI  REAL    :: ARR(MT,INP_WI_NTIME), ARR2(MT,INP_WI_NTIME)
+  INTEGER :: DT_WI1,DT_WI2
+!
+!     local variables
+!
+  INTEGER :: IENT, INDX, IX, IY
+  REAL    :: SVALQI
+!     SVALQI     real function giving interpolated value of an input array
+!
+!JQI  REAL    :: TIMR1, XP, YP, UU, VV, VTOT, W1, W3, SIZE1, SIZE2, SIZE3
+  REAL    :: XP, YP, UU, VV, VTOT, W1, W3, SIZE1, SIZE2, SIZE3
+!========================zhangyang=========================================
+  REAL    :: DIR1, DIR2, UUVV,DIFF,CICE_TMP
+!========================zhangyang=========================================
+  REAL(DP) :: TIMR1
+
+  INTEGER :: IG,JJ
+
+  REAL, ALLOCATABLE :: COMPDA_TMP1(:),COMPDA_TMP2(:)
+!
+  IERR = 0
+  DT_WI1 = 0
+  DT_WI2 = 0
+!
+  IF(JX1 > 1)THEN
+!    DO INDX = 2, MCGRD
+    DO INDX = 1, MT
+      COMPDA(INDX,JX1)=COMPDA(INDX,JX2)
+    ENDDO
+  ENDIF
+  IF(IGR2 > 0 .AND. JY1 > 1)THEN
+!    DO INDX = 2, MCGRD
+    DO INDX = 1, MT
+      COMPDA(INDX,JY1)=COMPDA(INDX,JY2)
+    ENDDO
+  ENDIF
+
+! TIMR1 = TIMCO - DTW
+  IF(IFLTIM(IGR1) <= IFLEND(IGR1))THEN
+    TIMR1 = IFLTIM(IGR1)-IFLINT(IGR1)
+  ELSE
+    TIMR1 = IFLEND(IGR1)
+  END IF    
+
+!   print*,"TIMCO=",TIMCO,"IFLTIM=",IFLTIM(IGR1),"IFLEND=",IFLEND(IGR1)
+!   print*,"IFLINT=",IFLINT(IGR1), "DTW=",DTW
+
+   DO WHILE(TIMCO > IFLTIM(IGR1))
+     TIMR1 = IFLTIM(IGR1)
+     IFLTIM(IGR1) = IFLTIM(IGR1) + IFLINT(IGR1)
+     IF(IFLTIM(IGR1) > IFLEND(IGR1))THEN
+       TIMR1 = IFLEND(IGR1)
+       IFLTIM(IGR1) = 1.E10
+       IF(IGR2 > 0) IFLTIM(IGR2) = IFLTIM(IGR1)
+       EXIT
+     ENDIF
+!JQI   DT_WI1 = INT(IFLTIM(IGR1)/IFLINT(IGR1))
+
+     IF(IGR2 > 0)THEN
+       IFLTIM(IGR2) = IFLTIM(IGR1)
+!JQI     DT_WI2 = INT(IFLTIM(IGR2)/IFLINT(IGR2))
+     ENDIF
+!  Interpolation over the computational grid
+     DO IG = 1, MT
+       IF(IGR2 == 0)THEN
+!JQIJQI       COMPDA(IG,JX3) = ARR(IG,DT_WI1)
+       ELSE
+!JQIJQI       COMPDA(IG,JX3) = ARR(IG,DT_WI1)
+!JQIJQI       COMPDA(IG,JY3) = ARR2(IG,DT_WI2)
+       ENDIF
+     END DO
+   ENDDO
+
+!
+!   Interpolation in time
+!
+     W3 = (TIMCO-TIMR1) / (IFLTIM(IGR1)-TIMR1)
+     W1 = 1.-W3
+     
+!     WaveTime = WaveTime + IMDTW
+     IF(VARWI) CALL UPDATE_WIND2WAVE(WaveTime,UWWIND,VWWIND)
+     WaveTime = WaveTime + IMDTW
+     
+!JQI  print*,"TIMCO=",TIMCO,"IFLTIM=",IFLTIM(IGR1),"TIMR1=",TIMR1
+!JQI  print*,"W3=",W3,"W1=",W1
+     
+  DO INDX = 1, M
+    UU = 0.0_SP
+    VV = 0.0_SP
+    DO JJ = 1,NTVE(INDX)
+!    DO JJ = 1,NTVE(INDX)
+!      UU = UU + UWWIND(NBVE(INDX,JJ))
+!    END DO
+!    UU = UU/NTVE(INDX)      
+!    IF(IGR2 <= 0)THEN
+!      COMPDA(INDX,JX2) = UU
+!    ELSE
+!      VV = 0.0_SP
+!      DO JJ = 1,NTVE(INDX)
+!        VV = VV + VWWIND(NBVE(INDX,JJ))
+!      END DO
+!      VV = VV/NTVE(INDX)	
+!=========================zhangyang=====start==========================
+        DIR1=ATAN2(VWWIND(NBVE(INDX,JJ)),UWWIND(NBVE(INDX,JJ)))
+        DIFF=VX(INDX)-XC(NBVE(INDX,JJ))
+      IF(DIFF >  180.0)THEN
+      DIFF = -360.0+DIFF
+      ELSE IF(DIFF < -180.0)THEN
+      DIFF =  360.0+DIFF
+      END IF
+      DIR2=DIR1-DIFF*DEG2RAD
+    IF(DIR2>(PI*2)) DIR2=DIR2-(PI*2)
+    IF(DIR2<0) DIR2=DIR2+(PI*2)
+    UUVV=SQRT(VWWIND(NBVE(INDX,JJ))**2+UWWIND(NBVE(INDX,JJ))**2)
+    UU = UU+UUVV*COS(DIR2)
+    VV = VV+UUVV*SIN(DIR2)
+
+
+
+        !UU = UU + UWWIND(NBVE(INDX,JJ))
+        !VV = VV + VWWIND(NBVE(INDX,JJ))
+!JQIJQI        UU = UU + UUWIND(NBVE(INDX,JJ))
+!JQIJQI        VV = VV + VVWIND(NBVE(INDX,JJ))
+!IF(INDX==2435.OR.INDX==2465.OR.INDX==2439.OR.INDX==2437)PRINT *,
+!"INDX",INDX,"UU",UU,"VV",VV
+      END DO
+IF(ICEIN_ON)THEN
+      CICE_TMP=CICE_TEST(INDX)
+ELSE
+      CICE_TMP=0.0
+END IF
+      UU = UU/NTVE(INDX)*(1.-CICE_TMP)
+     VV = VV/NTVE(INDX)*(1.-CICE_TMP)
+!=========================zhangyang==end=============================
+!=========================zhangyang===start============================
+    IF(INDX==NODE_NORTHPOLE)THEN
+    UU = 0.0_SP
+    VV = 0.0_SP
+!PRINT *, INDX    
+    DO JJ = 1,NTVE(INDX)
+    DIR1=ATAN2(VWWIND(NBVE(INDX,JJ)),UWWIND(NBVE(INDX,JJ)))
+    DIR2=DIR1+XC(NBVE(INDX,JJ))*DEG2RAD+(PI/2)
+!    DIR2=DIR1+XC(NBVE(INDX,JJ))*DEG2RAD
+    IF(DIR2>(PI*2)) DIR2=DIR2-(PI*2)
+    IF(DIR2<0) DIR2=DIR2+(PI*2)
+    UUVV=SQRT(VWWIND(NBVE(INDX,JJ))**2+UWWIND(NBVE(INDX,JJ))**2)
+    UU = UU+UUVV*COS(DIR2)
+    VV = VV+UUVV*SIN(DIR2)
+!PRINT *,
+!"DIR1",DIR1,"DIR2",DIR2,"XC",XC(NBVE(INDX,JJ)),"XCRAD",XC(NBVE(INDX,JJ))*DEG2RAD
+!PRINT *, "UWINDSPEED",UWWIND(NBVE(INDX,JJ)),"VWINDSPEED",VWWIND(NBVE(INDX,JJ))
+!PRINT *, "UUVV",UUVV,"UU",UU,"VV",VV
+    END DO
+     UU = UU/NTVE(INDX)*(1.-CICE_TMP)
+     VV = VV/NTVE(INDX)*(1.-CICE_TMP)
+    END IF
+!=========================zhangyang========end=======================
+      
+
+
+
+        COMPDA(INDX,JX2) = UU
+        COMPDA(INDX,JY2) = VV
+!JQI      ENDIF
+!    ENDIF
+  END DO	
+
+# if defined (MULTIPROCESSOR)
+  IF(PAR)THEN
+    ALLOCATE(COMPDA_TMP1(0:MT));   COMPDA_TMP1 = 0.0
+    ALLOCATE(COMPDA_TMP2(0:MT));   COMPDA_TMP2 = 0.0
+    DO IG = 1,M
+      COMPDA_TMP1(IG)=COMPDA(IG,JX2)
+      COMPDA_TMP2(IG)=COMPDA(IG,JY2)
+    END DO  
+!--------------------Jianzhong----------------------
+!    CALL EXCHANGE(NC,MT,1,MYID,NPROCS,COMPDA_TMP1)
+!    CALL EXCHANGE(NC,MT,1,MYID,NPROCS,COMPDA_TMP2)
+
+    CALL AEXCHANGE(NC,MYID,NPROCS,COMPDA_TMP1)
+    CALL AEXCHANGE(NC,MYID,NPROCS,COMPDA_TMP2)
+!---------------------------------------------------
+    DO IG = 1,MT
+      COMPDA(IG,JX2) = COMPDA_TMP1(IG)
+      COMPDA(IG,JY2) = COMPDA_TMP2(IG)
+    END DO
+    DEALLOCATE(COMPDA_TMP1,COMPDA_TMP2)
+  END IF    	  
+# endif
+
+  RETURN
+!
+  END SUBROUTINE FLFILE1_ICE
+
+!********************************************************************
+# endif 
 !
       SUBROUTINE ERRCHK                                                   
 !
@@ -3199,8 +3436,18 @@
 !     fields 5 and 6: wind
       IF(IFLDYN(5) == 1)THEN
 !JQIJQI        CALL FLFILE1(5, 6, WXI, WYI, 0, JWX2, JWX3, 0,           &
+# if !defined (WAVE_ONLY)
         CALL FLFILE1(5, 6, 0, JWX2, JWX3, 0,           &
 	             JWY2, JWY3, COSWC, SINWC, IERR)
+# else
+        IF(ICEIN_ON)THEN
+	  CALL FLFILE1_ICE(5, 6, 0, JWX2, JWX3, 0,           &
+	               JWY2, JWY3, COSWC, SINWC, IERR)
+        ELSE
+          CALL FLFILE1(5, 6, 0, JWX2, JWX3, 0,           &
+	               JWY2, JWY3, COSWC, SINWC, IERR)
+	END IF		       
+# endif
       ELSE 
         WaveTime = WaveTime + IMDTW
       END IF
@@ -3465,4 +3712,237 @@
   RETURN
   END SUBROUTINE SWRBC
 
+!***********************************************************************
+# if defined (WAVE_ONLY)
+!                                                                      *
+  SUBROUTINE SWRBC_ICE                                          
+
+! (This subroutine has not been fully tested. The codes not tested
+!  are commented using !JQI)
+!                                                                      *
+!***********************************************************************
+!
+  USE OCPCOMM4                                                        
+  USE SWCOMM1                                                         
+  USE SWCOMM2                                                         
+  USE SWCOMM3                                                         
+  USE SWCOMM4                                                         
+  USE M_GENARR
+  USE MOD_PREC
+  USE VARS_WAVE, ONLY : M,MT,COMPDA,WaveTime,UWWIND,VWWIND,NTVE,NBVE
+  USE MOD_FORCE, ONLY : UPDATE_WIND2WAVE
+  USE CONTROL, ONLY : WIND_ON
+  USE ALL_VARS, ONLY : UUWIND,VVWIND,CICE_TEST
+  USE MOD_NORTHPOLE    
+  IMPLICIT NONE
+
+  INTEGER :: IENT,IG,INDX,JJ
+  REAL    :: DEP,DEPW,UU,VV,VTOT,CGMAX,CGFACT
+!========================zhangyang=========================================
+  REAL    :: DIR1, DIR2, UUVV,DIFF,CICE_TMP
+!========================zhangyang=========================================
+      
+!
+!     *** The arrays start to be filled in the second value ***
+!     *** because in COMPDA(1,"variable"), is the default   ***
+!     *** value for land points    version 30.21            ***
+!
+!     ***  Default values for land point  ***
+  COMPDA(1,JDP2) = -1.                                                
+  IF(JDP1 > 1) COMPDA(1,JDP1) = -1.                                 
+  IF(JDP3 > 1) COMPDA(1,JDP3) = -1.                                 
+  IF(VARWLV)THEN
+    COMPDA(1,JWLV2) = 0.                                              
+!   next two lines only for nonstat water level
+    IF(JWLV1 > 1) COMPDA(1,JWLV1) = 0.                              
+    IF(JWLV3 > 1) COMPDA(1,JWLV3) = 0.                              
+  END IF
+  IF(ICUR > 0)THEN
+    COMPDA(1,JVX2) = 0.                                               
+    COMPDA(1,JVY2) = 0.                                               
+    IF(JVX1 > 1) COMPDA(1,JVX1) = 0.                                
+    IF(JVY1 > 1) COMPDA(1,JVY1) = 0.                                
+    IF(JVX3 > 1) COMPDA(1,JVX3) = 0.                                
+    IF(JVY3 > 1) COMPDA(1,JVY3) = 0.                                
+  END IF
+  IF(VARFR)THEN
+    COMPDA(1,JFRC2) = 0.                                              
+    COMPDA(1,JFRC3) = 0.                                              
+  END IF
+  IF(VARWI)THEN
+    COMPDA(1,JWX2) = 0.                                               
+    COMPDA(1,JWY2) = 0.                                               
+    IF(JWX3 > 1) COMPDA(1,JWX3) = 0.                                
+    IF(JWY3 > 1) COMPDA(1,JWY3) = 0.                                
+  END IF
+  IF(VARAST)THEN
+    COMPDA(1,JASTD2) = 0.                                             
+    COMPDA(1,JASTD3) = 0.                                             
+  END IF
+
+  IF(VARWI) CALL UPDATE_WIND2WAVE(WaveTime,UWWIND,VWWIND)
+
+  DO INDX = 1, M      !MT      
+!
+!   ***** compute depth and water level *****
+!
+    DEP = DEPTH(INDX)
+
+    IF(VARWLV)THEN                                                
+!JQI      WLVL = SVALQI (XP, YP, 7, WLEVL, 1 ,IX ,IY)                   
+!JQI      COMPDA(INDX,JWLV2) = WLVL
+!JQI      IF (JWLV1.GT.1) COMPDA(INDX,JWLV1) = WLVL                     
+!JQI      IF (JWLV3.GT.1) COMPDA(INDX,JWLV3) = WLVL                     
+!JQI      DEP = DEP + WLVL
+    END IF
+!   add constant water level
+    DEPW = DEP + WLEV                                               
+    COMPDA(INDX,JDP2) = DEPW
+!   ***In this step the water level at T+DTW is copied to the  ***
+!   ***water level at T (Only for first time computation)     ***
+    IF(JDP1 > 1) COMPDA(INDX,JDP1) = DEPW                         
+    IF(JDP3 > 1) COMPDA(INDX,JDP3) = DEPW                         
+!
+!   ***** compute current velocity *****
+!
+    IF(ICUR == 1)THEN                      
+      IF(DEPW > 0.)THEN
+        UU  = UXB(INDX,1)
+        VV  = UYB(INDX,1)
+        VTOT = SQRT (UU*UU + VV*VV)
+        CGMAX = PNUMS(18)*SQRT(GRAV_W*DEPW)
+        IF(VTOT > CGMAX)THEN
+          CGFACT = CGMAX / VTOT
+          UU = UU * CGFACT
+          VV = VV * CGFACT
+        END IF
+        COMPDA(INDX,JVX2) =  UU
+        COMPDA(INDX,JVY2) =  VV
+      ELSE
+        COMPDA(INDX,JVX2) =  0.
+        COMPDA(INDX,JVY2) =  0.
+      END IF
+      IF(JVX1 > 1) COMPDA(INDX,JVX1) = COMPDA(INDX,JVX2)          
+      IF(JVY1 > 1) COMPDA(INDX,JVY1) = COMPDA(INDX,JVY2)          
+      IF(JVX3 > 1) COMPDA(INDX,JVX3) = COMPDA(INDX,JVX2)          
+      IF(JVY3 > 1) COMPDA(INDX,JVY3) = COMPDA(INDX,JVY2)          
+    END IF
+!
+!     ***** compute variable friction coefficient *****
+!
+    IF(VARFR)THEN
+!JQI     FRI = SVALQI (XP, YP, 4, FRIC, 1 ,IX ,IY)                    
+!JQI     COMPDA(INDX,JFRC2) = FRI                                     
+!JQI     COMPDA(INDX,JFRC3) = FRI                                     
+    END IF
+!
+!     ***** compute variable wind velocity *****
+!
+    IF(VARWI)THEN
+      UU = 0.0_SP
+      VV = 0.0_SP
+      DO JJ = 1, NTVE(INDX)
+!=========================zhangyang=====start==========================
+        DIR1=ATAN2(VWWIND(NBVE(INDX,JJ)),UWWIND(NBVE(INDX,JJ)))
+        DIFF=VX(INDX)-XC(NBVE(INDX,JJ))
+      IF(DIFF >  180.0)THEN
+      DIFF = -360.0+DIFF
+      ELSE IF(DIFF < -180.0)THEN
+      DIFF =  360.0+DIFF
+      END IF
+      DIR2=DIR1-DIFF*DEG2RAD
+    IF(DIR2>(PI*2)) DIR2=DIR2-(PI*2)
+    IF(DIR2<0) DIR2=DIR2+(PI*2)
+    UUVV=SQRT(VWWIND(NBVE(INDX,JJ))**2+UWWIND(NBVE(INDX,JJ))**2)
+    UU = UU+UUVV*COS(DIR2)
+    VV = VV+UUVV*SIN(DIR2)
+
+
+
+        !UU = UU + UWWIND(NBVE(INDX,JJ))
+        !VV = VV + VWWIND(NBVE(INDX,JJ))
+!JQIJQI        UU = UU + UUWIND(NBVE(INDX,JJ))
+!JQIJQI        VV = VV + VVWIND(NBVE(INDX,JJ))
+!IF(INDX==2435.OR.INDX==2465.OR.INDX==2439.OR.INDX==2437)PRINT *,
+!"INDX",INDX,"UU",UU,"VV",VV
+      END DO
+!=========================zhangyang==end=============================
+IF(ICEIN_ON)THEN
+      CICE_TMP=CICE_TEST(INDX)
+ELSE
+      CICE_TMP=0.0
+END IF
+      UU = UU/NTVE(INDX)*(1.-CICE_TMP)
+      VV = VV/NTVE(INDX)*(1.-CICE_TMP)
+!=========================zhangyang=====start==========================
+    IF(INDX==NODE_NORTHPOLE)THEN
+    UU = 0.0_SP
+    VV = 0.0_SP
+!PRINT *, INDX    
+    DO JJ = 1,NTVE(INDX)
+    DIR1=ATAN2(VWWIND(NBVE(INDX,JJ)),UWWIND(NBVE(INDX,JJ)))
+    DIR2=DIR1+XC(NBVE(INDX,JJ))*DEG2RAD+(PI/2)
+!    DIR2=DIR1+XC(NBVE(INDX,JJ))*DEG2RAD
+    IF(DIR2>(PI*2)) DIR2=DIR2-(PI*2)
+    IF(DIR2<0) DIR2=DIR2+(PI*2)
+    UUVV=SQRT(VWWIND(NBVE(INDX,JJ))**2+UWWIND(NBVE(INDX,JJ))**2)
+    UU = UU+UUVV*COS(DIR2)
+    VV = VV+UUVV*SIN(DIR2)
+!PRINT *,
+!"DIR1",DIR1,"DIR2",DIR2,"XC",XC(NBVE(INDX,JJ)),"XCRAD",XC(NBVE(INDX,JJ))*DEG2RAD
+!PRINT *, "UWINDSPEED",UWWIND(NBVE(INDX,JJ)),"VWINDSPEED",VWWIND(NBVE(INDX,JJ))
+!PRINT *, "UUVV",UUVV,"UU",UU,"VV",VV
+    END DO
+     UU = UU/NTVE(INDX)*(1.-CICE_TMP)
+     VV = VV/NTVE(INDX)*(1.-CICE_TMP)
+    END IF
+!=========================zhangyang==========end=====================
+
+!      UU  = WXI(INDX,1)                     
+!      VV  = WYI(INDX,1)                     
+      COMPDA(INDX,JWX2) =  UU
+      COMPDA(INDX,JWY2) =  VV
+      IF(JWX3 > 1) COMPDA(INDX,JWX3) = COMPDA(INDX,JWX2)          
+      IF(JWY3 > 1) COMPDA(INDX,JWY3) = COMPDA(INDX,JWY2)          
+    END IF
+!
+!   ***** compute variable air-sea temperature difference *****         
+!
+    IF(VARAST)THEN
+!JQI             ASTD = SVALQI (XP, YP, 10, ASTDF, 1 ,IX ,IY)                 
+!JQI             COMPDA(INDX,JASTD2) = ASTD                                   
+!JQI             COMPDA(INDX,JASTD3) = ASTD                                   
+    END IF
+  END DO
+
+# if defined (VEGETATION)
+!
+!     ***** compute number of plants per square meter *****               40.55
+!
+          IF (VARNPL) THEN
+!JZGE        XNPL = SVALQI (XP, YP, 11, NPLAF, 1 ,IX ,IY)               
+             COMPDA(INDX,JNPLA2) = sum(VEG % plant(INDX,1:nveg,pdens))
+             COMPDA(INDX,JNPLA3) = sum(VEG % plant(INDX,1:nveg,pdens))
+          ENDIF
+# endif
+!
+!   *** initialise setup and saved depth ***                            
+!
+  IF(LSETUP > 0)THEN                                               
+    DO INDX = 1, M                                                  
+      COMPDA(INDX,JSETUP) =  0.                                       
+      COMPDA(INDX,JDPSAV) = COMPDA(INDX,JDP2)                         
+    END DO                                                             
+  END IF                                                               
+!
+!   --- initialize HSIBC                                                
+  COMPDA(:,JHSIBC) = 0.                                               
+!
+!   --- initialize ZELEN and USTAR                                      
+  COMPDA(:,JZEL  ) = 2.E-33                                           
+  COMPDA(:,JUSTAR) = 1.E-15                                           
+!
+  RETURN
+  END SUBROUTINE SWRBC_ICE
+# endif
 # endif

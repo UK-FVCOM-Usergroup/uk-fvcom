@@ -588,6 +588,13 @@ MODULE CONTROL
     REAL(SP) :: WAVE_PERIOD
     REAL(SP) :: WAVE_PER_BOT
     REAL(SP) :: WAVE_UB_BOT
+    
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+    LOGICAL ICEIN_ON
+    CHARACTER(LEN=80) ICEIN_FILE
+    CHARACTER(LEN=80) ICEIN_KIND
+    REAL(SP) CICE    
+# endif
 
     ! FORCING KINDS
     CHARACTER(LEN=80),parameter:: CNSTNT   = "constant"
@@ -637,8 +644,15 @@ MODULE CONTROL
          & WAVE_DIRECTION,                  &
          & WAVE_PERIOD,                     &
          & WAVE_PER_BOT,                    &
-         & WAVE_UB_BOT  
-
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+         & WAVE_UB_BOT,                     &
+         & ICEIN_ON,                        &
+         & ICEIN_KIND,                      &
+         & ICEIN_FILE,                      &
+         & CICE
+# else
+         & WAVE_UB_BOT
+# endif
     !--Parameters in NameList NML_RIVER_TYPE
     CHARACTER(LEN=80) RIVER_TS_SETTING ! METHOD TO CALCULATE T&S AT
     ! THE RIVER MOUTH
@@ -2001,7 +2015,11 @@ CONTAINS
    ALLOCATE(WUB_BOT(0:MT))       ;WUB_BOT  = ZERO
    MEMCNT = MT*6*NDB + MEMCNT
 # endif
- 
+
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+   ALLOCATE(CICE_TEST(0:MT))     ;CICE_TEST = ZERO
+# endif
+
 # if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
    ALLOCATE(OFFLINE_U(0:NT,KB) )    ;OFFLINE_U   = ZERO
    ALLOCATE(OFFLINE_V(0:NT,KB) )    ;OFFLINE_V   = ZERO

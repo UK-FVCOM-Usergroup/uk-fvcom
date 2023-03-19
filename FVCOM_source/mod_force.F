@@ -305,6 +305,26 @@ MODULE MOD_FORCE
   TYPE(NCVAR), POINTER :: WINDW_STRY_N, WINDW_STRY_P   ! STRESS IN THE Y DIRECTION (wave)
 # endif
 
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+  ! =================================================================
+  ! SURFACE ICE FILE DATA FOR WAVE ONLY MODE
+  INTEGER :: ICEINS_FORCING_TYPE
+
+  INTEGER, PARAMETER :: ICEINS_ARE_WRFGRID   = 0
+  INTEGER, PARAMETER :: ICEINS_ARE_FVCOMGRID = 1
+  INTEGER, PARAMETER :: ICEINS_ARE_PT_SOURCE = 2
+
+
+  TYPE(TIME) :: ICEINS_PERIOD
+
+  TYPE(NCFILE), POINTER :: ICEINS_FILE
+  CHARACTER(LEN=Char_max_attlen), PUBLIC, ALLOCATABLE    :: ICEINS_FORCING_COMMENTS(:)
+  TYPE(INTERP_WEIGHTS),POINTER :: ICEINS_INTP_N
+  TYPE(INTERP_WEIGHTS),POINTER :: ICEINS_INTP_C
+  TYPE(NCVAR), POINTER :: ICEINS_ICEC_N, ICEINS_ICEC_P
+# endif
+
+
 # if defined (OFFLINE_SEDIMENT)
   ! =================================================================
   ! OFFLINE SEDIMENT FILE DATA 
@@ -505,7 +525,10 @@ MODULE MOD_FORCE
 # endif
   PUBLIC :: UPDATE_WIND
   PUBLIC :: UPDATE_WAVE
-
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+  PUBLIC :: UPDATE_ICEIN
+# endif
+  
 # if defined (HEATING_CALCULATED)
   PUBLIC :: UPDATE_HEAT_CALCULATED
 # endif
@@ -683,6 +706,9 @@ CONTAINS
     CALL SURFACE_WINDSTRESS
     CALL SURFACE_PRECIPITATION
     CALL SURFACE_AIRPRESSURE
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+    CALL SURFACE_ICEIN
+# endif    
 # if defined (HEATING_CALCULATED)
     CALL SURFACE_HEATING_CALCULATED
 # endif    
@@ -9354,6 +9380,187 @@ CONTAINS
   END SUBROUTINE SURFACE_WINDSTRESS
 
 !================================================================
+
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+!================================================================
+  SUBROUTINE SURFACE_ICEIN
+    IMPLICIT NONE
+    ! SOME NC POINTERS
+    TYPE(NCATT), POINTER :: ATT, ATT_DATE
+    TYPE(NCDIM), POINTER :: DIM
+    TYPE(NCVAR), POINTER :: VAR
+    LOGICAL :: FOUND
+    REAL(SP), POINTER :: STORAGE_ARR(:,:), storage_vec(:)
+    TYPE(TIME) :: TIMETEST
+    INTEGER :: LATS, LONS, I, Ntimes
+    INTEGER :: STATUS
+    CHARACTER(len=60) :: icec
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "START SURFACE_ICEIN"
+
+    NULLIFY(ATT,DIM,VAR,STORAGE_ARR,STORAGE_VEC)
+
+
+    IF (.NOT. ICEIN_ON ) THEN
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! SURFACE ICEIN FORCING IS OFF!"
+       ALLOCATE(ICEINS_FORCING_COMMENTS(1))
+       ICEINS_FORCING_COMMENTS(1) = "SURFACE ICEIN FORCING IS OFF"
+       RETURN
+    END IF
+
+!PRINT *, "ICEIN_KIND",ICEIN_KIND   !zhangyang
+
+! DETERMINE HOW TO LOAD THE DATA
+    SELECT CASE(ICEIN_KIND)
+    CASE (CNSTNT)
+
+       write(icec,'(f8.4)') ICEC
+          IF(DBG_SET(DBG_LOG)) THEN
+             WRITE(IPT,*)"! SETTING UP CONSTANT ICEIN FORCING: "
+             WRITE(IPT,*)"      Icec: "//trim(icec)
+          END IF
+
+          ALLOCATE(ICEINS_FORCING_COMMENTS(2))
+          ICEINS_FORCING_COMMENTS(1) = "Using constant ICEIN from run file:"
+          ICEINS_FORCING_COMMENTS(2) = "Icec:"//trim(icec)
+          RETURN
+
+    CASE(VRBL)
+
+       ICEINS_FILE => FIND_FILE(FILEHEAD,trim(ICEIN_FILE),FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("COULD NOT FIND SURFACE ICEIN CONDINTION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE))
+
+       ! DETERMINE GRID TYPE BASED ON SOURCE ATTRIBUTE   
+       ATT => FIND_ATT(ICEINS_FILE,"source",FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(ICEINS_FILE,"Source",FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            &"COULD NOT FIND GLOBAL ATTRIBURE: 'source'")
+
+       IF (ATT%CHR(1)(1:len_trim(wrf2fvcom_source)) ==&
+            & TRIM(wrf2fvcom_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_WRFGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_grid_source)) ==&
+            & TRIM(fvcom_grid_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(fvcom_cap_grid_source)) ==&
+            & TRIM(fvcom_cap_grid_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_FVCOMGRID
+
+       ELSE IF (ATT%CHR(1)(1:len_trim(wrf_grid_source)) ==&
+            & TRIM(wrf_grid_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_WRFGRID
+       ELSE IF (ATT%CHR(1)(1:len_trim(surf_forcing_pt_source)) ==&
+            & TRIM(surf_forcing_pt_source)) THEN
+          ICEINS_FORCING_TYPE = ICEINS_ARE_PT_SOURCE
+       ELSE
+          CALL PRINT_FILE(ICEINS_FILE)
+          CALL FATAL_ERROR("CAN NOT RECOGNIZE ICEIN FILE!",&
+               & "UNKNOWN SOURCE STRING:",TRIM(ATT%CHR(1)))
+       END IF
+       ! GOT GRID TYPE
+       ALLOCATE(ICEINS_FORCING_COMMENTS(4))
+       ICEINS_FORCING_COMMENTS(1) = "FVCOM variable surface Icein forcing:"
+       ICEINS_FORCING_COMMENTS(2) = "FILE NAME:"//TRIM(ICEIN_FILE)
+
+       ICEINS_FORCING_COMMENTS(3) = "SOURCE:"//TRIM(ATT%CHR(1))
+
+       ATT_DATE => FIND_ATT(ICEINS_FILE,"START_DATE",FOUND)
+       IF (FOUND) THEN
+          ICEINS_FORCING_COMMENTS(4) ="MET DATA START DATE:"//TRIM(ATT_DATE%CHR(1))
+       ELSE
+          ICEINS_FORCING_COMMENTS(4) = "Unknown start date meta data format"
+       END IF
+
+
+       ! LOOK FOR THE DIMENSIONS
+       DIM => FIND_UNLIMITED(ICEINS_FILE,FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            &"COULD NOT FIND THE UNLIMITED DIMENSION")
+
+       NTIMES = DIM%DIM
+
+       ! CHECK THE FILE TIME AND COMPARE WITH MODEL RUN TIME
+       TIMETEST = get_file_time(ICEINS_FILE,1)
+       IF(TIMETEST > STARTTIME) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            &"THE MODEL RUN STARTS BEFORE THE FORCING TIME SERIES")
+
+       TIMETEST = get_file_time(ICEINS_FILE,ntimes)
+       IF(TIMETEST < ENDTIME) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN BOUNDARY CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            &"THE MODEL RUN ENDS AFTER THE FORCING TIME SERIES")
+
+    CASE DEFAULT
+       CALL FATAL_ERROR("SURFACE_ICEIN: UNKNOWN ICEIN KIND?")
+    END SELECT
+!PRINT *, "ICEINS_FORCING_TYPE_in",ICEINS_FORCING_TYPE
+!==============================================================
+    SELECT CASE(ICEINS_FORCING_TYPE)
+!==============================================================
+    CASE(ICEINS_ARE_WRFGRID)
+!==============================================================
+       CALL FATAL_ERROR("ICEIN based on WRF grid Not Set Up Yet")
+!==============================================================
+    CASE(ICEINS_ARE_FVCOMGRID)
+!==============================================================
+       IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+            & "! SETTING UP ICEIN FORCING FROM A 'FVCOM GRID' FILE"
+
+       DIM => FIND_DIM(ICEINS_FILE,'node',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR &
+            & ("IN SURFACE ICEIN CONDITION FILE OBJECT",&
+            & "FILE NAME: "//TRIM(ICEIN_FILE),&
+            & "COULD NOT FIND DIMENSION 'node'")
+
+       if (mgl /= dim%dim) CALL FATAL_ERROR&
+            &("Surface ICEIN: the number of nodes in the file does not match the fvcom grid?")
+
+
+          ! ICE CONCENTRATION AT EVERY NODES
+          VAR => FIND_VAR(ICEINS_FILE,"icec",FOUND)
+          IF(.not. FOUND) VAR => FIND_VAR(ICEINS_FILE,"aice",FOUND)
+          IF(.not. FOUND) CALL FATAL_ERROR &
+               & ("IN SURFACE ICEIN BOUNDARY CONDITION FILE OBJECT",&
+               & "FILE NAME: "//TRIM(ICEIN_FILE),&
+               & "COULD NOT FIND VARIABLE 'icec'")
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICEINS_ICEC_N => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE ICE CONCENTRATION")
+       CALL NC_CONNECT_PVAR(ICEINS_ICEC_N,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+       ! MAKE SPACE FOR THE DATA FROM THE FILE
+       ICEINS_ICEC_P => reference_var(var)
+       ALLOCATE(STORAGE_VEC(0:MT), stat = status)
+       IF(STATUS /= 0) CALL FATAL_ERROR("ALLOCATION ERROR IN SURFACE ICE CONCENTRATION")
+       CALL NC_CONNECT_PVAR(ICEINS_ICEC_P,STORAGE_VEC)
+       NULLIFY(STORAGE_VEC)
+
+
+
+
+    CASE DEFAULT
+!==============================================================
+       CALL FATAL_ERROR("CAN NOT RECOGNIZE ICEIN FILE TYPE!")
+!==============================================================
+    END SELECT
+!==============================================================
+
+    IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_ICEIN"
+  END SUBROUTINE SURFACE_ICEIN
+
+
+!================================================================
 # if defined (OFFLINE_FABM)
 !================================================================
 !================================================================
@@ -14221,6 +14428,80 @@ CONTAINS
 !===================================================
 
   END SUBROUTINE UPDATE_WIND
+
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+!==============================================================================|
+  SUBROUTINE UPDATE_ICEIN(NOW,wicec)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    TYPE(TIME)             :: WTIME
+    REAL(SP), ALLOCATABLE :: wicec(:)
+    REAL(SP), POINTER :: VNP(:), VPP(:)
+    TYPE(NCFTIME), POINTER :: FTM
+    INTEGER :: STATUS
+
+
+    IF(.NOT. ALLOCATED(wicec)) CALL FATAL_ERROR &
+         &("THE ICE VARIABLE PASSED TO UPDATE IS NOT ALLOCATED")
+
+
+!===================================================
+    SELECT CASE(WIND_KIND)
+!===================================================
+    CASE (CNSTNT)
+
+          wicec(1:MT) = CICE
+
+       RETURN
+
+    CASE(STTC)
+
+       CALL FATAL_ERROR("STATIC WIND Not Set Up Yet")
+
+    CASE(TMDPNDNT)
+
+       CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+
+    CASE(PRDC)
+
+       ! TO SET ZERO TIME PHASE USING RUNFILE START TIME
+!      WTIME= NOW - RUNFILE_StartTime
+
+       ! TO USE ZERO AS THE PHASE OF THE FORCING
+       !WTIME= NOW
+CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
+
+
+       !WTIME = MOD(WTIME,WINDS_PERIOD)
+
+    CASE(VRBL)
+
+       WTIME = NOW
+    END SELECT
+!PRINT *, "ICEINS_FORCING_TYPE",ICEINS_FORCING_TYPE
+!===================================================
+    SELECT CASE(ICEINS_FORCING_TYPE)
+!===================================================
+    CASE(ICEINS_ARE_FVCOMGRID)
+!===================================================
+       FTM => ICEINS_FILE%FTIME
+
+       CALL UPDATE_VAR_BRACKET(ICEINS_FILE,ICEINS_ICEC_P,ICEINS_ICEC_N,WTIME,STATUS)
+       IF (STATUS /= 0) THEN
+          CALL FATAL_ERROR("COULD NOT UPATE ICEIN: BOUNDS EXCEEDED?")
+       end if
+
+       CALL NC_POINT_VAR(ICEINS_ICEC_N,VNP)
+       CALL NC_POINT_VAR(ICEINS_ICEC_P,VPP)
+       WICEC = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+!===================================================
+    CASE DEFAULT
+       CALL FATAL_ERROR("UNKNOWN ICEIN IN UPDATE WIND")
+    END SELECT
+!===================================================
+  END SUBROUTINE UPDATE_ICEIN
+# endif
+
 # if defined (OFFLINE_FABM)
   !==============================================================================|
   SUBROUTINE UPDATE_OFFLINE_FABM_FORCING(NOW,offlineb_u,  offlineb_v, offlineb_w&

@@ -67,6 +67,9 @@
 
 #  if defined (HEATING_CALCULATED)
    USE MOD_HEATFLUX, ONLY : HEATING_CALCULATE_ON,HEATING_FRESHWATER
+#  if defined (WAVE_ONLY) || (WAVE_CURRENT_INTERACTION)
+   USE VARS_WAVE, ONLY : HSC1  ! Siqi Li, 2021-01-27
+#  endif
 #  endif
 #  if defined (HEATING_SOLAR)
    USE MOD_SOLAR, ONLY : HEATING_SOLAR_ON
@@ -548,6 +551,15 @@
         
      END IF
 
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+!-----------------------yzhang1-----------------
+       IF (ICEIN_ON) THEN
+            CALL UPDATE_ICEIN(IntTime,CICE_TEST)
+  !   print *, CICE_TEST
+         END IF
+!------------------------------------------------- 
+# endif
+
 # if !defined (HEATING_CALCULATED) &&!defined (HEATING_SOLAR)
      IF (HEATING_ON) THEN
          CALL UPDATE_HEAT(IntTime,SWRAD_WATTS,WTSURF_WATTS)
@@ -572,8 +584,31 @@
       
 # if defined (HEATING_CALCULATED)
       IF (HEATING_CALCULATE_ON) THEN
-         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
-         
+!---> Siqi Li, 2021-01-27
+# if defined (WAVE_CURRENT_INTERACTION)
+         SELECT CASE (WIND_STRESS_METHOD)
+         CASE ('COARE')
+           CALL Cwave_on_WLEN_TPEAK
+         CASE DEFAULT
+           Cwave = 0.0_SP
+         END SELECT
+         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS, &
+              &        Cwave,HSC1,TAU_WIND,U_star,Cd)
+# else
+         Cwave = 0.0_SP
+         ! Here both Cwave and HSC1 are set as 0.0
+         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS, &
+              &        Cwave,Cwave,TAU_WIND,U_star,Cd)
+# endif
+
+# if defined (MULTIPROCESSOR)
+         IF(PAR) CALL AEXCHANGE(EC, MYID, NPROCS, Cd)
+         IF(PAR) CALL AEXCHANGE(EC, MYID, NPROCS, Cd)
+# endif
+
+!         CALL UPDATE_HEAT_CALCULATED(IntTime,SWRAD_WATTS,WTSURF_WATTS,HSENS_WATTS,HLAT_WATTS,LWRAD_WATTS)
+!<--- Siqi Li, 2021-01-27   
+ 
          ! LOAD INTO THES VARIABLE TO SAVE THE FORCING IN THE CORRECT UNITS
          SWRAD_WATTS  = SWRAD_WATTS * RAMP
          WTSURF_WATTS = WTSURF_WATTS * RAMP
