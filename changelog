@@ -33,3 +33,6 @@ mod_obcs.F mod_onedtide.F
 
 Fix grid edge in station_timeseries
 mod_station_timeseries.F
+
+Add spherical adjustment to CURCOR
+adcor.F

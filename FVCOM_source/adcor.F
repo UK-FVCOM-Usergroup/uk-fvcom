@@ -91,8 +91,17 @@ SUBROUTINE ADCOR
      ELSE
 #  endif   
        DO K = 1, KBM1
+!JQI20201123 -- start add
+#  if defined (SPHERICAL)
+         CURCOR=BETA0*(COR(I)*VF(I,K)-1.458E-4_SP*W(I,K)*cos(YC(I)*DEG2RAD))
+         PRECOR=(1._SP-BETA0)*(COR(I)*V(I,K)-1.458E-4_SP*W(I,K)*cos(YC(I)*DEG2RAD))
+#  else
+!JQI20201123 -- end add
          CURCOR=BETA0*COR(I)*VF(I,K)
          PRECOR=(1._SP-BETA0)*COR(I)*V(I,K)
+!JQI20201123 -- start add
+#  endif
+!JQI20201123 -- end add
          UFC(I,K)=UBETA(I,K)-(CURCOR+PRECOR)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
        END DO
 #  if defined (SPHERICAL)
