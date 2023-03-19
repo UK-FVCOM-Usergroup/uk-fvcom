@@ -41,4 +41,4 @@ Add missing multiproccessor share
 mod_wave_current_interaction.F
 
 Add wave current ice_in
-bcond_gcy.F, mod_bulk.F, mod_force.F, mod_input.F, mod_main.F, vdif_q.F, swanmain.F
+bcond_gcy.F, mod_bulk.F, mod_force.F, mod_input.F, mod_main.F, vdif_q.F, swanmain.F, mod_action_ex
