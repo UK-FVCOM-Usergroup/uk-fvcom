@@ -264,10 +264,10 @@ MODULE MOD_WAVE_CURRENT_INTERACTION
      GAMW(I) = MIN(D(I)/(HSC1(I)+eps1),5.0_SP) 
      DO K=1,KBM1
         OROLLER(I)=OROLLER(I)+D(I)*DZ(I,K)*(1.0_SP-TANH((2.0_SP*ZZ(I,K)*GAMW(I))**4))
-     ENDDO
+     END DO
      OROLLER(I)=1.0_SP/(OROLLER(I)+eps1)
      ROLLA(I)=0.0424*HSC1(I)*QB1(I)*WLEN(I)
-   ENDDO
+   END DO
 #endif
    
 !----------INITIALIZE STRESS ARRAY ----------------------------------------------!
@@ -433,7 +433,7 @@ MODULE MOD_WAVE_CURRENT_INTERACTION
      DO K=1,KBM1
         WAVESTRX_2D(I) = WAVESTRX_2D(I)+WAVESTRX_3D(I,K)
         WAVESTRY_2D(I) = WAVESTRY_2D(I)+WAVESTRY_3D(I,K)
-     ENDDO
+     END DO
    END DO
 !#  else
 !   CALL RADIATION_STRESS_2D
@@ -470,7 +470,8 @@ MODULE MOD_WAVE_CURRENT_INTERACTION
      ENDDO
    ENDDO
 #  if defined(MULTIPROCESSOR)
-   ! need add MPI part
+   IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,U_STOKES_3D,V_STOKES_3D) 
+   IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,U_STOKES_2D,V_STOKES_2D) 
 #  endif
 
   
@@ -681,7 +682,7 @@ MODULE MOD_WAVE_CURRENT_INTERACTION
        V_STOKES_2D(I)=(V_STOKES_2D_TMP(NV(I,1))+V_STOKES_2D_TMP(NV(I,2))+V_STOKES_2D_TMP(NV(I,3)))/3.0_SP
    ENDDO
 #  if defined(MULTIPROCESSOR)
-   ! need add MPI part
+   IF(PAR)CALL AEXCHANGE(EC,MYID,NPROCS,U_STOKES_2D,V_STOKES_2D)
 #  endif
 
    RETURN
@@ -1012,13 +1013,11 @@ END SUBROUTINE CAL_S
         CC = NBVE(I,JJ)
         UNODE(I,K) = UNODE(I,K) + U(CC,K)
         VNODE(I,K) = VNODE(I,K) + V(CC,K)
-     ENDDO
+     END DO
      UNODE(I,K) = UNODE(I,K) / CNT
      VNODE(I,K) = VNODE(I,K) / CNT
-    ENDDO
-   ENDDO
-
-   
+    END DO
+   END DO
 !-------------------------------------------------------------------------------------|
  
    WAVE_NUMBER = 0.0_SP

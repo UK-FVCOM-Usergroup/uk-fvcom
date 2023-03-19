@@ -36,3 +36,6 @@ mod_station_timeseries.F
 
 Add spherical adjustment to CURCOR
 adcor.F
+
+Add missing multiproccessor share
+mod_wave_current_interaction.F
