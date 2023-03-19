@@ -106,7 +106,6 @@
 # else
       ,  mu_rdg = c4i             &! gives e-folding scale of ridged ice (m^.5)
                                   ! (krdg_redist = 1)
-# endif
       ,  Pstar = 2.75e4_dbl_kind &! constant in Hibler strength formula
                                   ! (kstrength = 0)
 # endif
