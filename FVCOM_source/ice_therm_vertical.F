@@ -65,7 +65,7 @@
       real (kind=dbl_kind), parameter ::   &
          ferrmax = 1.0e-3_dbl_kind & ! max  allowed energy flux error (W m-2)
 ! afm 20180801 
-#   if !zdefined (ICE_FRESHWATER)
+#   if defined (ICE_FRESHWATER)
       ,  hsnomin = 1.0e-6_dbl_kind ! min  thickness for which Tsno computed (m)
 #   else
       ,  hsnomin = 1.0e-3_dbl_kind ! min  thickness for which Tsno computed (m)
