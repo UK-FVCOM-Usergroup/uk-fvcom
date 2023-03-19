@@ -9558,7 +9558,8 @@ CONTAINS
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "END SURFACE_ICEIN"
   END SUBROUTINE SURFACE_ICEIN
-
+!================================================================
+# endif
 
 !================================================================
 # if defined (OFFLINE_FABM)
