@@ -45,3 +45,6 @@ bcond_gcy.F, mod_bulk.F, mod_force.F, mod_input.F, mod_main.F, vdif_q.F, swanmai
 
 Changes to parameters and add ice in vdif GOM version
 vdif_ts_gom.F
+
+Specifiy precisions
+coare40vn.F, mod_interp.F, 
