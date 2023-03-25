@@ -332,7 +332,7 @@ contains !------------------------------------------------------------------!
     ! TIME OF FIRST OUTPUT
     IF(USE_REAL_WORLD_TIME) THEN
        lag_next = READ_DATETIME(LAG_FIRST_OUT,DATE_FORMAT,TIMEZONE,status)
-       if(status==0) &
+       if (.not. status) &
             & Call Fatal_Error("Could not read the date string LAG_FIRST_OUT: "//trim(LAG_FIRST_OUT))          
     ELSE
        CALL IDEAL_TIME_STRING2TIME(LAG_FIRST_OUT,FLAG,lag_next,IINT_CNT)
@@ -648,7 +648,7 @@ contains !------------------------------------------------------------------!
 
           ! Get adjustment for timezone
           tminus = TIME_ZONE(TZONE,status)
-          IF (status==0) call fatal_error("set lag: could not read timezone?")
+          IF(.not. status) call fatal_error("set lag: could not read timezone?")
 
           ! Allocate space for data from disks
           ALLOCATE(tendf(nlag_gl))
@@ -664,7 +664,7 @@ contains !------------------------------------------------------------------!
 
           ! Get adjustment for timezone
           tminus = TIME_ZONE(TZONE,status)
-          IF (status==0) call fatal_error("set lag: could not read timezone?")
+          IF(.not. status) call fatal_error("set lag: could not read timezone?")
 
           ! Allocate space for data from disks
           ALLOCATE(tendf(nlag_gl))
@@ -688,7 +688,7 @@ contains !------------------------------------------------------------------!
 
           DO I = 1,nlag_gl
              TBEG(I) = READ_DATETIME(tendc(i),DATE_FORMAT,TZONE,status)
-             IF (status==0) CALL FATAL_ERROR("set lag: COULD NOT READ END TIME?")
+             IF(.not.STATUS) CALL FATAL_ERROR("set lag: COULD NOT READ END TIME?")
           END DO
 
        ELSE
@@ -710,7 +710,7 @@ contains !------------------------------------------------------------------!
 
           ! Get adjustment for timezone
           tminus = TIME_ZONE(TZONE,status)
-          IF(status==0) call fatal_error("set lag: could not read timezone?")
+          IF(.not. status) call fatal_error("set lag: could not read timezone?")
 
           ! Allocate space for data from disks
           ALLOCATE(tbegf(nlag_gl))
@@ -726,7 +726,7 @@ contains !------------------------------------------------------------------!
 
           ! Get adjustment for timezone
           tminus = TIME_ZONE(TZONE,status)
-          IF(status==0) call fatal_error("set lag: could not read timezone?")
+          IF(.not. status) call fatal_error("set lag: could not read timezone?")
 
           ! Allocate space for data from disks
           ALLOCATE(tbegf(nlag_gl))
@@ -749,7 +749,7 @@ contains !------------------------------------------------------------------!
 
           DO I = 1,nlag_gl
              TBEG(I) = READ_DATETIME(tbegc(i),DATE_FORMAT,TZONE,status)
-             IF(status==0) CALL FATAL_ERROR("set lag: COULD NOT READ BEGIN TIME?")
+             IF(.not.STATUS) CALL FATAL_ERROR("set lag: COULD NOT READ BEGIN TIME?")
           END DO
 
        ELSE

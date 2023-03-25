@@ -2319,52 +2319,50 @@
    ENDIF
    TIMR1 = TIMCO - DTW
 !
-200 IF(TIMCO <= IFLTIM(IGR1)) GOTO 400
-   TIMR1 = IFLTIM(IGR1)
-   IFLTIM(IGR1) = IFLTIM(IGR1) + IFLINT(IGR1)
-   IF(IFLTIM(IGR1) > IFLEND(IGR1))THEN
-     IFLTIM(IGR1) = 1.E10
-     IF(IGR2 > 0) IFLTIM(IGR2) = IFLTIM(IGR1)
-     GOTO 400
-   ENDIF
-   IF(IFLNDS(IGR1) > 0)THEN                                         
-     IF(INODE == MASTER)THEN
-       CALL INAR2D( ARR, MXG(IGR1), MYG(IGR1),                       &
-                    IFLNDF(IGR1),                                    &
-		    IFLNDS(IGR1), IFLIFM(IGR1), IFLFRM(IGR1),        &
-		    IFLIDL(IGR1), IFLFAC(IGR1),                      &
-		    IFLNHD(IGR1), IFLNHF(IGR1))
-       IF(STPNOW()) RETURN                                           
-     END IF
-!JQI     CALL SWBROADC(IFLIDL(IGR1),1,SWINT)                              
-     IF(IFLIDL(IGR1) < 0)THEN
-!      end of file was encountered
+   DO WHILE(TIMCO > IFLTIM(IGR1))
+     TIMR1 = IFLTIM(IGR1)
+     IFLTIM(IGR1) = IFLTIM(IGR1) + IFLINT(IGR1)
+     IF(IFLTIM(IGR1) > IFLEND(IGR1))THEN
        IFLTIM(IGR1) = 1.E10
        IF(IGR2 > 0) IFLTIM(IGR2) = IFLTIM(IGR1)
-       GOTO 400
-     ELSE
-!JQI       CALL SWBROADC(ARR,MXG(IGR1)*MYG(IGR1),SWREAL)                   
+       EXIT
      ENDIF
-   ELSE                                                                
-     IF(ITEST >= 20)THEN                                            
-       CALL MSGERR (1,                                           &
-                   'no read of input field because unit nr=0')                   
-       WRITE (PRINTF, 208) IGR1
-208    FORMAT (' field nr.', I2)
-     ENDIF
-   ENDIF                                                               
-   IF(IGR2 > 0)THEN
-     IFLTIM(IGR2) = IFLTIM(IGR1)
-     IF(IFLNDS(IGR2) > 0)THEN                                       
-       IF(INODE == MASTER)THEN                                      
-         CALL INAR2D( ARR2, MXG(IGR2), MYG(IGR2),                   &
-	              IFLNDF(IGR2),                                 &
-		      IFLNDS(IGR2), IFLIFM(IGR2), IFLFRM(IGR2),     &
-		      IFLIDL(IGR2), IFLFAC(IGR2), IFLNHD(IGR2), 0)
-         IF (STPNOW()) RETURN                                         
+     IF(IFLNDS(IGR1) > 0)THEN
+       IF(INODE == MASTER)THEN
+         CALL INAR2D( ARR, MXG(IGR1), MYG(IGR1), IFLNDF(IGR1), &
+		          IFLNDS(IGR1), IFLIFM(IGR1), IFLFRM(IGR1),        &
+		          IFLIDL(IGR1), IFLFAC(IGR1),                      &
+		          IFLNHD(IGR1), IFLNHF(IGR1))
+         IF(STPNOW()) RETURN
        END IF
-!JQI       CALL SWBROADC(ARR2,MXG(IGR2)*MYG(IGR2),SWREAL)                  
-     ENDIF                                                             
+!JQI     CALL SWBROADC(IFLIDL(IGR1),1,SWINT)
+       IF(IFLIDL(IGR1) < 0)THEN
+!      end of file was encountered
+         IFLTIM(IGR1) = 1.E10
+         IF(IGR2 > 0) IFLTIM(IGR2) = IFLTIM(IGR1)
+         EXIT
+       ELSE
+!JQI       CALL SWBROADC(ARR,MXG(IGR1)*MYG(IGR1),SWREAL)
+       ENDIF
+     ELSE
+       IF(ITEST >= 20)THEN
+         CALL MSGERR (1,                                           &
+                   'no read of input field because unit nr=0')
+         WRITE (PRINTF, 208) IGR1
+208      FORMAT (' field nr.', I2)
+       ENDIF
+     ENDIF
+     IF(IGR2 > 0)THEN
+       IFLTIM(IGR2) = IFLTIM(IGR1)
+       IF(IFLNDS(IGR2) > 0)THEN
+         IF(INODE == MASTER)THEN
+           CALL INAR2D( ARR2, MXG(IGR2), MYG(IGR2), IFLNDF(IGR2),  &
+		            IFLNDS(IGR2), IFLIFM(IGR2), IFLFRM(IGR2),          &
+		            IFLIDL(IGR2), IFLFAC(IGR2), IFLNHD(IGR2), 0)
+         IF (STPNOW()) RETURN
+       END IF
+!JQI       CALL SWBROADC(ARR2,MXG(IGR2)*MYG(IGR2),SWREAL)
+     ENDIF
    ENDIF
 !  Interpolation over the computational grid
    DO IG = 1, MCGRD
@@ -2375,12 +2373,11 @@
 !JQI       COMPDA(INDX,JY3) = ARR2
      ENDIF
    END DO
-   
-   GOTO 200
+   ENDDO
 !
 !   Interpolation in time
 !
-400  W3 = (TIMCO-TIMR1) / (IFLTIM(IGR1)-TIMR1)
+     W3 = (TIMCO-TIMR1) / (IFLTIM(IGR1)-TIMR1)
      W1 = 1.-W3
      IF(ITEST >= 60) WRITE(PRTEST,402) IGR1,                          &
              TIMCO,IFLTIM(IGR1),W1,W3,JX1,JY1,JX2,JY2,JX3,JY3
@@ -2408,7 +2405,7 @@
          COMPDA(INDX,JY2) = VV
        ENDIF
      ENDIF
-   END DO	
+   END DO
 
    RETURN
 !
@@ -2492,15 +2489,15 @@
 !   print*,"TIMCO=",TIMCO,"IFLTIM=",IFLTIM(IGR1),"IFLEND=",IFLEND(IGR1)
 !   print*,"IFLINT=",IFLINT(IGR1), "DTW=",DTW
 
-200 IF(TIMCO <= IFLTIM(IGR1)) GOTO 400
-   TIMR1 = IFLTIM(IGR1)
-   IFLTIM(IGR1) = IFLTIM(IGR1) + IFLINT(IGR1)
-   IF(IFLTIM(IGR1) > IFLEND(IGR1))THEN
-     TIMR1 = IFLEND(IGR1)
-     IFLTIM(IGR1) = 1.E10
-     IF(IGR2 > 0) IFLTIM(IGR2) = IFLTIM(IGR1)
-     GOTO 400
-   ENDIF
+   DO WHILE(TIMCO > IFLTIM(IGR1))
+     TIMR1 = IFLTIM(IGR1)
+     IFLTIM(IGR1) = IFLTIM(IGR1) + IFLINT(IGR1)
+     IF(IFLTIM(IGR1) > IFLEND(IGR1))THEN
+       TIMR1 = IFLEND(IGR1)
+       IFLTIM(IGR1) = 1.E10
+       IF(IGR2 > 0) IFLTIM(IGR2) = IFLTIM(IGR1)
+       EXIT
+     ENDIF
 !JQI   DT_WI1 = INT(IFLTIM(IGR1)/IFLINT(IGR1))
 
    IF(IGR2 > 0)THEN
@@ -2516,13 +2513,12 @@
 !JQIJQI       COMPDA(IG,JY3) = ARR2(IG,DT_WI2)
      ENDIF
    END DO
-   
-   GOTO 200
-   
+   ENDDO
+
 !
 !   Interpolation in time
 !
-400  W3 = (TIMCO-TIMR1) / (IFLTIM(IGR1)-TIMR1)
+     W3 = (TIMCO-TIMR1) / (IFLTIM(IGR1)-TIMR1)
      W1 = 1.-W3
      
 !     WaveTime = WaveTime + IMDTW

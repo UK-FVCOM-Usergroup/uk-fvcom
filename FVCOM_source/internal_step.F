@@ -623,7 +623,8 @@ SUBROUTINE INTERNAL_STEP
 # endif
 
 # if defined (WAVE_ONLY)
-  goto 5501
+  wa_on = .false.
+  IF(wa_on) THEN
 # endif
 
 # if !defined(ONE_D_MODEL) && !defined (SEMI_IMPLICIT)
@@ -1702,8 +1703,7 @@ SUBROUTINE INTERNAL_STEP
 !  END IF
 !==============================================================================!
 # endif
-  
-  
+
 # if !defined (TWO_D_MODEL)
   !==============================================================================!
   !     UPDATE VELOCITY FIELD (NEEDED TO WAIT FOR SALINITY/TEMP/TURB/TRACER)     |
@@ -1760,7 +1760,7 @@ SUBROUTINE INTERNAL_STEP
 # endif
 
 # if defined (WAVE_ONLY)
-   5501 continue
+  END IF
 # endif
 
 !!$  CALL DUMP_PROBE_DATA 

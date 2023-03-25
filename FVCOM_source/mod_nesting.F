@@ -736,20 +736,17 @@ CONTAINS
        REWIND NESTUNIT
 
        DO WHILE(.TRUE.)
-          READ(NESTUNIT,*,IOSTAT=IOS,END=199)N1,N2,N3
+          READ(NESTUNIT,*,IOSTAT=IOS)N1,N2,N3
           if (IOS == 0) then
              BackSpace NESTUNIT
              exit
+          elseif(IOS < 0) then
+            Call FATAL_ERROR('Improper formatting of NESTING NODE FILE:',&
+                &'Reached end of file with out finding NESTING data?',&
+                &'FORMAT: NEST# SUBDOMAIN# LARGEDOMAIN# (ALL INTEGERS)')
           end if
-
-          CYCLE
-
-199       Call FATAL_ERROR('Improper formatting of NESTING NODE FILE:',&
-               &'Reached end of file with out finding NESTING data?',&
-               &'FORMAT: NEST# SUBDOMAIN# LARGEDOMAIN# (ALL INTEGERS)')
-
        END DO
-       
+
        ALLOCATE(nodes(nnode))
 
        I = 0
@@ -1228,7 +1225,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 
   LG%MGL = NG%MGL
   LG%NGL = NG%NGL
-  LG%KB = NG%KB
+  LG%KB  = NG%KB
   LG%KBM1 = NG%KBM1
 !
 !  LG%KB = KB
@@ -1321,6 +1318,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      
      N_max = RBUF
      DEALLOCATE(RBUF)
+     
           
      ! REPORT ANY DISCREPANCY IN GRID LOCATIONS
      Dmax= max(maxval(E_max),maxval(N_max))
@@ -1335,7 +1333,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
         end if
      END if
      DEALLOCATE(E_MAX,N_MAX)
-  
+     
      
 !============================================
 ! Make a list of the local Nesting nodes
@@ -1518,9 +1516,10 @@ END SUBROUTINE GENMAP_NESTING
        ALLOCATE(HYW_NEST(0:G%MT,KB),stat=status)
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:HYW_NEST")
 
+
        ALLOCATE(WCELL_NEST(0:G%NT),stat=status)
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:WCELL_NEST")
-
+      
        ALLOCATE(WNODE_NEST(0:G%MT),stat=status)
        if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:WNODE_NEST")
 
