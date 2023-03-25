@@ -630,7 +630,7 @@ CONTAINS
           !         write(ipt,*) "ELF=",ELF(II)
 
        END DO
-
+      end if
     CASE DEFAULT
        CALL FATAL_ERROR("BCOND_ASL: INVALID TIDE FORCING TYPE ?")
     END SELECT

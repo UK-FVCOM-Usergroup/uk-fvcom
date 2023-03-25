@@ -29,7 +29,7 @@ mod_non_hydro.o : mod_non_hydro.F mod_semi_implicit.o mod_petsc.o mod_obcs.o mod
 mod_set_time.o : mod_set_time.F mod_main_wave.o mod_time.o mod_input.o mod_nctools.o mod_main.o mod_prec.o 
 ice_kinds_mod.o : ice_kinds_mod.F mod_prec.o 
 ice_model_size.o : ice_model_size.F mod_main.o ice_kinds_mod.o mod_prec.o 
-ice_domain.o : ice_domain.F mod_par_special.o mod_prec.o mod_main.o ice_model_size.o ice_kinds_mod.o mod_prec.o 
+ice_domain.o : ice_domain.F mod_par_special.o mod_prec.o mod_main.o ice_model_size.o ice_kinds_mod.o mod_prec.o mod_par.o
 ice_constants.o : ice_constants.F ice_domain.o ice_kinds_mod.o mod_main.o mod_prec.o 
 ice_fileunits.o : ice_fileunits.F mod_main.o ice_kinds_mod.o mod_prec.o 
 ice_state.o : ice_state.F ice_domain.o ice_model_size.o ice_kinds_mod.o mod_prec.o 
@@ -55,7 +55,7 @@ mod_wqm.o : mod_wqm.F mod_obcs.o mod_semi_implicit.o mod_spherical.o mod_wd.o mo
 mod_ncdio.o : mod_ncdio.F mod_obcs3.o mod_obcs2.o mod_meanflow.o mod_par_special.o mod_wqm.o mod_main.o mod_fabm_data.o mod_bio_3D.o mod_wd.o mod_obcs.o mod_force.o mod_clock.o mod_main.o mod_ice2d.o mod_ice.o mod_balance_2d.o mod_non_hydro.o mod_wave_current_interaction.o mod_main_wave.o swmod1.o swmod1.o mod_fluid_mud.o mod_sed_cstms.o mod_sed.o mod_dye.o mod_input.o mod_time.o mod_utils.o mod_nctools.o mod_prec.o mod_main.o mod_prec.o 
 mod_setup.o : mod_setup.F mod_spherical.o mod_force.o mod_obcs.o mod_utils.o mod_nctools.o mod_ncdio.o mod_input.o mod_par_special.o mod_main.o mod_prec.o 
 mod_newinp.o : mod_newinp.F mod_utils.o mod_prec.o mod_prec.o 
-particle.o : particle.F mod_par_special.o mod_utils.o mod_main.o mod_time.o mod_prec.o mod_prec.o 
+particle.o : particle.F mod_par_special.o mod_utils.o mod_main.o mod_time.o mod_prec.o mod_prec.o mod_par.o 
 linklist.o : linklist.F particle.o mod_main.o mod_prec.o 
 mod_lag.o : mod_lag.F mod_input.o mod_clock.o mod_ncdio.o mod_main.o mod_main.o mod_set_time.o mod_main.o mod_par_special.o mod_utils.o mod_time.o mod_nctools.o particle.o linklist.o mod_prec.o mod_prec.o 
 mod_northpole.o : mod_northpole.F swmod1.o mod_obcs.o mod_utils.o mod_par_special.o mod_spherical.o mod_main.o mod_prec.o 
