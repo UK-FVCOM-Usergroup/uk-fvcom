@@ -357,12 +357,12 @@ if (msr) then
 end if !(msr)
    CALL ALLOC_VARS_ENKF
 
-IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 print *, 'before call gr2st_true_field'
 GNAM=TRIM(OUTPUT_DIR)//"enkftemp/true_field.nc"
  CALL GR2ST_TRUE_FIELD(GNAM) !return to stfct
 print *, 'after call gr2st_true_field'
-IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 if (msr) then
    print *, 'before obs2vec'
 STTR1=STFCT
@@ -394,7 +394,7 @@ print *, '008'
    MKF=ZEROD
    write(cyclenumber,'(i4.4)') icyc
 END IF !(MSR)
-IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
    DO K=1,ENKF_NENS
 
       WRITE(FENS2,'(I2.2)') K
@@ -403,7 +403,7 @@ IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
       print *, '010'
       AKF(:,K)=STFCT(:)
    ENDDO
-IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 IF (MSR) THEN
    SK = ZEROD
      OPEN(656,FILE='AKF.dat')
@@ -519,7 +519,8 @@ END IF
 !CC-----------   By adding noises to true state       -------------CC
 
    DO I=1, NLOC
-      RNOBS = GASDEV(IDOBS)
+      !RNOBS = GASDEV(IDOBS)
+      CALL GASDEV(IDOBS,RNOBS)
       IF (ENKF_TEST) THEN
       OBSDATA(I) = OBSDATA(I) + DSQRT(WK(I,I))*RNOBS ! represents the observation noised, should open only in twin experiments
       END IF
@@ -531,7 +532,8 @@ END IF
 
    DO K=1, ENKF_NENS
       DO I=1, NLOC
-         RNOBS = GASDEV(IDOBS2)
+         !RNOBS = GASDEV(IDOBS2)
+         CALL GASDEV(IDOBS2,RNOBS)
          RPERT(K,I)= DSQRT(WK(I,I))*RNOBS
       ENDDO
    ENDDO
@@ -608,7 +610,7 @@ END IF
 !-----------------------------------------------------------
 !compare the error with true field
 end if!(msr)
-IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 !print *, 'before call gr2st_true_field'
 !GNAM=TRIM(OUTPUT_DIR)//"enkftemp/true_field.nc"
 ! CALL GR2ST_TRUE_FIELD(GNAM) !return to stfct

@@ -857,7 +857,7 @@ contains !------------------------------------------------------------------!
     tmp(1) = nlag
 
 # if defined (MULTIPROCESSOR)
-    call mpi_gather(nlag,  1,mpi_integer,tmp,1,mpi_integer,0,mpi_comm_world,ierr)
+    call mpi_gather(nlag,  1,mpi_integer,tmp,1,mpi_integer,0,MPI_FVCOM_GROUP,ierr)
 #  endif
 
     !check for problems (sum of domain particles > global # particles)

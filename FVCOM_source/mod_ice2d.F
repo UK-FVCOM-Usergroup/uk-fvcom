@@ -2131,7 +2131,7 @@ end if !dwang
 #  if defined (MULTIPROCESSOR) 
    IF(PAR)THEN
 
-     CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+     CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 
      ALLOCATE(aicetmp(0:mGL,1))  
      allocate(art1tmp(0:mgl)) 

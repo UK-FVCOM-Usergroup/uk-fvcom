@@ -1668,8 +1668,8 @@ MODULE MOD_DYE
 !!$!   close(78)
 !!$
 !!$!! broadcast to all processors
-!!$!   call mpi_bcast(temp_dye,kb*(mgl+1), mpi_f,0,mpi_comm_world,ierr)
-!!$!   call mpi_bcast(temp_dyemean,kb*(mgl+1), mpi_f,0,mpi_comm_world,ierr)
+!!$!   call mpi_bcast(temp_dye,kb*(mgl+1), mpi_f,0,MPI_FVCOM_GROUP,ierr)
+!!$!   call mpi_bcast(temp_dyemean,kb*(mgl+1), mpi_f,0,MPI_FVCOM_GROUP,ierr)
 !!$
 !!$!! transform to local arrays 
 !!$!   if(serial)then

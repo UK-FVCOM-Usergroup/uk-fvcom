@@ -553,7 +553,9 @@ PROGRAM FVCOM
 #  if defined (MULTIPROCESSOR)
   ! INTIALIZE MPI CONTROL VARIABLES
   CALL INIT_MPI_ENV(MYID,NPROCS,SERIAL,PAR,MSR,MSRID)
-  MPI_FVCOM_GROUP = MPI_COMM_WORLD ! FOR NOW MAKE THEM EQUAL
+  MPI_COMM_FVCOM  = MPI_COMM_WORLD ! FOR NOW MAKE THEM EQUAL
+  MPI_FVCOM_GROUP = MPI_COMM_FVCOM ! FOR NOW MAKE THEM EQUAL
+  MPI_IO_GROUP    = MPI_COMM_FVCOM ! FOR NOW MAKE THEM EQUAL
 #  endif
 
   !==============================================================================!
@@ -708,7 +710,7 @@ PROGRAM FVCOM
    if(msr)  print *, 'before enkf_set_time'
      CALL ENKF_SET_TIME
      CALL SET_ASSIM_ENKF_EVE
-        IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+        IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
    if(msr)  print *, 'finish enkf_set_time'
      !check point done
 #  endif
@@ -1293,7 +1295,7 @@ PROGRAM FVCOM
 !    IF(MSR) CALL RRK_REF
      CALL RRK_REF
      print *, 'finish rrk_ref'
-     IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+     IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
     print *, 'call setup_rrk_restart'   
 !    IF(LOCAL_DISK)THEN
 !       NCF_RRKRE => SETUP_RESTART(LOCAL_FILE)
@@ -1325,10 +1327,10 @@ PROGRAM FVCOM
     print *, 'finish nc_open'
     DO RRK_EOFCONTR =1, RRK_NEOF
            print *, 'before readrestart' 
-              IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+              IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
               print *, NCF_RRKRE%FNAME
          CALL READRESTART(NCF_RRKRE,RRK_EOFCONTR)
-                 IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+                 IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
            print *, 'finish readrestart'
          IntTime = REF_START_TIME
          ExtTime = REF_START_TIME
@@ -1475,17 +1477,17 @@ PROGRAM FVCOM
       !==============================================================================!
       !    KALMAN FILTERING                                                          |
       !==============================================================================!
-                 IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+                 IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
                 if (msr) print *, 'finish the filter_obs_data'
       IF(IntTime>=RRK_START_TIME .AND. IntTime<=RRK_END_TIME) THEN
          IF(IntTime == RRK_CYC) THEN
             CALL PRINT_TIME(IntTime,IPT,"DOING RRK_RRKF")
 #if defined (MULTIPROCESSOR)
-           IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+           IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 #endif 
                 CALL filter_obs_data
 #if defined (MULTIPROCESSOR)
-                 IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+                 IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 #endif
             CALL set_rrkf_assim_data
                print *, 'kf observation location is:', nloc
@@ -1494,7 +1496,7 @@ PROGRAM FVCOM
             CALL RRK_RRKF
                end if
            call deallocate_obs_data
-           IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+           IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
            print *, 'finish rrkf'
 	    ICYC = ICYC+1
             RRK_CYC = RRK_START_TIME + (RRK_INTERVAL*ICYC)	    
@@ -1520,7 +1522,7 @@ PROGRAM FVCOM
   IF(MSR) WRITE(IPT,*) 'Starting RRKF input data processing......'
      CALL RRK_REF
      print *, 'finish rrk_ref'
-     IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+     IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
     print *, 'call setup_rrk_restart'   
 
        NCF_RRKRE => SETUP_RESTART(TRIM(OUTPUT_DIR)//TRIM(GROUP_FILE))
@@ -1534,10 +1536,10 @@ PROGRAM FVCOM
     print *, 'finish nc_open'
     DO RRK_EOFCONTR =1, RRK_NEOF
            print *, 'before readrestart' 
-              IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+              IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
               print *, NCF_RRKRE%FNAME
          CALL READRESTART(NCF_RRKRE,RRK_EOFCONTR)
-                 IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+                 IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
            print *, 'finish readrestart'
          IntTime = REF_START_TIME
          ExtTime = REF_START_TIME
@@ -1952,17 +1954,17 @@ PROGRAM FVCOM
       !==============================================================================!
       !    KALMAN FILTERING                                                          |
       !==============================================================================!
-                 IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+                 IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
                 if (msr) print *, 'finish the filter_obs_data'
       IF(IntTime>=RRK_START_TIME .AND. IntTime<=RRK_END_TIME) THEN
          IF(IntTime == RRK_CYC) THEN
             CALL PRINT_TIME(IntTime,IPT,"DOING RRK_RRKF")
 #if defined (MULTIPROCESSOR)
-           IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+           IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 #endif 
                 CALL filter_obs_data
 #if defined (MULTIPROCESSOR)
-                 IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+                 IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 #endif
             CALL set_rrkf_assim_data
                print *, 'kf observation location is:', nloc
@@ -1971,7 +1973,7 @@ PROGRAM FVCOM
             CALL RRK_RRKF
                end if
            call deallocate_obs_data
-           IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+           IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
            print *, 'finish rrkf'
 	    ICYC = ICYC+1
             RRK_CYC = RRK_START_TIME + (RRK_INTERVAL*ICYC)	    
@@ -2130,12 +2132,12 @@ IF (ENKF_memberCONTR ==1 ) THEN
     end do ! enkf_nens
          IF(IntTime == enkf_cyc) THEN
             CALL PRINT_TIME(IntTime,IPT,"DOING ENKF")
-           IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+           IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
               if (enkf_test) then
                call getnloc
               else 
                CALL filter_obs_data
-                 IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+                 IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
                 if (msr) print *, 'finish the filter_obs_data'
                 CALL set_enkf_assim_data
                end if
@@ -2157,7 +2159,7 @@ IF (ENKF_memberCONTR ==1 ) THEN
            if (.not. enkf_test) then
            call deallocate_obs_data
            end if 
-           IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+           IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
            ICYC = ICYC+1
             enkf_cyc = ENKF_START_TIME + (ENKF_INTERVAL*ICYC)
           END IF
@@ -2399,10 +2401,10 @@ IF (ENKF_memberCONTR ==1 ) THEN
          IF(IntTime == enkf_cyc) THEN
  
             CALL PRINT_TIME(IntTime,IPT,"DOING ENKF")
-           IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+           IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
 !               call getobsloc
                CALL filter_obs_data
-                 IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+                 IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
                 if (msr) print *, 'finish the filter_obs_data'
                 CALL set_enkf_assim_data
            IF (MSR) THEN
@@ -2413,7 +2415,7 @@ IF (ENKF_memberCONTR ==1 ) THEN
                PRINT *, 'FINISH ENKF, ',inttime
            END IF
            call deallocate_obs_data
-           IF(PAR)CALL MPI_BARRIER(MPI_COMM_WORLD,IERR)
+           IF(PAR)CALL MPI_BARRIER(MPI_FVCOM_GROUP,IERR)
            ICYC = ICYC+1
             enkf_cyc = ENKF_START_TIME + (ENKF_INTERVAL*ICYC)
           END IF

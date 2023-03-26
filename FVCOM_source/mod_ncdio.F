@@ -2041,7 +2041,7 @@ CONTAINS
 
 #  if defined (MULTIPROCESSOR)
     ! PARTITION
-    ALLOCATE(partition(G%NT)); partition=myid
+    IF(.not. IOPROC .or. .not. IOPROC_ALLOCATED) ALLOCATE(partition(G%NT)); partition=myid
     VAR  => NC_MAKE_PVAR(name='partition',values=partition,DIM1=DIM_nele)
     NULLIFY(PARTITION)
     ! THIS CAN CREATE A MEMORY LEAK - BE CAREFUL!
@@ -8104,30 +8104,32 @@ CONTAINS
 # if defined(MULTIPROCESSOR)
   IF(USE_MPI_IO_MODE) THEN
 
-     IF(MSR) THEN
+!!$     IF(MSR) THEN
+     IF(MYID_IOGROUP ==1) THEN
         DEST = IOPROCID - 1
-        CALL MPI_SEND(NSED,1,MPI_INTEGER,DEST,TAG,MPI_COMM_WORLD,IERR)
+        CALL MPI_SEND(NSED,1,MPI_INTEGER,DEST,TAG,MPI_IO_GROUP,IERR)
 
 
         DO II = 1,nsed
            
            len = len_trim(sed(ii)%sname)
-           CALL MPI_SEND(len,1,MPI_INTEGER,DEST,TAG_I+II,MPI_COMM_WORLD,IERR)
+           CALL MPI_SEND(len,1,MPI_INTEGER,DEST,TAG_I+II,MPI_IO_GROUP,IERR)
            
-           CALL MPI_SEND(sed(ii)%sname(1:len),len,MPI_CHARACTER,DEST,TAG_C+II,MPI_COMM_WORLD,IERR)
+           CALL MPI_SEND(sed(ii)%sname(1:len),len,MPI_CHARACTER,DEST,TAG_C+II,MPI_IO_GROUP,IERR)
            
         END DO
 
         
 
      ELSEIF(IOPROC) THEN
-        SOURCE = MSRID -1
-        CALL MPI_RECV(NSED,1,MPI_INTEGER,SOURCE,TAG,MPI_COMM_WORLD,STAT,IERR)
+!!$        SOURCE = MSRID -1
+        SOURCE = 0
+        CALL MPI_RECV(NSED,1,MPI_INTEGER,SOURCE,TAG,MPI_IO_GROUP,STAT,IERR)
 
         DO II = 1,nsed
-           CALL MPI_RECV(len,1,MPI_INTEGER,SOURCE,TAG_I+II,MPI_COMM_WORLD,STAT,IERR)
+           CALL MPI_RECV(len,1,MPI_INTEGER,SOURCE,TAG_I+II,MPI_IO_GROUP,STAT,IERR)
            
-           CALL MPI_RECV(sed(ii)%sname,len,MPI_CHARACTER,SOURCE,TAG_C+II,MPI_COMM_WORLD,STAT,IERR)
+           CALL MPI_RECV(sed(ii)%sname,len,MPI_CHARACTER,SOURCE,TAG_C+II,MPI_IO_GROUP,STAT,IERR)
            
            sed(ii)%sname = sed(ii)%sname(1:len)
            
@@ -8142,30 +8144,32 @@ CONTAINS
 # if defined(MULTIPROCESSOR)
   IF(USE_MPI_IO_MODE) THEN
 
-     IF(MSR) THEN
+!!$     IF(MSR) THEN
+     IF(MYID_IOGROUP == 1) THEN
         DEST = IOPROCID - 1
-        CALL MPI_SEND(NSED,1,MPI_INTEGER,DEST,TAG,MPI_COMM_WORLD,IERR)
+        CALL MPI_SEND(NSED,1,MPI_INTEGER,DEST,TAG,MPI_IO_GROUP,IERR)
 
 
         DO II = 1,nsed
 
            len = len_trim(sed(ii)%sname2)
-           CALL MPI_SEND(len,1,MPI_INTEGER,DEST,TAG_I+II,MPI_COMM_WORLD,IERR)
+           CALL MPI_SEND(len,1,MPI_INTEGER,DEST,TAG_I+II,MPI_IO_GROUP,IERR)
 
-           CALL MPI_SEND(sed(ii)%sname2(1:len),len,MPI_CHARACTER,DEST,TAG_C+II,MPI_COMM_WORLD,IERR)
+           CALL MPI_SEND(sed(ii)%sname2(1:len),len,MPI_CHARACTER,DEST,TAG_C+II,MPI_IO_GROUP,IERR)
 
         END DO
 
 
 
      ELSEIF(IOPROC) THEN
-        SOURCE = MSRID -1
-        CALL MPI_RECV(NSED,1,MPI_INTEGER,SOURCE,TAG,MPI_COMM_WORLD,STAT,IERR)
+!!$        SOURCE = MSRID -1
+        SOURCE = 0
+        CALL MPI_RECV(NSED,1,MPI_INTEGER,SOURCE,TAG,MPI_IO_GROUP,STAT,IERR)
 
         DO II = 1,nsed
-           CALL MPI_RECV(len,1,MPI_INTEGER,SOURCE,TAG_I+II,MPI_COMM_WORLD,STAT,IERR)
+           CALL MPI_RECV(len,1,MPI_INTEGER,SOURCE,TAG_I+II,MPI_IO_GROUP,STAT,IERR)
 
-           CALL MPI_RECV(sed(ii)%sname2,len,MPI_CHARACTER,SOURCE,TAG_C+II,MPI_COMM_WORLD,STAT,IERR)
+           CALL MPI_RECV(sed(ii)%sname2,len,MPI_CHARACTER,SOURCE,TAG_C+II,MPI_IO_GROUP,STAT,IERR)
 
            sed(ii)%sname2 = sed(ii)%sname2(1:len)
 
@@ -8662,9 +8666,10 @@ SUBROUTINE GENMAP_SUBDOMAIN(EID_L,NID_L,LG)
   LG%KBM1 = KBM1
 
   ! SET FOR IOPROC!
-  SENDER = MSRID -1
-  CALL MPI_BCAST(LG%MGL,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
-  CALL MPI_BCAST(LG%NGL,1,MPI_INTEGER,SENDER,MPI_COMM_WORLD,IERR)
+!!$  SENDER = MSRID -1
+  SENDER = 0
+  CALL MPI_BCAST(LG%MGL,1,MPI_INTEGER,SENDER,MPI_IO_GROUP,IERR)
+  CALL MPI_BCAST(LG%NGL,1,MPI_INTEGER,SENDER,MPI_IO_GROUP,IERR)
 
 
   IF(.NOT. IOPROC) THEN
@@ -9365,17 +9370,21 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 !=============================================================  
 !=============================================================  
 !=============================================================      
-  SUBROUTINE SETUP_MPI_IO_MODE(TF,COMMGRP) 
+  SUBROUTINE SETUP_MPI_IO_MODE(TF,COMMGRP,IOGROUP) 
     !===================================================================================|
     !  INITIALIZE MPI ENVIRONMENT                                                       |
     !===================================================================================|
+    IMPLICIT NONE
     LOGICAL, INTENT(INOUT) :: TF
     INTEGER, INTENT(OUT)   :: COMMGRP
-    INTEGER :: total_group  
-    INTEGER :: fvcom_group
-    INTEGER :: SBUF,RBUF, trueval, i
+    INTEGER, INTENT(OUT)   :: IOGROUP
+    INTEGER  IO_PROCS_REAL
+!!$    INTEGER :: total_group  
+!!$    INTEGER :: fvcom_group
+    INTEGER :: SBUF,RBUF, trueval, i, j, k
     INTEGER, allocatable :: fvcom_subset(:)
     INTEGER IERR
+    INTEGER rest, av_procs, latter
 
 
     if(DBG_SET(dbg_sbr)) &
@@ -9390,57 +9399,98 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
     end if
 
     IF (TF) THEN
-
+       ! THE VALUE OF IO_PROCESSORS CAN"T BE SET TOO LARGE OR MINUS
+       IO_PROCS_REAL = IO_PROCESSORS
+       IF (IO_PROCS_REAL .LE. 0 ) IO_PROCS_REAL = 1
+       IF ( IO_PROCS_REAL .GE. NPROCS-IO_PROCS_REAL) THEN
+         IO_PROCS_REAL = NPROCS-IO_PROCS_REAL
+         IF(NPROCS-IO_PROCS_REAL .LT. 3) THEN
+           IO_PROCS_REAL = 1
+         ENDIF
+       ENDIF
+       	  	   
 # if defined (MULTIPROCESSOR)
        ! MODIFY CONTROL VARIABLE EFFECTED BY THE USE OF MPI IO MODE
        NULLIFY(NPROCS_TOTAL)
        ALLOCATE(NPROCS_TOTAL)
        NPROCS_TOTAL = NPROCS
 
-       IOPROCID = NPROCS
+!!$       IOPROCID = NPROCS
 
        IOPROC=.FALSE.
-       IF(MYID==NPROCS) IOPROC=.TRUE.
+!!$       IF(MYID==NPROCS) IOPROC=.TRUE.
+       IF(MYID .GT. NPROCS-IO_PROCS_REAL) IOPROC=.TRUE.
 
-       ! NOW REDUCE THE NUMBER OF PROCESSORS BY ONE
-       NPROCS= NPROCS - 1
+!!$       ! NOW REDUCE THE NUMBER OF PROCESSORS BY ONE
+!!$       NPROCS= NPROCS - 1
+       ! NOW REDUCE THE NUMBER OF PROCESSORS BY IO_PROCS_REAL
+       NPROCS= NPROCS - IO_PROCS_REAL
 
-       ! RETURN HANDLE TO LIST OF GROUPS
-       call mpi_comm_group(mpi_comm_world,total_group,ierr)
+!!$       ! RETURN HANDLE TO LIST OF GROUPS
+!!$       call mpi_comm_group(MPI_FVCOM_GROUP,total_group,ierr)
 
        !first: define subset
-       !comp procs will have process_id/myid:  0-->(nprocs-1)/1-->nprocs
-       !mr_printy  will have process_id/myid:  nprocs/nprocs_tot
-       allocate(fvcom_subset(nprocs)) ; fvcom_subset = 0
-       do i=1,nprocs
-          fvcom_subset(i) = i-1
+       allocate(fvcom_subset(nprocs_total)) ; fvcom_subset = 0
+       do i=1,nprocs_total
+          if (i .LE. NPROCS) then
+             fvcom_subset(i) = 0
+          else	     
+             fvcom_subset(i) = 1
+          endif	     
        end do
-       call mpi_group_incl(total_group,nprocs,fvcom_subset,fvcom_group,ierr)
-       call mpi_comm_create(mpi_comm_world,fvcom_group,COMMGRP,ierr)
+       
+
+!!$       call mpi_group_incl(total_group,nprocs,fvcom_subset,fvcom_group,ierr)
+!!$       call mpi_comm_create(MPI_FVCOM_GROUP,fvcom_group,COMMGRP,ierr)
+       CALL MPI_comm_split(mpi_comm_fvcom, fvcom_subset(myid),myid,COMMGRP,ierr)
+       CALL MPI_comm_size(COMMGRP,NPROCS_FVCOM,ierr)
+       CALL MPI_comm_rank(COMMGRP,myid_fgroup,ierr)
+       myid_fgroup = myid_fgroup + 1
+ 
+       rest=mod(NPROCS,IO_PROCS_REAL)
+       av_procs=NPROCS/IO_PROCS_REAL
+       k=1
+       latter=0
+       do i=1,IO_PROCS_REAL
+          do j=1,av_procs+min(rest,1)
+             fvcom_subset(j+latter) = k
+          enddo
+          fvcom_subset(i+NPROCS) = k
+          latter = j+latter-1
+          if (rest .gt. 0) rest = rest-1
+          k = k+1
+       enddo          
+       CALL MPI_comm_split(mpi_comm_fvcom, fvcom_subset(myid),myid,IOGROUP,ierr)
+       CALL MPI_comm_size(IOGROUP,nprocs_io,ierr)
+       CALL MPI_comm_rank(IOGROUP,myid_iogroup,ierr)
+       myid_iogroup = myid_iogroup+1
+       IOPROCID = nprocs_io
+       allocate(NIO_LIST(nprocs_io))
+       CALL MPI_allgather(MYID,1,MPI_INTEGER,NIO_LIST,1,MPI_INTEGER,IOGROUP,ierr)
        deallocate(fvcom_subset)
 
 
-       call mpi_barrier(mpi_comm_world,ierr)
+       call mpi_barrier(MPI_COMM_FVCOM,ierr)
 
-       IF(.not. IOPROC) then
-          sbuf = myid
-          rbuf = 0
-          call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,COMMGRP,ierr)
+!!$       IF(.not. IOPROC) then
+       sbuf = myid_fgroup
+       rbuf = 0
+       call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,COMMGRP,ierr)
 
-          trueval = 0
-          do i=1,nprocs
-             trueval = trueval + i
-          end do
+       trueval = 0
+       do i=1,nprocs_fvcom
+          trueval = trueval + i
+       end do
           
-          if( trueval .NE. rbuf) &
-               & CALL FATAL_ERROR("TESTING GROUP COMMUNICATION FOR MPI &
-               &IO MODE FAILED")
-       END IF
+       if( trueval .NE. rbuf) &
+           & CALL FATAL_ERROR("TESTING GROUP COMMUNICATION FOR MPI &
+           &IO MODE FAILED")
+!!$       END IF
        
        
        sbuf = myid 
        rbuf = 0
-       call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,MPI_COMM_WORLD,ierr)
+       call mpi_allreduce(sbuf,rbuf,1,mpi_integer,mpi_sum,MPI_COMM_FVCOM,ierr)
 
        trueval = 0
        do i=1,nprocs_total
@@ -9460,11 +9510,34 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
        ! MUST SET INTENT(OUT) COMMGRP
 # if defined (MULTIPROCESSOR)
        ! IF MULTIPROCESSOR BUT NOT MPI IO SET IT TO COMM WORLD!
-       COMMGRP = MPI_COMM_WORLD
+       COMMGRP = MPI_COMM_FVCOM
+       IOGROUP = MPI_COMM_FVCOM
+       NPROCS_IO = NPROCS
+       MYID_IOGROUP = MYID
+       MYID_FGROUP = MYID
+       IOPROCID = 1
+       NPROCS_TOTAL = NPROCS
+       NPROCS_FVCOM = NPROCS
+       ALLOCATE(NIO_LIST(NPROCS_IO))
+       DO I = 1, NPROCS_IO
+         NIO_LIST(I) = I
+       END DO
+       IOPROC = .FALSE.	 
 # else
        ! IF NOT MULTIPROCESSOR SET A DUMMY VALUE
        COMMGRP = -999
-
+       IOGROUP = -999
+       NPROCS_IO = NPROCS
+       MYID_IOGROUP = MYID
+       MYID_FGROUP = MYID
+       IOPROCID = 1
+       NPROCS_TOTAL = NPROCS
+       NPROCS_FVCOM = NPROCS
+       ALLOCATE(NIO_LIST(NPROCS_IO))
+       DO I = 1, NPROCS_IO
+         NIO_LIST(I) = I
+       END DO
+       IOPROC = .FALSE.	 
 # endif
 
 
@@ -9493,7 +9566,7 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
     IN_MPI_IO_LOOP = .TRUE.
 
-    if (MYID .NE. IOPROCID) then
+    if (MYID_IOGROUP .NE. IOPROCID) then
        IF(DBG_SET(DBG_LOG))THEN
           WRITE(IPT,*) "!++++++++++++++++++++++++++++++++++"
           WRITE(IPT,*) "! I AM NOT THE IO PROC:"
@@ -9528,9 +9601,9 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
        STAT=0
 !       SOURCE = MPI_ANY_SOURCE ! ALLOW ANY PROCESSOR TO COMMUNICATE WITH THE IO PROC
-       SOURCE = 0 ! ONLY THE MASTER CAN COMMMUNCATE WITH IO PROC
+       SOURCE = 0 ! ONLY THE MASTER OF IO_GROUP CAN COMMMUNCATE WITH IO PROC
        CALL MPI_RECV(RBUF,1,MPI_INTEGER,SOURCE&
-            &,SYNC_TAG,MPI_COMM_WORLD,STAT,IERR)
+            &,SYNC_TAG,MPI_IO_GROUP,STAT,IERR)
 
        select case(RBUF)
        case(EXT_CODE)
@@ -9545,7 +9618,7 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
           IF(DBG_SET(DBG_IO)) write(IPT,*) "OTHER PROCS WAITING FOR ME:"
 
-          Call mpi_barrier(mpi_comm_world,ierr)
+          Call mpi_barrier(MPI_IO_GROUP,ierr)
 
           IF(DBG_SET(DBG_IO)) write(IPT,*) "FINISHED WRITING LAST FILE: GO"
 
@@ -9553,7 +9626,7 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
           IF(DBG_SET(DBG_IO)) write(IPT,*) "IO PROC GOT GO FOR CALL:",RBUF
 
-          Call mpi_barrier(mpi_comm_world,ierr)
+          Call mpi_barrier(MPI_IO_GROUP,ierr)
 
           IF(DBG_SET(DBG_IO)) write(IPT,*) "IO PROC SINKED FOR GO"
 
@@ -9584,7 +9657,7 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
 
 
 
-    IF (MYID .EQ. IOPROCID) CALL FATAL_ERROR("IO PROC SHOULD NEVER&
+    IF (MYID_IOGROUP .EQ. IOPROCID) CALL FATAL_ERROR("IO PROC SHOULD NEVER&
          & BE IN MPI_IO_SYNCHRONIZE")
 
 
@@ -9593,35 +9666,35 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
     select CASE(CODE)
     case(WAIT_CODE)
 
-       if (MYID==1) then
+       if (MYID_IOGROUP==1) then
           IF(DBG_SET(DBG_IO)) write(IPT,*) "MASTER SENDING: WAIT_CODE"
           CALL MPI_SEND(CODE,1,MPI_INTEGER,IOPROCID-1,SYNC_TAG&
-               &,MPI_COMM_WORLD,IERR)
+               &,MPI_IO_GROUP,IERR)
        else
           IF(DBG_SET(DBG_IO)) write(IPT,*) "WAITING FOR IO PROC"
        end if
 
-       call mpi_barrier(mpi_comm_world,ierr)
+       call mpi_barrier(MPI_IO_GROUP,ierr)
 
        IF(DBG_SET(DBG_IO)) write(IPT,*) "IO PROC HAS FINISHED LAS&
             &T WRITE COMMAND"
 
     case default
 
-       if (MYID==1) then
+       if (MYID_IOGROUP==1) then
           IF(DBG_SET(DBG_IO)) write(IPT,*) "MASTER SENDING GO CODE:",CODE
-          CALL MPI_SEND(CODE,1,MPI_INTEGER,IOPROCID-1,SYNC_TAG,MPI_COMM_WORLD,IERR)
+          CALL MPI_SEND(CODE,1,MPI_INTEGER,IOPROCID-1,SYNC_TAG,MPI_IO_GROUP,IERR)
        else
           IF(DBG_SET(DBG_IO)) write(IPT,*) "WAITING FOR IO PROC"
        end if
 
-       call mpi_barrier(mpi_comm_world,ierr)
+       call mpi_barrier(MPI_IO_GROUP,ierr)
 
-          call CALL_FUNC(CODE,status)
-          IF (status/=0) call fatal_error("MPI_IO_SYNCHRONIZE: Bad go code",&
-               & "Could not retrieve valid function pointer?")
+       call CALL_FUNC(CODE,status)
+       IF (status/=0) call fatal_error("MPI_IO_SYNCHRONIZE: Bad go code",&
+           & "Could not retrieve valid function pointer?")
 
-          IF(DBG_SET(DBG_IO)) write(IPT,*) "FINISHED MPI_IO CALL!"
+       IF(DBG_SET(DBG_IO)) write(IPT,*) "FINISHED MPI_IO CALL!"
 
     end select
 

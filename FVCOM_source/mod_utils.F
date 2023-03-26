@@ -28,7 +28,7 @@
 
 module mod_utils
   USE MOD_PREC
-  use CONTROL, only: IPT,TPI, DEG2RAD
+  use CONTROL, only: IPT,TPI, DEG2RAD, MPI_FVCOM_GROUP
   implicit none
   save
   
@@ -169,9 +169,13 @@ CONTAINS
          ZEROTIME%MUSOD = 0
            ZEROTIME%MJD = 0
 # if defined(MULTIPROCESSOR)
-        MPI_FVCOM_GROUP = MPI_COMM_WORLD ! FOR NOW MAKE THEM EQUAL
+        MPI_COMM_FVCOM  = MPI_COMM_WORLD ! FOR NOW MAKE THEM EQUAL
+        MPI_FVCOM_GROUP = MPI_COMM_FVCOM ! FOR NOW MAKE THEM EQUAL
+        MPI_IO_GROUP    = MPI_COMM_FVCOM ! FOR NOW MAKE THEM EQUAL
 # else
+        MPI_COMM_FVCOM  = -1
         MPI_FVCOM_GROUP = -1
+        MPI_IO_GROUP    = -1
 # endif
   END SUBROUTINE INITIALIZE_CONTROL
 
@@ -271,14 +275,14 @@ CONTAINS
     !==============================================================================|
 # if defined (MULTIPROCESSOR)
     USE LIMS, ONLY: IOPROCID
-    use CONTROL, only: IN_MPI_IO_LOOP, MSR
+    use CONTROL, only: IN_MPI_IO_LOOP,MPI_COMM_FVCOM,MSR
 
     INTEGER :: IERR, RECV, Ecode
 
 !    if(IN_MPI_IO_LOOP)then
 !       RECV = IOPROCID -1
 !       CALL MPI_SEND(EXT_CODE,1,MPI_INTEGER,RECV,SYNC_TAG &
-!            &,MPI_COMM_WORLD,IERR)
+!            &,MPI_COMM_FVCOM,IERR)
 !    end if
 
     ! MPI_ABORT SHOULD CLEAR ALL COMMUNICATION
@@ -286,7 +290,8 @@ CONTAINS
     ! where one processor hits a mpi_abort or mpi_finalize.
 
     ecode = -1
-    CALL MPI_ABORT(MPI_COMM_WORLD,ecode,IERR)
+!    CALL MPI_ABORT(MPI_COMM_WORLD,ecode,IERR)
+    CALL MPI_ABORT(MPI_COMM_FVCOM,ecode,IERR)
 
     CALL MPI_FINALIZE(IERR)
 # endif
@@ -298,14 +303,15 @@ CONTAINS
   SUBROUTINE PSHUTDOWN               
     !==============================================================================|
 # if defined (MULTIPROCESSOR)
-    USE LIMS, ONLY: IOPROCID
-    use CONTROL, only: IN_MPI_IO_LOOP, MSR
+    USE LIMS, ONLY: IOPROCID, MYID_IOGROUP
+    use CONTROL, only: IN_MPI_IO_LOOP, MSR, MPI_IO_GROUP
     INTEGER IERR, RECV
 
-    if(IN_MPI_IO_LOOP .AND. MSR)then
+!    if(IN_MPI_IO_LOOP .AND. MSR)then
+    if(IN_MPI_IO_LOOP .AND. MYID_IOGROUP == 1)then
        RECV = IOPROCID -1
        CALL MPI_SEND(EXT_CODE,1,MPI_INTEGER,RECV,SYNC_TAG &
-            &,MPI_COMM_WORLD,IERR)
+            &,MPI_IO_GROUP,IERR)
     end if
 
     CALL MPI_FINALIZE(IERR)

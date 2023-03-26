@@ -507,7 +507,7 @@ MODULE MOD_WQM
                                                                                                                            
    MEMTOT = MEMCNT*4
 # if defined (MULTIPROCESSOR)
-   IF(PAR)CALL MPI_REDUCE(MEMCNT,MEMTOT,1,MPI_F,MPI_SUM,0,MPI_COMM_WORLD,IERR)
+   IF(PAR)CALL MPI_REDUCE(MEMCNT,MEMTOT,1,MPI_F,MPI_SUM,0,MPI_FVCOM_GROUP,IERR)
 # endif
    IF(MSR)WRITE(IPT,*)'!  # WQM MBYTES REQUIRED :',MEMTOT/1E+6
    IF(MSR .AND. .NOT.SERIAL )WRITE(IPT,*)'!  # AVERAGE MBYTES/PROC :',MEMTOT/(1E+6*NPROCS)
