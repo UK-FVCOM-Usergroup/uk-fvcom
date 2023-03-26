@@ -5505,6 +5505,12 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:ISWETCE")
        ISWETCE = 0
 
+!qxu{for inundation maps
+       allocate(INUNDATION_MAPS(NGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:INUNDATION_MAPS")
+       INUNDATION_MAPS = 0
+!qxu}
+
 
     END IF
 
@@ -5624,6 +5630,22 @@ CONTAINS
 
     NCF  => ADD(NCF,VAR)
 
+!qxu{for inundation maps
+    ! INUNDATION CELLS
+    VAR  => NC_MAKE_AVAR(name='inundation_cells',&
+         & values=INUNDATION_MAPS, DIM1= DIM_nele, DIM2= DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Inundation_Cells')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+!qxu}
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END WET_DRY_FILE_OBJECT"
     

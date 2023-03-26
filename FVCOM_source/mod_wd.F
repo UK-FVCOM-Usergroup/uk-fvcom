@@ -45,6 +45,9 @@ MODULE MOD_WD
    REAL(SP), ALLOCATABLE :: DELF(:)         
    REAL(SP), ALLOCATABLE :: DELF1(:)
 
+!qxu{for inundation maps
+   INTEGER , ALLOCATABLE :: INUNDATION_MAPS(:)         !!is flooding cell for Time N
+!qxu}
 !!   REAL(SP), ALLOCATABLE :: UAS(:)          !!VERT-AVGD X-VELOC USED FOR MASS CONS IN FLOODING/DRYING PROCESS
 !!   REAL(SP), ALLOCATABLE :: VAS(:)          !!VERT-AVGD Y-VELOC USED FOR MASS CONS IN FLOODING/DRYING PROCESS
 !!   REAL(SP), ALLOCATABLE :: UARDS(:)        !!UA AVGD OVER EXT INT FOR MASS CONS IN FLOODING/DRYING PROCESS
@@ -172,6 +175,9 @@ MODULE MOD_WD
    ALLOCATE(ISWETNT(0:MT))       ; ISWETNT    = 1
    ALLOCATE(ISWETCT(0:NT))       ; ISWETCT    = 1
    ALLOCATE(ISWETCE(0:NT))       ; ISWETCE    = 1
+!qxu{for inundation maps
+   ALLOCATE(INUNDATION_MAPS(0:NT))      ; INUNDATION_MAPS   = 1
+!qxu}
 
    memcnt = memcnt + 3*NT + 2*MT
 
@@ -281,6 +287,14 @@ MODULE MOD_WD
      DELF1(I) = ELF1(I)-TMP1(I)
    END DO
 
+!qxu{for inundation maps
+!--Flood cells-----------------------------------------------------------------!
+!
+   INUNDATION_MAPS = 0
+   WHERE (H1 < 0.0 )
+     INUNDATION_MAPS = ISWETC
+   END WHERE
+!qxu}       
 !
 !--Extend Element/Node Based Wet/Dry Flags to Domain Halo----------------------!
 !
@@ -291,6 +305,9 @@ MODULE MOD_WD
      CALL AEXCHANGE(NC,MYID,NPROCS,ISWETN)
      CALL AEXCHANGE(EC,MYID,NPROCS,DELF1)
      CALL AEXCHANGE(NC,MYID,NPROCS,DELF)
+!qxu{for inundation maps
+     CALL AEXCHANGE(EC,MYID,NPROCS,INUNDATION_MAPS)
+!qxu}
 
    END IF
 #  endif

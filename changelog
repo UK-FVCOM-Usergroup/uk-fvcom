@@ -51,3 +51,6 @@ coare40vn.F, mod_interp.F
 
 Tidy up continues and error messages
 bcond_gcn.F, bcond_gcy.F, internal_step.F, mod_assim.F,  mod_bio_3D.F, mod_dam.F,  mod_enkf.F, mod_enkf_obs.F, mod_enkfassim.F, mod_esmf_nesting.F, mod_etkf.F, mod_flocmod.F, mod_input.F, mod_interp.F, mod_lag.F, mod_nesting.F, mod_non_hydro.F, mod_obcs.F, mod_pwp.F, mod_rrk.F, mod_rrkassim.F, mod_rrkf_obs.F, mod_semi_implicit.F, mod_sng.F, mod_solar.F, mod_utils.F, mod_wqm.F, ocpcre.F, ocpids.F, ocpmix.F, swancom1.F, swancom2.F, swancom3.F, swancom4.F, swancom5.F, swanmain.F, swanser.F, swmod3.F
+
+Add inundation maps
+mod_ncdio.F, mod_wd.F
