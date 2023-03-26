@@ -226,6 +226,9 @@ END SUBROUTINE NC_INIT
 !====================================================================
 !====================================================================
 SUBROUTINE NC_OPEN(NCF)
+# if defined (PIO)
+  USE CONTROL, ONLY : USE_MPI_IO_MODE
+# endif  
   IMPLICIT NONE
   TYPE(NCFILE), intent(inout) :: NCF
   CHARACTER(LEN=120)          :: errmsg
@@ -234,12 +237,20 @@ SUBROUTINE NC_OPEN(NCF)
        & write(IPT,*) "STARTING NC_OPEN"
 
   if (NCF%WRITABLE) then
-     errmsg="File named: "//NCF%fname//"; Can not be opened by nf90_open"
+     errmsg="File named: "//NCF%fname//"; Can not be opend by nf90_open"
+#if defined (PIO)
+     IF(NPROCS_FVCOM > 1 .and. USE_MPI_IO_MODE) THEN
+        status = nf90_open(trim(NCF%fname),IOR(NF90_WRITE,NF90_MPIIO),NCF%ncid, comm = MPI_FVCOM_GROUP,info = MPI_INFO_NULL)
+     ELSE
+        status = nf90_open(trim(NCF%fname),NF90_WRITE,NCF%ncid)
+     ENDIF
+#else
      status = nf90_open(trim(NCF%fname), NF90_WRITE, NCF%ncid)
+#endif
      CALL HANDLE_NCERR(status,trim(errmsg))
      
   else  ! default is open with nf90_nowrite
-     errmsg="File: "//TRIM(NCF%fname)//"; Can not be opened by nf90_open"
+     errmsg="File: "//TRIM(NCF%fname)//"; Can not be opend by nf90_open"
      status = nf90_open(TRIM(NCF%fname), nf90_noWrite, NCF%ncid)
      CALL HANDLE_NCERR(status,TRIM(errmsg))
   end if
@@ -255,19 +266,49 @@ END SUBROUTINE NC_OPEN
 !====================================================================
 !====================================================================
 SUBROUTINE NC_CREATE(NCF)
+# if defined (PIO)
+  USE CONTROL, ONLY : USE_MPI_IO_MODE
+# endif  
   IMPLICIT NONE
   TYPE(NCFILE), intent(inout) :: NCF
-  CHARACTER(LEN=120)          :: errmsg
+  CHARACTER(LEN=120)          :: errmsg,libnetcdf
   integer :: status
   if(DBG_SET(dbg_sbr)) &
        & write(IPT,*) "STARTING NC_CREATE"
 
+  libnetcdf = trim(nf90_inq_libvers())
   errmsg="File named: "//NCF%fname//"; Can not be created by nf90_create"
-#if defined NETCDF4_COMPRESSION
-  status = nf90_create(trim(NCF%fname),NF90_HDF5,NCF%ncid)
-#else
+# if defined (PIO)
+# if defined (USE_NETCDF4)
+  if(libnetcdf(1:1) /= '4') CALL FATAL_ERROR("The version of NetCDF is old.",&
+               & "Please use NetCDF4.")
+  IF(NPROCS_FVCOM > 1 .and. USE_MPI_IO_MODE) THEN
+    status = nf90_create(trim(NCF%fname),IOR(NF90_NETCDF4,NF90_MPIIO), &
+                         NCF%ncid,comm=MPI_FVCOM_GROUP,info=MPI_INFO_NULL)
+  ELSE
+    status = nf90_create(trim(NCF%fname),NF90_NETCDF4,NCF%ncid)
+  ENDIF
+# else
+!  if(libnetcdf(1:1) == '4') CALL FATAL_ERROR("The version of NetCDF is 4.",&
+!               & "Please use NetCDF3.")
+  IF(NPROCS_FVCOM > 1 .and. USE_MPI_IO_MODE) THEN
+    status = nf90_create(trim(NCF%fname),IOR(NF90_64BIT_OFFSET,NF90_MPIIO), &
+                         NCF%ncid,comm=MPI_FVCOM_GROUP,info=MPI_INFO_NULL)
+  ELSE
+    status = nf90_create(trim(NCF%fname),NF90_64BIT_OFFSET,NCF%ncid)
+  ENDIF
+# endif
+# else
+# if defined (USE_NETCDF4)
+  if(libnetcdf(1:1) /= '4') CALL FATAL_ERROR("The version of NetCDF is old.",&
+               & "Please use NetCDF4.")
+  status = nf90_create(trim(NCF%fname),NF90_NETCDF4,NCF%ncid)
+# else
+!  if(libnetcdf(1:1) == '4') CALL FATAL_ERROR("The version of NetCDF is 4.",&
+!               & "Please use NetCDF3.")
   status = nf90_create(trim(NCF%fname),NF90_64BIT_OFFSET,NCF%ncid)
-#endif
+# endif
+# endif
   if(status/= nf90_eexist)then
      CALL HANDLE_NCERR(status,trim(errmsg))
   else
@@ -3901,7 +3942,7 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
   TYPE(NCFILE), pointer :: NCFP
 
   integer, POINTER :: dimids(:)
-  integer :: status,deflate_status,i
+  integer :: status,i
   CHARACTER(LEN=120)     :: errmsg
   LOGICAL FOUND
 
@@ -3926,21 +3967,10 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
      status = nf90_def_var(NCF%ncid, trim(VAR%varname), NF90_FLOAT,&
           & dimids, i)
 
-#if defined NETCDF4_COMPRESSION
-     ! pica: Add compression (level = 7, no shuffling)
-     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 7)
-#endif
-
   ELSE
 
      status = nf90_def_var(NCF%ncid, trim(VAR%varname), VAR%xtype,&
           & dimids, i)
-
-#if defined NETCDF4_COMPRESSION
-     ! pica: Add compression (level = 7, no shuffling)
-     deflate_status = nf90_def_var_deflate(NCF%ncid, i, 0, 1, 7)
-#endif
-
   END IF
      
 #else
@@ -3948,9 +3978,18 @@ SUBROUTINE NC_DEF_VAR(NCF,varid)
           & dimids, i)
 # endif
 
-
   errmsg="NF90_DEF_VAR: ERROR"
   CALL HANDLE_NCERR(status,trim(errmsg))
+
+# if defined (USE_NETCDF4) && (USE_COMPRESSION)
+  status = nf90_def_var_deflate(NCF%ncid, i,          &
+                                shuffle = 1,          &
+                                deflate = 1,          &
+                                deflate_level = 9  )
+
+  errmsg="NF90_DEF_VAR_DEFLATE: ERROR"
+  CALL HANDLE_NCERR(status,trim(errmsg))
+# endif
 
   DEALLOCATE(DIMIDS)
   NULLIFY(DIMIDS)
@@ -4241,6 +4280,11 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
 
  ! NF90 SUBSET VARIABLES
   INTEGER, POINTER :: NSTART(:), NCOUNT(:), NSTRIDE(:)
+#if defined (PIO)
+ ! NF90 SUBSET VARIABLES FOR PARALLEL IO  
+  INTEGER, ALLOCATABLE :: NSTART_PIO(:), NCOUNT_PIO(:), NSTRIDE_PIO(:)
+  INTEGER PARTITION_PIO,rest_PIO
+#endif  
   ! The size of the data returned by nf90_get/put_var
   INTEGER, POINTER :: RDIMS(:)
   ! TEMPORARY VARIABLES ONLY USED FOR VEC_CHR
@@ -4287,11 +4331,13 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
   INTEGER, POINTER,DIMENSION(:,:) :: GARR_INT
   INTEGER, POINTER,DIMENSION(:,:,:) :: GCUB_INT
   INTEGER, POINTER,DIMENSION(:,:,:,:) :: GFDA_INT
+  INTEGER, ALLOCATABLE :: GVEC_INT_temp(:),GARR_INT_temp(:,:),GCUB_INT_temp(:,:,:),GFDA_INT_temp(:,:,:,:)
 
   INTEGER, POINTER,DIMENSION(:)   :: LVEC_INT
   INTEGER, POINTER,DIMENSION(:,:) :: LARR_INT
   INTEGER, POINTER,DIMENSION(:,:,:) :: LCUB_INT
   INTEGER, POINTER,DIMENSION(:,:,:,:) :: LFDA_INT
+
   
   REAL(SPA), POINTER                :: SCL_FLT
   REAL(SPA), POINTER,DIMENSION(:)   :: LVEC_FLT
@@ -4303,6 +4349,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
   REAL(SPA), POINTER,DIMENSION(:,:) :: GARR_FLT
   REAL(SPA), POINTER,DIMENSION(:,:,:) :: GCUB_FLT
   REAL(SPA), POINTER,DIMENSION(:,:,:,:) :: GFDA_FLT
+  REAL(SPA), ALLOCATABLE :: GVEC_FLT_temp(:),GARR_FLT_temp(:,:),GCUB_FLT_temp(:,:,:),GFDA_FLT_temp(:,:,:,:)
   
   REAL(DP), POINTER                :: SCL_DBL
   REAL(DP), POINTER,DIMENSION(:)   :: GVEC_DBL
@@ -4314,6 +4361,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
   REAL(DP), POINTER,DIMENSION(:,:) :: LARR_DBL
   REAL(DP), POINTER,DIMENSION(:,:,:) :: LCUB_DBL
   REAL(DP), POINTER,DIMENSION(:,:,:,:) :: LFDA_DBL
+  REAL(DP), ALLOCATABLE :: GVEC_DBL_temp(:),GARR_DBL_temp(:,:),GCUB_DBL_temp(:,:,:),GFDA_DBL_temp(:,:,:,:)
 
   CHARACTER(LEN=80), POINTER              :: SCL_CHR
   CHARACTER(LEN=80), POINTER,DIMENSION(:) :: VEC_CHR
@@ -4326,7 +4374,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START NC_WRITE_VAR:"
 
   IF(.NOT. ASSOCIATED(VAR)) CALL FATAL_ERROR &
-       & ("NC_WRITE_VAR: Variable object argument is not associated!")
+       & ("NC_WRITE_VAR: Variable object argument is not assocaited!")
 
   ! INITIALIZE SOME MEMORY
   STATUS=0
@@ -4832,7 +4880,8 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
               IF (UBOUND(VAR%VEC_INT,1) .LT. RDIMS(1)) CALL FATAL_ERROR &
                    & ("NC_WRITE_VAR: FILE OBJECT ALLOCATED SPACE DOES NOT MATCH THE DIMENSIONS OF THE WRITE COUNT",& 
                    & "varname: "//TRIM(var%VARNAME))
-              GVEC_INT => VAR%VEC_INT(1:RDIMS(1)) 
+              GVEC_INT => VAR%VEC_INT(1:RDIMS(1))
+	      GVEC_INT = -HUGE(GVEC_INT) 
            ELSE
 
               LVEC_INT => VAR%VEC_INT
@@ -4854,10 +4903,56 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
      IF (DUMP) THEN
 
         ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
-        If(.NOT. COLLECTDATA) GVEC_INT => VAR%VEC_INT(1:RDIMS(1)) 
+!!$        If(.NOT. COLLECTDATA) GVEC_INT => VAR%VEC_INT(1:RDIMS(1)) 
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_INT,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_INT,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        If(.NOT. COLLECTDATA) GVEC_INT => VAR%VEC_INT(1:RDIMS(1))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GVEC_INT_temp(RDIMS(1)))
+            CALL MPI_ALLREDUCE(GVEC_INT,GVEC_INT_temp,RDIMS(1),MPI_INTEGER,MPI_MAX,MPI_fvcom_group,ierr)
+            GVEC_INT = GVEC_INT_temp
+            DEALLOCATE(GVEC_INT_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GVEC_INT)
+            GVEC_INT => VAR%VEC_INT(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1)
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_INT,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_INT,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_INT,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_INT,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -4931,6 +5026,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & "varname: "//TRIM(var%VARNAME))
 
               GARR_INT => VAR%ARR_INT(1:RDIMS(1),1:RDIMS(2))
+              GARR_INT = -HUGE(GARR_INT)
            ELSE
 
               IF (UBOUND(VAR%ARR_INT,2) .LT. RDIMS(2)) CALL FATAL_ERROR &
@@ -4959,8 +5055,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         If(.NOT. COLLECTDATA) GARR_INT => VAR%ARR_INT(1:RDIMS(1),1:RDIMS(2))
 !        write(ipt,*)VAR%ARR_INT(1:DIM1,1:DIM2)
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_INT,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_INT,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GARR_INT_temp(RDIMS(1),RDIMS(2)))
+            CALL MPI_ALLREDUCE(GARR_INT,GARR_INT_temp,RDIMS(1)*RDIMS(2),MPI_INTEGER,MPI_MAX,MPI_fvcom_group,ierr)
+            GARR_INT = GARR_INT_temp
+            DEALLOCATE(GARR_INT_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GARR_INT)
+            GARR_INT => VAR%ARR_INT(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_INT,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_INT,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_INT,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_INT,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5027,6 +5168,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & "varname: "//TRIM(var%VARNAME))
               
               GCUB_INT => VAR%CUB_INT(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3))
+              GCUB_INT = -HUGE(GCUB_INT)
            ELSE
 
               IF (   UBOUND(VAR%CUB_INT,2) .LT. RDIMS(2) .or. &
@@ -5055,8 +5197,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
        ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GCUB_INT => VAR%CUB_INT(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_INT,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_INT,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GCUB_INT_temp(RDIMS(1),RDIMS(2),RDIMS(3)))
+            CALL MPI_ALLREDUCE(GCUB_INT,GCUB_INT_temp,RDIMS(1)*RDIMS(2)*RDIMS(3),MPI_INTEGER,MPI_MAX,MPI_fvcom_group,ierr)
+            GCUB_INT = GCUB_INT_temp
+            DEALLOCATE(GCUB_INT_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GCUB_INT)
+            GCUB_INT => VAR%CUB_INT(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2),1:RDIMS(3))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_INT,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_INT,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_INT,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_INT,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF        
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5126,6 +5313,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & "varname: "//TRIM(var%VARNAME))
               
               GFDA_INT => VAR%FDA_INT(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
+              GFDA_INT = -HUGE(GFDA_INT)
            ELSE
 
               IF (   UBOUND(VAR%FDA_INT,2) .LT. RDIMS(2) .or. &
@@ -5155,8 +5343,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
        ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GFDA_INT => VAR%FDA_INT(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_INT,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_INT,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GFDA_INT_temp(RDIMS(1),RDIMS(2),RDIMS(3),RDIMS(4)))
+            CALL MPI_ALLREDUCE(GFDA_INT,GFDA_INT_temp,RDIMS(1)*RDIMS(2)*RDIMS(3)*RDIMS(4),MPI_INTEGER,MPI_MAX,MPI_fvcom_group,ierr)
+            GFDA_INT = GFDA_INT_temp
+            DEALLOCATE(GFDA_INT_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GFDA_INT)
+            GFDA_INT => VAR%FDA_INT(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_INT,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_INT,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_INT,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_INT,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5302,6 +5535,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & ("NC_WRITE_VAR: FILE OBJECT ALLOCATED SPACE DOES NOT MATCH THE DIMENSIONS OF THE WRITE COUNT",& 
                    & "varname: "//TRIM(var%VARNAME))
               GVEC_FLT => VAR%VEC_FLT(1:RDIMS(1))
+              GVEC_FLT = -HUGE(GVEC_FLT)
            ELSE
               LVEC_FLT => VAR%VEC_FLT
            END IF
@@ -5325,8 +5559,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         If(.NOT. COLLECTDATA) GVEC_FLT => VAR%VEC_FLT(1:RDIMS(1))
 
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_FLT,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_FLT,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GVEC_FLT_temp(RDIMS(1)))
+            CALL MPI_ALLREDUCE(GVEC_FLT,GVEC_FLT_temp,RDIMS(1),MPI_REAL,MPI_MAX,MPI_fvcom_group,ierr)
+            GVEC_FLT = GVEC_FLT_temp
+            DEALLOCATE(GVEC_FLT_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GVEC_FLT)
+            GVEC_FLT => VAR%VEC_FLT(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1)
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_FLT,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_FLT,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_FLT,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_FLT,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5402,6 +5681,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
 
               GARR_FLT => VAR%ARR_FLT(1:RDIMS(1),1:RDIMS(2))
 !              GARR_FLT => VAR%ARR_FLT
+              GARR_FLT = -HUGE(GARR_FLT)
            ELSE
 
               IF (UBOUND(VAR%ARR_FLT,2) .LT. RDIMS(2) ) CALL FATAL_ERROR &
@@ -5429,9 +5709,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GARR_FLT => VAR%ARR_FLT(1:RDIMS(1),1:RDIMS(2))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_FLT,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
-
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_FLT,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GARR_FLT_temp(RDIMS(1),RDIMS(2)))
+            CALL MPI_ALLREDUCE(GARR_FLT,GARR_FLT_temp,RDIMS(1)*RDIMS(2),MPI_REAL,MPI_MAX,MPI_fvcom_group,ierr)
+            GARR_FLT = GARR_FLT_temp
+            DEALLOCATE(GARR_FLT_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GARR_FLT)
+            GARR_FLT => VAR%ARR_FLT(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_FLT,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_FLT,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif 
+#endif 
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_FLT,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_FLT,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF        
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5500,6 +5824,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & "varname: "//TRIM(var%VARNAME))
 
               GCUB_FLT => VAR%CUB_FLT(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3))
+              GCUB_FLT = -HUGE(GCUB_FLT)
            ELSE
 
               IF (   UBOUND(VAR%CUB_FLT,2) .LT. RDIMS(2) .or. &
@@ -5528,8 +5853,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GCUB_FLT => VAR%CUB_FLT(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_FLT,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_FLT,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GCUB_FLT_temp(RDIMS(1),RDIMS(2),RDIMS(3)))
+            CALL MPI_ALLREDUCE(GCUB_FLT,GCUB_FLT_temp,RDIMS(1)*RDIMS(2)*RDIMS(3),MPI_REAL,MPI_MAX,MPI_fvcom_group,ierr)
+            GCUB_FLT = GCUB_FLT_temp
+            DEALLOCATE(GCUB_FLT_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GCUB_FLT)
+            GCUB_FLT => VAR%CUB_FLT(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2),1:RDIMS(3))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_FLT,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_FLT,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_FLT,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_FLT,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5599,6 +5969,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & "varname: "//TRIM(var%VARNAME))
 
               GFDA_FLT => VAR%FDA_FLT(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
+              GFDA_FLT = -HUGE(GFDA_FLT)
            ELSE
 
               IF (   UBOUND(VAR%FDA_FLT,2) .LT. RDIMS(2) .or. &
@@ -5613,7 +5984,8 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         END IF
         
 
-        CALL PCOLLECT(MYID,COLLECTOR,NPROCS,GMAP,LFDA_FLT,GFDA_FLT)
+!!$        CALL PCOLLECT(MYID,COLLECTOR,NPROCS,GMAP,LFDA_FLT,GFDA_FLT)
+        CALL PCOLLECT_IO(MYID,COLLECTOR,NPROCS_TOTAL,GMAP,LFDA_FLT,GFDA_FLT)
 
 # else
         CALL FATAL_ERROR("NC_WRITE_VAR: COLLECT DATA FLAG IS T&
@@ -5627,8 +5999,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GFDA_FLT => VAR%FDA_FLT(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_FLT,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_FLT,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GFDA_FLT_temp(RDIMS(1),RDIMS(2),RDIMS(3),RDIMS(4)))
+            CALL MPI_ALLREDUCE(GFDA_FLT,GFDA_FLT_temp,RDIMS(1)*RDIMS(2)*RDIMS(3)*RDIMS(4),MPI_REAL,MPI_MAX,MPI_fvcom_group,ierr)
+            GFDA_FLT = GFDA_FLT_temp
+            DEALLOCATE(GFDA_FLT_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GFDA_FLT)
+            GFDA_FLT => VAR%FDA_FLT(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_FLT,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_FLT,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_FLT,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_FLT,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5770,6 +6187,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & "varname: "//TRIM(var%VARNAME))
 
               GVEC_DBL => VAR%VEC_DBL(1:RDIMS(1))
+              GVEC_DBL = -HUGE(GVEC_DBL)
            ELSE
               LVEC_DBL => VAR%VEC_DBL
            END IF
@@ -5793,8 +6211,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GVEC_DBL => VAR%VEC_DBL(1:RDIMS(1))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_DBL,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_DBL,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GVEC_DBL_temp(RDIMS(1)))
+            CALL MPI_ALLREDUCE(GVEC_DBL,GVEC_DBL_temp,RDIMS(1),MPI_DP,MPI_MAX,MPI_fvcom_group,ierr)
+            GVEC_DBL = GVEC_DBL_temp
+            DEALLOCATE(GVEC_DBL_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GVEC_DBL)
+            GVEC_DBL => VAR%VEC_DBL(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1)
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_DBL,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_DBL,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_DBL,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GVEC_DBL,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF        
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5869,6 +6332,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & "varname: "//TRIM(var%VARNAME))
 
               GARR_DBL => VAR%ARR_DBL(1:RDIMS(1),1:RDIMS(2))
+              GARR_DBL = -HUGE(GARR_DBL)
            ELSE
 
               IF (UBOUND(VAR%ARR_DBL,2) .LT. RDIMS(2) ) CALL FATAL_ERROR &
@@ -5896,8 +6360,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GARR_DBL => VAR%ARR_DBL(1:RDIMS(1),1:RDIMS(2))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_DBL,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_DBL,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GARR_DBL_temp(RDIMS(1),RDIMS(2)))
+            CALL MPI_ALLREDUCE(GARR_DBL,GARR_DBL_temp,RDIMS(1)*RDIMS(2),MPI_DP,MPI_MAX,MPI_fvcom_group,ierr)
+            GARR_DBL = GARR_DBL_temp
+            DEALLOCATE(GARR_DBL_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GARR_DBL)
+            GARR_DBL => VAR%ARR_DBL(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_DBL,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_DBL,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_DBL,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GARR_DBL,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF 
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -5963,6 +6472,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & ("NC_WRITE_VAR: FILE OBJECT ALLOCATED SPACE DOES NOT MATCH THE DIMENSIONS OF THE WRITE COUNT",& 
                    & "varname: "//TRIM(var%VARNAME))
               GCUB_DBL => VAR%CUB_DBL(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3))
+              GCUB_DBL = -HUGE(GCUB_DBL)
            ELSE
 
               IF (   UBOUND(VAR%CUB_DBL,2) .LT. RDIMS(2) .or. &
@@ -5990,8 +6500,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GCUB_DBL => VAR%CUB_DBL(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_DBL,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_DBL,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GCUB_DBL_temp(RDIMS(1),RDIMS(2),RDIMS(3)))
+            CALL MPI_ALLREDUCE(GCUB_DBL,GCUB_DBL_temp,RDIMS(1)*RDIMS(2)*RDIMS(3),MPI_DP,MPI_MAX,MPI_fvcom_group,ierr)
+            GCUB_DBL = GCUB_DBL_temp
+            DEALLOCATE(GCUB_DBL_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GCUB_DBL)
+            GCUB_DBL => VAR%CUB_DBL(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2),1:RDIMS(3))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_DBL,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_DBL,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_DBL,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GCUB_DBL,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF        
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -6059,6 +6614,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
                    & ("NC_WRITE_VAR: FILE OBJECT ALLOCATED SPACE DOES NOT MATCH THE DIMENSIONS OF THE WRITE COUNT",& 
                    & "varname: "//TRIM(var%VARNAME))
               GFDA_DBL => VAR%FDA_DBL(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
+              GFDA_DBL = -HUGE(GFDA_DBL)
            ELSE
 
               IF (   UBOUND(VAR%FDA_DBL,2) .LT. RDIMS(2) .or. &
@@ -6087,8 +6643,53 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
         ! IF YOU ARE THE IOPROC REASSIGN THE POINTER 
         If(.NOT. COLLECTDATA) GFDA_DBL => VAR%FDA_DBL(1:RDIMS(1),1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
 
-        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_DBL,NSTART,NCOUNT,NSTRIDE)
-        CALL HANDLE_NCERR(status,trim(errmsg))
+!!$        status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_DBL,NSTART,NCOUNT,NSTRIDE)
+!!$        CALL HANDLE_NCERR(status,trim(errmsg))
+        IF ( USE_MPI_IO_MODE ) THEN
+          IF(NPROCS_fvcom > 1) THEN
+# if defined(MULTIPROCESSOR)
+            ALLOCATE(GFDA_DBL_temp(RDIMS(1),RDIMS(2),RDIMS(3),RDIMS(4)))
+            CALL MPI_ALLREDUCE(GFDA_DBL,GFDA_DBL_temp,RDIMS(1)*RDIMS(2)*RDIMS(3)*RDIMS(4),MPI_DP,MPI_MAX,MPI_fvcom_group,ierr)
+            GFDA_DBL = GFDA_DBL_temp
+            DEALLOCATE(GFDA_DBL_temp)
+#if defined (PIO)
+            allocate(NSTART_PIO(size(NSTART)))
+            allocate(NCOUNT_PIO(size(NCOUNT)))
+            allocate(NSTRIDE_PIO(size(NSTRIDE)))
+            NSTART_PIO=NSTART
+            NCOUNT_PIO=NCOUNT
+            NSTRIDE_PIO=NSTRIDE
+            PARTITION_PIO=NCOUNT_PIO(1)/NPROCS_fvcom
+            rest_PIO= MOD(NCOUNT_PIO(1),NPROCS_fvcom)
+            IF (MYID_fgroup <= rest_PIO ) THEN
+              NSTART_PIO(1)=(PARTITION_PIO+1)*(MYID_fgroup-1)+1
+              NCOUNT_PIO(1)=PARTITION_PIO+1
+            ELSE
+              NSTART_PIO(1)=PARTITION_PIO*(MYID_fgroup-1)+rest_PIO+1
+              NCOUNT_PIO(1)=PARTITION_PIO
+            ENDIF
+            nullify(GFDA_DBL)
+            GFDA_DBL => VAR%FDA_DBL(NSTART_PIO(1):NSTART_PIO(1)+NCOUNT_PIO(1)-1,1:RDIMS(2),1:RDIMS(3),1:RDIMS(4))
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_DBL,NSTART_PIO,NCOUNT_PIO,NSTRIDE_PIO)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+            deallocate(NSTART_PIO)
+            deallocate(NCOUNT_PIO)
+            deallocate(NSTRIDE_PIO)
+#else
+            IF(MYID_fgroup == 1) THEN
+              status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_DBL,NSTART,NCOUNT,NSTRIDE)
+              CALL HANDLE_NCERR(status,trim(errmsg))
+            ENDIF
+#endif
+#endif
+          ELSE
+            status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_DBL,NSTART,NCOUNT,NSTRIDE)
+            CALL HANDLE_NCERR(status,trim(errmsg))
+          ENDIF
+        ELSE
+          status = NF90_PUT_VAR(VAR%NCID,VAR%VARID,GFDA_DBL,NSTART,NCOUNT,NSTRIDE)
+          CALL HANDLE_NCERR(status,trim(errmsg))
+        ENDIF        
 
         ! IF YOU ARE COLLECTING AN DUMPING IN THE SAME PASS
         ! DEALLOCATE THE MEMORY YOU COLLECTED INTO
@@ -6170,7 +6771,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
      IF(.NOT. ASSOCIATED(VAR%VEC_CHR))THEN 
         CALL PRINT_VAR(VAR)
         CALL FATAL_ERROR("NC_WRITE_VAR: Variable objects VEC_CH&
-             &R data is NOT associated!")
+             &R data is NOT assocaited!")
      END IF
 
      VEC_CHR => VAR%VEC_CHR
