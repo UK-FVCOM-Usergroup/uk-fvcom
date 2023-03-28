@@ -4464,6 +4464,12 @@ CONTAINS
 ! DEGENERATE CASE OF GEOMETRIC SIGMA COORDINATES - UNIFROM DISTRIBUTION
     case(TRIM(STYPE_UNIFORM))  
        P_SIGMA = 1.0
+!JQI NOV2021
+       ISCAN = SCAN_FILE(SIGMAUNIT,"P_SIGMA_DISTRIBUTION",FSCAL = P_SIGMA_DISTRIBUTION)
+       IF(ISCAN /= 0) then
+         P_SIGMA_DISTRIBUTION = 1
+       END IF
+!JQI NOV2021
        if(DBG_SET(dbg_log)) then
           WRITE(IPT,*)'!  Finished Reading SIGMA File'
           WRITE(IPT,*)'!  SIGMA COORDINATE TYPE = : '//trim(STYPE)
@@ -4489,6 +4495,9 @@ CONTAINS
           WRITE(IPT,*)'!  Finished Reading SIGMA File'
           WRITE(IPT,*)'!  SIGMA COORDINATE TYPE = : '//trim(STYPE)
           WRITE(IPT,*)'!  P_SIGMA               = : ',P_SIGMA
+!JQI NOV2021
+          WRITE(IPT,*)'!  P_SIGMA_DISTRIBUTION  = : ',P_SIGMA_DISTRIBUTION
+!JQI NOV2021
           WRITE(IPT,*)'!  # OF SIGMA LEVELS(KB) = : ',KB
           WRITE(IPT,*)'!'
        end if
