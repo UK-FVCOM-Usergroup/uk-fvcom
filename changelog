@@ -67,3 +67,6 @@ mod_input.F, mod_main.F, mod_setup.F
 Add adjust river ts option (average or maximum)
 adjust_ts.F, mod_input.F, mod_main.F
 
+Remove diffusive flux between wet and dry nodes
+adv_q.F, adv_s.F, mod_dye.F,  mod_scal.F, mod_wqm.F
+

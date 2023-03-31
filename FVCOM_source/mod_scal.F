@@ -521,8 +521,22 @@ Module Scalar
 !        VISCOF = VISCOF*SEDIMENT_MIXING_RATIO
 !# endif
 
-       txx=0.5_sp*(pfpxd(ia)+pfpxd(ib))*viscof
-       tyy=0.5_sp*(pfpyd(ia)+pfpyd(ib))*viscof
+!JQI NOV2021
+# if defined (WET_DRY)
+       !Added by Adi Nugraha
+	   !Allow no diffusive flux between a wet node and a dry node (Wen Long and Tarang Khangaonkar)
+	   IF(ISWETN(IA)==1.AND.ISWETN(IB)==1)THEN
+# endif 	
+         txx=0.5_sp*(pfpxd(ia)+pfpxd(ib))*viscof
+         tyy=0.5_sp*(pfpyd(ia)+pfpyd(ib))*viscof
+
+# if defined (WET_DRY)			   
+	   ELSE
+		TXX = 0.0_SP
+		TYY = 0.0_SP
+	   ENDIF
+# endif
+!JQI NOV2021
 
        fxx=-dtij(i,k)*txx*dltye(i)
        fyy= dtij(i,k)*tyy*dltxe(i)
