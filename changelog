@@ -56,11 +56,14 @@ Add inundation maps
 mod_ncdio.F, mod_wd.F
 
 MPI comm edit (mpi_comm_world --> mpi_fvcom_group etc), metis5
-fvcom.F, genmap.F, genmap_lsf.F, genmap_obc.F, ice_init.F, ice_coupling.F, mod_action_im.F, mod_assim.F, mod_boundshck.F, mod_dye.F, mod_enkf_obs.F, mod_enkfassim.F, mod_etkf.F, mod_ice2D.F, mod_input.F, mod_lag.F, mod_main.F, mod_meanflow.F, mod_ncdio.F, mod_nctools.F, mod_nesting.F, mod_newimp.F, mod_non_hydro.F, mod_obcs2.F, mod_par.F, mod_par_special.F, mod_petsc.F, mod_report.F, mod_rrk.F, mod_rrkassim.F, mod_rrkf_obs.F, mod_semi_implicit.F, mod_setup.F, mod_sparse_timeseries.F, mod_utils.F, mod_wavesetup.F,  mod_wqm.F,  print_vals.F, setup_domain.F, swancom1.F, swanmain.F,  swanpre2.F
+fvcom.F, genmap.F, genmap_lsf.F, genmap_obc.F, ice_init.F, ice_coupling.F, mod_action_im.F, mod_assim.F, mod_boundshck.F, mod_dye.F, mod_enkf_obs.F, mod_enkfassim.F, mod_etkf.F, mod_ice2D.F, mod_input.F, mod_lag.F, mod_main.F, mod_meanflow.F, mod_ncdio.F, mod_nctools.F, mod_nesting.F, mod_newimp.F, mod_non_hydro.F, mod_obcs2.F, mod_par.F, mod_par_special.F, mod_petsc.F, mod_report.F, mod_rrk.F, mod_rrkassim.F, mod_rrkf_obs.F, mod_semi_implicit.F, mod_setup.F, mod_sparse_timeseries.F, mod_utils.F, mod_wavesetup.F,  mod_wqm.F,  print_vals.F, setup_domain.F, swancom1.F, swanmain.F,  swanpre2.F, makedepends
 
 mpi i/o
 mod_nctools.F
 
 add p_sigma_distribution
 mod_input.F, mod_main.F, mod_setup.F
+
+Add adjust river ts option (average or maximum)
+adjust_ts.F, mod_input.F, mod_main.F
 

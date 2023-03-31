@@ -670,11 +670,16 @@ MODULE CONTROL
     CHARACTER(LEN=80) RIVER_INFO_FILE ! RIVERS INFORMATION FILE
     ! SPECIFIED FOR NODES OR EDGES
     INTEGER RIVER_NUMBER ! THE NUMBER OF RIVERS
-
+!JQI NOV2021
+    CHARACTER(LEN=80) TS_ADJUST_METHOD  ! The methods of TS adjustment when RIVER_TS_SETTING is 'calculated'
+!JQI NOV2021
     NAMELIST /NML_RIVER_TYPE/               &
          & RIVER_NUMBER,                    &
          & RIVER_KIND,                      &
          & RIVER_TS_SETTING,                &
+!JQI NOV2021
+         & TS_ADJUST_METHOD,                &
+!JQI NOV2021
          & RIVER_INFO_FILE,                 &
          & RIVER_INFLOW_LOCATION
     
