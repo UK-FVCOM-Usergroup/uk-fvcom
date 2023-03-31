@@ -739,7 +739,22 @@ CONTAINS
           !-----------------------------------------------------------------
        END IF
 # endif
-       
+      
+!!# if defined (DATA_ASSIM)  removed by Siqi Li, @20210809 
+! lwang added for mld_output Jul 09, 2019
+       IF(NC_MLD) THEN
+          NCF => ADD(NCF,MLD_FILE_OBJECT() )
+          NCF => ADD(NCF,DENSITY_FILE_OBJECT())
+       END IF
+! lwang added for ERSEM offline Aug 26, 2019
+       IF(NC_UARD_OBCN) THEN
+          !-----------------------------------------------------------------
+          NCF => ADD(NCF,UARD_OBCN_FILE_OBJECT() )
+          !-----------------------------------------------------------------
+       END IF
+! lwang
+!!# endif removed by Siqi Li, @20210809
+ 
        IF (STARTUP_TYPE /= "crashrestart") THEN
 
           ! IF CRASH RESTART - OVER RIDE THE STKCNT

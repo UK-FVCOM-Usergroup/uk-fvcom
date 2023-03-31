@@ -39,6 +39,9 @@ SUBROUTINE INTERNAL_STEP
   USE MOD_ICE
   USE MOD_ICE2D
   USE MOD_NORTHPOLE
+! lwang added for SST mld assimilation
+  USE MOD_MLD_RHO
+! lwang
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
@@ -618,8 +621,8 @@ SUBROUTINE INTERNAL_STEP
 # endif
 # if defined (DATA_ASSIM)
   END IF
-# endif     
-  
+# endif
+
 # endif
 
 # if defined (WAVE_ONLY)
@@ -1346,6 +1349,13 @@ SUBROUTINE INTERNAL_STEP
 #    endif
 
 #    if defined (DATA_ASSIM)
+!---> Siqi, SST_improved
+     IF(SST_ASSIM .OR. SSTGRD_ASSIM)THEN
+!    IF(ASSIM_FLAG==0) CALL SST_SAVE
+    IF(ASSIM_FLAG==1) CALL SSTGRD_NUDGE
+  END IF
+!<--- Siqi
+
      IF(TS_NGASSIM .OR. (TS_OIASSIM .AND. MOD(IINT,TS_NSTEP_OI) == 0))THEN
       IF(ASSIM_FLAG==0 .AND. (.NOT.SST_ASSIM .AND. .NOT.SSTGRD_ASSIM .AND. &
          .NOT.SSHGRD_ASSIM .AND. .NOT.TSGRD_ASSIM))CALL TEMP_ASSIMILATION
@@ -1360,7 +1370,7 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (ONE_D_MODEL)
 !J. Ge for tracer advection
-     IF(BACKWARD_ADVECTION .eqv. .TRUE.)THEN
+     IF(BACKWARD_ADVECTION .EQV. .TRUE.)THEN
        IF(BACKWARD_STEP==1)THEN
         T0 = T1
        ELSEIF(BACKWARD_STEP==2)THEN
@@ -1457,7 +1467,7 @@ SUBROUTINE INTERNAL_STEP
 
 #   if !defined (ONE_D_MODEL)
 !J. Ge for tracer advection
-     IF(BACKWARD_ADVECTION .eqv. .TRUE.)THEN
+     IF(BACKWARD_ADVECTION .EQV. .TRUE.)THEN
        IF(BACKWARD_STEP==1)THEN
         S0 = S1
        ELSEIF(BACKWARD_STEP==2)THEN
@@ -1577,7 +1587,16 @@ SUBROUTINE INTERNAL_STEP
 
   IF(SST_ASSIM .OR. SSTGRD_ASSIM)THEN
     IF(ASSIM_FLAG==0) CALL SST_SAVE
-    IF(ASSIM_FLAG==1) CALL SSTGRD_NUDGE
+! lwang added for SST mld assimilation
+    IF(SSTGRD_ASSIM .AND. SSTGRD_MLD .AND. IntTime%MuSOD==0)THEN
+      IF(MSR) write(ipt,*) 'RUN MLD_RHO CALCULATION', IntTime%MJD,IntTime%MuSOD
+!---> Siqi Li, @20210809
+!      CALL MLD_RHO_CAL(RHO_AVG,MLD_RHO)
+      CALL MLD_RHO_CAL(M, KBM1, RHO_AVG,MLD_RHO)
+!<--- Siqi Li, @20210809
+    END IF
+! lwang
+!    IF(ASSIM_FLAG==1) CALL SSTGRD_NUDGE   ! Siqi, SST_improved
   END IF
 
   IF(SSHGRD_ASSIM) THEN
@@ -1733,6 +1752,18 @@ SUBROUTINE INTERNAL_STEP
      CALL AEXCHANGE(NC,MYID,NPROCS,VISCOFH)
   END IF
 #   endif
+
+!---> Siqi Li, @20210809  
+  IF (NC_MLD) THEN
+    IF (abs(NC_DAT%FTIME%NEXT_IO -IntTime)<0.1_SP*IMDTI) THEN
+      CALL MLD_RHO_CAL(M, KBM1, RHO1(1:M,:), MLD_OUT(1:M)) 
+#   if defined (MULTIPROCESSOR)
+      IF (PAR) CALL AEXCHANGE(NC,MYID,NPROCS,MLD_OUT) 
+#   endif
+    END IF
+  END IF
+!<--- 
+
   !==============================================================================!
   !     PERFORM DATA EXCHANGE FOR WATER QUALITY VARIABLES                        |
   !==============================================================================!

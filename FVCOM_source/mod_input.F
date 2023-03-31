@@ -286,10 +286,13 @@ CONTAINS
     NC_VORTICITY    = .False.
     NC_WQM          = .False.
     NC_BIO          = .False.
-#if defined (FABM)
-    NC_FABM         = .False.
-#endif
-    
+!!# if defined (DATA_ASSIM)  ! Siqi Li, @20210809
+! lwang added for mld_output Jul 09, 2019
+!    NC_MLD          = .False.   ! Siqi Li, @20210809
+! lwang added for ERSEM offline Aug 26, 2019
+    NC_UARD_OBCN    = .False.
+! lwang
+!!# endif        ! Siqi Li, @20210809
     ! OUTPUT VARIABLES DEFAULT TO OFF
 
     !--Parameters in NameList NML_NETCDF_SURFACE
@@ -581,6 +584,14 @@ CONTAINS
 
     HIGH_LATITUDE_WAVE = .FALSE.
 
+!---> Siqi Li, @20210809
+    !--Parameters in NameList NML_MLD
+    NC_MLD          = .false.
+    GAMMA_MIN       = 0.04e-3
+    MLD_DEFAULT     = 5.0
+    DEEPWATER_DEPTH = 100.0
+    DEEPWATER_GAMMA = 0.03e-3
+!<--- 
   END SUBROUTINE NAME_LIST_INITIALIZE
 
 
@@ -612,6 +623,7 @@ CONTAINS
     write(UNIT=IPT,NML=NML_ADDITIONAL_MODELS)
     write(UNIT=IPT,NML=NML_PROBES)
     write(UNIT=IPT,NML=NML_BOUNDSCHK)  !bounds checking
+    write(UNIT=IPT,NML=NML_MLD)   ! Siqi Li, @20210809
 
   RETURN
   END SUBROUTINE NAME_LIST_PRINT
@@ -962,7 +974,25 @@ CONTAINS
 
     if(DBG_SET(dbg_scl)) &
          & write(UNIT=IPT,NML=NML_PROBES)
-    
+
+!---> Siqi Li, @20210809
+    ! Read MLD Settings
+    !=> bounds checking
+    READ(UNIT=NMLUNIT, NML=NML_MLD,IOSTAT=ios)
+    if(ios .NE. 0 ) then
+       if(DBG_SET(dbg_log)) write(UNIT=IPT,NML=NML_MLD)
+       Call Fatal_Error("Can Not Read NameList NML_MLD from file: "//trim(FNAME))
+    end if
+    !<= bounds checking
+
+    REWIND(NMLUNIT)
+
+    if(DBG_SET(dbg_scl)) &
+         & write(IPT,*) "Read_Name_List:"
+
+    if(DBG_SET(dbg_scl)) &
+         & write(UNIT=IPT,NML=NML_MLD)
+!<---     
 
     CLOSE(NMLUNIT)
 

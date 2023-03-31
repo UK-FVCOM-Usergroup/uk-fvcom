@@ -70,3 +70,6 @@ adjust_ts.F, mod_input.F, mod_main.F
 Remove diffusive flux between wet and dry nodes
 adv_q.F, adv_s.F, mod_dye.F,  mod_scal.F, mod_wqm.F
 
+Add SST MLD assimilation
+internal_step.F, mod_assim.F, mod_input.F, mod_main.F,  mod_ncdio.F,  namelist.F
+

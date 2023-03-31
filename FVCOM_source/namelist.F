@@ -68,6 +68,9 @@ SUBROUTINE NAMELIST
 # endif 
 # if defined (DATA_ASSIM)
   USE MOD_ASSIM
+! lwang added for the SST mld assimilation
+  USE MOD_MLD_RHO
+! lwang
 # endif 
 # if defined (HEATING_CALCULATED)
   USE MOD_HEATFLUX

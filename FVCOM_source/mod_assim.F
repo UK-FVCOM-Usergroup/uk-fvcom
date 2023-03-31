@@ -82,6 +82,9 @@ MODULE MOD_ASSIM
   !--Data Assimilation Parameters for SST GRID Assimilation
   !
   LOGICAL  :: SSTGRD_ASSIM                    !!TRUE IF SST ASSIMILATION ACTIVE
+! lwang added for SST mld assimilation
+  LOGICAL  :: SSTGRD_MLD
+! lwang
   CHARACTER(LEN=80) SSTGRD_ASSIM_FILE         !!FILE NAME FOR SST DATA
   REAL(SP) :: SSTGRD_WEIGHT_MAX                    
   REAL(SP) :: SSTGRD_TIMESCALE
@@ -91,6 +94,9 @@ MODULE MOD_ASSIM
 
   NAMELIST /NML_SSTGRD_ASSIMILATION/      &
        & SSTGRD_ASSIM,                    &
+! lwang added for SST mld assimilation
+       & SSTGRD_MLD,                      &
+! lwang
        & SSTGRD_ASSIM_FILE,               &
        & SSTGRD_WEIGHT_MAX,               &
        & SSTGRD_TIMESCALE,                &
@@ -362,6 +368,12 @@ MODULE MOD_ASSIM
   REAL(SP), ALLOCATABLE, TARGET, DIMENSION(:)  :: SST_OBS   !!SST OBS ON GRID
   REAL(SP), ALLOCATABLE, DIMENSION(:,:)  :: SST_SAVED  !!SST ON EACH HOUR DURING SIM 
   REAL(SP), ALLOCATABLE, DIMENSION(:)    :: SST_AVG   !!SIM SST AVERAGED OVER OBSERVATION PERIOD 
+! lwang added for SST mld assimilation
+  REAL(SP), ALLOCATABLE, DIMENSION(:,:,:)  :: T_SAVED, S_SAVED !!TEMP AND SALT ON EACH HOUR DURING SIM
+  REAL(SP), ALLOCATABLE, DIMENSION(:,:)    :: TT_AVG, SS_AVG  !! SIM TEMP AND SALT AVERAGED OVER OBSERVATION PERIOD
+  REAL(SP), ALLOCATABLE, DIMENSION(:,:)    :: RHO_AVG       !! AVERAGE DENSITY CALCULATED BY TT_AVG AND SS_AVG
+  REAL(SP), ALLOCATABLE, DIMENSION(:)      :: MLD_RHO       !! MIXED LAYER DEPTH
+! lwang  
 !# if defined (ENKF)
   REAL(SP), ALLOCATABLE, DIMENSION(:,:)    :: SST_AVG_ENKF   !!SIM SST AVERAGED OVER OBSERVATION PERIOD FOR EACH ENSEMBLE MEMBER
   REAL(SP), ALLOCATABLE, DIMENSION(:,:,:)  :: SST_SAVED_ENKF  !!SST ON EACH HOUR DURING SIM FOR EACH ENSEMBLE MEMBER
@@ -543,6 +555,9 @@ CONTAINS !------------------------------------------------------------------!
 
     !    NML_SSTGRD_ASSIMILIATION
     SSTGRD_ASSIM          = .FALSE.
+! lwang added for SST mld assimilation
+    SSTGRD_MLD            = .FALSE.
+! lwang
     SSTGRD_ASSIM_FILE     = trim(CASENAME)//"_sstgrd.nc"
     SSTGRD_WEIGHT_MAX     = 0.0_SP
     SSTGRD_TIMESCALE      = 0.0_SP
@@ -833,6 +848,13 @@ CONTAINS !------------------------------------------------------------------!
 
        IF(SSTGRD_ASSIM)THEN
           WRITE(IPT,*)'!  # SSTGRD_ASSIM           :  ACTIVE'
+! lwang added for SST mld assimilation
+          IF (SSTGRD_MLD)THEN
+             WRITE(IPT,*)'!  # SSTGRD_MLD             :   ACTIVE'
+          ELSE
+             WRITE(IPT,*)'!  # SSTGRD_MLD             :   NOT ACTIVE'
+          END IF
+! lwang
           WRITE(IPT,*)'!  # SSTGRD_ASSIM_FILE      : '//TRIM(SSTGRD_ASSIM_FILE)
           WRITE(IPT,*)'!  # SSTGRD_TIMESCALE       :',SSTGRD_TIMESCALE
           WRITE(IPT,*)'!  # SSTGRD_WEIGHT_MAX      :',SSTGRD_WEIGHT_MAX   
@@ -1364,6 +1386,16 @@ CONTAINS !------------------------------------------------------------------!
    ALLOCATE(SST_OBS(M))   
    ALLOCATE(SST_AVG(M))
    ALLOCATE(SST_SAVED(M,1:SSTGRD_N_PER_INTERVAL))
+! lwang added for SST mld assimilation
+   IF (SSTGRD_MLD)THEN
+      ALLOCATE(T_SAVED(M,KBM1,1:SSTGRD_N_PER_INTERVAL))
+      ALLOCATE(S_SAVED(M,KBM1,1:SSTGRD_N_PER_INTERVAL))
+      ALLOCATE(TT_AVG(M,KBM1))
+      ALLOCATE(SS_AVG(M,KBM1))
+      ALLOCATE(RHO_AVG(M,KBM1))
+      ALLOCATE(MLD_RHO(M))
+   END IF
+! lwang
 # if defined (ENKF)
    ALLOCATE(SST_AVG_ENKF(M,ENKF_NENS))
    ALLOCATE(SST_SAVED_ENKF(M,1:SSTGRD_N_PER_INTERVAL,ENKF_NENS))
@@ -4122,6 +4154,10 @@ in:  DO WHILE(.TRUE.)
 #    if defined (MULTIPROCESSOR)
      IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,T1) !Interprocessor Exchange   !
      IF(PAR)CALL AEXCHANGE(NC,MYID,NPROCS,S1)
+!---> Siqi Li for MLD_output @ 2019-05-01
+!     IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,MLD_OUT) ! Removed by Siqi Li, @20210809
+!     IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,MLD_Nsiglay) ! Removed by Siqi Li, @20210809
+!<--- Siqi
 #    endif
 
    
@@ -4472,9 +4508,16 @@ in:  DO WHILE(.TRUE.)
 !==============================================================================|
 !  SAVE INTERVAL-AVERAGAED SST DATA ON GRID TO USE AS OBSERVATION              | 
 !==============================================================================|
+! lwang added for SST mld assimilation
+USE EQS_OF_STATE
+! lwang
    IMPLICIT NONE
    INTEGER I
-   
+! lwang added for SST mld assimilation
+   INTEGER :: K
+   REAL(SP),PARAMETER :: PR = 0.0_SP
+   REAL(SP),ALLOCATABLE, DIMENSION(:,:)  :: RZU
+! lwang    
 !==============================================================================|
 
    IF(IntTime >= SST_SAVE_TIME) THEN
@@ -4488,6 +4531,12 @@ in:  DO WHILE(.TRUE.)
 !  Save Hourly SST on grid in Simulation running                               ! 
 !------------------------------------------------------------------------------!
       SST_SAVED(1:M,SST_SAVE_INDEX) = T1(1:M,1)
+! lwang added for SST mld assimilation
+      IF(SSTGRD_MLD)THEN
+         T_SAVED(1:M,1:KBM1,SST_SAVE_INDEX) = T1(1:M,1:KBM1)
+         S_SAVED(1:M,1:KBM1,SST_SAVE_INDEX) = S1(1:M,1:KBM1)
+      END IF
+! lwang
 # if defined (ENKF)
      SST_SAVED_ENKF(1:M,SST_SAVE_INDEX,ENKF_memberCONTR)=SST_SAVED(1:M,SST_SAVE_INDEX)
 # endif
@@ -4503,12 +4552,58 @@ in:  DO WHILE(.TRUE.)
          DO I=1,M
             SST_AVG(I) = SUM(SST_SAVED(I,1:SSTGRD_N_PER_INTERVAL))&
                  &/real(SSTGRD_N_PER_INTERVAL,SP)
+! lwang added for SST mld assimilation
+            IF(SSTGRD_MLD)THEN
+               TT_AVG(I,1:KBM1) = SUM(T_SAVED(I,1:KBM1,1:SSTGRD_N_PER_INTERVAL),2)&
+                    &/real(SSTGRD_N_PER_INTERVAL,SP)
+               SS_AVG(I,1:KBM1) = SUM(S_SAVED(I,1:KBM1,1:SSTGRD_N_PER_INTERVAL),2)&
+                    &/real(SSTGRD_N_PER_INTERVAL,SP)
+            END IF
+! lwang
 # if defined (ENKF)          
             SST_AVG_ENKF(I,ENKF_memberCONTR)=SST_AVG(I)
 # endif
 
          END DO
-         
+! lwang added for SST mld assimilation
+         IF(SSTGRD_MLD)THEN
+            SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
+            CASE(SW_DENS1)
+
+              ALLOCATE(RZU(M,KBM1))        ; RZU = -999.0_SP
+              DO I=1,M
+                DO K=1,KBM1
+                  RZU(I,K) = GRAV_N(I)*1.025_SP*(-ZZ(I,K)*D(I))*0.1_SP
+                END DO
+              END DO
+
+              CALL FOFONOFF_MILLARD(SS_AVG,TT_AVG,RZU,PR,RHO_AVG)
+              DEALLOCATE(RZU)
+
+            CASE(SW_DENS2)
+
+              CALL DENS2G(SS_AVG,TT_AVG,RHO_AVG)
+
+            CASE(SW_DENS3)
+
+              ALLOCATE(RZU(M,KBM1))        ; RZU = -999.0_SP
+              DO I=1,M
+                DO K=1,KBM1
+                  RZU(I,K) = GRAV_N(I)*1.025_SP*(-ZZ(I,K)*D(I))*0.01_SP
+                END DO
+              END DO
+
+              CALL JACKET_MCDOUGALL(SS_AVG,TT_AVG,RZU,RHO_AVG)
+              DEALLOCATE(RZU)
+            CASE DEFAULT
+              CALL FATAL_ERROR("INVALID DENSITY FUNCTION SELECTED:",&
+                   & "   "//TRIM(SEA_WATER_DENSITY_FUNCTION) )
+            END SELECT
+            ! Convert the rho into the unit kg/m3
+!            RHO_AVG=RHO_AVG*1000.+1000.
+
+         END IF
+! lwang         
       END IF
 
    END IF

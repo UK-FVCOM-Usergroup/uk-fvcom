@@ -282,7 +282,13 @@ MODULE CONTROL
     LOGICAL NC_FABM
 #   endif
     LOGICAL NC_WQM
-
+!!#   if defined (DATA_ASSIM) ! Siqi Li, @20210809
+    ! lwang added for mld_output Jul 09, 2019
+!    LOGICAL NC_MLD   ! Siqi Li, 20210809
+    ! lwang added for ERSEM offline Aug 26, 2019
+    LOGICAL NC_UARD_OBCN
+    ! lwang
+!!#   endif     ! Siqi Li, @20210809
     CHARACTER(LEN=80) NC_FILE_NAME !!NAME OF NC FILE
     ! ONLY VALID TILL THE NAME IS INCRIMENTED IF THE STKCNT IS EXCEEDED
 
@@ -324,7 +330,18 @@ MODULE CONTROL
          & NC_FABM,          &
 # endif
          & NC_WQM,           &
-	 & NC_VORTICITY
+!JQI# if defined (DATA_ASSIM)
+	 & NC_VORTICITY,     &
+    
+    ! lwang added for mld_output Jul 09, 2019
+!         & NC_MLD,           & ! Siqi Li, @20210809
+    ! lwang added for ERSEM oflline Aug 26, 2019
+         & NC_UARD_OBCN
+    ! lwang
+!JQI# else
+!JQI	 & NC_VORTICITY
+!JQI# endif
+
 
     !--Parameters in NameList NML_NETCDF_SURFACE
     LOGICAL NCSF_ON
@@ -1027,6 +1044,22 @@ MODULE CONTROL
            & SALT_MIN
     !<= bounds checking
 
+!---> Siqi Li, @20210809
+    !--Parameters in NameList NML_MLD
+    LOGICAL  :: NC_MLD      
+    REAL(SP) :: GAMMA_MIN    
+    REAL(SP) :: MLD_DEFAULT   
+    REAL(SP) :: DEEPWATER_DEPTH
+    REAL(SP) :: DEEPWATER_GAMMA
+
+    NAMELIST /NML_MLD/         &
+         & NC_MLD,             &
+         & GAMMA_MIN,          &
+         & MLD_DEFAULT,        &
+         & DEEPWATER_DEPTH,    &
+         & DEEPWATER_GAMMA
+!<---
+
 !--Time Variables for FVCOM-----------------------------------------!
     TYPE(TIME) :: IntTime
     TYPE(TIME) :: ExtTime
@@ -1613,6 +1646,13 @@ MODULE ALL_VARS
   REAL(SP), ALLOCATABLE,TARGET :: Q2F(:,:)       !WORKING ARRAY FOR UPDATING Q2
   REAL(SP), ALLOCATABLE,TARGET :: Q2LF(:,:)      !WORKING ARRAY FOR UPDATING Q2F 
   REAL(SP), ALLOCATABLE,TARGET :: KM1(:,:)       !TURBULENT EDDY VISCOSITY FOR MOMENTUM 
+
+!!# if defined (DATA_ASSIM)  ! Removed by Siqi Li, @20210809
+!---> Siqi Li for MLD_output @ 2019-05-01
+  REAL(SP), ALLOCATABLE,TARGET :: MLD_OUT(:)
+!  INTEGER, ALLOCATABLE,TARGET  :: MLD_Nsiglay(:)   ! Removed by Siqi Li, @20210809
+!<--- Siqi 
+!!# endif ! Removed by Siqi Li, @20210809
 
   ! VARIABLE HORIZONTAL VISCOSITY COEFFICENTS  
   REAL(SP), ALLOCATABLE :: CC_HVC(:)
@@ -2212,6 +2252,12 @@ CONTAINS
    ALLOCATE(AAM(0:MT,KB))        ;AAM   = ZERO   !!??
    ALLOCATE(KM1(0:NT,KB))        ;KM1   = ZERO   !!TURBULENT QUANTITY AT ELEMENTS
 
+!!#  if defined (DATA_ASSIM)  ! Removed by Siqi Li, @20210809
+!---> Siqi Li for MLD_output @ 2019-05-01
+   ALLOCATE(MLD_OUT(0:MT))       ;MLD_OUT = ZERO
+!   ALLOCATE(MLD_Nsiglay(0:MT))   ;MLD_Nsiglay = ZERO ! Removed by Siqi Li, @20210809
+!<--- Siqi
+!!#  endif  ! Removed by Siqi Li, @20210809
 
    ALLOCATE(CC_HVC(0:NT))        ;CC_HVC = ZERO  !!VISCOSITY COEFFICIENT AT ELEMENTS
    ALLOCATE(NN_HVC(0:MT))        ;NN_HVC = ZERO  !!VISCOSITY COEFFICIENT AT NODES
