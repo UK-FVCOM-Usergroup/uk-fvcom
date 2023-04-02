@@ -70,6 +70,9 @@ SUBROUTINE INTERNAL_STEP
   USE MOD_SED_CSTMS
 # endif
 # endif
+# if defined (VEGETATION)
+  USE MOD_VEGETATION
+# endif
 # if defined (DYE_RELEASE)
   USE MOD_DYE
 # endif
@@ -1138,6 +1141,17 @@ SUBROUTINE INTERNAL_STEP
      CALL ADVANCE_GOTM            !!Solve TKE/TEPS eqns for KH/KM/KQ
      
 #   else     
+
+#  if defined (VEGETATION)
+      if(VEGETATION_MODEL.and.VEG_TURB)then
+      !
+      !  Add the effect of vegetation on Q2 and Q2L
+      !      
+        Q2  = Q2  +  VEG % tke_veg
+        Q2L = Q2L +  VEG % tke_veg*L
+      end if
+#  endif
+
      !===================Original FVCOM MY-2.5/Galperin 1988 Model=============!
 #    if defined (SEMI_IMPLICIT)     
      Q2C  = Q2
@@ -1254,6 +1268,12 @@ SUBROUTINE INTERNAL_STEP
   IF(BIOLOGICAL_MODEL)CALL BIO_3D1D
                            
 #   endif
+
+# if defined (VEGETATION)
+  if(VEGETATION_MODEL)then
+     CALL UPDATE_VEGETATION
+  end if
+# endif
 
 #   if defined (FABM)
 ! This DATA_ASSIM if block seems odd since the only change is to not apply the non-negative

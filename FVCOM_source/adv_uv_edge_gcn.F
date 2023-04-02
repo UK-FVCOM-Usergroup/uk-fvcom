@@ -64,6 +64,10 @@
    USE MOD_DAM   !Jadon
 #  endif
 
+#  if defined (VEGETATION)
+   USE MOD_VEGETATION
+#  endif
+
    IMPLICIT NONE
    REAL(SP) :: XFLUX(0:NT,KB),YFLUX(0:NT,KB)
    REAL(SP) :: PSTX_TM(0:NT,KB),PSTY_TM(0:NT,KB)
@@ -1060,6 +1064,13 @@
        XFLUX(I,K) = XFLUX(I,K) + WAVESTRX_3D(I,K)
        YFLUX(I,K) = YFLUX(I,K) + WAVESTRY_3D(I,K)
 #  endif   
+
+#  if defined (VEGETATION)
+       if(VEGETATION_MODEL.and.VEG_DRAG)then
+          XFLUX(I,K) = XFLUX(I,K) + ru_veg(i,k)*DT1(I)*DZ1(I,K)*ART(I)
+          YFLUX(I,K) = YFLUX(I,K) + rv_veg(i,k)*DT1(I)*DZ1(I,K)*ART(I)
+       end if
+#  endif
 
      END DO
 #  if defined (WET_DRY)

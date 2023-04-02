@@ -89,6 +89,10 @@
 !     KM01   : Mean average wavenumber according to first order moment
 !     SIGM_10: Mean frequency according to zeroth order moment
 !     SIGM01 : Mean frequency according to first order moment
+!     LAYH  : layer thickness for vegetation model
+!     VEGDIL: vegetation diameter for each layer and grid point
+!     VEGDRL: drag coefficient for each layer and grid point
+!     VEGNSL: number of plants / m2 for each layer and grid point
 !
    REAL, SAVE    :: ACTOT
    REAL, SAVE    :: EDRKTOT
@@ -758,7 +762,9 @@
    REAL   , SAVE, ALLOCATABLE :: UXB(:,:)   , UYB(:,:)
    REAL   , SAVE, ALLOCATABLE :: WXI(:,:)   , WYI(:,:)
    REAL   , SAVE, ALLOCATABLE :: WLEVL(:,:) , ASTDF(:,:)
-
+#  if defined (VEGETATION)
+   REAL   , SAVE, ALLOCATABLE :: LAYH(:,:), VEGDIL(:,:), VEGDRL(:,:), VEGNSL(:,:)
+#  endif
 !  8. Subroutines and functions used
 !
 !     ---
