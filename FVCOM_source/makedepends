@@ -107,7 +107,7 @@ mod_bbl.o : mod_bbl.F mod_newinp.o mod_wave_current_interaction.o mod_main_wave.
 fvcom.o : fvcom.F mod_sparse_timeseries.o mod_station_timeseries.o mod_pwp.o mod_dam.o mod_bbl.o mod_wave_current_interaction.o mod_main_wave.o swmod1.o swmod1.o mod_plbc.o mod_tvd.o mod_petsc.o mod_non_hydro.o mod_ice.o mod_obcs3.o mod_obcs2.o mod_meanflow.o mod_sed_cstms.o mod_sed.o mod_gotm.o mod_enkf_obs.o mod_enkfassim.o mod_enkf.o mod_enkf.o mod_rrkf_obs.o mod_rrkassim.o mod_rrk.o mod_rrk.o mod_dye.o mod_fabm_3D.o mod_bio_3D.o mod_wqm.o mod_onedtide.o mod_balance_2d.o mod_semi_implicit.o mod_boundschk.o mod_probe.o mod_lag.o mod_report.o mod_nesting.o mod_assim.o mod_obcs.o mod_force.o mod_set_time.o mod_setup.o mod_ncll.o mod_ncdio.o mod_input.o mod_clock.o mod_time.o mod_startup.o mod_par_special.o mod_main.o mod_utils.o mod_prec.o 
 genmap.o : genmap.F mod_utils.o mod_par_special.o mod_main.o mod_main.o mod_prec.o mod_par.o
 tge.o : tge.F mod_obcs.o mod_par_special.o mod_spherical.o mod_main.o mod_prec.o 
-longshore_flow.o : longshore_flow.F mod_par_special.o mod_main.o mod_utils.o mod_prec.o 
+longshore_flow.o : longshore_flow.F mod_par_special.o mod_main.o mod_utils.o mod_prec.o mod_par.o
 cell_area.o : cell_area.F mod_spherical.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
 open_all.o : open_all.F mod_nesting.o mod_input.o mod_main.o mod_prec.o 
 load_grid.o : load_grid.F mod_nesting.o mod_main.o mod_obcs.o mod_input.o mod_main.o mod_prec.o 

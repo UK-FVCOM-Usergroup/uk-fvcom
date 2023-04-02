@@ -8533,6 +8533,147 @@ CONTAINS
   END FUNCTION DYE_FILE_OBJECT
 # endif
 
+!!# if defined (DATA_ASSIM)  ! Siqi Li, @20210809
+! lwang added for mld_output Jul 09, 2019
+  FUNCTION MLD_FILE_OBJECT() RESULT(NCF)
+
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START MLD_FILE_OBJECT"
+
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+
+       ALLOCATE(MLD_OUT(MGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:MLD_OUT")
+       MLD_OUT = 0.0_SP
+!---> Removed by Siqi Li, @20210809
+!       ALLOCATE(MLD_Nsiglay(MGL),stat=status)
+!       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:MLD_Nsiglay")
+!       MLD_Nsiglay = 0
+!<---
+
+    END IF
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+   ! Mixed layer depth
+    VAR  => NC_MAKE_AVAR(name='MLD',&  ! MLD_Depth to MLD, Siqi Li, @20210809
+         & values=MLD_OUT, DIM1= DIM_node, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Mixed Layer Depth')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+! Removed by Siqi Li, @20210809
+!   ! Mixed Layer Nsiglay
+!    VAR  => NC_MAKE_AVAR(name='ML_Nsiglay',&
+!         & values=MLD_Nsiglay, DIM1= DIM_node, DIM2 = DIM_time)
+!
+!    ATT  => NC_MAKE_ATT(name='long_name',values='Mixed Layer Depth Siglay')
+!    VAR  => ADD(VAR,ATT)
+!
+!    ATT  => NC_MAKE_ATT(name='units',values='none')
+!    VAR  => ADD(VAR,ATT)
+!
+!    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+!    VAR  => ADD(VAR,ATT)
+!
+!    ATT  => NC_MAKE_ATT(name='coordinates',values=CoordVar)
+!    VAR  => ADD(VAR,ATT)
+!
+!    ATT  => NC_MAKE_ATT(name='type',values='data')
+!    VAR  => ADD(VAR,ATT)
+!
+!    NCF  => ADD(NCF,VAR)
+!<---
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END MLD_FILE_OBJECT"
+
+  END FUNCTION MLD_FILE_OBJECT
+! lwang added for ERSEM offline Aug 26, 2019
+
+  FUNCTION UARD_OBCN_FILE_OBJECT() RESULT(NCF)
+    USE MOD_OBCS, ONLY: UARD_OBCN
+    USE BCS, ONLY: IOBCN_GL
+
+    IMPLICIT NONE
+
+    INTEGER :: status
+    LOGICAL, SAVE :: IOPROC_ALLOCATED = .FALSE.
+    TYPE(NCFILE), POINTER :: NCF
+    TYPE(NCVAR),  POINTER :: VAR
+    TYPE(NCATT),  POINTER :: ATT
+
+    character(len=100)    :: timestamp, temp, netcdf_convention
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START UARD_OBCN_FILE_OBJECT"
+
+    ! IO PROC MUST ALLOCATE SPACE FOR THE ARRAYS 
+    ! THESE ARRAYS MUST HAVE THE ATTRIBUTE SAVE AND FOR CLARITY
+    ! SHOULD HAVE THE SAME NAME AS THOSE USED ON THE OTHER PROCESSORS!
+    IF(IOPROC .AND. .NOT. IOPROC_ALLOCATED) THEN
+
+       IOPROC_ALLOCATED = .true.
+       ALLOCATE(UARD_OBCN(IOBCN_GL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:UARD_OBCN")
+       UARD_OBCN = 0.0_SP
+
+    END IF
+
+  ! ALLOCATE THE NEW FILE OBJECT
+    NCF => NEW_FILE()
+
+   ! UARD_OBCN
+    VAR  => NC_MAKE_AVAR(name='UARD_OBCN',&
+         & values=UARD_OBCN, DIM1= DIM_nobc, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Normal Velocity at boundaries')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='m 2 s-1')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
+
+    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END UARD_OBCN_FILE_OBJECT"
+
+  END FUNCTION UARD_OBCN_FILE_OBJECT
+! lwang
+!# endif  ! Siqi Li, @20210809
 !=============================================================  
 
 SUBROUTINE UPDATE_IODATA(NCF,NOW)
