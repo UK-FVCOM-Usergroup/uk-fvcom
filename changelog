@@ -79,3 +79,6 @@ adv_uv_edge_gcn.F, adv_uv_edge_gcy.F, fvcom.F, internal_step.F,  mod_ncdio.F,  m
 Add vegetation module
 adv_uv_edge_gcn.F, extuv_edge.F, fvcom.F, internal_step.F, mod_gotm.F, mod_ncdio.F, namelist.F, open_all.F, swancom1.F, swancom2.F, swanmain.F, swanpre1.F, swmod1.F, swmod2.F, vdif_q.F, mod_vegetation.F, makefile
 
+Add mod sediment heat flux
+bcond_gcn.F, vdif_ts.F, mod_heatflux_sediment.F
+
