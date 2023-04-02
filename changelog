@@ -73,3 +73,6 @@ adv_q.F, adv_s.F, mod_dye.F,  mod_scal.F, mod_wqm.F
 Add SST MLD assimilation
 internal_step.F, mod_assim.F, mod_input.F, mod_main.F,  mod_ncdio.F,  namelist.F
 
+Add vortex force
+adv_uv_edge_gcn.F, adv_uv_edge_gcy.F, fvcom.F, internal_step.F,  mod_ncdio.F,  mod_wave_current_interaction.F
+

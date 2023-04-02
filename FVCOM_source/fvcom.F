@@ -872,21 +872,21 @@ PROGRAM FVCOM
         !==============================================================================!
 
 !for Eulerian velocity output
-# if defined (WAVE_CURRENT_INTERACTION)
-         !U = U-U_STOKES_3D
-         !V = V-V_STOKES_3D
-         !UA=UA-U_STOKES_2D
-         !VA=VA-V_STOKES_2D
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
+!         U = U-U_STOKES_3D
+!         V = V-V_STOKES_3D
+!         UA=UA-U_STOKES_2D
+!         VA=VA-V_STOKES_2D
 # endif
 
         CALL ARCHIVE
 
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
 !Convert Eulerian velocity back to Lagrangian velocity to maintain consistent with Mellor's equation
-         !U = U+U_STOKES_3D
-         !V = V+V_STOKES_3D
-         !UA=UA+U_STOKES_2D
-         !VA=VA+V_STOKES_2D
+!         U = U+U_STOKES_3D
+!         V = V+V_STOKES_3D
+!         UA=UA+U_STOKES_2D
+!         VA=VA+V_STOKES_2D
 #  endif
 
         CALL DUMP_PROBE_DATA
@@ -1035,7 +1035,23 @@ PROGRAM FVCOM
            IF(SST_ASSIM.OR.SSTGRD_ASSIM.OR.SSHGRD_ASSIM.OR.TSGRD_ASSIM)THEN
              ! do nothing
            ELSE
+!for Eulerian velocity output
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
+!         U = U-U_STOKES_3D
+!         V = V-V_STOKES_3D
+!         UA=UA-U_STOKES_2D
+!         VA=VA-V_STOKES_2D
+# endif
+
              CALL ARCHIVE
+
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
+!Convert Eulerian velocity back to Lagrangian velocity to maintain consistent with Mellor's equation
+!         U = U+U_STOKES_3D
+!         V = V+V_STOKES_3D
+!         UA=UA+U_STOKES_2D
+!         VA=VA+V_STOKES_2D
+#  endif
 
              CALL DUMP_PROBE_DATA
              IF(OUT_STATION_TIMESERIES_ON)CALL OUT_STATION_TIMESERIES
@@ -2049,11 +2065,11 @@ PROGRAM FVCOM
         !==============================================================================!
 
 !for Eulerian velocity output
-# if defined (WAVE_CURRENT_INTERACTION)
-         !U = U-U_STOKES_3D
-         !V = V-V_STOKES_3D
-         !UA=UA-U_STOKES_2D
-         !VA=VA-V_STOKES_2D
+# if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE)
+!         U = U-U_STOKES_3D
+!         V = V-V_STOKES_3D
+!         UA=UA-U_STOKES_2D
+!         VA=VA-V_STOKES_2D
 # endif
 
 
@@ -2083,12 +2099,12 @@ IF (ENKF_memberCONTR ==1 ) THEN
     END IF
 
 
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) && !defined (VORTEX_FORCE) 
 !Convert Eulerian velocity back to Lagrangian velocity to maintain consistent with Mellor's equation
-         !U = U+U_STOKES_3D
-         !V = V+V_STOKES_3D
-         !UA=UA+U_STOKES_2D
-         !VA=VA+V_STOKES_2D
+!         U = U+U_STOKES_3D
+!         V = V+V_STOKES_3D
+!         UA=UA+U_STOKES_2D
+!         VA=VA+V_STOKES_2D
 #  endif
 
         CALL DUMP_PROBE_DATA
