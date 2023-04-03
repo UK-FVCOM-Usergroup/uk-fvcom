@@ -1019,7 +1019,9 @@ Module Scalar
   implicit none
   real(sp), intent(in   ), dimension(0:mt,kb)      :: f 
   real(sp), intent(inout), dimension(0:mt,kb)      :: fn
-  real(sp), intent(in   ), dimension(iobcn+1,kbm1) :: fflux_obc 
+!JQI NOV2021
+  real(sp), intent(in   ), dimension(iobcn,kbm1) :: fflux_obc  ! KURT GLAESEMANN - remove + 1 from dimension
+!JQI NOV2021
   real(sp), intent(in   ), dimension(iobcn       ) :: f_obc 
   real(sp), intent(in   )                          :: deltat
   real(sp), intent(in   )                          :: alpha_nudge 

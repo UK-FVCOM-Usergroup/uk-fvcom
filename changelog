@@ -87,3 +87,6 @@ internal_step.F,  fvcom.F,  mod_main.F,  mod_ncdio.F,  mod_vector_projection.F, 
 
 add isonb3
 grid_metrics.F,  mod_main.F,  mod_semi_implicit.F
+
+Remove +1 from dim IOBCN
+mod_obcs.F, mod_scal.F, mod_sed_cstms.F
