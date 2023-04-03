@@ -443,7 +443,8 @@ END IF
     PETSc_POS = ALO_2_PLO_NODE(I)
     IF (PETSc_POS > N_VERTS) CYCLE
 !!$    IF( ISONB(I)/=2 ) THEN
-    IF( ISONB(I) < 2 ) THEN
+!!$    IF( ISONB(I) < 2 ) THEN
+    IF( ISONB(I) /= 2 .AND. ISONB_3(I) /= 3) THEN
       STERM = ET(I) - DTI/ART1(I)*XFLUX(I)
     ELSE
       STERM = ELF(I)
@@ -654,7 +655,7 @@ END IF
   ENDDO
 
   DO I=1, M
-    IF(ISONB(I)==3) THEN
+    IF(ISONB_3(I)==3) THEN
       PROW1  = ALO_2_PLO_NODE(I)
       IF(PROW1 > N_VERTS) CYCLE
       VCOL1 = 0.0D0
