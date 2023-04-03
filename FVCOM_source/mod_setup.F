@@ -353,20 +353,21 @@ CONTAINS
           write(IPT,*) "! Setting Staticly Variable Bottom Roughness"
        end if
 
+!Changed by Siqi Li@2015/08/29
 !       CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B)
-!Jadon Ge
-       CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B,NUNI_CBCMIN)
-!Jadon Ge
+       SELECT CASE(BOTTOM_ROUGHNESS_TYPE)
+       CASE(BR_UDEF)
+         CALL LOAD_DRAG_COEFFICIENT(CBC_UD)
+       CASE DEFAULT
+         CALL LOAD_BOTTOM_ROUGHNESS(CC_Z0B)
+       END SELECT
+!Siqi Li
               
     else if(BOTTOM_ROUGHNESS_KIND .eq. CNSTNT) THEN
        
        CC_Z0B    = BOTTOM_ROUGHNESS_LENGTHSCALE
        CC_Z0B(0) = 0.0_SP
        
-!Jadon Ge
-!       CBCMIN    = BOTTOM_ROUGHNESS_MINIMUM
-!       CBCMIN(0) = 0.0_SP
-!Jadon Ge
     else
        CALL FATAL_ERROR&
             &("HORIZONTAL_MIXING_KIND ERROR",&
