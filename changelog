@@ -108,3 +108,7 @@ mod_non_hydro.F
 
 Add offset freshwater flux in mpdata and single precision fix for stability in mod_wqm
 mod_wqm.F
+
+Update KDMAX from 5 to 3 based on MELLOR(2015)
+mod_wave_current_interaction.F 
+
