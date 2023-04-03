@@ -5058,6 +5058,8 @@ CONTAINS
        WTSURF_watts = 0.0_SP
 
 #      if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+!       IF(HEATING_FRESHWATER)THEN
+       
        allocate(HSENS_WATTS(MGL),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:HSENS")
        HSENS_watts = 0.0_SP
@@ -5069,6 +5071,8 @@ CONTAINS
        allocate(LWRAD_WATTS(MGL),stat=status)
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:LWRAD")
        LWRAD_watts = 0.0_SP
+       
+!       END IF
 #      endif
 
     END IF
@@ -5135,6 +5139,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
 #   if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+!    IF(HEATING_FRESHWATER)THEN
+    
     !EJA edit to add Sensible, Latent, and Longwave radiation to output - 05/03/2016
     ! HSENS
     VAR  => NC_MAKE_AVAR(name='sensible_heat_flux',&
@@ -5219,6 +5225,8 @@ CONTAINS
     VAR  => ADD(VAR,ATT)
 
     NCF  => ADD(NCF,VAR)
+    
+!    END IF
 #   endif
 
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END SURFACE_HEATING_FILE_OBJECT"
