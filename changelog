@@ -140,7 +140,7 @@ Add heating type surface
 mod_input.F, vdif_ts.F
 
 Add wind_Stress methods
-mod_heatflux.F, mod_input.F,  mod_main.F, mod_ncdio.F, bcond_gcn.F, bcond_gcy.F	
+mod_heatflux.F, mod_input.F,  mod_main.F, mod_ncdio.F, bcond_gcn.F, bcond_gcy.F, mod_bulk.F
 
 Update coare methods, especially air pressure in coare40
 coare26z.F, coare40vn.F, mod_force.F
@@ -148,5 +148,5 @@ coare26z.F, coare40vn.F, mod_force.F
 Add bottom roughness types
 brough.F, mod_input.F, mod_main.F, mod_setup.F
 
-add wave speed
-internal_step.F
+add wave components
+internal_step.F, mod_main_wave.F, mod_main.F, mod_bulk.F
