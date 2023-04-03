@@ -95,7 +95,7 @@ Module Mod_Nesting
   REAL(SP), ALLOCATABLE :: S1_NEST_L(:,:),T1_NEST_L(:,:)
   REAL(SP), ALLOCATABLE :: HYW_NEST_L(:,:)
   
-  REAL(SP), ALLOCATABLE, TARGET :: ZZ_L(:,:),ZZ1_L(:,:),H_L(:),H1_L(:)
+  REAL(SP), ALLOCATABLE, TARGET :: ZZ_L(:,:),ZZ1_L(:,:),H_L(:),H1_L(:),Z_L(:,:) ! Z_L was added by Dr. Lai 2021-01-15
 
   REAL(SP), ALLOCATABLE :: WCELL_NEST(:),WNODE_NEST(:)
 ! songhu
@@ -540,6 +540,10 @@ CONTAINS
        ALLOCATE(GLOBAL_NG,STAT=status)
        IF(STATUS /=0) CALL FATAL_ERROR("COULD NOT ALLOCATE GLOBAL_NG!")
        
+!Michael Dunphy (Michael.Dunphy@dfo-mpo.gc.ca)
+       CALL NULLIFY_GRID_POINTERS(GLOBAL_NG)
+!Michael Dunphy
+
        ! READ THE GLOBAL NESTING GRID INTO A TEMPORARY CONTAINER
        IF(.NOT. IOPROC) CALL LOAD_GRID_TYPE(NESTING_FILE,GLOBAL_NG)
        
@@ -570,16 +574,17 @@ CONTAINS
        if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: MGL =",NESTING_GRID%MGL
        if(DBG_SET(dbg_log))  write(IPT,*) "! DIMENSIONS: NGL =",NESTING_GRID%NGL
 
-
        ALLOCATE(H_L(0:NESTING_GRID%MT));          H_L   = 0.0_SP
        ALLOCATE(H1_L(0:NESTING_GRID%NT));         H1_L  = 0.0_SP
        ALLOCATE(ZZ_L(0:NESTING_GRID%MT,KBM1_L));  ZZ_L  = 0.0_SP
        ALLOCATE(ZZ1_L(0:NESTING_GRID%NT,KBM1_L)); ZZ1_L = 0.0_SP
+       ALLOCATE(Z_L(0:NESTING_GRID%MT,KB_L));     Z_L   = 0.0_SP  ! Z_L was added by Dr. Lai 2021-01-15
        
        H_L   = NESTING_GRID%H
        H1_L  = NESTING_GRID%H1
        ZZ_L  = NESTING_GRID%ZZ
        ZZ1_L = NESTING_GRID%ZZ1
+       Z_L   = NESTING_GRID%Z  ! Z_L was added by Dr. Lai 2021-01-15
        
     END IF
     
@@ -1217,7 +1222,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 
   REAL(SP) :: DMAX
   
-  REAL(SP),POINTER :: TEMP3(:),TEMP4(:,:)
+  REAL(SP),POINTER :: TEMP3(:),TEMP4(:,:),TEMP5(:,:)  ! TEMP5 was added by Dr. Lai 2021-01-15
 
   if (dbg_set(dbg_SBR)) &
        & write(IPT,*) "START: GENMAP_NESTING"
@@ -1344,6 +1349,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      ALLOCATE(TEMP2(0:LG%MGL));      TEMP2=0
      ALLOCATE(TEMP3(0:LG%MGL));         TEMP3 = 0.0_SP
      ALLOCATE(TEMP4(0:LG%MGL,LG%KBM1)); TEMP4 = 0.0_SP
+     ALLOCATE(TEMP5(0:LG%MGL,LG%KB));   TEMP5 = 0.0_SP  ! TEMP5 was added by Dr. Lai 2021-01-15
      
      NCNT = 0
      !!SET UP LOCAL NESTING NODES
@@ -1355,6 +1361,7 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
            TEMP2(NCNT) = I
 	   TEMP3(NCNT)   = NG%H(I)
 	   TEMP4(NCNT,:) = NG%ZZ(I,:)
+           TEMP5(NCNT,:) = NG%Z(I,:)  ! TEMP5 was added by Dr. Lai 2021-01-15
         END IF
      END DO
      
@@ -1381,12 +1388,19 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
 
      ALLOCATE(LG%ZZ(0:LG%MT,LG%KBM1),stat=status)
      if(status /= 0) call fatal_error("GENMAP_NESTING: can not allocate:LG%ZZ")
+
+     !---> Added by Dr. Lai 2021-01-15
+     ALLOCATE(LG%Z(0:LG%MT,LG%KB),stat=status)
+     if(status /= 0) call fatal_error("GENMAP_NESTING: can not allocate:LG%Z")
+     !<--- Added by Dr. Lai 2021-01-15
      
      LG%H = TEMP3(0:NCNT)
-     LG%ZZ = TEMP4(0:NCNT,1:KBM1)
+     LG%ZZ = TEMP4(0:NCNT,1:LG%KBM1)
+     LG%Z  = TEMP5(0:NCNT,1:LG%KB)  ! Added by Dr. Lai 2021-01-15
 
      DEALLOCATE(TEMP3)
      DEALLOCATE(TEMP4)
+     DEALLOCATE(TEMP5)  ! Added by Dr. Lai 2021-01-15
 
 !============================================
 ! Make a list of the local Nesting elements
@@ -1435,11 +1449,10 @@ SUBROUTINE GENMAP_NESTING(NG,LG)
      if(status /= 0) call fatal_error("GENMAP_NESTING: can not allocate:LG%ZZ1")
      
      LG%H1 = TEMP3(0:NCNT)
-     LG%ZZ1 = TEMP4(0:NCNT,1:KBM1)
+     LG%ZZ1 = TEMP4(0:NCNT,1:LG%KBM1)
 
      DEALLOCATE(TEMP3)
      DEALLOCATE(TEMP4)
-
 
   END IF ! END IF IOPROC
 
@@ -2432,6 +2445,7 @@ END SUBROUTINE GENMAP_NESTING
 
     IF(DBG_SET(DBG_SBR))WRITE(IPT,*) "START DUMP_NCNEST_FILE_WAVE" 
 
+    NULLIFY(TEMP1)  
 
     DO I =1,NCNEST_NUM_WAVE
 
@@ -2625,6 +2639,8 @@ END SUBROUTINE GENMAP_NESTING
        ! JUST MODIFY THE DIMENSION RETURNED - FVCOM WILL PICK THE
        ! CORRECT MAP AUTOMATICALLY!
 
+       NCF2 => GRID_FILE_OBJECT_NCNEST(G)
+       NCF => ADD(NCF,NCF2)
 
        ! IINT
        NCF3  => IINT_OBJECT(DIM=Dim_time,SIZE=NCNEST_BLOCKSIZE)
@@ -2723,7 +2739,10 @@ END SUBROUTINE GENMAP_NESTING
    END DO
 # endif
 # if defined (NH)
-    D%HYW_BLK(:,:,D%IDX) = CALC_HYW(G)
+!---> Modified by Dr. Lai 2021-01-15
+!%    D%HYW_BLK(:,:,D%IDX) = CALC_HYW(G)
+    D%HYW_BLK(:,:,D%IDX) = W4ZT(G%NLID(:),:)
+!<--- Modified by Dr. Lai 2021-01-15
 # else
     D%HYW_BLK(:,:,D%IDX) = 0.0_SP
 # endif
@@ -2839,13 +2858,14 @@ END SUBROUTINE GENMAP_NESTING
     REAL(SP), ALLOCATABLE, OPTIONAL :: ZERO_3D_CELLS(:,:),ZERO_3D_CELLS_OBC(:,:)
     REAL(SP), ALLOCATABLE, OPTIONAL :: ZERO_2D_CELLS(:),ZERO_2D_CELLS_OBC(:)
 
+!---> Added by Dr. Lai 2021-01-15
 ! To help with SINTER INTERPOLATION
-    REAL(SP), DIMENSION(KBM1)   :: PHY_Z   !Depth(m) in every standary Z levels 
-    REAL(SP), DIMENSION(KBM1)   :: VARZ    !Variable in standary Z levels 
-    REAL(SP), DIMENSION(KBM1_L)  :: ZM      !Depth (m) in every sigma levels for giving node
-    REAL(SP), DIMENSION(KBM1_L)  :: VARS    !Variable AT SIGMA LEVELS
+    REAL(SP), DIMENSION(KB)    :: PHY_Z   !Depth(m) in every standary Z levels 
+    REAL(SP), DIMENSION(KB)    :: VARZ    !Variable in standary Z levels 
+    REAL(SP), DIMENSION(KB_L)  :: ZM      !Depth (m) in every sigma levels for giving node
+    REAL(SP), DIMENSION(KB_L)  :: VARS    !Variable AT SIGMA LEVELS
+!<--- Added by Dr. Lai 2021-01-15
 
- 
     REAL(DP)     :: denom, numer
     REAL(DP)     :: prev_w, next_w
     INTEGER      :: STEP,PREV,NEXT,I
@@ -2955,6 +2975,7 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%NT
          I_TMP = NESTING_GRID%ELID_X(I)
+!---> Modified by Dr. Lai 2021-01-15
          ZM(1:KBM1_L) = ZZ1_L(I,1:KBM1_L)
          PHY_Z(1:KBM1) = ZZ1(I_TMP,1:KBM1)
          VARS(1:KBM1_L) = U_NEST_L(I,1:KBM1_L)
@@ -2977,6 +2998,7 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%NT
          I_TMP = NESTING_GRID%ELID_X(I)
+!---> Modified by Dr. Lai 2021-01-15	 
          ZM(1:KBM1_L) = ZZ1_L(I,1:KBM1_L)
          PHY_Z(1:KBM1) = ZZ1(I_TMP,1:KBM1)
          VARS(1:KBM1_L) = V_NEST_L(I,1:KBM1_L)
@@ -2999,6 +3021,7 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%MT
          I_TMP = NESTING_GRID%NLID_X(I)
+!---> Modified by Dr. Lai 2021-01-15
          ZM(1:KBM1_L) = ZZ_L(I,1:KBM1_L)
          PHY_Z(1:KBM1) = ZZ(I_TMP,1:KBM1)
          VARS(1:KBM1_L) = S1_NEST_L(I,1:KBM1_L)
@@ -3007,6 +3030,7 @@ END SUBROUTINE GENMAP_NESTING
          S1(I_TMP,1:KBM1) =  VARZ(1:KBM1) * WNODE_NEST(I) + S1(I_TMP,1:KBM1) * (1_SP -  WNODE_NEST(I))
 !         CALL SINTER_EXTRP_NONE(ZZ_L(I,1:KBM1_L),S1_NEST_L(I,1:KBM1_L),ZZ(I_TMP,1:KBM1),S1_NEST(I,1:KBM1),KBM1_L,KBM1)
 !         S1(I_TMP,:) =  S1_NEST(I,:) * WNODE_NEST(I) + S1(I_TMP,:) * (1_SP - WNODE_NEST(I))
+!<--- Modified by Dr. Lai 2021-01-15
        END DO
 
     ELSEIF(PRESENT(T1)) THEN
@@ -3019,6 +3043,7 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%MT
          I_TMP = NESTING_GRID%NLID_X(I)
+!---> Modified by Dr. Lai 2021-01-15	 
          ZM(1:KBM1_L) = ZZ_L(I,1:KBM1_L)
          PHY_Z(1:KBM1) = ZZ(I_TMP,1:KBM1)
          VARS(1:KBM1_L) = T1_NEST_L(I,1:KBM1_L)
@@ -3027,6 +3052,7 @@ END SUBROUTINE GENMAP_NESTING
          T1(I_TMP,1:KBM1) =  VARZ(1:KBM1) * WNODE_NEST(I) + T1(I_TMP,1:KBM1) * (1_SP -  WNODE_NEST(I))
 !         CALL SINTER_EXTRP_NONE(ZZ_L(I,1:KBM1_L),T1_NEST_L(I,1:KBM1_L),ZZ(I_TMP,1:KBM1),T1_NEST(I,1:KBM1),KBM1_L,KBM1)
 !         T1(I_TMP,:) =  T1_NEST(I,:) * WNODE_NEST(I) + T1(I_TMP,:) * (1_SP - WNODE_NEST(I))
+!<--- Modified by Dr. Lai 2021-01-15
        END DO
 
 # if defined (FABM)
@@ -3064,14 +3090,17 @@ END SUBROUTINE GENMAP_NESTING
 
        DO I = 1, NESTING_GRID%MT
          I_TMP = NESTING_GRID%NLID_X(I)
-!         ZM(1:KBM1_L) = ZZ_L(I,1:KBM1_L)
-!         PHY_Z(1:KBM1) = ZZ(I_TMP,1:KBM1)
-!         VARS(1:KBM1_L) = HYW_NEST_L(I,1:KBM1_L)
-!         VARZ(1:KBM1) = HYW_NEST(I,1:KBM1)
-!         CALL SINTER_EXTRP_NONE(ZM,VARS,PHY_Z,VARZ,KBM1_L,KBM1)
-!         HYW(I_TMP,1:KBM1) =  VARZ(1:KBM1) * WNODE_NEST(I) + HYW(I_TMP,1:KBM1) * (1_SP -  WNODE_NEST(I))
-         CALL SINTER_EXTRP_NONE(ZZ_L(I,1:KB_L),HYW_NEST_L(I,1:KB_L),ZZ(I_TMP,1:KB),HYW_NEST(I,1:KB),KB_L,KB)
-         HYW(I_TMP,:) =  HYW_NEST(I,:) * WNODE_NEST(I) + HYW(I_TMP,:) * (1_SP - WNODE_NEST(I))
+!---> Modified by Dr. Lai 2021-01-15	 
+         ZM(1:KB_L) = Z_L(I,1:KB_L)
+         PHY_Z(1:KB) = Z(I_TMP,1:KB)
+         VARS(1:KB_L) = HYW_NEST_L(I,1:KB_L)
+         VARZ(1:KB) = HYW_NEST(I,1:KB)
+         CALL SINTER_EXTRP_NONE(ZM,VARS,PHY_Z,VARZ,KB_L,KB)
+         HYW(I_TMP,1:KB) =  VARZ(1:KB) * WNODE_NEST(I) + HYW(I_TMP,1:KB) * (1_SP -  WNODE_NEST(I))
+!         CALL SINTER_EXTRP_NONE(ZZ_L(I,1:KB_L),HYW_NEST_L(I,1:KB_L),ZZ(I_TMP,1:KB),HYW_NEST(I,1:KB),KB_L,KB)
+!         HYW(I_TMP,:) =  HYW_NEST(I,:) * WNODE_NEST(I) + HYW(I_TMP,:) * (1_SP - WNODE_NEST(I))
+!<--- Modified by Dr. Lai 2021-01-15
+         HYW(I_TMP,:) = HYW(I_TMP,:) * RAMP
        END DO
 
 
@@ -3217,21 +3246,6 @@ END SUBROUTINE GENMAP_NESTING
     CALL NC_READ_VAR(VAR_S1,STKRNG=NESTING_DATA%RNG)
 # if defined (NH)
     CALL NC_READ_VAR(VAR_HYW,STKRNG=NESTING_DATA%RNG)
-# endif
-
-# if defined (FABM)
-       IF(FABM_NESTING_ON) THEN
-       DO IFABM = 1,IFABMnest
-         VAR => FIND_VAR(NESTING_FILE,TRIM(model%interior_state_variables(IFABMnest_idx(IFABM))%name),FOUND)! RJT looping only through advectable variables
-         IF(.not. FOUND) CALL FATAL_ERROR("IN NESTING FILE OBJECT NO "// &
-            & TRIM(model%interior_state_variables(IFABMnest_idx(IFABM))%name)//"  FOUND?")
-!         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM))
-!         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
-         CALL NC_CONNECT_PVAR(VAR, NESTING_DATA%FABM_ALL_TMP)
-         CALL NC_READ_VAR(VAR,STKRNG=NESTING_DATA%RNG)
-         NESTING_DATA%FABM_ALL_BLK(:,:,:,IFABM)=NESTING_DATA%FABM_ALL_TMP
-       END DO
-       END IF
 # endif
 
     IF(TRIM(NESTING_TYPE) == '3') CALL NC_READ_VAR(VAR_WCELL,STKRNG=NESTING_DATA%RNG)
@@ -3612,6 +3626,8 @@ END SUBROUTINE GENMAP_NESTING
        ! JUST MODIFY THE DIMENSION RETURNED - FVCOM WILL PICK THE
        ! CORRECT MAP AUTOMATICALLY!
 
+       NCF2 => GRID_FILE_OBJECT_NCNEST(G)
+       NCF1 => ADD(NCF1,NCF2)
 
         ! IINT
         NCF3  => IINT_OBJECT(DIM=Dim_time,SIZE=NCNEST_BLOCKSIZE_WAVE)
