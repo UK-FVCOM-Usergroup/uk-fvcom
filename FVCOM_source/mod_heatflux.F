@@ -46,7 +46,7 @@ MODULE MOD_HEATFLUX
    CHARACTER(LEN=80) HEATING_CALCULATE_FILE
    CHARACTER(LEN=80) HEATING_CALCULATE_KIND
    CHARACTER(LEN=80) COARE_VERSION
-   REAL(SP) :: ZUU                            !!HEIGHT OF WIND SPEED (M) 
+!   REAL(SP) :: ZUU                            !!HEIGHT OF WIND SPEED (M) ! Siqi Li, 2021-01-27
    REAL(SP) :: ZTT                            !!HEIGHT OF AIR TEMPERATURE (M)
    REAL(SP) :: ZQQ                            !!HEIGHT OF RELATIVE HUMIDITY (M)
    REAL(SP) :: AIR_TEMPERATURE
@@ -65,7 +65,7 @@ MODULE MOD_HEATFLUX
 	& HEATING_CALCULATE_KIND,              &
         & HEATING_FRESHWATER,                  &
 	& COARE_VERSION,                       &
-	& ZUU,                                 &
+!	& ZUU,                                 & ! Siqi Li, 2021-01-27
 	& ZTT,                                 &
 	& ZQQ,                                 &
 	& AIR_TEMPERATURE,                     &
@@ -110,7 +110,7 @@ MODULE MOD_HEATFLUX
    HEATING_CALCULATE_FILE = trim(casename)//"_hfx.nc"              
    HEATING_CALCULATE_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)//","//TRIM(TMDPNDNT)//","//TRIM(PRDC)//","//TRIM(VRBL)              
    COARE_VERSION          = "'COARE26Z' or 'COARE40VN'"
-   ZUU                    = 2  ! Unit = m                                 
+!   ZUU                    = 2  ! Unit = m         ! Siqi Li, 2021-01-27                        
    ZTT                    = 2  ! Unit = m                                 
    ZQQ                    = 2  ! Unit = m                                 
    AIR_TEMPERATURE        = 0.0_SP                     

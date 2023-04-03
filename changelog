@@ -137,4 +137,7 @@ Tidy up tvd and smoother
 adv_s.F, adv_t.F, mod_tvd.F, mod_wqm.F, mod_bio_3d.F
 
 Add heating type surface
-mod_input.F, vdif_ts.F,
+mod_input.F, vdif_ts.F
+
+Add wind_Stress methods
+mod_heatflux.F, mod_input.F,  mod_main.F, mod_ncdio.F

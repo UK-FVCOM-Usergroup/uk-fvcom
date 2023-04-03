@@ -410,6 +410,8 @@ CONTAINS
     WIND_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)//","//TRIM(TMDPNDNT)//","//TRIM(PRDC)//","//TRIM(VRBL)
     WIND_X = 0.0_SP
     WIND_Y = 0.0_SP
+    WIND_STRESS_METHOD = "Options:: LP1981, COARE, TY2001, OOST, DGHQ"  ! Siqi Li, 2021-01-27
+    ZUU = 10.0_SP                                                       ! Siqi Li, 2021-01-27
     HEATING_ON = .FALSE.
     HEATING_TYPE = "'surface' or 'flux' or 'body'" 
     HEATING_FILE = trim(casename)//"_hfx.nc"

@@ -5411,6 +5411,12 @@ CONTAINS
        IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:WVSURF")
        WVSURF_save = 0.0_SP
 
+       ! Siqi Li, 2021-01-27
+       allocate(Cd(NGL),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE MEMORY ON IO PROC FOR OUTPUT DATA:Cd")
+       Cd = 0.0_sp
+
+
     END IF
 
 
@@ -5461,7 +5467,26 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
 
+    !  Cd        Siqi Li, 2021-01-27
+    VAR  => NC_MAKE_AVAR(name='Cd',&
+         & values=Cd, DIM1= DIM_nele, DIM2 = DIM_time)
+
+    ATT  => NC_MAKE_ATT(name='long_name',values='Drag coefficient')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='units',values='1')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='grid',values='fvcom_grid')
+    VAR  => ADD(VAR,ATT)
+
+    ATT  => NC_MAKE_ATT(name='type',values='data')
+    VAR  => ADD(VAR,ATT)
+
+    NCF  => ADD(NCF,VAR)
+
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END WIND_STRESS_FILE_OBJECT"
+
     
   END FUNCTION WIND_STRESS_FILE_OBJECT
 !=============================================================  

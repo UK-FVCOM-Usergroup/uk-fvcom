@@ -577,6 +577,8 @@ MODULE CONTROL
     CHARACTER(LEN=80) WIND_KIND
     REAL(SP) WIND_X
     REAL(SP) WIND_Y
+    CHARACTER(LEN=80) WIND_STRESS_METHOD ! Siqi Li, 2021-01-27
+    REAL(SP) ZUU                         ! Siqi Li, 2021-01-27
     
     LOGICAL HEATING_ON
     CHARACTER(LEN=80) HEATING_TYPE
@@ -644,6 +646,8 @@ MODULE CONTROL
          & WIND_KIND,                       &
          & WIND_X,                          &
          & WIND_Y,                          &
+         & WIND_STRESS_METHOD,              &   ! Siqi Li, 2021-01-27
+         & ZUU,                             &   ! Siqi Li, 2021-01-27
          & HEATING_ON,                      &
          & HEATING_TYPE,                    &
          & HEATING_KIND,                    &
