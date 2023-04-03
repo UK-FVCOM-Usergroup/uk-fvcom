@@ -102,3 +102,6 @@ mod_assim.F
 
 Gotm initialise u_taub to 0
 mod_gotm.F
+
+Implement spherical and wet-dry in non-hydro
+mod_non_hydro.F

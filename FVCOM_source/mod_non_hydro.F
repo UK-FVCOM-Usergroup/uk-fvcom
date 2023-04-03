@@ -36,6 +36,9 @@ MODULE NON_HYDRO
 # if defined (WET_DRY)
   USE MOD_WD, ONLY: ISWETC, ISWETCT, ISWETN, ISWETNT, WET_JUDGE, WD_UPDATE
 # endif
+# if defined (SPHERICAL)
+  USE MOD_SPHERICAL, ONLY: ARCX, ARC 
+# endif
 
   IMPLICIT NONE
 
@@ -48,6 +51,7 @@ MODULE NON_HYDRO
   PUBLIC :: NAME_LIST_INITIALIZE_NH
   PUBLIC :: NAME_LIST_PRINT_NH
   PUBLIC :: NAME_LIST_READ_NH
+  PUBLIC :: GET_ISWETBC
 
 ! must include all necessary headers in petsc fortran interface
 #include "include/finclude/petsc.h"
@@ -65,6 +69,8 @@ MODULE NON_HYDRO
   INTEGER, PUBLIC                ::  PROJ_SWITCH
   REAL(SP), PUBLIC, ALLOCATABLE  ::  W4ZT(:,:), RHS(:,:), QP(:,:)
   REAL(SP), PUBLIC, ALLOCATABLE  ::  NHQDRX(:,:), NHQDRY(:,:), NHQDRZ(:,:), NHQ2DX(:), NHQ2DY(:)
+
+  INTEGER,  ALLOCATABLE  ::  ISWETBC(:)
 
   REAL(SP), ALLOCATABLE  ::  AVG_U(:,:), AVG_V(:,:)
   REAL(SP), ALLOCATABLE  ::  NHA1(:,:) , NHA2(:,:)
@@ -181,6 +187,10 @@ MODULE NON_HYDRO
   ALLOCATE(NHQ(0:MT,KBM1))            ; NHQ      = 0.0_SP
   ALLOCATE(NHQ1(0:NT,KBM1))           ; NHQ1     = 0.0_SP
 
+# if defined (WET_DRY)
+  ALLOCATE(ISWETBC(0:MT))             ; ISWETBC  = 0
+# endif
+
   RETURN
   END SUBROUTINE ALLOC_VARS_NH
 
@@ -192,7 +202,7 @@ MODULE NON_HYDRO
   IMPLICIT NONE
 
   INTEGER N1, N2, N3, I, J, K, I1, I2
-  REAL(SP) ::  EL_TMP(0:MT), D_TMP(0:MT), F1, F2, F3
+  REAL(SP) ::  EL_TMP(0:MT), D_TMP(0:MT), F1, F2, F3, ART_TMP
   REAL(SP), ALLOCATABLE  ::  DELX(:), DELY(:), DDX(:), DDY(:)
 
   ALLOCATE(DELX(0:NT))                ; DELX     = 0.0_SP
@@ -201,25 +211,60 @@ MODULE NON_HYDRO
   ALLOCATE(DDY(0:NT))                 ; DDY      = 0.0_SP
 
 ! calculate A1, A2
-  DO K=1, KBM1
-    DO I=1, NT
-      N1 = NV(I,1)
-      N2 = NV(I,2)
-      N3 = NV(I,3)
+!%  DO K=1, KBM1
+!%    DO I=1, NT
+!%      N1 = NV(I,1)
+!%      N2 = NV(I,2)
+!%      N3 = NV(I,3)
     
-      IF(K==1) THEN
-        DELX(I) = AWX(I,1)*EL_TMP(N1)+AWX(I,2)*EL_TMP(N2)+AWX(I,3)*EL_TMP(N3)
-        DELY(I) = AWY(I,1)*EL_TMP(N1)+AWY(I,2)*EL_TMP(N2)+AWY(I,3)*EL_TMP(N3)
-      ENDIF
-      DDX(I)  = AWX(I,1)*D_TMP(N1)*ZZ(N1,K)+AWX(I,2)*D_TMP(N2)*ZZ(N2,K)+AWX(I,3)*D_TMP(N3)*ZZ(N3,K)
-      DDY(I)  = AWY(I,1)*D_TMP(N1)*ZZ(N1,K)+AWY(I,2)*D_TMP(N2)*ZZ(N2,K)+AWY(I,3)*D_TMP(N3)*ZZ(N3,K)
-      NHA1(I,K) = -(DELX(I)+DDX(I))
-      NHA2(I,K) = -(DELY(I)+DDY(I))
-      IF(K==KBM1) THEN
-        NHA1D(I)  = AWX(I,1)*H(N1)+AWX(I,2)*H(N2)+AWX(I,3)*H(N3)
-        NHA2D(I)  = AWY(I,1)*H(N1)+AWY(I,2)*H(N2)+AWY(I,3)*H(N3)
-      ENDIF
-    ENDDO
+!%      IF(K==1) THEN
+!%        DELX(I) = AWX(I,1)*EL_TMP(N1)+AWX(I,2)*EL_TMP(N2)+AWX(I,3)*EL_TMP(N3)
+!%        DELY(I) = AWY(I,1)*EL_TMP(N1)+AWY(I,2)*EL_TMP(N2)+AWY(I,3)*EL_TMP(N3)
+!%      ENDIF
+!%      DDX(I)  = AWX(I,1)*D_TMP(N1)*ZZ(N1,K)+AWX(I,2)*D_TMP(N2)*ZZ(N2,K)+AWX(I,3)*D_TMP(N3)*ZZ(N3,K)
+!%      DDY(I)  = AWY(I,1)*D_TMP(N1)*ZZ(N1,K)+AWY(I,2)*D_TMP(N2)*ZZ(N2,K)+AWY(I,3)*D_TMP(N3)*ZZ(N3,K)
+!%      NHA1(I,K) = -(DELX(I)+DDX(I))
+!%      NHA2(I,K) = -(DELY(I)+DDY(I))
+!%      IF(K==KBM1) THEN
+!%        NHA1D(I)  = AWX(I,1)*H(N1)+AWX(I,2)*H(N2)+AWX(I,3)*H(N3)
+!%        NHA2D(I)  = AWY(I,1)*H(N1)+AWY(I,2)*H(N2)+AWY(I,3)*H(N3)
+!%      ENDIF
+!%    ENDDO
+!%  ENDDO
+  DO I=1, NT
+    N1 = NV(I,1)
+    N2 = NV(I,2)
+    N3 = NV(I,3)
+#   if defined (WET_DRY)
+    IF(ISWETN(N1)*ISWETN(N2)*ISWETN(N3) == 1) THEN
+!%    IF(H(N1)>=1.0_SP .AND. H(N2)>=1.0_SP .AND. H(N3)>=1.0_SP) THEN
+#   endif 
+      DO K=1, KBM1
+        IF(K==1) THEN
+          DELX(I) = AWX(I,1)*EL_TMP(N1)+AWX(I,2)*EL_TMP(N2)+AWX(I,3)*EL_TMP(N3)
+          DELY(I) = AWY(I,1)*EL_TMP(N1)+AWY(I,2)*EL_TMP(N2)+AWY(I,3)*EL_TMP(N3)
+        ENDIF
+        DDX(I)  = AWX(I,1)*D_TMP(N1)*ZZ(N1,K)+AWX(I,2)*D_TMP(N2)*ZZ(N2,K)+AWX(I,3)*D_TMP(N3)*ZZ(N3,K)
+        DDY(I)  = AWY(I,1)*D_TMP(N1)*ZZ(N1,K)+AWY(I,2)*D_TMP(N2)*ZZ(N2,K)+AWY(I,3)*D_TMP(N3)*ZZ(N3,K)
+        NHA1(I,K) = -(DELX(I)+DDX(I))
+        NHA2(I,K) = -(DELY(I)+DDY(I))
+        IF(K==KBM1) THEN
+          NHA1D(I)  = AWX(I,1)*H(N1)+AWX(I,2)*H(N2)+AWX(I,3)*H(N3)
+          NHA2D(I)  = AWY(I,1)*H(N1)+AWY(I,2)*H(N2)+AWY(I,3)*H(N3)
+        ENDIF
+      ENDDO
+#   if defined (WET_DRY)
+    ELSE
+      DELX(I)   = 0.0_SP
+      DELY(I)   = 0.0_SP
+      DDX(I)    = 0.0_SP
+      DDY(I)    = 0.0_SP
+      NHA1(I,1:KBM1) = 0.0_SP
+      NHA2(I,1:KBM1) = 0.0_SP
+      NHA1D(I)  = 0.0_SP
+      NHA2D(I)  = 0.0_SP
+    ENDIF
+#   endif
   ENDDO
 
   AVELX  = 0.0_SP
@@ -230,25 +275,45 @@ MODULE NON_HYDRO
   A2AVGD = 0.0_SP
   DO K=1, KBM1
     DO I=1, M
+      ART_TMP = 0.0_SP
       DO J=1, NTVE(I)
-        A1AVG(I,K) = A1AVG(I,K) + NHA1(NBVE(I,J),K)*ART(NBVE(I,J))
-        A2AVG(I,K) = A2AVG(I,K) + NHA2(NBVE(I,J),K)*ART(NBVE(I,J))
-        IF(K==KBM1) THEN
-          AVELX(I)  = AVELX(I)  + DELX(NBVE(I,J))*ART(NBVE(I,J))
-          AVELY(I)  = AVELY(I)  + DELY(NBVE(I,J))*ART(NBVE(I,J))    
+#       if defined (WET_DRY)
+        IF(ISWETN(NV(NBVE(I,J),1))*ISWETN(NV(NBVE(I,J),2))*ISWETN(NV(NBVE(I,J),3)) == 1) THEN
+#       endif
+          ART_TMP = ART_TMP + ART(NBVE(I,J))
+          A1AVG(I,K) = A1AVG(I,K) + NHA1(NBVE(I,J),K)*ART(NBVE(I,J))
+          A2AVG(I,K) = A2AVG(I,K) + NHA2(NBVE(I,J),K)*ART(NBVE(I,J))
+          IF(K==KBM1) THEN
+            AVELX(I)  = AVELX(I)  + DELX(NBVE(I,J))*ART(NBVE(I,J))
+            AVELY(I)  = AVELY(I)  + DELY(NBVE(I,J))*ART(NBVE(I,J))    
 
-          A1AVGD(I) = A1AVGD(I) + NHA1D(NBVE(I,J))*ART(NBVE(I,J))
-          A2AVGD(I) = A2AVGD(I) + NHA2D(NBVE(I,J))*ART(NBVE(I,J))
+            A1AVGD(I) = A1AVGD(I) + NHA1D(NBVE(I,J))*ART(NBVE(I,J))
+            A2AVGD(I) = A2AVGD(I) + NHA2D(NBVE(I,J))*ART(NBVE(I,J))
+          ENDIF
+#       if defined (WET_DRY)
         ENDIF
+#       endif
       ENDDO
-      A1AVG(I,K) = A1AVG(I,K)/ART2(I)
-      A2AVG(I,K) = A2AVG(I,K)/ART2(I)
-      IF(K==KBM1) THEN
-        AVELX(I)  = AVELX(I)/ART2(I)
-        AVELY(I)  = AVELY(I)/ART2(I)
+      IF(ART_TMP>0.0_SP) THEN
+        A1AVG(I,K) = A1AVG(I,K)/ART_TMP  !ART2(I)
+        A2AVG(I,K) = A2AVG(I,K)/ART_TMP  !ART2(I)
+        IF(K==KBM1) THEN
+          AVELX(I)  = AVELX(I)/ART_TMP   !ART2(I)
+          AVELY(I)  = AVELY(I)/ART_TMP   !ART2(I)
 
-        A1AVGD(I) = A1AVGD(I)/ART2(I)
-        A2AVGD(I) = A2AVGD(I)/ART2(I)
+          A1AVGD(I) = A1AVGD(I)/ART_TMP  !ART2(I)
+          A2AVGD(I) = A2AVGD(I)/ART_TMP  !ART2(I)
+        ENDIF
+      ELSE
+        A1AVG(I,K) = 0.0_SP
+        A2AVG(I,K) = 0.0_SP
+        IF(K==KBM1) THEN
+          AVELX(I)  = 0.0_SP
+          AVELY(I)  = 0.0_SP
+
+          A1AVGD(I) = 0.0_SP
+          A2AVGD(I) = 0.0_SP
+        ENDIF
       ENDIF
     ENDDO
   ENDDO
@@ -256,6 +321,34 @@ MODULE NON_HYDRO
   DEALLOCATE(DELX,DELY,DDX,DDY)
   RETURN
   END SUBROUTINE A1A2
+
+  SUBROUTINE GET_ISWETBC
+
+  USE ALL_VARS
+# if defined(MULTIPROCESSOR)
+  USE MOD_PAR
+# endif
+  IMPLICIT NONE
+
+  INTEGER :: I, J
+
+  DO I=1, M
+    IF(H(I)>=0.2_SP) THEN
+      DO J=1, NTSN(I)-1
+        IF(H(NBSN(I,J))<0.2_SP) THEN
+          ISWETBC(I) = 1
+        ENDIF
+      ENDDO
+    ENDIF
+  ENDDO
+#  if defined (MULTIPROCESSOR)
+   IF(PAR)THEN
+     CALL AEXCHANGE(NC,MYID,NPROCS,ISWETBC)
+   END IF
+#  endif
+
+  RETURN
+  END SUBROUTINE GET_ISWETBC
 
   SUBROUTINE ADV_W                
                             
@@ -327,10 +420,26 @@ MODULE NON_HYDRO
       DO J=1,NTSN(I)-1
         I1 = NBSN(I,J)
         I2 = NBSN(I,J+1)
+!%        F1 = 0.5_SP*(W4ZT(I1,K)+W4ZT(I2,K))
+#       if defined (WET_DRY)
+        IF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 1) THEN
+          F1 = 0.5_SP*(W4ZT(I,K)+W4ZT(I2,K))
+        ELSEIF(ISWETN(I1) == 1 .AND. ISWETN(I2) == 0) THEN
+          F1 = 0.5_SP*(W4ZT(I1,K)+W4ZT(I,K))
+        ELSEIF(ISWETN(I1) == 0 .AND. ISWETN(I2) == 0) THEN
+          F1 = 0.5_SP*(W4ZT(I,K)+W4ZT(I,K))
+        ELSE
+          F1 = 0.5_SP*(W4ZT(I1,K)+W4ZT(I2,K))
+        ENDIF
+#       else
         F1 = 0.5_SP*(W4ZT(I1,K)+W4ZT(I2,K))
+#       endif
 
-        PWPX(I) = PWPX(I) + F1*(VY(I1)-VY(I2))
-        PWPY(I) = PWPY(I) + F1*(VX(I2)-VX(I1))
+        PWPX(I) = PWPX(I) + F1*DLTYTRIE(I,J)
+        PWPY(I) = PWPY(I) + F1*DLTXTRIE(I,J)
+!%        PWPX(I) = PWPX(I) + F1*(VY(I1)-VY(I2))
+!%        PWPY(I) = PWPY(I) + F1*(VX(I2)-VX(I1))
+
       END DO
       PWPX(I) = PWPX(I)/ART2(I)
       PWPY(I) = PWPY(I)/ART2(I)
@@ -342,16 +451,18 @@ MODULE NON_HYDRO
       I1=NTRG(I)
       IA=NIEC(I,1)
       IB=NIEC(I,2)
-      XI=0.5_SP*(XIJE(I,1)+XIJE(I,2))
-      YI=0.5_SP*(YIJE(I,1)+YIJE(I,2))
+!%      XI=0.5_SP*(XIJE(I,1)+XIJE(I,2))
+!%      YI=0.5_SP*(YIJE(I,1)+YIJE(I,2))
 
-      DXA=XI-VX(IA)
-      DYA=YI-VY(IA)
-      DXB=XI-VX(IB)
-      DYB=YI-VY(IB)
+!%      DXA=XI-VX(IA)
+!%      DYA=YI-VY(IA)
+!%      DXB=XI-VX(IB)
+!%      DYB=YI-VY(IB)
 
-      FIJ1=W4ZT(IA,K)+DXA*PWPX(IA)+DYA*PWPY(IA)
-      FIJ2=W4ZT(IB,K)+DXB*PWPX(IB)+DYB*PWPY(IB)
+!%      FIJ1=W4ZT(IA,K)+DXA*PWPX(IA)+DYA*PWPY(IA)
+!%      FIJ2=W4ZT(IB,K)+DXB*PWPX(IB)+DYB*PWPY(IB)
+      FIJ1=W4ZT(IA,K)+DLTXNCVE(I,1)*PWPX(IA)+DLTYNCVE(I,1)*PWPY(IA)
+      FIJ2=W4ZT(IB,K)+DLTXNCVE(I,2)*PWPX(IB)+DLTYNCVE(I,2)*PWPY(IB)
 
       W1MIN=MINVAL(W4ZT(NBSN(IA,1:NTSN(IA)-1),K))
       W1MIN=MIN(W1MIN, W4ZT(IA,K))
@@ -370,8 +481,21 @@ MODULE NON_HYDRO
 
       VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))/HPRNU
 
-      TXX=0.5_SP*(PWPX(IA)+PWPX(IB))*VISCOF
-      TYY=0.5_SP*(PWPY(IA)+PWPY(IB))*VISCOF
+!JQI NOV2021
+# if defined (WET_DRY)
+	   !Added by Adi Nugraha
+	   !Allow no diffusive flux between a wet node and a dry node (Wen Long and Tarang Khangaonkar)
+	   IF(ISWETN(IA)==1.AND.ISWETN(IB)==1)THEN
+# endif 	
+        TXX=0.5_SP*(PWPX(IA)+PWPX(IB))*VISCOF
+        TYY=0.5_SP*(PWPY(IA)+PWPY(IB))*VISCOF
+# if defined (WET_DRY)			   
+	   ELSE
+		TXX = 0.0_SP
+		TYY = 0.0_SP
+	   ENDIF
+# endif
+!JQI NOV2021
 
       FXX=-DT1(I1)*DZZ1(I1,K-1)*TXX*DLTYE(I)
       FYY= DT1(I1)*DZZ1(I1,K-1)*TYY*DLTXE(I)
@@ -451,7 +575,7 @@ MODULE NON_HYDRO
 
   INTEGER  I, I1, I2, J, K, KI, ITMP
   REAL(SP) A(KBM1-1), B(KBM1-1), C(KBM1-1), R(KBM1-1), RU(KBM1-1)
-  REAL(SP) F1, AVG_UTMP, AVG_VTMP
+  REAL(SP) F1, AVG_UTMP, AVG_VTMP, ART_TMP
   REAL(SP) A1AVG_TMP, A2AVG_TMP
 
   CALL A1A2(EL,D)
@@ -463,12 +587,25 @@ MODULE NON_HYDRO
   AVG_V  = 0.0_SP
   DO K=1, KBM1
     DO I=1, M
+      ART_TMP = 0.0_SP
       DO J=1, NTVE(I)
+#       if defined (WET_DRY)
+        IF(ISWETC(NBVE(I,J)) == 1) THEN
+#       endif
+        ART_TMP    = ART_TMP + ART(NBVE(I,J))
         AVG_U(I,K) = AVG_U(I,K) + UF(NBVE(I,J),K)*ART(NBVE(I,J))
         AVG_V(I,K) = AVG_V(I,K) + VF(NBVE(I,J),K)*ART(NBVE(I,J))
+#       if defined (WET_DRY) 
+        ENDIF  
+#       endif
       ENDDO
-      AVG_U(I,K) = AVG_U(I,K)/ART2(I)
-      AVG_V(I,K) = AVG_V(I,K)/ART2(I)
+      IF(ART_TMP>0.0_SP) THEN
+        AVG_U(I,K) = AVG_U(I,K)/ART_TMP   !ART2(I)
+        AVG_V(I,K) = AVG_V(I,K)/ART_TMP   !ART2(I)
+      ELSE
+        AVG_U(I,K) = 0.0_SP
+        AVG_V(I,K) = 0.0_SP
+      ENDIF
     ENDDO
   ENDDO
 
@@ -536,7 +673,7 @@ MODULE NON_HYDRO
 #   endif
   ENDDO
 
-  CALL SET_W_OBC
+!  CALL SET_W_OBC  ! Siqi 2021-01-16
 
 # if defined(MULTIPROCESSOR)
   IF(PAR) CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,W4ZT)
@@ -558,7 +695,7 @@ MODULE NON_HYDRO
 # if defined(MULTIPROCESSOR)
   USE MOD_PAR , ONLY :EMAP, NMAP, NODE_MATCH, NBN, BN_MLT, BN_LOC, BNC
 # endif
-  USE MOD_PETSc, ONLY: PDEBUG, PUNIT, BLOCAL, A, B, ALO_2_PLO, PSIZE, L2G, USE_LAST, PETSc_SOLVER 
+  USE MOD_PETSc, ONLY: PDEBUG, PUNIT, BLOCAL, A, B, X, ALO_2_PLO, PSIZE, L2G, USE_LAST, PETSc_SOLVER 
   IMPLICIT NONE
 
   INTEGER  I, I1, I2, J, J1, J2, JJ, K, LN, IA, IB, PETSc_POS, CHK_POS, NODE, NREC
@@ -576,6 +713,11 @@ MODULE NON_HYDRO
   PetscInt  :: COL1_(24), COL2_(24)
   PetscInt  :: IERR
   CHARACTER(LEN=20) :: SUBNAME
+
+# if defined (SPHERICAL)
+  REAL(SP) XTMP,Y3Y2,Y1Y3,Y2Y1,X3X2,X1X3,X2X1
+  REAL(DP) SIDE,X1_DP,Y1_DP,X2_DP,Y2_DP,DL_DP
+# endif
 
   !============================================================================
   ! basic function:  set b
@@ -608,8 +750,19 @@ MODULE NON_HYDRO
         IF(NV(I1,J1)/=IA .AND. NV(I1,J1)/=IB) THEN
           IF(NBE(I1,J1)==0) THEN
 
+#           if defined (SPHERICAL)
+            x1_dp=VX(IA)
+            y1_dp=VY(IA)
+            x2_dp=VX(IB)
+            y2_dp=VY(IB)
+            call ARCX(x1_dp,y1_dp,x2_dp,y2_dp,side)
+
+            DX = side
+            DY = (VY(IB) - VY(IA))*TPI
+#           else
             DX = VX(IB) - VX(IA)
             DY = VY(IB) - VY(IA)
+#           endif
             XFL_D(IA,K) = XFL_D(IA,K) + 0.25_SP*(-DY)*(D(IA)*Z(IA,K)+D(IB)*Z(IB,K))
             XFL_D(IB,K) = XFL_D(IB,K) + 0.25_SP*(-DY)*(D(IA)*Z(IA,K)+D(IB)*Z(IB,K))
             YFL_D(IA,K) = XFL_D(IA,K) + 0.25_SP*DX*(D(IA)*Z(IA,K)+D(IB)*Z(IB,K))
@@ -632,8 +785,19 @@ MODULE NON_HYDRO
       IF(NV(I1,J1)/=IA .AND. NV(I1,J1)/=IB) THEN
          IF(NBE(I1,J1)==0) THEN
 
+#           if defined (SPHERICAL)
+            x1_dp=VX(IA)
+            y1_dp=VY(IA)
+            x2_dp=VX(IB)
+            y2_dp=VY(IB)
+            call ARCX(x1_dp,y1_dp,x2_dp,y2_dp,side)
+
+            DX = side
+            DY = (VY(IB) - VY(IA))*TPI
+#           else
             DX = VX(IB) - VX(IA)
             DY = VY(IB) - VY(IA)
+#           endif
             XFL_EL(IA) = XFL_EL(IA) + 0.25_SP*(-DY)*(EL(IA)+EL(IB))
             XFL_EL(IB) = XFL_EL(IB) + 0.25_SP*(-DY)*(EL(IA)+EL(IB))
             YFL_EL(IA) = XFL_EL(IA) + 0.25_SP*DX*(EL(IA)+EL(IB))
@@ -749,7 +913,8 @@ MODULE NON_HYDRO
 #     if !defined (WET_DRY)
       IF(ISONB(I)/=2 ) THEN
 #     else
-      IF(ISONB(I)/=2 .AND. ISWETN(I)==1) THEN
+!%      IF(ISONB(I)/=2 .AND. ISWETN(I)==1) THEN
+      IF(ISONB(I)/=2 .AND. ISWETBC(I)/=1 .AND. (H(I)>= 0.2_SP .AND. D(I)>= 0.3_SP)) THEN
 #     endif
         STERM = RHS(I,K)
       ELSE
@@ -795,9 +960,9 @@ MODULE NON_HYDRO
 
 !    IF((ISONB(IA)+ISONB(IB))<4) THEN
 
-#   if defined (WET_DRY)
-    IF(ISWETC(I1) == 1) THEN
-#   endif
+!%#   if defined (WET_DRY)
+!%    IF(ISWETC(I1) == 1) THEN
+!%#   endif
 
     NREC  = 0
     COL1_ = 0
@@ -812,12 +977,50 @@ MODULE NON_HYDRO
       IF(NV(I1,J)==IA) THEN
         TMP2 = NV(I1,J+1-INT((J+1)/4)*3)
         TMP3 = NV(I1,J+2-INT((J+2)/4)*3)
+#       if defined (SPHERICAL)
+        XTMP  = VX(TMP3)-VX(TMP2)
+        IF(XTMP >  180.0_SP)THEN
+          X3X2 = -360.0_SP*TPI+XTMP*TPI
+        ELSE IF(XTMP < -180.0_SP)THEN
+          X3X2 =  360.0_SP*TPI+XTMP*TPI
+        ELSE
+          X3X2 = XTMP*TPI
+        END IF
+        Y3Y2 = (VY(TMP3)-VY(TMP2))*TPI
+        AA1  = -0.5_SP*D(IA)*X3X2*COS(DEG2RAD*YC(I1))/ART(I1)
+        AB1  =  0.5_SP*D(IA)*Y3Y2/ART(I1)
+
+        XTMP  = VX(IA)-VX(TMP3)
+        IF(XTMP >  180.0_SP)THEN
+          X1X3 = -360.0_SP*TPI+XTMP*TPI
+        ELSE IF(XTMP < -180.0_SP)THEN
+          X1X3 =  360.0_SP*TPI+XTMP*TPI
+        ELSE
+          X1X3 = XTMP*TPI
+        END IF
+        Y1Y3  = (VY(IA)  -VY(TMP3))*TPI
+        AA2  = -0.5_SP*D(TMP2)*X1X3*COS(DEG2RAD*YC(I1))/ART(I1)
+        AB2  =  0.5_SP*D(TMP2)*Y1Y3/ART(I1)
+
+        XTMP  = VX(TMP2)-VX(IA)
+        IF(XTMP >  180.0_SP)THEN
+          X2X1 = -360.0_SP*TPI+XTMP*TPI
+        ELSE IF(XTMP < -180.0_SP)THEN
+          X2X1 =  360.0_SP*TPI+XTMP*TPI
+        ELSE
+          X2X1 = XTMP*TPI
+        END IF
+        Y2Y1  = (VY(TMP2)-VY(IA))*TPI
+        AA3  = -0.5_SP*D(TMP3)*X2X1*COS(DEG2RAD*YC(I1))/ART(I1)
+        AB3  =  0.5_SP*D(TMP3)*Y2Y1/ART(I1)
+#       else
         AA1  = -0.5_SP*D(IA)*(VX(TMP3)-VX(TMP2))/ART(I1)
         AB1  =  0.5_SP*D(IA)*(VY(TMP3)-VY(TMP2))/ART(I1)
         AA2  = -0.5_SP*D(TMP2)*(VX(IA)-VX(TMP3))/ART(I1)
         AB2  =  0.5_SP*D(TMP2)*(VY(IA)-VY(TMP3))/ART(I1)
         AA3  = -0.5_SP*D(TMP3)*(VX(TMP2)-VX(IA))/ART(I1)
         AB3  =  0.5_SP*D(TMP3)*(VY(TMP2)-VY(IA))/ART(I1)
+#       endif
       ENDIF
     ENDDO         
 
@@ -891,10 +1094,24 @@ MODULE NON_HYDRO
           IF(NBE(I1,J1)==0) THEN
 
 ! accumulate the first flux term at solid edge
+#           if defined (SPHERICAL)
+            x1_dp=VX(IA)
+            y1_dp=VY(IA)
+            x2_dp=VX(IB)
+            y2_dp=VY(IB)
+            call ARCX(x1_dp,y1_dp,x2_dp,y2_dp,side)            
+
+            DX = side
+            DY = (VY(IB) - VY(IA))*TPI
+            call ARC(x1_dp,y1_dp,x2_dp,y2_dp,dl_dp)
+            DL = dl_dp
+            FAI = ATAN2(DY,DX)
+#           else
             DX = VX(IB) - VX(IA)
             DY = VY(IB) - VY(IA)
             DL = SQRT(DX**2+DY**2)
             FAI = ATAN2(DY,DX)
+#           endif
 
             DZ_K  = 0.5_SP*(DZ(IA,1)+DZ(IB,1))
             DZ_K1 = 0.5_SP*(DZ(IA,2)+DZ(IB,2))
@@ -1062,10 +1279,24 @@ MODULE NON_HYDRO
           IF(NV(I1,J1)/=IA .AND. NV(I1,J1)/=IB) THEN
             IF(NBE(I1,J1)==0) THEN
 ! accumulate the first flux term at solid edge
+#             if defined (SPHERICAL)
+              x1_dp=VX(IA)
+              y1_dp=VY(IA)
+              x2_dp=VX(IB)
+              y2_dp=VY(IB)
+              call ARCX(x1_dp,y1_dp,x2_dp,y2_dp,side)
+
+              DX = side
+              DY = (VY(IB) - VY(IA))*TPI
+              call ARC(x1_dp,y1_dp,x2_dp,y2_dp,dl_dp)
+              DL = dl_dp
+              FAI = ATAN2(DY,DX)
+#             else
               DX = VX(IB) - VX(IA)
               DY = VY(IB) - VY(IA)
               DL = SQRT(DX**2+DY**2)
               FAI = ATAN2(DY,DX)
+#             endif
 
               DZ_1K = 0.5_SP*(DZ(IA,K-1)+DZ(IB,K-1))
               DZ_K  = 0.5_SP*(DZ(IA,K)+DZ(IB,K))
@@ -1242,10 +1473,24 @@ MODULE NON_HYDRO
           IF(NBE(I1,J1)==0) THEN
 
 ! accumulate the first flux term at solid edge
+#           if defined (SPHERICAL)
+            x1_dp=VX(IA)
+            y1_dp=VY(IA)
+            x2_dp=VX(IB)
+            y2_dp=VY(IB)
+            call ARCX(x1_dp,y1_dp,x2_dp,y2_dp,side)
+
+            DX = side
+            DY = (VY(IB) - VY(IA))*TPI
+            call ARC(x1_dp,y1_dp,x2_dp,y2_dp,dl_dp)
+            DL = dl_dp
+            FAI = ATAN2(DY,DX)
+#           else
             DX = VX(IB) - VX(IA)
             DY = VY(IB) - VY(IA)
             DL = SQRT(DX**2+DY**2)
             FAI = ATAN2(DY,DX)
+#           endif
 
             DZ_1K = 0.5_SP*(DZ(IA,KBM1-1)+DZ(IB,KBM1-1))
             DZ_K  = 0.5_SP*(DZ(IA,KBM1)+DZ(IB,KBM1))
@@ -1313,9 +1558,9 @@ MODULE NON_HYDRO
     CALL MatSetValuesLocal(A,1,PROW1-1,NREC,COL1_,VAL1_,ADD_VALUES,IERR);CHKERRQ(IERR)
     CALL MatSetValuesLocal(A,1,PROW2-1,NREC,COL2_,VAL2_,ADD_VALUES,IERR);CHKERRQ(IERR)
 
-#   if defined (WET_DRY)
-    ENDIF
-#   endif
+!%#   if defined (WET_DRY)
+!%    ENDIF
+!%#   endif
 !    ENDIF
   ENDDO
 
@@ -1327,8 +1572,19 @@ MODULE NON_HYDRO
       I1 = NTRG(I)
       IA = NIEC(I,1)
       IB = NIEC(I,2)
+#     if defined (SPHERICAL)
+      x1_dp=VX(IB)
+      y1_dp=VY(IB)
+      x2_dp=VX(IA)
+      y2_dp=VY(IA)
+      call ARCX(x1_dp,y1_dp,x2_dp,y2_dp,side)
+
+      DX = side
+      DY = (VY(IA) - VY(IB))*TPI
+#     else
       DX = VX(IA) - VX(IB)
       DY = VY(IA) - VY(IB)
+#     endif
       DD = (D(NV(I1,1))+D(NV(I1,2))+D(NV(I1,3)))/3.0_SP
  
       CA(IA,K) = CA(IA,K) + (-NHA1(I1,K)*DLTYE(I)+NHA2(I1,K)*DLTXE(I))/(DD*DZ1(I1,K))
@@ -1370,7 +1626,8 @@ MODULE NON_HYDRO
   DO I=1, M
 
 #   if defined (WET_DRY)
-    IF(ISWETN(I) == 1) THEN
+!%    IF(ISWETN(I) == 1) THEN
+    IF(ISWETBC(I)/=1 .AND. H(I) >= 0.2_SP) THEN
 #   endif
 
     PROW  = ALO_2_PLO(I,1)
@@ -1443,7 +1700,12 @@ MODULE NON_HYDRO
       PCOL1 = ALO_2_PLO(I1,KBM1)
       PCOL2 = ALO_2_PLO(I2,KBM1)
  
+#     if defined (SPHERICAL)
+      VCOL1 = -(0.5_SP*(VY(I1)-VY(I2))*TPI*COS(SITA_GD(I)) + 0.5_SP*(VX(I2)-VX(I1))*TPI*COS(DEG2RAD*VY(I))*SIN(SITA_GD(I)))*ART1(I)*PHPN(I)/ART2(I)
+#     else 
       VCOL1 = -(0.5_SP*(VY(I1)-VY(I2))*COS(SITA_GD(I)) + 0.5_SP*(VX(I2)-VX(I1))*SIN(SITA_GD(I)))*ART1(I)*PHPN(I)/ART2(I)
+#     endif
+
       CALL MatSetValuesLocal(A,1,PROW-1,1,PCOL1-1,VCOL1,ADD_VALUES,IERR);CHKERRQ(IERR)
       CALL MatSetValuesLocal(A,1,PROW-1,1,PCOL2-1,VCOL1,ADD_VALUES,IERR);CHKERRQ(IERR)
     ENDDO
@@ -1463,7 +1725,8 @@ MODULE NON_HYDRO
 
 # if defined (WET_DRY)
   DO I=1, M
-    IF(ISWETN(I) /= 1) THEN
+!%    IF(ISWETN(I) /= 1) THEN
+    IF(ISWETBC(I)==1 .OR. H(I) < 0.2_SP) THEN
 
       PROW    = ALO_2_PLO(I,1)
       IF( PROW > PSIZE ) CYCLE
@@ -1597,8 +1860,12 @@ MODULE NON_HYDRO
   REAL(SP), ALLOCATABLE :: XFLUX(:,:)
   REAL(SP), ALLOCATABLE :: XFL_EL(:),YFL_EL(:),XFL_D(:,:),YFL_D(:,:)
   REAL(SP) AVG_U_TMP, AVG_V_TMP, V_TMP1
-  REAL(SP) UTMP, VTMP, U1, U2, V1, V2
+  REAL(SP) UTMP, VTMP, U1, U2, V1, V2, ART_TMP
   
+# if defined (SPHERICAL)
+  REAL(SP) XTMP,XTMP1,Y3Y2,Y1Y3,Y2Y1,X3X2,X1X3,X2X1
+  REAL(DP) SIDE,X1_DP,Y1_DP,X2_DP,Y2_DP,DL_DP
+# endif   
 !==============================================================================|
   ALLOCATE(PQPPX(0:NT))        ; PQPPX   = 0.0_SP
   ALLOCATE(PQPPY(0:NT))        ; PQPPY   = 0.0_SP
@@ -1613,17 +1880,17 @@ MODULE NON_HYDRO
 
 ! update next time step pressure gradient
   DO I=1,N
-#   if defined (WET_DRY)
-    IF(ISWETC(I)==1) THEN
-#   endif
+!%#   if defined (WET_DRY)
+!%    IF(ISWETC(I)==1) THEN
+!%#   endif
     DO K = 1, KBM1
       QP1(I,K)  = ( QP(NV(I,1),K)+ QP(NV(I,2),K)+ QP(NV(I,3),K) )/3.0_SP
     END DO
-#   if defined (WET_DRY)
-    ELSE
-      QP1(I,1:KBM1) = 0.0_SP
-    ENDIF
-#   endif
+!%#   if defined (WET_DRY)
+!%    ELSE
+!%      QP1(I,1:KBM1) = 0.0_SP
+!%    ENDIF
+!%#   endif
   END DO
   IF(IINT<=PROJ_SWITCH) THEN
     NHQ1 = QP1
@@ -1642,14 +1909,32 @@ MODULE NON_HYDRO
       DIJ=0.5_SP*(D(J1)*DZ(J1,K)+D(J2)*DZ(J2,K))
       QIJ=0.5_SP*(QP(J1,K)+QP(J2,K))
 
+#     if defined (SPHERICAL)
+      XTMP  = VX(J2)*TPI-VX(J1)*TPI
+      XTMP1 = VX(J2)-VX(J1)
+      IF(XTMP1 >  180.0_SP)THEN
+        XTMP = -360.0_SP*TPI+XTMP
+      ELSE IF(XTMP1 < -180.0_SP)THEN
+        XTMP =  360.0_SP*TPI+XTMP
+      END IF
+      PQPPX(IA)=PQPPX(IA)-QIJ*DIJ*DLTYC(I)
+      PQPPY(IA)=PQPPY(IA)+QIJ*DIJ*XTMP*COS(DEG2RAD*YC(IA))
+      PQPPX(IB)=PQPPX(IB)+QIJ*DIJ*DLTYC(I)
+      PQPPY(IB)=PQPPY(IB)-QIJ*DIJ*XTMP*COS(DEG2RAD*YC(IB))
+#     else
       PQPPX(IA)=PQPPX(IA)-QIJ*DIJ*DLTYC(I)
       PQPPY(IA)=PQPPY(IA)+QIJ*DIJ*DLTXC(I)
       PQPPX(IB)=PQPPX(IB)+QIJ*DIJ*DLTYC(I)
       PQPPY(IB)=PQPPY(IB)-QIJ*DIJ*DLTXC(I)
+#     endif
     ENDDO
 
     DO I=1, N
 
+#   if defined (WET_DRY)
+!%    IF(H1(I)>=0.2_SP .AND. D1(I)>=0.3_SP) THEN
+    IF(ISWETN(NV(I,1))*ISWETN(NV(I,2))*ISWETN(NV(I,3))==1) THEN
+#   endif
       IF(K==1) THEN
         TMP2 = -(QP1(I,1)*NHA1(I,1)*DZ1(I,2)+QP1(I,2)*NHA1(I,2)*DZ1(I,1))/(DZ1(I,1)+DZ1(I,2))
       ELSE IF(K==KBM1) THEN
@@ -1669,6 +1954,10 @@ MODULE NON_HYDRO
       ENDIF
       TMP2 = 1.0E-3_SP*(PQPPY(I)+TMP2*ART(I))
       VF(I,K)   = VF(I,K) - (DTI/D1(I)/DZ1(I,K))*TMP2/ART(I)
+#   if defined (WET_DRY)
+    ENDIF
+#   endif
+
     ENDDO
 
   ENDDO
@@ -1709,7 +1998,7 @@ MODULE NON_HYDRO
   IF(PAR) CALL AEXCHANGE(EC,MYID,NPROCS,UF,VF)
 # endif
 
-  CALL UPDATE_ZETA
+!  CALL UPDATE_ZETA  ! Siqi
 
   NHQ2DX = 0.0_SP
   NHQ2DY = 0.0_SP
@@ -1726,14 +2015,31 @@ MODULE NON_HYDRO
       DIJ=0.5_SP*(D(J1)*DZ(J1,K)+D(J2)*DZ(J2,K))
       QIJ=0.5_SP*(NHQ(J1,K)+NHQ(J2,K))
 
+#     if defined (SPHERICAL)
+      XTMP  = VX(J2)*TPI-VX(J1)*TPI
+      XTMP1 = VX(J2)-VX(J1)
+      IF(XTMP1 >  180.0_SP)THEN
+        XTMP = -360.0_SP*TPI+XTMP
+      ELSE IF(XTMP1 < -180.0_SP)THEN
+        XTMP =  360.0_SP*TPI+XTMP
+      END IF
+      PQPPX(IA)=PQPPX(IA)-QIJ*DIJ*DLTYC(I)
+      PQPPY(IA)=PQPPY(IA)+QIJ*DIJ*XTMP*COS(DEG2RAD*YC(IA))
+      PQPPX(IB)=PQPPX(IB)+QIJ*DIJ*DLTYC(I)
+      PQPPY(IB)=PQPPY(IB)-QIJ*DIJ*XTMP*COS(DEG2RAD*YC(IB))
+#     else
       PQPPX(IA)=PQPPX(IA)-QIJ*DIJ*DLTYC(I)
       PQPPY(IA)=PQPPY(IA)+QIJ*DIJ*DLTXC(I)
       PQPPX(IB)=PQPPX(IB)+QIJ*DIJ*DLTYC(I)
       PQPPY(IB)=PQPPY(IB)-QIJ*DIJ*DLTXC(I)
+#     endif
     ENDDO
 
     DO I=1, N
 
+#   if defined (WET_DRY)
+    IF(H1(I)>=0.2_SP .AND. D1(I)>=0.3_SP) THEN
+#   endif
       IF(K==1) THEN
         TMP2 = -(NHQ1(I,1)*NHA1(I,1)*DZ1(I,2)+NHQ1(I,2)*NHA1(I,2)*DZ1(I,1))/(DZ1(I,1)+DZ1(I,2))
       ELSE IF(K==KBM1) THEN
@@ -1753,13 +2059,18 @@ MODULE NON_HYDRO
       ENDIF
       NHQ2DY(I) = NHQ2DY(I) + 1.0E-3_SP*PQPPY(I)
       NHQDRY(I,K) = 1.0E-3_SP*(PQPPY(I)+TMP2*ART(I))
+#   if defined (WET_DRY)
+    ENDIF
+#   endif
+
     ENDDO
 
   ENDDO
 
 # if defined (WET_DRY)
   DO I=1, N
-    IF(ISWETC(I) /= 1) THEN
+!%    IF(ISWETC(I) /= 1) THEN
+    IF(H1(I)<0.2_SP .OR. D1(I)<0.3_SP) THEN
       NHQ2DX(I) = 0.0_SP
       NHQ2DY(I) = 0.0_SP
       NHQDRX(I,1:KBM1) = 0.0_SP
@@ -1770,7 +2081,8 @@ MODULE NON_HYDRO
 
   DO I=1, M
 #   if defined (WET_DRY)
-    IF(ISWETN(I) ==1 ) THEN
+!%    IF(ISWETN(I) ==1 ) THEN
+    IF(H(I)>=0.2_SP .AND. D(I)>=0.3_SP) THEN
 #   endif
       DO K=2, KBM1
         NHQDRZ(I,K) = 1.0E-3_SP*( NHQ(I,K-1) - NHQ(I,K) )
@@ -1790,7 +2102,8 @@ MODULE NON_HYDRO
 
   DO I=1, N
 #   if defined (WET_DRY)
-    IF(ISWETC(I)==1) THEN
+!%    IF(ISWETC(I)==1) THEN
+    IF(H1(I)>=0.2_SP .AND. D1(I)>=0.3_SP) THEN
 #   endif    
       NHQ2DX(I) = NHQ2DX(I) - 1.0E-3_SP*ART(I)*NHQ1(I,KBM1)*NHA1D(I)
       NHQ2DY(I) = NHQ2DY(I) - 1.0E-3_SP*ART(I)*NHQ1(I,KBM1)*NHA2D(I)
@@ -1821,8 +2134,19 @@ MODULE NON_HYDRO
         IF(NV(I1,J1)/=IA .AND. NV(I1,J1)/=IB) THEN
           IF(NBE(I1,J1)==0) THEN
 
+#           if defined (SPHERICAL)
+            x1_dp=VX(IA)
+            y1_dp=VY(IA)
+            x2_dp=VX(IB)
+            y2_dp=VY(IB)
+            call ARCX(x1_dp,y1_dp,x2_dp,y2_dp,side)
+
+            DX = side
+            DY = (VY(IB) - VY(IA))*TPI
+#           else
             DX = VX(IB) - VX(IA)
             DY = VY(IB) - VY(IA)
+#           endif
             XFL_D(IA,K) = XFL_D(IA,K) + 0.25_SP*(-DY)*(D(IA)*Z(IA,K)+D(IB)*Z(IB,K))
             XFL_D(IB,K) = XFL_D(IB,K) + 0.25_SP*(-DY)*(D(IA)*Z(IA,K)+D(IB)*Z(IB,K))
             YFL_D(IA,K) = XFL_D(IA,K) + 0.25_SP*DX*(D(IA)*Z(IA,K)+D(IB)*Z(IB,K))
@@ -1845,8 +2169,19 @@ MODULE NON_HYDRO
       IF(NV(I1,J1)/=IA .AND. NV(I1,J1)/=IB) THEN
          IF(NBE(I1,J1)==0) THEN
 
+#           if defined (SPHERICAL)
+            x1_dp=VX(IA)
+            y1_dp=VY(IA)
+            x2_dp=VX(IB)
+            y2_dp=VY(IB)
+            call ARCX(x1_dp,y1_dp,x2_dp,y2_dp,side)
+
+            DX = side
+            DY = (VY(IB) - VY(IA))*TPI
+#           else
             DX = VX(IB) - VX(IA)
             DY = VY(IB) - VY(IA)
+#           endif
             XFL_EL(IA) = XFL_EL(IA) + 0.25_SP*(-DY)*(EL(IA)+EL(IB))
             XFL_EL(IB) = XFL_EL(IB) + 0.25_SP*(-DY)*(EL(IA)+EL(IB))
             YFL_EL(IA) = XFL_EL(IA) + 0.25_SP*DX*(EL(IA)+EL(IB))
@@ -1863,12 +2198,27 @@ MODULE NON_HYDRO
   AVG_V  = 0.0_SP
   DO K=1, KBM1
     DO I=1, M
+      ART_TMP = 0.0_SP
       DO J=1, NTVE(I)
+#       if defined (WET_DRY)
+        IF(ISWETC(NBVE(I,J)) == 1) THEN
+#       endif
+        ART_TMP    = ART_TMP + ART(NBVE(I,J))
         AVG_U(I,K) = AVG_U(I,K) + UF(NBVE(I,J),K)*ART(NBVE(I,J))
         AVG_V(I,K) = AVG_V(I,K) + VF(NBVE(I,J),K)*ART(NBVE(I,J))
+#       if defined (WET_DRY)
+        ENDIF
+#       endif
       ENDDO
-      AVG_U(I,K) = AVG_U(I,K)/ART2(I)
-      AVG_V(I,K) = AVG_V(I,K)/ART2(I)
+      IF(ART_TMP>0.0_SP) THEN
+        AVG_U(I,K) = AVG_U(I,K)/ART_TMP   !ART2(I)
+        AVG_V(I,K) = AVG_V(I,K)/ART_TMP   !ART2(I)
+      ELSE
+        AVG_U(I,K) = 0.0_SP
+        AVG_V(I,K) = 0.0_SP
+      ENDIF
+!%      AVG_U(I,K) = AVG_U(I,K)/ART2(I)
+!%      AVG_V(I,K) = AVG_V(I,K)/ART2(I)
     ENDDO
   ENDDO
 
@@ -2098,9 +2448,9 @@ MODULE NON_HYDRO
 
     IF((ISONB(IA)+ISONB(IB))<4) THEN
 
-#     if defined (WET_DRY)
-      IF(ISWETCT(I1) == 1) THEN
-#     endif
+!%#     if defined (WET_DRY)
+!%      IF(ISWETCT(I1) == 1) THEN
+!%#     endif
 
       DO J=1, 3
         IF(NV(I1,J)==IA) THEN
@@ -2123,6 +2473,23 @@ MODULE NON_HYDRO
       VCOL1 = IFCETA*DTI*(-VF_AVG(I1)*DLTXE(I)+UF_AVG(I1)*DLTYE(I))/ART1(IA)/3.0_SP
       VCOL2 = -IFCETA*DTI*(-VF_AVG(I1)*DLTXE(I)+UF_AVG(I1)*DLTYE(I))/ART1(IB)/3.0_SP
 #     endif
+
+#     if defined (WET_DRY)
+      IF(ISWETN(PCOL1)==1) THEN
+        CALL MatSetValuesLocal(A_EL,1,PROW1-1,1,PCOL1-1,VCOL1,ADD_VALUES,IERR);CHKERRQ(IERR)
+        CALL MatSetValuesLocal(A_EL,1,PROW2-1,1,PCOL1-1,VCOL2,ADD_VALUES,IERR);CHKERRQ(IERR)
+      ENDIF
+
+      IF(ISWETN(PCOL2)==1) THEN
+        CALL MatSetValuesLocal(A_EL,1,PROW1-1,1,PCOL2-1,VCOL1,ADD_VALUES,IERR);CHKERRQ(IERR)
+        CALL MatSetValuesLocal(A_EL,1,PROW2-1,1,PCOL2-1,VCOL2,ADD_VALUES,IERR);CHKERRQ(IERR) 
+      ENDIF
+
+      IF(ISWETN(PCOL3)==1) THEN
+        CALL MatSetValuesLocal(A_EL,1,PROW1-1,1,PCOL3-1,VCOL1,ADD_VALUES,IERR);CHKERRQ(IERR)
+        CALL MatSetValuesLocal(A_EL,1,PROW2-1,1,PCOL3-1,VCOL2,ADD_VALUES,IERR);CHKERRQ(IERR)
+      ENDIF
+#     else
       CALL MatSetValuesLocal(A_EL,1,PROW1-1,1,PCOL1-1,VCOL1,ADD_VALUES,IERR);CHKERRQ(IERR)
       CALL MatSetValuesLocal(A_EL,1,PROW2-1,1,PCOL1-1,VCOL2,ADD_VALUES,IERR);CHKERRQ(IERR)
 
@@ -2131,10 +2498,11 @@ MODULE NON_HYDRO
 
       CALL MatSetValuesLocal(A_EL,1,PROW1-1,1,PCOL3-1,VCOL1,ADD_VALUES,IERR);CHKERRQ(IERR)
       CALL MatSetValuesLocal(A_EL,1,PROW2-1,1,PCOL3-1,VCOL2,ADD_VALUES,IERR);CHKERRQ(IERR)
-
-#     if defined (WET_DRY)
-      ENDIF
 #     endif
+
+!%#     if defined (WET_DRY)
+!%      ENDIF
+!%#     endif
     ENDIF
   ENDDO
 
@@ -2412,13 +2780,13 @@ MODULE NON_HYDRO
     IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,QP)
 # endif
 
-# if defined (WET_DRY)
-  DO I=1, NT
-   IF(ISWETN(I)/=1) THEN
-     QP(I,1:KBM1) = 0.0_SP
-   ENDIF
-  ENDDO
-# endif
+!%# if defined (WET_DRY)
+!%  DO I=1, NT  ! Modified by Dr. Lai 2021-01-15 (before the end is 'MT')
+!%   IF(ISWETN(I)/=1) THEN
+!%     QP(I,1:KBM1) = 0.0_SP
+!%   ENDIF
+!%  ENDDO
+!%# endif
 
   IF(PDEBUG) WRITE(PUNIT,*) 'FINISHING: ',TRIM(SUBNAME)
 
