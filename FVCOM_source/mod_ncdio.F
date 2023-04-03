@@ -4238,7 +4238,7 @@ CONTAINS
     IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "END OFFLINE_FILE_OBJECT"
 
   END FUNCTION OFFLINE_FILE_OBJECT
-  ================================
+!=============================================================
 
   FUNCTION VORTICITY_FILE_OBJECT() RESULT(NCF)
     IMPLICIT NONE
