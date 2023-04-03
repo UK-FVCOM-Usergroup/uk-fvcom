@@ -105,3 +105,6 @@ mod_gotm.F
 
 Implement spherical and wet-dry in non-hydro
 mod_non_hydro.F
+
+Add offset freshwater flux in mpdata and single precision fix for stability in mod_wqm
+mod_wqm.F

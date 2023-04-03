@@ -656,6 +656,7 @@ MODULE MOD_WQM
    REAL(SP), DIMENSION(0:MT,KB)     :: BETAIN  !! temporary beta coefficient in corrected part
    REAL(SP), DIMENSION(0:MT,KB)     :: BETAOUT !! temporary beta coefficient in corrected part
    REAL(SP), DIMENSION(0:MT,KB)     :: WQM_FRESH    
+   REAL(SP), DIMENSION(0:MT,KB)     :: OFFS    !! Offset to WQM field to avoid values less than zero.
 
    INTEGER ITERA, NTERA
 #  endif
@@ -674,6 +675,10 @@ MODULE MOD_WQM
      CALL FATAL_ERROR("UNKNOW HORIZONTAL MIXING TYPE:",&
           & TRIM(HORIZONTAL_MIXING_TYPE) )
   END SELECT
+
+# if defined (MPDATA)
+  OFFS = 5.0_SP
+# endif
 
 !
 !--Initialize Fluxes-----------------------------------------------------------
@@ -805,6 +810,13 @@ MODULE MOD_WQM
 !
 
    DO N1=1,NB
+
+#  if defined (MPDATA)
+   ! Adding offset to avoid less-than-zero problems
+     WQM(:,:,N1) = WQM(:,:,N1)+OFFS(:,:)
+     WMEAN(:,:,N1) = WMEAN(:,:,N1)+OFFS(:,:)
+#  endif
+
      DO K=1,KBM1
        PFPX  = 0.0_SP
        PFPY  = 0.0_SP
@@ -1206,7 +1218,7 @@ MODULE MOD_WQM
          IF(NUMQBC > 0) THEN
            DO J=1,NUMQBC
              JJ=INODEQ(J)
-             STPOINT=WQMDIS(J,N1)
+             STPOINT=WQMDIS(J,N1)+OFFS(1,1)
              DO K=1,KBM1
                XFLUX(JJ,K,N1)=XFLUX(JJ,K,N1) - QDIS(J)*VQDIST(J,K)*STPOINT   !/DZ(K)
              END DO
@@ -1217,7 +1229,7 @@ MODULE MOD_WQM
            DO J=1,NUMQBC
              J1=N_ICELLQ(J,1)
              J2=N_ICELLQ(J,2)
-             STPOINT=WQMDIS(J,N1) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+             STPOINT=WQMDIS(J,N1)+OFFS(1,1) 
              DO K=1,KBM1
                XFLUX(J1,K,N1)=XFLUX(J1,K,N1)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT   !/DZ(K)
                XFLUX(J2,K,N1)=XFLUX(J2,K,N1)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT   !/DZ(K)
@@ -1287,13 +1299,24 @@ MODULE MOD_WQM
            WQMMIN = MIN(WQMMIN,WQM(I,K+1,N1),WQM(I,K-1,N1),WQM(I,K,N1),WQM_FRESH(I,K))
          END IF
 
+         ! Total (horizontal + vertical) flux to the cell
          ZZZFLUX(I,K) = TEMP*(DTI/DT(I))/DZ(I,K) + XFLUX(I,K,N1)/ART1(I)*(DTI/DT(I))/DZ(I,K) 
+
+         ! Updated variable without limiter minus current variable
          XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+WQM(I,K,N1)-WQM(I,K,N1)*DT(I)/DTFA(I) 
 
-         BETA(I,K)=0.5*(1.-SIGN(1.,XXXX)) * (WQMMAX-WQM(I,K,N1))/(ABS(XXXX)+1.E-10) &
-                  +0.5*(1.-SIGN(1.,-XXXX)) * (WQM(I,K,N1)-WQMMIN)/(ABS(XXXX)+1.E-10)
-
-         WQM_SF(I,K)=WQM(I,K,N1)-MIN(1.,BETA(I,K))*XXXX
+           ! Added by Akvaplan 2018 to avoid single precision-crash
+         IF((ABS(XXXX).LT.ABS(WQMMAX-WQM(I,K,N1))).AND.(XXXX.LT.0.0_SP)) THEN
+            WQM_SF(I,K) = WQM(I,K,N1)-XXXX
+         ELSE IF((ABS(XXXX).LT.ABS(WQMMIN-WQM(I,K,N1))).AND.(XXXX.GT.0.0_SP)) THEN 
+            WQM_SF(I,K) = WQM(I,K,N1)-XXXX
+         ELSE IF(XXXX.EQ.0) THEN
+            WQM_SF(I,K) = WQM(I,K,N1)
+         ELSE
+            BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (WQMMAX-WQM(I,K,N1))/(ABS(XXXX)+1.E-10) &
+                 +0.5*(1.-SIGN(1._SP,-XXXX)) * (WQM(I,K,N1)-WQMMIN)/(ABS(XXXX)+1.E-10)
+            WQM_SF(I,K)=WQM(I,K,N1)-MIN(1._SP,BETA(I,K))*XXXX
+         END IF
 
 #    if defined (WET_DRY)
        END IF
@@ -1414,6 +1437,9 @@ MODULE MOD_WQM
 !--------------------------------------------------------------------------
 ! End of smolarkiewicz upwind loop
 !--------------------------------------------------------------------------
+   WQM(:,:,N1) = WQM(:,:,N1)-OFFS(:,:)
+   WQM_SF = WQM_SF-OFFS
+   WMEAN(:,:,N1) = WMEAN(:,:,N1)-OFFS(:,:)
 #  endif
 
 
@@ -1475,12 +1501,10 @@ MODULE MOD_WQM
            DO J=1,NUMQBC
              J1=N_ICELLQ(J,1)
              J2=N_ICELLQ(J,2)
-             STPOINT=WQMDIS(J,N1) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+             STPOINT=WQMDIS(J,N1) 
              DO K=1,KBM1
-!               XFLUX(J1,K,N1)=XFLUX(J1,K,N1)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT/DZ(K)
-!               XFLUX(J2,K,N1)=XFLUX(J2,K,N1)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT/DZ(K)
-               XFLUX(J1,K,N1)=XFLUX(J1,K,N1)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
-               XFLUX(J2,K,N1)=XFLUX(J2,K,N1)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
+               XFLUX(J1,K,N1)=XFLUX(J1,K,N1)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT     !/DZ(K)
+               XFLUX(J2,K,N1)=XFLUX(J2,K,N1)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT     !/DZ(K)
              END DO
            END DO
          END IF
@@ -1499,7 +1523,8 @@ MODULE MOD_WQM
 !           WQM_F(I,K,N1)=(WQM(I,K,N1)-XFLUX(I,K,N1)/ART1(I)*(DTI/DT(I)))*   &
 !                         (DT(I)/D(I))+RF(I,K,N1)*DTI
            WQM_F(I,K,N1)=(WQM(I,K,N1)-XFLUX(I,K,N1)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*   &
-                         (DT(I)/D(I))+RF(I,K,N1)*DTI
+                         (DT(I)/DTFA(I))+RF(I,K,N1)*DTI
+!                         (DT(I)/D(I))+RF(I,K,N1)*DTI
 #        else
            WQM_F(I,K,N1)=WQM_SF(I,K)   !-XFLUX(I,K,N1)/ART1(I)*DTI/DTFA(I)
 #    endif              
@@ -1518,7 +1543,8 @@ MODULE MOD_WQM
 !           WQM_F(I,K,N1)=(WQM(I,K,N1)-XFLUX(I,K,N1)/ART1(I)*(DTI/DT(I)))*   &
 !                         (DT(I)/D(I))+RF(I,K,N1)*DTI
          WQM_F(I,K,N1)=(WQM(I,K,N1)-XFLUX(I,K,N1)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*   &
-                         (DT(I)/D(I))+RF(I,K,N1)*DTI
+                         (DT(I)/DTFA(I))+RF(I,K,N1)*DTI
+!                         (DT(I)/D(I))+RF(I,K,N1)*DTI
 #      else
          WQM_F(I,K,N1)=WQM_SF(I,K)   !-XFLUX(I,K,N1)/ART1(I)*DTI/DTFA(I)
 #      endif              
