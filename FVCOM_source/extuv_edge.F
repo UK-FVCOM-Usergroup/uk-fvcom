@@ -123,7 +123,7 @@
                  -(WUSURF2(I)+WUBOT(I))*ART(I)
        RESY(I) = ADY2D(I)+ADVVA(I)+DRY2D(I)+PSTY(I)+COR(I)*UA(I)*D1(I)*ART(I)  &
                  -(WVSURF2(I)+WVBOT(I))*ART(I)
-#      end if
+#      endif
 # if defined (VEGETATION)
        IF(VEGETATION_MODEL.and.VEG_DRAG)THEN
          RESX(I) = RESX(I) + step2d_uveg(i)*ART(I)
