@@ -98,6 +98,7 @@ mod_fluid_mud.o : mod_fluid_mud.F mod_spherical.o mod_main.o mod_northpole.o eqs
 mod_mld_rho.o : mod_mld_rho.F mod_main.o mod_prec.o mod_prec.o 
 mod_main_wave.o : mod_main_wave.F mod_obcs.o mod_main.o mod_prec.o 
 mod_vector_projection.o : mod_vector_projection.F mod_main.o mod_par.o
+mod_sediment_heatflux.o : mod_heatflux_sediment.F mod_main.o mod_prec.o mod_utils.o mod_par.o
 swmod1.o : swmod1.F mod_prec.o mod_prec.o 
 swmod2.o : swmod2.F swmod1.o mod_prec.o 
 swmod3.o : swmod3.F swmod2.o swmod1.o mod_prec.o 
