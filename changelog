@@ -141,3 +141,6 @@ mod_input.F, vdif_ts.F
 
 Add wind_Stress methods
 mod_heatflux.F, mod_input.F,  mod_main.F, mod_ncdio.F
+
+Update coare methods, especially air pressure in coare40
+coare26z.F, coare40vn.F, mod_force.F

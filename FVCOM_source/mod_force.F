@@ -1792,6 +1792,8 @@ CONTAINS
        CALL NC_CONNECT_PVAR(TIDE_ELV_P,STORAGE_VEC)
        NULLIFY(STORAGE_VEC)
 
+       tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0  ! Siqi Li, 2021-01-27
+
 
        ! SINCE NO DATA HAS BEEN LOADED THERE IS NOT MUCH TO REPORT
        IF(DBG_SET(DBG_LOG)) THEN
@@ -1802,15 +1804,6 @@ CONTAINS
        ! SET THE TIDE FORCING TYPE FOR USE IN UPDATE
        TIDE_FORCING_TYPE = TIDE_FORCING_TIMESERIES
 
-
-    ! ---------- new: 2016 , april, after Hint by Qi -------------------------
-    ! Initialize some variables 
-    ! afm 20150914
-    ! Need initialization. Otherwise, random values are asigned
-    ! and cause a hanging problem of MPI job in UPDATE_VAR_BRACKET 
-    ! This problem reported with Intel15.0.3. 
-    tide_elv_p%curr_stkcnt = 0; tide_elv_n%curr_stkcnt = 0
-    ! --------- end new --------------------------------------------
 
        ! NOT MUCH ELSE TO REPORT SINCE WE DON'T LOAD ANY DATA NOW
 
@@ -3778,7 +3771,7 @@ CONTAINS
     CASE ('unifor')
        
        ! ALREADY SET VALUES
-!       WRITE(IPT,*) "UNIFORM RIVER DISTRIBUTION",MYDIST
+       WRITE(IPT,*) "UNIFORM RIVER DISTRIBUTION",MYDIST
        ! HEAVISIDE FUNCTION
     CASE('heavis')
        
@@ -6064,8 +6057,8 @@ CONTAINS
     IF(MSR) CALL DEGREES2METERS(XLON,XLAT,PROJECTION_REFERENCE,HEATX,HEATY,lons,lats)
 # if defined(MULTIPROCESSOR)
     IF (PAR) THEN
-      CALL MPI_BCAST(HEATX,lats*lons,MPI_F,0,MPI_COMM_WORLD,ierr)
-      CALL MPI_BCAST(HEATY,lats*lons,MPI_F,0,MPI_COMM_WORLD,ierr)
+      CALL MPI_BCAST(HEATX,lats*lons,MPI_F,0,MPI_FVCOM_GROUP,ierr)
+      CALL MPI_BCAST(HEATY,lats*lons,MPI_F,0,MPI_FVCOM_GROUP,ierr)
     END IF
 # endif    
     
@@ -6696,7 +6689,10 @@ CONTAINS
 !==============================================================================|
 !    bulk air temperature at height 2m:   degree(C)    "t_air"                 |
 !    relative humidity at height 2m:      (%)          "rh_air"                |
-!    surface pressure:                    mb           "pa_air"                |
+!---> Siqi li, 2021-01-27
+!    surface pressure:                    pa           "pa_air"                |
+!    surface pressure:                    mb           "pa_air"                |  (the unit was wrong for coare)  
+!<--- Siqi Li, 2021-01-27
 !    downward longwave radiation:         w/m^2        "dlw_air"               |
 !    downward shortwave radiation:        w/m^2        "dsw_air"               |
 !==============================================================================|
@@ -7003,11 +6999,35 @@ CONTAINS
 !       
        ! SURFACE PRESSURE
        VAR => FIND_VAR(HEAT_FILE,"air_pressure",FOUND)
-       IF(.not. FOUND) VAR => FIND_VAR(HEAT_FILE,"air_pressure",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(HEAT_FILE,"SLP",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            & "COULD NOT FIND VARIABLE 'air_pressure'")
+            & "COULD NOT FIND VARIABLE 'air_pressure' OR 'SLP'")
+
+       !---> Siqi Li, 2021-01-27
+       ! The unit of air pressure is really important. It can influence both
+       ! water elevation and wind stress. In calculation, the unit of air 
+       ! pressure is 'Pa'.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(VAR,'unit',FOUND)
+       IF (FOUND) THEN
+       call UPCASE(ATT%CHR(1))
+       SELECT CASE (TRIM(ATT%CHR(1)))
+       CASE ('MB', 'HPA')
+         Pair_unit_factor = 100.0_SP
+       CASE ('PA','PASCAL')
+         Pair_unit_factor = 1.0_SP
+       CASE DEFAULT
+         CALL FATAL_ERROR("UNKNOWN UNIT of AIR PRESSURE: " &
+                 & //TRIM(ATT%CHR(1)))
+       END SELECT
+       ELSE
+         ! There is no unit attribute for the air_pressure variable
+         ! We assume the unit is 'Pa'.
+         Pair_unit_factor = 1.0_SP
+       END IF
+       !<--- Siqi Li, 2021-01-27
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
@@ -7183,10 +7203,36 @@ CONTAINS
 !
        ! SURFACE PRESSURE
        VAR => FIND_VAR(HEAT_FILE,"air_pressure",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(HEAT_FILE,"SLP",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE HEATING BOUNDARY CONDITION FILE OBJECT",&
             & "FILE NAME: "//TRIM(HEATING_CALCULATE_FILE),&
-            & "COULD NOT FIND VARIABLE 'air_pressure'")
+            & "COULD NOT FIND VARIABLE 'air_pressure' OR 'SLP'") ! Siqi Li, 2021-01-27
+!            & "COULD NOT FIND VARIABLE 'air_pressure' OR "SLP")
+
+       !---> Siqi Li, 2021-01-27
+       ! The unit of air pressure is really important. It can influence both
+       ! water elevation and wind stress. In calculation, the unit of air 
+       ! pressure is 'Pa'.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(VAR,'unit',FOUND)
+       IF (FOUND) THEN
+       call UPCASE(ATT%CHR(1))
+       SELECT CASE (TRIM(ATT%CHR(1)))
+       CASE ('MB', 'HPA')
+         Pair_unit_factor = 100.0_SP
+       CASE ('PA','PASCAL')
+         Pair_unit_factor = 1.0_SP
+       CASE DEFAULT
+         CALL FATAL_ERROR("UNKNOWN UNIT of AIR PRESSURE: " &
+                 & //TRIM(ATT%CHR(1)))
+       END SELECT
+       ELSE
+         ! There is no unit attribute for the air_pressure variable
+         ! We assume the unit is 'Pa'.
+         Pair_unit_factor = 1.0_SP
+       END IF
+       !<--- Siqi Li, 2021-01-27
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        PA_AIR_N => reference_var(var)
@@ -8852,6 +8898,65 @@ CONTAINS
          &("YOU MUST SELECT A WIND TYPE IN THE RUNFILE: '"&
          &//TRIM(SPEED)//", or '"//TRIM(STRESS)//"'")
 
+!---> Siqi Li, 2021-01-27
+    IF (WIND_ON) THEN
+
+      SELECT CASE (TRIM(WIND_STRESS_METHOD))
+
+        CASE ('LP1981')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : LP1981!"
+
+# if defined (HEATING_CALCULATED)
+        CASE ('COARE')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : COARE!"
+# else
+        CASE ('COARE')
+          CALL FATAL_ERROR("TO USE COARE FOR WIND_STRESS_METHOD, &
+                     &       RECOMPILE FVCOM WITH HEATING_CALCULATED")
+# endif
+
+# if defined  (WAVE_CURRENT_INTERACTION)
+        CASE ('TY2001')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : TY2001!"
+# else
+        CASE ('TY2001')
+          CALL FATAL_ERROR("TO USE TY2001 FOR WIND_STRESS_METHOD, &
+                     &      RECOMPILE FVCOM WITH WAVE_ONLY or WAVE_CURRENT_INTERACTION")
+# endif
+
+# if defined(HEATING_CALCULATED) && defined(WAVE_CURRENT_INTERACTION)
+        CASE ('OOST')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : OOST!"
+
+        CASE ('DGHQ')
+          IF(DBG_SET(DBG_LOG)) write(IPT,*) "! WIND_STRESS_METHOD : DGHQ!"
+# else
+        CASE ('OOST')
+          CALL FATAL_ERROR("TO USE OOST FOR WIND_STRESS_METHOD, &
+                     &      RECOMPILE FVCOM WITH HEATING_CALCULATED and &
+                     &       WAVE_ONLY / WAVE_CURRENT_INTERACTION")
+
+        CASE ('DGHQ')
+          CALL FATAL_ERROR("TO USE DGHQ FOR WIND_STRESS_METHOD, &
+                     &      RECOMPILE FVCOM WITH HEATING_CALCULATED and &
+                     &       WAVE_ONLY / WAVE_CURRENT_INTERACTION")
+
+# endif
+
+        CASE DEFAULT
+          CALL FATAL_ERROR               &
+               &   ("WRONG WIND_STRESS_METHOD OPTIONS.")
+
+      END SELECT
+
+# if defined(HEATING_CALCULATED) && defined(WAVE_CURRENT_INTERACTION)
+    IF (TRIM(WIND_STRESS_METHOD) == 'COARE' .AND. TRIM(COARE_VERSION) == 'COARE26Z')&
+      &  CALL FATAL_ERROR("COARE26Z DOES NOT INVOLVE WAVE. &
+      &                    CHANGE ANOTHER WIND_STRESS_METHOD")
+# endif
+
+    END IF
+!<--- Siqi Li, 2021-01-27
 
 ! DETERMINE HOW TO LOAD THE DATA
     SELECT CASE(WIND_KIND)
@@ -11528,10 +11633,35 @@ CONTAINS
        ! AIR PRESSURE
        VAR => FIND_VAR(AIRPRESSURE_P_FILE,"air_pressure",FOUND)
        IF(.not. FOUND) VAR => FIND_VAR(AIRPRESSURE_P_FILE,"pressure_air",FOUND)
+       IF(.not. FOUND) VAR => FIND_VAR(AIRPRESSURE_P_FILE,"SLP",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
-            & "COULD NOT FIND VARIABLE 'air_pressure'")
+            & "COULD NOT FIND VARIABLE 'air_pressure' OR 'SLP'")
+
+       !---> Siqi Li, 2021-01-27
+       ! The unit of air pressure is really important. It can influence both
+       ! water elevation and wind stress. In calculation, the unit of air 
+       ! pressure is 'Pa'.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(VAR,'unit',FOUND)
+       IF (FOUND) THEN
+       call UPCASE(ATT%CHR(1))
+       SELECT CASE (TRIM(ATT%CHR(1)))
+       CASE ('MB', 'HPA')
+         Pair_unit_factor = 100.0_SP
+       CASE ('PA','PASCAL')
+         Pair_unit_factor = 1.0_SP
+       CASE DEFAULT
+         CALL FATAL_ERROR("UNKNOWN UNIT of AIR PRESSURE: " &
+                 & //TRIM(ATT%CHR(1)))
+       END SELECT
+       ELSE
+         ! There is no unit attribute for the air_pressure variable
+         ! We assume the unit is 'Pa'.
+         Pair_unit_factor = 1.0_SP
+       END IF
+       !<--- Siqi Li, 2021-01-27
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        ALLOCATE(STORAGE_ARR(lons,lats), stat = status)
@@ -11594,6 +11724,30 @@ CONTAINS
             & ("IN SURFACE AIR PRESSURE FILE OBJECT",&
             & "FILE NAME: "//TRIM(AIRPRESSURE_FILE),&
             & "COULD NOT FIND VARIABLE 'air_pressure' or 'SLP'")
+
+       !---> Siqi Li, 2021-01-27
+       ! The unit of air pressure is really important. It can influence both
+       ! water elevation and wind stress. In calculation, the unit of air 
+       ! pressure is 'Pa'.
+       ATT => FIND_ATT(VAR,'units',FOUND)
+       IF(.not. FOUND) ATT => FIND_ATT(VAR,'unit',FOUND)
+       IF (FOUND) THEN
+       call UPCASE(ATT%CHR(1))
+       SELECT CASE (TRIM(ATT%CHR(1)))
+       CASE ('MB', 'HPA')
+         Pair_unit_factor = 100.0_SP
+       CASE ('PA','PASCAL')
+         Pair_unit_factor = 1.0_SP
+       CASE DEFAULT
+         CALL FATAL_ERROR("UNKNOWN UNIT of AIR PRESSURE: " &
+                 & //TRIM(ATT%CHR(1)))
+       END SELECT
+       ELSE
+         ! There is no unit attribute for the air_pressure variable
+         ! We assume the unit is 'Pa'.
+         Pair_unit_factor = 1.0_SP
+       END IF
+       !<--- Siqi Li, 2021-01-27
 
        ! MAKE SPACE FOR THE DATA FROM THE FILE
        AIR_PRESSURE_N => reference_var(var)
@@ -13451,17 +13605,21 @@ CONTAINS
   !==============================================================================|
   !==============================================================================|
 # if defined (HEATING_CALCULATED)
-  SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
+  SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN,&
+           Cwave,HSC1,TAU_WIND,U_star,Cd) ! Siqi Li, 2021-01-27
+!  SUBROUTINE UPDATE_HEAT_CALCULATED(NOW,HEAT_SWV,HEAT_NET,HEAT_SENSIBLE,HEAT_LATENT,HEAT_RLN)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
     TYPE(TIME)             :: HTIME
     REAL(SP), ALLOCATABLE :: HEAT_SWV(:), HEAT_NET(:)
     REAL(SP), ALLOCATABLE :: HEAT_SENSIBLE(:), HEAT_LATENT(:), HEAT_RLN(:)
+    REAL(SP), ALLOCATABLE :: TAU_WIND(:), U_star(:), Cd(:), Cwave(:), HSC1(:) ! Siqi Li, 2021-01-27
+    REAL(SP), DIMENSION(0:MT) :: TAU_node, USR_node, Cd_node  ! Siqi Li, 2021-01-27
     TYPE(NCFTIME), POINTER :: FTM
     INTEGER :: STATUS,I,J
     REAL(SP), POINTER :: VNP(:), VPP(:)
     REAL(SP) :: WDS
-    REAL(SP) :: HSB,HLB,TAU,USR,DTER
+    REAL(SP) :: HSB,HLB,TAU,USR,DTER  
     REAL(SP), DIMENSION(0:NT) :: WDSN
     REAL(SP) :: t1k,ulw_airf          ! ejw 8/16/2006
 # if defined (OBSICE)
@@ -13507,9 +13665,15 @@ CONTAINS
          WDS = WDS/FLOAT(NTVE(I))
   
          IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
-           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
-           
+!---> Siqi Li, 2021-01-27 : add Cd
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER,Cd_node(I))
+!           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
+!                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
+
 	   IF(.NOT. HEATING_FRESHWATER)THEN		
 	     t1k=t1(i,1)+273.16_sp
              ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
@@ -13536,12 +13700,16 @@ CONTAINS
              HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
 	   END IF  
 	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
-           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+           RAIN(I) = QPREC(I)*3600.0_SP*1000.0_SP  ! change unit to mm/hr  from m/s
 	   ZI40 = fmiss
-	   CP40 = 0.0_SP
-	   SIGH = 0.0_SP
+           CP40 = Cwave(I)
+           SIGH = HSC1(I)
+!---> Siqi Li, 2021-01-27
            CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER,Cd_node(I)) 
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
 
 	   IF(.NOT. HEATING_FRESHWATER)THEN		
              t1k=t1(i,1)+273.16_sp
@@ -13572,6 +13740,14 @@ CONTAINS
 	   CALL FATAL_ERROR("The value of COARE_VERSION should be 'COARE26Z' or 'COARE40VN'")
 	 END IF  
        END DO
+
+!---> Siqi Li, 2021-01-27
+       DO I = 1, NT
+         TAU_WIND(I) = (TAU_node(NV(I,1))+TAU_node(NV(I,2))+TAU_node(NV(I,3))) / 3.0_SP
+         U_star(I) = (USR_node(NV(I,1))+USR_node(NV(I,2))+USR_node(NV(I,3))) / 3.0_SP
+         Cd(I) = (Cd_node(NV(I,1))+Cd_node(NV(I,2))+Cd_node(NV(I,3))) / 3.0_SP
+       END DO
+!<--- Siqi Li, 2021-01-27
 
        RETURN
 
@@ -13643,6 +13819,7 @@ CONTAINS
        CALL NC_POINT_VAR(PA_AIR_P,VPP)        
 
        PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       PA_AIR = PA_AIR * Pair_unit_factor  ! Siqi Li, 2021-01-27
 !
        ! DOWNWARD LONGWAVE RADIATION
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,DLW_AIR_P,DLW_AIR_N,HTIME,STATUS,HEAT_INTP_N)
@@ -13677,8 +13854,14 @@ CONTAINS
          WDS = WDS/FLOAT(NTVE(I))
   
          IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
-           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+!---> Siqi Li, 2021-01-27 : add Cd
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER,Cd_node(I))
+!           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+!           &                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
 
            IF(.NOT. HEATING_FRESHWATER)THEN
              t1k=t1(i,1)+273.16_sp
@@ -13706,12 +13889,18 @@ CONTAINS
              HEAT_RLN(I)  = emmiss*(DLW_AIR(I)+ulw_airf)	     
 	   END IF  
 	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
-           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+           RAIN(I) = QPREC(I)*3600.0_SP*1000.0_SP  ! change unit to mm/hr  from m/s
 	   ZI40 = fmiss
-	   CP40 = 0.0_SP
-	   SIGH = 0.0_SP
-           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+           CP40 = Cwave(I)
+           SIGH = HSC1(I)
+!---> Siqi Li, 2021-01-27
+           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),&
+               DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER,Cd_node(I))
+!           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+!              DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
 
            IF(.NOT. HEATING_FRESHWATER)THEN
              t1k=t1(i,1)+273.16_sp
@@ -13780,6 +13969,7 @@ CONTAINS
        CALL NC_POINT_VAR(PA_AIR_P,VPP)        
 
        PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       PA_AIR = PA_AIR * Pair_unit_factor  ! Siqi Li, 2021-01-27
 !
        ! DOWNWARD LONGWAVE RADIATION
        CALL UPDATE_VAR_BRACKET(HEAT_FILE,DLW_AIR_P,DLW_AIR_N,HTIME,STATUS)
@@ -13887,8 +14077,14 @@ CONTAINS
        ELSE
 # endif
          IF(TRIM(COARE_VERSION) == 'COARE26Z')THEN
-           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+!---> Siqi Li, 2021-01-27 : add Cd
+           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER,Cd_node(I))
+!           CALL COARE26Z(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),&
+!           &       DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
 
 # if defined(OBSICE)	      
             t1k= t1(i,1) + 273.16_sp
@@ -13929,13 +14125,20 @@ CONTAINS
              HEAT_RLN(I)  =emmiss*(DLW_AIR(I)+ulw_airf)	     
 	   END IF  
 	 ELSE IF(TRIM(COARE_VERSION) == 'COARE40VN')THEN
-           RAIN(I) = QPREC(I)*3600*1000  ! change unit to mm/hr  from m/s
+           RAIN(I) = QPREC(I)*3600.0_SP*1000.0_SP  ! change unit to mm/hr  from m/s
 	   ZI40 = fmiss
-	   CP40 = 0.0_SP
-	   SIGH = 0.0_SP
-           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),  &
-                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
-	      
+           CP40 = Cwave(I)
+           SIGH = HSC1(I)
+!---> Siqi Li, 2021-01-27
+           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1),&
+                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER,Cd_node(I))
+!           CALL COARE40VN(WDS,ZUU,T_AIR(I),ZTT,RH_AIR(I),ZQQ,PA_AIR(I),T1(I,1), &
+!                DLW_AIR(I),DSW_AIR(I),TAU,HSB,HLB,CORR(I),ZI40(I),RAIN(I),CP40(I),SIGH(I),fmiss,USR,DTER) !MDR include USR, DTER
+           TAU_node(I) = TAU
+           USR_node(I) = USR
+!<--- Siqi Li, 2021-01-27
+
+
            IF(.NOT. HEATING_FRESHWATER)THEN	      
              t1k=t1(i,1)+273.16_sp
              ulw_airf=-emmiss*StefBo*t1k*t1k*t1k*t1k
@@ -13969,6 +14172,19 @@ CONTAINS
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN HEAT_FORCING_TYPE IN UPDATE HEAT")
     END SELECT
+
+!---> Siqi Li, 2021-01-27
+!#      if defined (MULTIPROCESSOR)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,TAU_node)
+!       IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,USR_node)
+!#      endif
+    DO I = 1, N
+       TAU_WIND(I) = (TAU_node(NV(I,1))+TAU_node(NV(I,2))+TAU_node(NV(I,3))) / 3.0_SP
+       U_star(I) = (USR_node(NV(I,1))+USR_node(NV(I,2))+USR_node(NV(I,3))) / 3.0_SP
+       Cd(I) = (Cd_node(NV(I,1))+Cd_node(NV(I,2))+Cd_node(NV(I,3))) / 3.0_SP
+    END DO
+!<--- Siqi Li, 2021-01-27
+
 
     RETURN
   END SUBROUTINE UPDATE_HEAT_CALCULATED
@@ -14870,6 +15086,7 @@ CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
 
     CALL NC_POINT_VAR(SEDIMENTS_WC_N,VNP_INT)
     CALL NC_POINT_VAR(SEDIMENTS_WC_P,VPP_INT) 
+!Karsten Lettmann    DO I=1,MT
     DO I=1,NT
       OFFLINE_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
@@ -15073,6 +15290,7 @@ CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
 
     CALL NC_POINT_VAR(BIOLOGY_WC_N,VNP_INT)
     CALL NC_POINT_VAR(BIOLOGY_WC_P,VPP_INT) 
+!Karsten Lettmann    DO I=1,MT
     DO I=1,NT
       OFFLINE_WC(I)=VNP_INT(I)*VPP_INT(I)
     END DO  
@@ -15457,6 +15675,7 @@ CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
        CALL NC_POINT_VAR(AIR_PRESSURE_N,VNP)
        CALL NC_POINT_VAR(AIR_PRESSURE_P,VPP)   
        PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
+       PA_AIR = PA_AIR * Pair_unit_factor  ! Siqi Li, 2021-01-27
        
 !===================================================
     CASE(AIRPRESSURE_IS_FVCOMGRID)
@@ -15473,7 +15692,7 @@ CALL FATAL_ERROR("TIME DEPENDANT WIND Not Set Up Yet")
        CALL NC_POINT_VAR(AIR_PRESSURE_N,VNP)
        CALL NC_POINT_VAR(AIR_PRESSURE_P,VPP)   
        PA_AIR = FTM%NEXT_WGHT * VNP + FTM%PREV_WGHT * VPP
-       
+       PA_AIR = PA_AIR * Pair_unit_factor  ! Siqi Li, 2021-01-27 
     CASE DEFAULT
        CALL FATAL_ERROR("UNKNOWN AIRPRESSURE_FORCING_TYPE IN UPDATE AIR PRESSURE")
     END SELECT

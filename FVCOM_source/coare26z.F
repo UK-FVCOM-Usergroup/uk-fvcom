@@ -28,8 +28,8 @@
 
 !==============================================================================|
 # if defined (HEATING_CALCULATED)
-   SUBROUTINE COARE26Z(UR,ZU,TA,ZT,RH,ZQ,PA,TS,DLW,DSW,TAU,HSB,HLB,LAT,USR,DTER) !mdr include USR, DTER
-
+   SUBROUTINE COARE26Z(UR,ZU,TA,ZT,RH,ZQ,PA,TS,DLW,DSW,TAU,HSB,HLB,LAT,USR,DTER,Cdn_10) ! Siqi Li, 2021-01-27
+!   SUBROUTINE COARE26Z(UR,ZU,TA,ZT,RH,ZQ,PA,TS,DLW,DSW,TAU,HSB,HLB,LAT,USR,DTER) !mdr include USR, DTER
 !  A=coare26(u,zu,Ta,zt,rh,zq,Pa,Ts,dlw,dsw)
 ! Simplified non-vectorized version of coare2.6 code
 ! with cool skin option retained but warm layer and 
@@ -48,11 +48,10 @@
    REAL(SP) :: U,US,T,P,RL,RS,QSAT26S,QS,Q,ZI,BETA,VON,FDG,TDK,GRVS,GRAV,RGAS
    REAL(SP) :: CPA,CPV,RHOA,VISA,AL,BE,CPW,RHOW,VISW,TCW,BIGC,WETC,RNS,RNL,DU
    REAL(SP) :: DT,DQ,UG,DTER,DQER,UT,U10,USR,ZO10,CD10,CH10,CT10,ZOT10,CD,CT,CC
-   REAL(SP) :: RIBCU,RIBU,ZETU,PSIU_26S,PSIT_26S,TSR,QSR,TKT,CHARN,ZET
+   REAL(SP) :: RIBCU,RIBU,NITS,ZETU,PSIU_26S,PSIT_26S,TSR,QSR,TKT,CHARN,ZET
    REAL(SP) :: ZO,ZOQ,ZOT,BF,QOUT,DELS,QCOL,ALQ,XLAMX,CH,CE,CDN_10,CHN_10,CEN_10,RR
    
    INTEGER  :: I
-   INTEGER  :: NITS  ! new, Karsten Lettmann
 
    ! ---- new : Karsten Lettmann , Jan. 2018 --------
    REAL(SP) :: EPSI = 1.0e-16_SP   ! small value to stabilize the code

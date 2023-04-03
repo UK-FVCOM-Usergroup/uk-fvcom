@@ -28,8 +28,8 @@
 
 !------------------------------------------------------------------------------
 # if defined (HEATING_CALCULATED)
-  subroutine coare40vn(u,zu,t,zt,rh,zq,P,ts,Rl,Rs,tau,hsb,hlb,lat,zi,rain,cp,sigH,fmiss,USR,DTER)
-
+  subroutine coare40vn(u,zu,t,zt,rh,zq,PA,ts,Rl,Rs,tau,hsb,hlb,lat,zi,rain,cp,sigH,fmiss,USR,DTER,Cdn_10) ! Siqi Li, 2021-01-27
+!subroutine coare40vn(u,zu,t,zt,rh,zq,P,ts,Rl,Rs,tau,hsb,hlb,lat,zi,rain,cp,sigH,fmiss,USR,DTER)
 ! No-vectorized verion - Revised from the vectorized of coare40vn.m
 ! Zhongxiang Wu
 ! 4/8/2016
@@ -68,7 +68,10 @@
 !    zt = height of temperature measurement (m)
 !    rh = relative humidity (%) at height zq
 !    zq = height of relative humidity measurement (m)
-!     P = surface air pressure (mb) (default = 1015)
+!---> Siqi Li, 2021-01-27
+!     P = surface air pressure (mb) (default = 1015)   (removed)
+!     P = surface air pressure (Pa) (default = 101500)
+!<--- Siqi Li, 2021-01-27
 !    ts = water temperature (degC) see jcool below
 !    Rs = downward shortwave radiation (W/m^2) (default = 150) 
 !    Rl = downward longwave radiation (W/m^2) (default = 370)
@@ -157,10 +160,12 @@
 !  COARE algorithm, J. Climate, 16, 571-590.
 
 !  ----------------------------------------------------------
+    use mod_prec
     USE MOD_HEATFLUX,ONLY : HEATING_FRESHWATER
     implicit none
 	
     real(SP) :: u,zu,t,zt,rh,zq,P,ts,Rs,Rl,tau,hsb,hlb,lat,zi,rain,cp,sigH,fmiss
+    real(SP) :: PA    ! Siqi Li, 2021-01-27
     real(SP) :: Pdef,Rsdef,Rldef,Latdef,Zidef
     real(SP) :: us,Qs,Q,Pv
     real(SP) :: zref,Beta,von,fdg,tdk,grav
@@ -183,7 +188,9 @@
     integer :: i,nits,jcool
     integer :: waveage,seastate
     data Pdef,Rsdef,Rldef,Latdef,Zidef/ &
-         1030,150,  370,  45,    600/
+         101300,150,  370,  45,    600/             ! Siqi Li, 2021-01-27
+!         1030,150,  370,  45,    600/
+
         
 ! convert input to column vectors
 !u=u(:);t=t(:);rh=rh(:);P=P(:);ts=ts(:);
@@ -199,6 +206,8 @@
     if(abs(Rl-fmiss)  < 0.00001_SP) Rl =Rldef
     if(abs(Lat-fmiss) < 0.00001_SP) Lat=Latdef
     if(abs(Zi-fmiss)  < 0.00001_SP) Zi =Zidef
+
+    P = PA/100.0_SP ! Siqi Li, 2021-01-27
 
     waveage=0
     seastate=0
@@ -218,11 +227,12 @@
 ! pause once you are familiar with how the code selects the 
 ! appropriate parameterization based on the input variables.
 !************************************************************************
-
-    if (waveage.eq.1 .and. seastate.eq.1)  &
-       print *,' Use the seastate dependent parameterization.'
-    if (waveage.eq.1 .and. seastate.eq.0)  &
-       print *, ' Use the waveage dependent parameterization.'
+!---> Siqi Li, 2021-01-27
+!    if (waveage.eq.1 .and. seastate.eq.1)  &
+!       print *,' Use the seastate dependent parameterization.'
+!    if (waveage.eq.1 .and. seastate.eq.0)  &
+!       print *, ' Use the waveage dependent parameterization.'
+!<--- Siqi Li, 2021-01-27
 
 ! input variable u is assumed relative wind speed (magnitude of difference
 ! between wind and surface current vectors). to follow orginal Fairall code, set
@@ -389,6 +399,16 @@
       endif
       L=zu/zet
       zo=charn*usr*usr/grav+0.11_SP*visa/usr ! surface roughness
+
+!---> Siqi Li, 2021-01-17
+! Add the upper and lower limits for zo based on Davis et al. 2008.
+! Only when wave is considered.
+      if (waveage == 1) then
+        zo = MAX(zo, 0.125E-6_SP)
+        zo = MIN(zo, 2.850E-3_SP)
+      end if
+!<--- Siqi Li, 2021-01-17
+
       rr=zo*usr/visa
 !      zoq=min(1.6e-4_SP,6e-3_SP/rr**1.6_SP) !These thermal roughness lengths give
 #     if !defined (DOUBLE_PRECISION)
@@ -505,10 +525,15 @@
     Ce=-usr*qsr/(dq-dqer*jcool)/ut
 
 !***  compute 10-m neutral coeff relative to ut (output if needed) ************
-    Cdn_10=1000*von**2./log(10./zo)**2
-    Chn_10=1000*von**2*fdg/log(10./zo)/log(10./zot)
-    Cen_10=1000*von**2*fdg/log(10./zo)/log(10./zoq)
-        
+!---> Siqi Li, 2021-01-27 : there is no need to time 1000.
+    Cdn_10=von**2./log(10._SP/zo)**2  
+    Chn_10=von**2*fdg/log(10._SP/zo)/log(10._SP/zot)
+    Cen_10=von**2*fdg/log(10._SP/zo)/log(10._SP/zoq)
+!    Cdn_10=1000*von**2./log(10./zo)**2 
+!    Chn_10=1000*von**2*fdg/log(10./zo)/log(10./zot)
+!    Cen_10=1000*von**2*fdg/log(10./zo)/log(10./zoq)
+!<--- Siqi Li, 2021-01-27
+
 !***  compute 10-m neutral coeff relative to ut (output if needed) ************
 !  Find the stability functions
 !********************************
@@ -605,6 +630,7 @@
 !------------------------------------------------------------------------------
 !      function psi=psit_26(zet)
       function psit_26f(zet)        
+    use mod_prec
 ! computes temperature structure function
         implicit none
 	real(SP) :: zet
@@ -634,6 +660,7 @@
 !------------------------------------------------------------------------------
 !      function psi=psiu_26(zet)
       function psiu_26f(zet)
+    use mod_prec
 ! computes velocity structure function
         implicit none
 	real(SP) :: zet
@@ -666,6 +693,7 @@
 !------------------------------------------------------------------------------
 !      function psi=psiu_40(zet)
       function psiu_40(zet)				
+    use mod_prec
 ! computes velocity structure function
         implicit none
 	real(SP) :: zet
@@ -697,6 +725,7 @@
 !------------------------------------------------------------------------------
 !      function exx=bucksat(T,P)
       function bucksat(T,P)
+    use mod_prec
 ! computes saturation vapor pressure [mb]
 ! given T [degC] and P [mb]
         implicit none
@@ -708,6 +737,7 @@
 !------------------------------------------------------------------------------
       !function qs=qsat26sea(T,P)
       function qsat26sea(T,P)
+    use mod_prec
 ! computes surface saturation specific humidity [g/kg]
 ! given T [degC] and P [mb]
         implicit none
@@ -722,6 +752,7 @@
 !------------------------------------------------------------------------------
       !function qs=qsat26lake(T,P)
       function qsat26lake(T,P)
+    use mod_prec
 ! computes surface saturation specific humidity [g/kg]
 ! given T [degC] and P [mb]
         implicit none
@@ -736,7 +767,7 @@
       end function qsat26lake
 !------------------------------------------------------------------------------
       subroutine qsat26air(T,P,rh,q,em)
-  
+    use mod_prec  
 ! computes saturation specific humidity [g/kg]
 ! given T [degC] and P [mb]
         implicit none
@@ -751,6 +782,7 @@
 !------------------------------------------------------------------------------
 !      function g=grv(lat)
       function grvf(lat)
+    use mod_prec
 ! computes g [m/sec**2] given lat in deg
         implicit none
         real(SP) :: lat
@@ -771,6 +803,7 @@
 !------------------------------------------------------------------------------
 !      function RHrf=RHcalc(T,P,Q)
       function RHcalc(T,P,Q)
+    use mod_prec
 ! computes relative humidity given T,P, & Q
         implicit none
         real(SP) :: T,P,Q
