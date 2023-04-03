@@ -199,9 +199,12 @@ END SUBROUTINE BIO_3D1D
    USE MOD_PAR   
    USE MOD_WD
    USE MOD_SPHERICAL
-# if defined (SEMI_IMPLICIT)
-  USE MOD_SEMI_IMPLICIT, ONLY : IFCETA 
-# endif
+#  if defined (SEMI_IMPLICIT)
+   USE MOD_SEMI_IMPLICIT, ONLY : IFCETA 
+#  endif
+#  if defined (TVD)
+   USE MOD_TVD
+#  endif
 
    IMPLICIT NONE
 
@@ -233,6 +236,10 @@ END SUBROUTINE BIO_3D1D
    REAL(SP), DIMENSION(3*(NT),KBM1) :: UVN1
    REAL(SP), DIMENSION(3*(NT),KBM1) :: DTIJ1
 #  endif
+# if defined (TVD)
+   REAL(SP) :: S_upstreamA,S_upstreamB
+   REAL(SP) :: A_limiter,B_limiter,smoothrA,smoothrB
+#  endif
 #  if defined (MPDATA)
    REAL(SP) :: WQMMIN,WQMMAX,XXXX
    REAL(SP), DIMENSION(0:MT,KB)     :: WQM_S    !! temporary BIO in modified upwind
@@ -262,6 +269,13 @@ END SUBROUTINE BIO_3D1D
           & TRIM(HORIZONTAL_MIXING_TYPE) )
   END SELECT
 
+# if defined (MPDATA)
+  ! Adding offset to force FVCOM not to crash when variable BIO_ALL approach zero
+      OFFS = 1.0_SP
+      BIO_ALL = BIO_ALL+OFFS
+      BIO_MEAN = BIO_MEAN+OFFS
+# endif
+
 !
 !--Initialize Fluxes-----------------------------------------------------------
 !
@@ -270,10 +284,8 @@ END SUBROUTINE BIO_3D1D
 !
 !--Loop Over Control Volume Sub-Edges And Calculate Normal Velocity------------
 !
-!!#  if !defined (WET_DRY)
    DO I=1,NCV
      I1=NTRG(I)
-!     DTIJ(I)=DT1(I1)
      DO K=1,KBM1
        DTIJ(I,K) = DT1(I1)*DZ1(I1,K)
        UVN(I,K)=V(I1,K)*DLTXE(I) - U(I1,K)*DLTYE(I) 
@@ -366,6 +378,7 @@ END SUBROUTINE BIO_3D1D
          IA=NIEC(I,1)
          IB=NIEC(I,2)
 
+# if !defined (TVD)
 !         FIJ1=BIO_ALL(IA,K,N1)+DXA*PFPX(IA)+DYA*PFPY(IA)
 !         FIJ2=BIO_ALL(IB,K,N1)+DXB*PFPX(IB)+DYB*PFPY(IB)
          FIJ1=BIO_ALL(IA,K,N1)+DLTXNCVE(I,1)*PFPX(IA)+DLTYNCVE(I,1)*PFPY(IA)
@@ -384,6 +397,37 @@ END SUBROUTINE BIO_3D1D
          IF(FIJ2 < WQM2MIN) FIJ2=WQM2MIN
          IF(FIJ2 > WQM2MAX) FIJ2=WQM2MAX
 
+# else
+! ------------------------------------------------------------------------------------------ !
+!                                     Drawing the TVD scheme
+! ------------------------------------------------------------------------------------------ !
+!     If A is upstream of B
+       S_upstreamA=BIO_ALL(Anear_node(I),K,N1)+PFPX(Anear_node(I))*XUAdist(I)+PFPY(Anear_node(I))*YUAdist(I)
+!     If B is upstream of A
+       S_upstreamB=BIO_ALL(Bnear_node(I),K,N1)+PFPX(Bnear_node(I))*XUBdist(I)+PFPY(Bnear_node(I))*YUBdist(I)                
+
+!     Smoothness-parameter
+       IF (BIO_ALL(IA,K,N1).EQ.BIO_ALL(IB,K,N1)) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+       ELSE IF (BIO_ALL(IA,K,N1).LT.1.E-10.AND.BIO_ALL(IB,K,N1).LT.1.E-10) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+       ELSE
+          smoothrA    = (BIO_ALL(IA,K,N1)-S_upstreamA)/(BIO_ALL(IB,K,N1)-BIO_ALL(IA,K,N1))
+          smoothrB    = (BIO_ALL(IB,K,N1)-S_upstreamB)/(BIO_ALL(IA,K,N1)-BIO_ALL(IB,K,N1))
+       END IF
+
+!     Flux-limiter
+!     (superbee) - Feel free to use other limiters!
+       A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
+       B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
+
+!     Estimating the variable at the cellwall in-betweem IA and IB
+       FIJ1     = BIO_ALL(IA,K,N1)+0.5_SP*A_LIMITER*(BIO_ALL(IB,K,N1)-BIO_ALL(IA,K,N1))
+       FIJ2     = BIO_ALL(IB,K,N1)+0.5_SP*B_LIMITER*(BIO_ALL(IA,K,N1)-BIO_ALL(IB,K,N1))
+
+# endif
          UN=UVN(I,K)
 #        if defined (SEMI_IMPLICIT)
          UN1=UVN1(I,K)
@@ -393,8 +437,21 @@ END SUBROUTINE BIO_3D1D
         ! David moved HPRNU and added HVC
         VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
 
+!JQI NOV2021
+# if defined (WET_DRY)
+	   !Added by Adi Nugraha
+	   !Allow no diffusive flux between a wet node and a dry node (Wen Long and Tarang Khangaonkar)
+	   IF(ISWETN(IA)==1.AND.ISWETN(IB)==1)THEN
+# endif 	
          TXX=0.5_SP*(PFPXD(IA)+PFPXD(IB))*VISCOF
          TYY=0.5_SP*(PFPYD(IA)+PFPYD(IB))*VISCOF
+# if defined (WET_DRY)			   
+	   ELSE
+		 TXX = 0.0_SP
+		 TYY = 0.0_SP
+	   ENDIF
+# endif	
+!JQI NOV2021
 
          FXX=-DTIJ(I,K)*TXX*DLTYE(I)
          FYY= DTIJ(I,K)*TYY*DLTXE(I)
@@ -452,75 +509,75 @@ END SUBROUTINE BIO_3D1D
 !# endif
 
 
-!#  if !defined (MPDATA)
    DO N1=1,ntt
-#  if !defined (MPDATA)
+!#  if !defined (MPDATA)
 !
 !--Calculate the Vertical Terms------------------------------------------------
 !
-     DO K=1,KBM1
-       DO I=1,M
-#      if defined (WET_DRY)
-       IF(ISWETN(I)*ISWETNT(I) == 1) THEN
-#      endif
-         IF(K == 1) THEN  !Is there any violation ?
-           TEMP=-WTS(I,K+1)*(BIO_ALL(I,K,N1)*DZ(I,K+1)+BIO_ALL(I,K+1,N1)*DZ(I,K))/   &
-	         (DZ(I,K)+DZ(I,K+1))
-         ELSE IF(K == KBM1) THEN
-           TEMP=WTS(I,K)*(BIO_ALL(I,K,N1)*DZ(I,K-1)+BIO_ALL(I,K-1,N1)*DZ(I,K))/      &
-	         (DZ(I,K)+DZ(I,K-1))
-         ELSE
-           TEMP=WTS(I,K)*(BIO_ALL(I,K,N1)*DZ(I,K-1)+BIO_ALL(I,K-1,N1)*DZ(I,K))/      &
-	         (DZ(I,K)+DZ(I,K-1))-  &
-                WTS(I,K+1)*(BIO_ALL(I,K,N1)*DZ(I,K+1)+BIO_ALL(I,K+1,N1)*DZ(I,K))/    &
-		 (DZ(I,K)+DZ(I,K+1))
-         END IF
+!     DO K=1,KBM1
+!       DO I=1,M
+!#      if defined (WET_DRY)
+!       IF(ISWETN(I)*ISWETNT(I) == 1) THEN
+!#      endif
+!         IF(K == 1) THEN  !Is there any violation ?
+!           TEMP=-WTS(I,K+1)*(BIO_ALL(I,K,N1)*DZ(I,K+1)+BIO_ALL(I,K+1,N1)*DZ(I,K))/   &
+!	         (DZ(I,K)+DZ(I,K+1))
+!         ELSE IF(K == KBM1) THEN
+!           TEMP=WTS(I,K)*(BIO_ALL(I,K,N1)*DZ(I,K-1)+BIO_ALL(I,K-1,N1)*DZ(I,K))/      &
+!	         (DZ(I,K)+DZ(I,K-1))
+!         ELSE
+!           TEMP=WTS(I,K)*(BIO_ALL(I,K,N1)*DZ(I,K-1)+BIO_ALL(I,K-1,N1)*DZ(I,K))/      &
+!	         (DZ(I,K)+DZ(I,K-1))-  &
+!                WTS(I,K+1)*(BIO_ALL(I,K,N1)*DZ(I,K+1)+BIO_ALL(I,K+1,N1)*DZ(I,K))/    &
+!		 (DZ(I,K)+DZ(I,K+1))
+!         END IF
 
 !
 !--Total Fluxes ---------------------------------------------------------------
 !
-         IF(ISONB(I) == 2) THEN
-           XFLUX(I,K,N1)=TEMP*ART1(I)
-         ELSE
-           XFLUX(I,K,N1)=XFLUX(I,K,N1)+TEMP*ART1(I)
-         END IF
-#    if defined (WET_DRY)
-       END IF
-#    endif
-       END DO  !i=1,M
-     END DO    !k=1,kbm1
+!         IF(ISONB(I) == 2) THEN
+!           XFLUX(I,K,N1)=TEMP*ART1(I)
+!         ELSE
+!           XFLUX(I,K,N1)=XFLUX(I,K,N1)+TEMP*ART1(I)
+!         END IF
+!#    if defined (WET_DRY)
+!       END IF
+!#    endif
+!       END DO  !i=1,M
+!     END DO    !k=1,kbm1
 
 !--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
 !
-     IF(RIVER_TS_SETTING == 'calculated') THEN
-       IF(RIVER_INFLOW_LOCATION == 'node') THEN
-         IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-             JJ=INODEQ(J)
-             STPOINT=BIODIS(J,N1)
-             DO K=1,KBM1
-               XFLUX(JJ,K,N1)=XFLUX(JJ,K,N1) - QDIS(J)*VQDIST(J,K)*STPOINT
-             END DO
-           END DO
-         END IF
-       ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
-         IF(NUMQBC > 0) THEN
-           DO J=1,NUMQBC
-             J1=N_ICELLQ(J,1)
-             J2=N_ICELLQ(J,2)
-             STPOINT=BIODIS(J,N1) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
-             DO K=1,KBM1
-               XFLUX(J1,K,N1)=XFLUX(J1,K,N1)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
-               XFLUX(J2,K,N1)=XFLUX(J2,K,N1)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
-             END DO
-           END DO
-         END IF
-       END IF
-     END IF
+!     IF(RIVER_TS_SETTING == 'calculated') THEN
+!       IF(RIVER_INFLOW_LOCATION == 'node') THEN
+!         IF(NUMQBC > 0) THEN
+!           DO J=1,NUMQBC
+!             JJ=INODEQ(J)
+!             STPOINT=BIODIS(J,N1)
+!             DO K=1,KBM1
+!               XFLUX(JJ,K,N1)=XFLUX(JJ,K,N1) - QDIS(J)*VQDIST(J,K)*STPOINT
+!             END DO
+!           END DO
+!         END IF
+!       ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+!         IF(NUMQBC > 0) THEN
+!           DO J=1,NUMQBC
+!             J1=N_ICELLQ(J,1)
+!             J2=N_ICELLQ(J,2)
+!             STPOINT=BIODIS(J,N1) !!ASK LIU SHOULD THIS BE STPOINT1(J1)/STPOINT2(J2)
+!             DO K=1,KBM1
+!               XFLUX(J1,K,N1)=XFLUX(J1,K,N1)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
+!               XFLUX(J2,K,N1)=XFLUX(J2,K,N1)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
+!             END DO
+!           END DO
+!         END IF
+!       END IF
+!     END IF
 
-#  else
+!#  else
+#   if defined (MPDATA)
+
 !--------------------------------------------------------------------------------
-!   S. HU
 !   Using smolarkiewicz, P. K; A fully multidimensional positive definite advection
 !   TEMPport algorithm with small implicit diffusion, Journal of Computational
 !   Physics, 54, 325-362, 1984
@@ -623,10 +680,18 @@ END SUBROUTINE BIO_3D1D
          ! Updated variable without limiter minus current variable
          XXXX = ZZZFLUX(I,K)*DT(I)/DTFA(I)+BIO_ALL(I,K,N1)-BIO_ALL(I,K,N1)*DT(I)/DTFA(I) 
 
-         BETA(I,K)=0.5*(1.-SIGN(1.,XXXX)) * (WQMMAX-BIO_ALL(I,K,N1))/(ABS(XXXX)+1.E-10) &
-                  +0.5*(1.-SIGN(1.,-XXXX)) * (BIO_ALL(I,K,N1)-WQMMIN)/(ABS(XXXX)+1.E-10)
-
-         WQM_SF(I,K)=BIO_ALL(I,K,N1)-MIN(1.,BETA(I,K))*XXXX
+           ! Added by Akvaplan 2018 to avoid single precision-crash
+         IF((ABS(XXXX).LT.ABS(WQMMAX-BIO_ALL(I,K,N1))).AND.(XXXX.LT.0.0_SP)) THEN
+            WQM_SF(I,K) = BIO_ALL(I,K,N1)-XXXX
+         ELSE IF((ABS(XXXX).LT.ABS(WQMMIN-BIO_ALL(I,K,N1))).AND.(XXXX.GT.0.0_SP)) THEN 
+            WQM_SF(I,K) = BIO_ALL(I,K,N1)-XXXX
+         ELSE IF(XXXX.EQ.0) THEN
+            WQM_SF(I,K) = BIO_ALL(I,K,N1)
+         ELSE
+            BETA(I,K)=0.5*(1.-SIGN(1._SP,XXXX)) * (WQMMAX-BIO_ALL(I,K,N1))/(ABS(XXXX)+1.E-10) &                               
+                 +0.5*(1.-SIGN(1._SP,-XXXX)) * (BIO_ALL(I,K,N1)-WQMMIN)/(ABS(XXXX)+1.E-10)                                     
+            WQM_SF(I,K)=BIO_ALL(I,K,N1)-MIN(1._SP,BETA(I,K))*XXXX
+         END IF
 
 #    if defined (WET_DRY)
        END IF
@@ -698,6 +763,25 @@ END SUBROUTINE BIO_3D1D
        END DO
      END DO
 
+     K=KBM1
+     DO I=1,M
+       WQMMAX = MAXVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
+       WQMMIN = MINVAL(BIO_ALL(NBSN(I,1:NTSN(I)),K,N1))
+       WQMMAX = MAX(WQMMAX,BIO_ALL(I,K-1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
+       WQMMIN = MIN(WQMMIN,BIO_ALL(I,K-1,N1),BIO_ALL(I,K,N1),BIO_FRESH(I,K))
+
+       TEMP=0.5*((WWWS(I,K+1)+ABS(WWWS(I,K+1)))*WQM_S(I,K+1)-  &
+	         (WWWS(I,K)-ABS(WWWS(I,K)))*WQM_S(I,K-1))*(DTI/DTFA(I))/DZ(I,K)
+       BETAIN(I,K)=(WQMMAX-WQM_S(I,K))/(TEMP+1.E-10)
+
+       TEMP=0.5*((WWWS(I,K)+ABS(WWWS(I,K)))*WQM_S(I,K)-        &
+	         (WWWS(I,K+1)-ABS(WWWS(I,K+1)))*WQM_S(I,K))*(DTI/DTFA(I))/DZ(I,K)
+       BETAOUT(I,K)=(WQM_S(I,K)-WQMMIN)/(TEMP+1.E-10)
+
+       WWWSF(I,K)=0.5*MIN(1.,BETAIN(I,K-1),BETAOUT(I,K))*(WWWS(I,K)+ABS(WWWS(I,K))) + &
+                  0.5*MIN(1.,BETAIN(I,K),BETAOUT(I,K-1))*(WWWS(I,K)-ABS(WWWS(I,K)))
+     END DO
+
      WWWS=WWWSF 
 
      DO K=1,KBM1
@@ -729,7 +813,76 @@ END SUBROUTINE BIO_3D1D
 !--------------------------------------------------------------------------
 ! End of smolarkiewicz upwind loop
 !--------------------------------------------------------------------------
+      BIO_ALL(:,:,N1) = BIO_ALL(:,:,N1)-OFFS(1,1,1)
+      WQM_SF = WQM_SF-OFFS(1,1,1)
+      BIO_MEAN(:,:,N1) = BIO_MEAN(:,:,N1)-OFFS(1,1,1)
+     
 #  endif
+
+#  if !defined (MPDATA)
+!
+!--Calculate the Vertical Terms------------------------------------------------
+!
+     DO K=1,KBM1
+       DO I=1,M
+#      if defined (WET_DRY)
+       IF(ISWETN(I)*ISWETNT(I) == 1) THEN
+#      endif
+         IF(K == 1) THEN  
+           TEMP=-WTS(I,K+1)*(BIO_ALL(I,K,N1)*DZ(I,K+1)+BIO_ALL(I,K+1,N1)*DZ(I,K))/   &
+	         (DZ(I,K)+DZ(I,K+1))
+         ELSE IF(K == KBM1) THEN
+           TEMP=WTS(I,K)*(BIO_ALL(I,K,N1)*DZ(I,K-1)+BIO_ALL(I,K-1,N1)*DZ(I,K))/      &
+	         (DZ(I,K)+DZ(I,K-1))
+         ELSE
+           TEMP=WTS(I,K)*(BIO_ALL(I,K,N1)*DZ(I,K-1)+BIO_ALL(I,K-1,N1)*DZ(I,K))/      &
+	         (DZ(I,K)+DZ(I,K-1))-  &
+                WTS(I,K+1)*(BIO_ALL(I,K,N1)*DZ(I,K+1)+BIO_ALL(I,K+1,N1)*DZ(I,K))/    &
+		 (DZ(I,K)+DZ(I,K+1))
+         END IF
+
+!
+!--Total Fluxes ---------------------------------------------------------------
+!
+         IF(ISONB(I) == 2) THEN
+           XFLUX(I,K,N1)=TEMP*ART1(I)
+         ELSE
+           XFLUX(I,K,N1)=XFLUX(I,K,N1)+TEMP*ART1(I)
+         END IF
+#    if defined (WET_DRY)
+       END IF
+#    endif
+       END DO  !i=1,M
+     END DO    !k=1,kbm1
+
+!--Set Boundary Conditions-For Fresh Water Flux--------------------------------!
+!
+     IF(RIVER_TS_SETTING == 'calculated') THEN
+       IF(RIVER_INFLOW_LOCATION == 'node') THEN
+         IF(NUMQBC > 0) THEN
+           DO J=1,NUMQBC
+             JJ=INODEQ(J)
+             STPOINT=BIODIS(J,N1)
+             DO K=1,KBM1
+               XFLUX(JJ,K,N1)=XFLUX(JJ,K,N1) - QDIS(J)*VQDIST(J,K)*STPOINT
+             END DO
+           END DO
+         END IF
+       ELSE IF(RIVER_INFLOW_LOCATION == 'edge') THEN
+         IF(NUMQBC > 0) THEN
+           DO J=1,NUMQBC
+             J1=N_ICELLQ(J,1)
+             J2=N_ICELLQ(J,2)
+             STPOINT=BIODIS(J,N1) 
+             DO K=1,KBM1
+               XFLUX(J1,K,N1)=XFLUX(J1,K,N1)-QDIS(J)*RDISQ(J,1)*VQDIST(J,K)*STPOINT
+               XFLUX(J2,K,N1)=XFLUX(J2,K,N1)-QDIS(J)*RDISQ(J,2)*VQDIST(J,K)*STPOINT
+             END DO
+           END DO
+         END IF
+       END IF
+     END IF
+# endif
 
 !--Update Variables--------------------------------
 !

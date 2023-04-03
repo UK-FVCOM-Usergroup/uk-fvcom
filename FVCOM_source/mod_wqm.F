@@ -606,7 +606,7 @@ MODULE MOD_WQM
 !   This subroutine only includes advection, sources and sinks, and           !
 !   horizontal diffusion terms.                                               !
 !                                                                             !
-!   (Version(01/05/2004)						      !
+!   (Version(01/05/2004, updated on 07/09/2019 for TVD and MPDATA)						      !
 !=============================================================================!
 
    USE ALL_VARS
@@ -617,7 +617,10 @@ MODULE MOD_WQM
 #  if defined (SEMI_IMPLICIT)
    USE MOD_SEMI_IMPLICIT, ONLY : IFCETA  
 #  endif   
-
+#  if defined (TVD)
+   USE MOD_TVD
+#  endif
+ 
    IMPLICIT NONE
    REAL(SP), DIMENSION(0:MT,KB,NB)  :: XFLUX,RF
    REAL(SP), DIMENSION(M)           :: PUPX,PUPY,PVPX,PVPY
@@ -631,6 +634,13 @@ MODULE MOD_WQM
    REAL(SP) :: TT,TTIME,STPOINT
    INTEGER  :: I,I1,I2,IA,IB,J,J1,J2,JTMP,K,JJ,N1,II
    REAL(SP) :: WQM1MIN, WQM1MAX, WQM2MIN, WQM2MAX
+
+# if defined (TVD)
+  REAL(SP), DIMENSION(1:M)             :: dstA,dstB
+  REAL(SP), DIMENSION(1:NCV)           :: XUA,XUB,YUA,YUB
+  REAL(SP) :: LX,LY,minA,minB,WQM_upstreamA,WQM_upstreamB,A_limiter
+  REAL(SP) :: B_limiter,smoothrA,smoothrB
+# endif
 
 !!$# if defined (SPHERICAL)
 !!$   REAL(DP) :: ty,txpi,typi
@@ -1125,6 +1135,7 @@ MODULE MOD_WQM
 !!$         DYB=YI-VY(IB)
 !!$#        endif
 
+# if !defined (TVD)
          FIJ1=WQM(IA,K,N1)+DLTXNCVE(I,1)*PFPX(IA)+DLTYNCVE(I,1)*PFPY(IA)
          FIJ2=WQM(IB,K,N1)+DLTXNCVE(I,1)*PFPX(IB)+DLTYNCVE(I,2)*PFPY(IB)
 
@@ -1141,6 +1152,52 @@ MODULE MOD_WQM
          IF(FIJ2 < WQM2MIN) FIJ2=WQM2MIN
          IF(FIJ2 > WQM2MAX) FIJ2=WQM2MAX
     
+# else
+! ------------------------------------------------------------------------------------------ !
+!                                 Drawing the TVD scheme
+! ------------------------------------------------------------------------------------------ !
+!     If A is upstream of B
+         WQM_upstreamA=WQM(Anear_node(I),K,N1)+PFPX(Anear_node(I))*XUAdist(I)+PFPY(Anear_node(I))*YUAdist(I)
+         WQM_upstreamB=WQM(Bnear_node(I),K,N1)+PFPX(Bnear_node(I))*XUBdist(I)+PFPY(Bnear_node(I))*YUBdist(I)                
+
+!    The smoothness-parameter
+!       IF (T1(IA,K).EQ.T1(IB,K)) THEN
+!          smoothrA    = 0.0_SP
+!          smoothrB    = 0.0_SP
+!         ELSE
+!     T_upstreamA is the "far upstream node", T1(IA,K) is upstream of T1(IB,K)
+!          smoothrA    = (T1(IA,K)-T_upstreamA)/(T1(IB,K)-T1(IA,K))
+!          smoothrB    = (T1(IB,K)-T_upstreamB)/(T1(IA,K)-T1(IB,K))
+!       END IF
+
+         IF (WQM(IA,K,N1).EQ.WQM(IB,K,N1)) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+         ELSE IF (WQM(IA,K,N1).LT.1.E-10.AND.WQM(IB,K,N1).LT.1.E-10) THEN
+          smoothrA    = 0.0_SP
+          smoothrB    = 0.0_SP
+         ELSE
+!         WQM_upstreamA is the "far upstream node", WQM(IA,K,N1) is upstream of WQM(IB,K,N1), vica versa for "B"
+          smoothrA    = (WQM(IA,K,N1)-WQM_upstreamA)/(WQM(IB,K,N1)-WQM(IA,K,N1))
+          smoothrB    = (WQM(IB,K,N1)-WQM_upstreamB)/(WQM(IA,K,N1)-WQM(IB,K,N1))
+         END IF
+
+!     The Flux-limiter 
+!      (superbee) - Feel free to use other limiters!
+         A_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrA), MIN(2.0_SP, smoothrA))
+         B_limiter = MAX(0.0_SP, MIN(1.0_SP, 2.0_SP*smoothrB), MIN(2.0_SP, smoothrB))
+
+!     (minmod)
+!      A_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrA))
+!      B_limiter = MAX(0.0_SP,MIN(1.0_SP,smoothrB))
+
+!      Calculating the WQM in-between IA and IB
+!       T12_A     = T1(IA,K)+0.5_SP*A_LIMITER*(T1(IB,K)-T1(IA,K))
+!       T12_B     = T1(IB,K)+0.5_SP*B_LIMITER*(T1(IA,K)-T1(IB,K))
+         FIJ1     = WQM(IA,K,N1)+0.5_SP*A_LIMITER*(WQM(IB,K,N1)-WQM(IA,K,N1))
+         FIJ2     = WQM(IB,K,N1)+0.5_SP*B_LIMITER*(WQM(IA,K,N1)-WQM(IB,K,N1))
+# endif
+
          UN=UVN(I,K)
 #        if defined (SEMI_IMPLICIT)
          UN1=UVN1(I,K)
