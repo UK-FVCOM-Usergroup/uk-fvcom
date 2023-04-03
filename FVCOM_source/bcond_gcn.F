@@ -698,6 +698,15 @@
          ! STEP WIND STRESS
 
       END IF
+
+# if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
+!-----------------------yzhang1-----------------
+       IF (ICEIN_ON) THEN
+            CALL UPDATE_ICEIN(IntTime,CICE_TEST)
+  !   print *, CICE_TEST
+         END IF
+!------------------------------------------------- 
+# endif
       
 # if !defined (HEATING_CALCULATED) && !defined (HEATING_SOLAR)
       IF (HEATING_ON) THEN

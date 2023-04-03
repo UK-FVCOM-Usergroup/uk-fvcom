@@ -90,3 +90,6 @@ grid_metrics.F,  mod_main.F,  mod_semi_implicit.F
 
 Remove +1 from dim IOBCN
 mod_obcs.F, mod_scal.F, mod_sed_cstms.F
+
+Add ice_in
+bcond_gcn.F
