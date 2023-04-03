@@ -649,58 +649,58 @@ Module Scalar
        wvel(1:kb)=0.0_sp
 !YC    call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),vflux)
 !J. Ge for tracer advection
-       w_tmp = wvel(1:kb)
-       dz_tmp= dz(i,1:kbm1)
+       !w_tmp = wvel(1:kb)
+       !dz_tmp= dz(i,1:kbm1)
        IF(BACKWARD_ADVECTION .NEQV. .TRUE.)THEN
          ftmp = f(i,1:kbm1)
-         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         !call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),dz(i,1:kbm1),vflux)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,f(i,1:kbm1),wvel(1:kb),dz(i,1:kbm1),vflux)
        ELSE
          IF(BACKWARD_STEP==1)THEN
            ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
          ELSEIF(BACKWARD_STEP==2)THEN
            ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
          ENDIF
-         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         !call calc_vflux(kbm1,ftmp,wvel(1:kb),dz(i,1:kbm1),vflux)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,ftmp,wvel(1:kb),dz(i,1:kbm1),vflux)
        ENDIF
 !J. Ge for tracer advection
      else
 !YC    call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),vflux)
 !J. Ge for tracer advection
-       w_tmp = wts(i,1:kb)
-       dz_tmp= dz(i,1:kbm1)
+       !w_tmp = wts(i,1:kb)
+       !dz_tmp= dz(i,1:kbm1)
        IF(BACKWARD_ADVECTION .NEQV. .TRUE.)THEN
          ftmp = f(i,1:kbm1)
-         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         !call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
        ELSE
          IF(BACKWARD_STEP==1)THEN
            ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
          ELSEIF(BACKWARD_STEP==2)THEN
            ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
          ENDIF
-         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         !call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
        ENDIF
 !J. Ge for tracer advection
      end if
 #    else
 !J. Ge for tracer advection
-       w_tmp = wts(i,1:kb)
-       dz_tmp= dz(i,1:kbm1)
+       !w_tmp = wts(i,1:kb)
+       !dz_tmp= dz(i,1:kbm1)
        IF(BACKWARD_ADVECTION .NEQV. .TRUE.)THEN
-         ftmp = f(i,1:kbm1)
-         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         !call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
+         !ftmp = f(i,1:kbm1)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,f(i,1:kbm1),wts(i,1:kb),dz(i,1:kbm1),vflux)
        ELSE
          IF(BACKWARD_STEP==1)THEN
            ftmp=(f0(i,1:kbm1)+f(i,1:kbm1))*0.5
          ELSEIF(BACKWARD_STEP==2)THEN
            ftmp=(f2(i,1:kbm1)+f0(i,1:kbm1)+f(i,1:kbm1))/3.0_SP
          ENDIF
-         call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
-         !call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
+         !call calc_vflux(kbm1,ftmp,w_tmp,dz_tmp,vflux)
+         call calc_vflux(kbm1,ftmp,wts(i,1:kb),dz(i,1:kbm1),vflux)
        ENDIF
 !J. Ge for tracer advection
 !!!      vflux = 0.0_SP
