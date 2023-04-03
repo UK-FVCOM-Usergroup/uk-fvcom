@@ -1108,7 +1108,7 @@ PROGRAM FVCOM
         IF(SST_ASSIM.OR.SSTGRD_ASSIM.OR.SSHGRD_ASSIM.OR.TSGRD_ASSIM)THEN
          if(DBG_SET(dbg_log)) write(IPT,*) "=====Start restore the state for assimilation===="
          CALL RESTORE_STATE
-         CALL RHO_PMEAN
+!SLI         CALL RHO_PMEAN
 
          IF(SST_ASSIM.OR.SSTGRD_ASSIM) CALL SSTGRD_OBSERVATION_UPDATE
          IF(TSGRD_ASSIM) CALL TSGRD_OBSERVATION_UPDATE(IntTime+(days2time(1.0_DP))/2)
