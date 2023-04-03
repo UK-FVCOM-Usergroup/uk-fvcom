@@ -81,8 +81,9 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	mod_station_timeseries.F	mod_sparse_timeseries.F 	\
 	mod_boundschk.F mod_esmf_nesting.F	\
 	mod_cstms_vars.F	mod_flocmod.F	mod_sed_cstms.F		\
-	mod_fluid_mud.F  mod_mld_rho.F mod_vegetation.F  \
+	mod_fluid_mud.F mod_tvd.F mod_mld_rho.F mod_vegetation.F	\
 	mod_heatflux_sediment.F mod_vector_projection.F
+# lwang added mod_mld_rho.F
 MODS_W = mod_main_wave.F	swmod1.F	swmod2.F	swmod3.F\
 	mod_action_im.F mod_action_ex.F mod_wavesetup.F 		\
 	mod_wave_current_interaction.F  mod_bbl.F
@@ -104,7 +105,9 @@ MAIN  =	fvcom.F		genmap.F	tge.F		longshore_flow.F\
 	adjust_ts.F	conv_over.F	visitsim.F	startup_type.F	\
 	edge_len.F	adcor.F		icing.F		rho_pmean.F	\
 	calc_vort.F	namelist.F	nh_set_nesting.F		\
-	coare26z.F	coare40vn.F
+	coare26z.F	coare40vn.F	adv_uv_edge_gcn_rk.F		\
+	adv_uv_edge_gcy_rk.F		adv_t_rk.F	adv_s_rk.F	\
+	adv_q_rk.F
 
 MAIN_W = ocpmix.F	ocpcre.F	ocpids.F	\
 	swanpre1.F	swanpre2.F	swanser.F	swanmain.F	\

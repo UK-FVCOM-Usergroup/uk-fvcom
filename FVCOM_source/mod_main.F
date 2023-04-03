@@ -214,7 +214,8 @@ MODULE CONTROL
 
     INTEGER   IRAMP          !!RAMP FACTOR USED TO EASE STARTUP = f(IINT)
     REAL(SP)  STATIC_SSH_ADJ !!WATER LEVEL CONSTANT ADJUSTMENT
-    REAL(SP)  MIN_DEPTH      !!MINIMUM ALLOWABLE DEPTH         
+    REAL(SP)  MIN_DEPTH      !!MINIMUM ALLOWABLE DEPTH
+    LOGICAL   RK_3D_ON       !!TRUE IF USING RK 3D mode         
 
     NAMELIST /NML_INTEGRATION/  &
 # if defined(SEMI_IMPLICIT)
@@ -225,7 +226,8 @@ MODULE CONTROL
 # endif
          & IRAMP,               &
          & MIN_DEPTH,           &
-         & STATIC_SSH_ADJ
+         & STATIC_SSH_ADJ,      &
+         & RK_3D_ON
     
 
 

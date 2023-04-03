@@ -8,7 +8,7 @@ mod_spherical.o : mod_spherical.F mod_main.o mod_prec.o mod_main.o mod_prec.o
 mod_utils.o : mod_utils.F swmod1.o mod_main.o mod_main.o mod_main.o mod_prec.o mod_prec.o mod_spherical.o 
 mod_clock.o : mod_clock.F mod_utils.o mod_main.o mod_time.o mod_prec.o mod_prec.o 
 eqs_of_state.o : eqs_of_state.F mod_prec.o mod_utils.o mod_main.o mod_prec.o 
-mod_bulk.o : mod_bulk.F mod_prec.o mod_prec.o 
+mod_bulk.o : mod_bulk.F mod_prec.o mod_prec.o mod_main.o mod_par.o
 mod_interp.o : mod_interp.F mod_main.o mod_spherical.o mod_clock.o mod_prec.o mod_utils.o mod_prec.o 
 mod_par.o : mod_par.F mod_main.o mod_time.o mod_main.o mod_utils.o mod_types.o mod_prec.o 
 mod_par_special.o : mod_par_special.F mod_main.o mod_time.o mod_main.o mod_utils.o mod_types.o mod_prec.o 
@@ -172,7 +172,12 @@ calc_vort.o : calc_vort.F mod_main.o mod_prec.o
 namelist.o : namelist.F mod_solar.o mod_heatflux.o mod_assim.o mod_enkf.o mod_rrk.o mod_pwp.o mod_non_hydro.o mod_dye.o mod_wqm.o mod_onedtide.o mod_balance_2d.o mod_semi_implicit.o mod_sparse_timeseries.o mod_station_timeseries.o mod_nesting.o mod_input.o mod_main.o mod_utils.o mod_prec.o
 nh_set_nesting.o : nh_set_nesting.F mod_obcs.o mod_non_hydro.o mod_nesting.o mod_prec.o 
 coare26z.o : coare26z.F mod_heatflux.o mod_prec.o mod_prec.o 
-coare40vn.o : coare40vn.F mod_heatflux.o mod_prec.o 
+coare40vn.o : coare40vn.F mod_heatflux.o mod_prec.o
+adv_uv_edge_gcn_rk.o : adv_uv_edge_gcn_rk.F mod_dam.o mod_wave_current_interaction.o mod_wd.o mod_northpole.o mod_spherical.o mod_utils.o mod_main.o mod_main.o mod_prec.o 
+adv_uv_edge_gcy_rk.o : adv_uv_edge_gcy_rk.F mod_wave_current_interaction.o mod_wd.o mod_main.o mod_northpole.o mod_spherical.o mod_utils.o mod_main.o mod_prec.o 
+adv_t_rk.o : adv_t_rk.F mod_tvd.o mod_dam.o mod_northpole.o mod_spherical.o mod_wd.o mod_obcs.o mod_main.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
+adv_s_rk.o : adv_s_rk.F mod_tvd.o mod_dam.o mod_northpole.o mod_spherical.o mod_wd.o mod_par_special.o mod_obcs.o mod_main.o mod_utils.o mod_main.o mod_prec.o 
+adv_q_rk.o : adv_q_rk.F mod_northpole.o mod_spherical.o mod_wd.o mod_par_special.o mod_main.o mod_utils.o mod_prec.o 
 mod_bio_3D.o : mod_bio_3D.F mod_prec.o mod_nctools.o mod_semi_implicit.o mod_spherical.o mod_wd.o mod_par_special.o mod_obcs.o mod_main.o mod_main.o mod_prec.o 
 mod_onedtide.o : mod_onedtide.F mod_main.o mod_utils.o mod_main.o mod_main.o mod_types.o mod_prec.o 
 ocpmix.o : ocpmix.F swmod2.o swmod1.o swmod1.o swmod1.o swmod1.o mod_prec.o 

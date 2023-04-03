@@ -245,6 +245,7 @@ CONTAINS
     IRamp = 0 
     Static_SSH_Adj = 0.0
     Min_Depth = 0.0
+    RK_3D_ON = .False.
 
     !--Parameters in NameList NML_RESTART
     RST_ON            = .False.

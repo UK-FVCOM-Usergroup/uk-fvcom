@@ -153,3 +153,6 @@ internal_step.F, mod_main_wave.F, mod_main.F, mod_bulk.F
 
 switch vertical advection
 mod_scal.F
+
+add rk advection (non fabm)
+internal_step.F,mod_input.F, mod_main.F, adv_q_rk.F, adv_s_rk.F, adv_t_rk.F, adv_uv_edge_gcn_rk.F, adv_uv_edge_gcy_rk.F
