@@ -532,26 +532,31 @@
      END IF
 
 
-
+     ! Siqi Li, 2021-01-27
+     ! Here we only read the wind speed or wind stress.
+     ! The calculation of wind stress was moved and now is placed
+     ! behind the heat part.  
      IF (WIND_ON) THEN
 
         IF (WIND_TYPE == SPEED)THEN
            CALL UPDATE_WIND(IntTime,UUWIND,VVWIND)
            
-           CALL ASIMPLE_DRAG(UUWIND,VVWIND,WUSURF,WVSURF)
+!           CALL ASIMPLE_DRAG(UUWIND,VVWIND,WUSURF,WVSURF) ! Siqi Li, 2021-01-27
            
         ELSEIF(WIND_TYPE == STRESS)THEN
            CALL UPDATE_WIND(IntTime,WUSURF,WVSURF)
         END IF
         
-        ! For output only - don't divide by density
-        WUSURF_save = WUSURF * RAMP
-        WVSURF_save = WVSURF * RAMP
+!---> Siqi Li, 2021-01-27
+!        ! For output only - don't divide by density
+!        WUSURF_save = WUSURF * RAMP
+!        WVSURF_save = WVSURF * RAMP
         
         
-        WUSURF = -WUSURF * RAMP * 0.001_SP
-        WVSURF = -WVSURF * RAMP * 0.001_SP
-        
+!        WUSURF = -WUSURF * RAMP * 0.001_SP
+!        WVSURF = -WVSURF * RAMP * 0.001_SP
+!<--- Siqi Li, 2021-01-27        
+
      END IF
 
 # if defined (WAVE_CURRENT_INTERACTION) && (WAVE_ONLY)
@@ -676,6 +681,25 @@
       END IF
 # endif      
 
+      !---> Siqi Li, 2021-01-27
+      IF (WIND_ON) THEN
+         IF (WIND_TYPE == SPEED)THEN
+            CALL UPDATE_WINDSTRESS('INT')
+         END IF
+
+         ! For output only - don't divide by density
+         WUSURF_save = WUSURF * RAMP
+         WVSURF_save = WVSURF * RAMP
+
+         ! Divide by density 
+         WUSURF = -WUSURF * RAMP *0.001_SP
+         WVSURF = -WVSURF * RAMP *0.001_SP
+
+         ! MAJOR MISTAKE: NEED THE NEGATIVE SIGN FOR THE INTERNAL
+         ! STEP WIND STRESS
+
+      END IF
+      !<--- Siqi Li, 2021-01-27
 
      IF (PRECIPITATION_ON) THEN
         CALL UPDATE_PRECIPITATION(IntTime,Qprec,Qevap)
@@ -734,8 +758,11 @@
 
          IF (WIND_TYPE == SPEED)THEN
             CALL UPDATE_WIND(ExtTime,UUWIND,VVWIND)
-            
-            CALL ASIMPLE_DRAG(UUWIND,VVWIND,WUSURF2,WVSURF2)
+
+            !---> Siqi Li, 2021-01-27            
+            !CALL ASIMPLE_DRAG(UUWIND,VVWIND,WUSURF2,WVSURF2)
+            CALL UPDATE_WINDSTRESS('EXT')
+            !<--- Siqi Li, 2021-01-27
 
          ELSEIF(WIND_TYPE == STRESS)THEN
             CALL UPDATE_WIND(ExtTime,WUSURF2,WVSURF2)
@@ -768,5 +795,3 @@
 
    END SUBROUTINE BCOND_GCY
 !==============================================================================|
-
-
