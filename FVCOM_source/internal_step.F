@@ -118,6 +118,9 @@ SUBROUTINE INTERNAL_STEP
   REAL(DP) :: DPDAYS
   REAL(SP) :: SPDAYS
 # endif
+# if defined (WAVE_ONLY)
+  LOGICAL :: wa_on
+# endif
   integer :: i1,i2
 !------------------------------------------------------------------------------|
 

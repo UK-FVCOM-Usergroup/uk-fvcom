@@ -28,10 +28,44 @@
 
 MODULE mod_bulk
   USE MOD_PREC
+  USE ALL_VARS,ONLY : IPT
+# if defined (MULTIPROCESSOR)
+  USE ALL_VARS,ONLY : PAR, MYID, NPROCS
+  USE MOD_PAR, ONLY : NC, EC, AEXCHANGE
+# endif
   implicit none
+
+  REAL, PARAMETER :: EPS = 1.0E-7_SP
 
 CONTAINS
 
+# if defined (WAVE_CURRENT_INTERACTION)
+  !------------------------------------------------------------------
+  ! Calculate peak wave phase speed
+  ! 
+  ! input : peak wave length (WLEN, on node)
+  !         relative peak period (TPEAK, on node)
+  ! output: peak wave phase speed (Cwave, on node)
+  !        
+  ! Siqi Li, 2021-01-27
+  !------------------------------------------------------------------
+  SUBROUTINE Cwave_on_WLEN_TPEAK
+    !
+    USE ALL_VARS,  only : M, Cwave
+    USE VARS_WAVE, only : WLEN, TPEAK
+    !
+    IMPLICIT NONE
+    !
+    INTEGER :: I
+    !
+    DO I = 1, M
+!      Cwave(I) = WLEN(I) / MAX(TPEAK(I),EPS)
+      if (ABS(TPEAK(I))<EPS) THEN
+        Cwave(I) = 0.0_SP
+      else
+        Cwave(I) = WLEN(I) / TPEAK(I)
+      endif
+!if (I==156)  write(IPT,*) '-----', WLEN(I), TPEAK(I), WLEN(I) / MAX(TPEAK(I),EPS)
 
 
   SUBROUTINE ASIMPLE_DRAG(spdx,spdy,strx,stry)
