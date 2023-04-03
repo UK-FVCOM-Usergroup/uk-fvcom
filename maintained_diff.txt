@@ -1,0 +1,39 @@
+Differences between FVCOM-FABM and FVCOM main branch (other than directly FABM stuff)
+
+GOTM charnok surface not commented out, also intisialisng to 0 not NN, parameters DP - mod_gotm.F
+
+Initialise variables to 0 - mod_assim.F
+
+multiprocessing flags in mod_esmf_nesting.F
+
+swancom5 arguement sizes swancom5.F, swanser.F
+
+wet and dry in in not semi_implicit advave_edge_gcn.F, extel_edge.F, external_step.F, extuv_edge.F
+
+river name length max 200 not 60 mod_main.F
+
+makedepends to allow pll compilation
+
+Avoid negative salinitys - internal_step.F
+
+Sediment mixing ration - mod_input.F
+
+Remove if ucf from mod_ncdio.F
+
+Options of original or cstms sediment mod_startup.F, mod_probe.F
+
+Add obsice
+
+Keep double precision variables for rho_pmean.F
+
+Errors with assumed shape of arguments - swancom5.F, swanser.F
+
+Karsten precision fix for Coare26 - coare26z.F
+
+Adjust weird depths - mod_wd.F
+
+Oned tide allowed arbitrary constituents - mod_onedtide.F
+
+Dye release in mod_report.F
+
+Changes to bed_thickness mod_sed.F
