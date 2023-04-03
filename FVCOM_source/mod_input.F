@@ -496,7 +496,10 @@ CONTAINS
     OBC_MEANFLOW = .FALSE.
     OBC_MEANFLOW_FILE = trim(casename)//"_obc.nc"
     OBC_LONGSHORE_FLOW_ON = .FALSE.
-    OBC_LONGSHORE_FLOW_FILE = trim(casename)//"_lsf.dat"
+!---> Siqi Li
+!    OBC_LONGSHORE_FLOW_FILE = trim(casename)//"_lsf.dat"
+    OBC_LONGSHORE_FLOW_FILE = 'LONGSHORE_FLOW setting is only used for GOM (see )'
+!<--- Siqi Li
     OBC_TIDEOUT_INITIAL  = 0       !TIME STEPS
     OBC_TIDEOUT_INTERVAL = 0       !TIME STEPS
     OBC_DEPTH_CONTROL_ON = .TRUE.
@@ -2522,6 +2525,21 @@ CONTAINS
        CALL NC_CONNECT_PVAR(VAR,G%ZZ)
        CALL NC_READ_VAR(VAR)
        CALL NC_DISCONNECT(VAR)
+
+       !---> Added by Dr. Lai 2021-01-15
+       ! z
+       ALLOCATE(G%Z(0:G%MT,G%KB),stat=status)
+       IF (STATUS /=0 ) CALL FATAL_ERROR("COULD NOT ALLOCATE G%Z WHILE READING:"//TRIM(NCF%FNAME))
+       G%Z=0.0_SP
+
+       VAR => FIND_VAR(NCF,'siglev',FOUND)
+       IF(.not. FOUND) CALL FATAL_ERROR&
+            &("COULD NOT FIND VARIABLE 'siglev' IN THE FILE OBJECT:"//TRIM(NCF%FNAME))
+
+       CALL NC_CONNECT_PVAR(VAR,G%Z)
+       CALL NC_READ_VAR(VAR)
+       CALL NC_DISCONNECT(VAR)
+       !<--- Added by Dr. Lai 2021-01-15
        
        ! zz1
        ALLOCATE(G%ZZ1(0:G%NT,G%KBM1),stat=status)
@@ -4753,9 +4771,22 @@ case default
     integer, intent(out) :: is_cw
     real(sp)             :: cross_prod
     !
+!---> Siqi Li, updated on 2021-02-16
+    integer :: decimal_x, decimal_y
+    real(kind=4) :: x0, y0
+
+    x0 = maxval(abs(x))
+    y0 = maxval(abs(y))
+
+    decimal_x = precision(x0) - power10(x0)
+    decimal_y = precision(y0) - power10(y0)
+!<--- Siqi Li
+
     cross_prod=(x(2)-x(1))*(y(3)-y(1))-(y(2)-y(1))*(x(3)-x(1))
     !
-    if (abs(cross_prod)<1e-6) then
+    ! Siqi Li, updated on 2021-02-16
+    if (abs(cross_prod)<10.**(-decimal_x-decimal_y)) then
+!    if (abs(cross_prod)<1e-6) then
       is_cw=0
 !      print*, 'This is a line, rather than a triangle.'
     else
@@ -4769,5 +4800,36 @@ case default
     end if
     !
   END SUBROUTINE IS_TRI_CW
+
+  !===================================================
+  ! Function to calculate the power of a number in 
+  ! scientific notation
+  !           
+  ! Siqi Li, SMAST.
+  ! 2021-02-16
+  !===================================================
+  integer FUNCTION power10(num0)
+
+    implicit none
+
+    real, intent(in) :: num0
+    real :: num
+
+    power10 = 0
+
+    num = abs(num0)
+
+    DO WHILE (num > 10.)
+      num = num / 10.
+      power10 = power10 + 1
+    END DO
+
+    DO WHILE (num < 1.)
+      num = num * 10.
+      power10 = power10 - 1
+    END DO
+
+END FUNCTION power10
  
+
 END MODULE MOD_INPUT

@@ -117,3 +117,9 @@ mod_setup.F
 
 Adjustment to XFLUX in spherical
 adv_uv_edge_gcn.F
+
+Fixes in mod_input for in_tri and add siglev
+mod_input.F
+
+Add missing netcdf4
+enk_ncdio.F, mod_sparse_timeseries.F, mod_station_timeseries.F

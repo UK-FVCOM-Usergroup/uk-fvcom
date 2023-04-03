@@ -350,7 +350,11 @@ MODULE MOD_SPARSE_TIMESERIES
     cdfname = trim(OUTPUT_DIR)//trim(casename)//'_sparse_timeseries.nc'
 
 !--Create File 
+# if defined (USE_NETCDF4)
+    ierr = nf90_create(path=cdfname,cmode=nf90_netcdf4,ncid=nc_ofid)
+# else
     ierr = nf90_create(path=cdfname,cmode=nf90_clobber,ncid=nc_ofid)
+# endif
     if(ierr /= nf90_noerr)then
      call handle_ncerr(ierr,"file creation error")
     end if
@@ -396,17 +400,26 @@ MODULE MOD_SPARSE_TIMESERIES
     ierr = nf90_def_var(nc_ofid,"x",nf90_float,stat2ds,x_s_vid)
     ierr = nf90_put_att(nc_ofid,x_s_vid,"long_name","station x-coordinate")
     ierr = nf90_put_att(nc_ofid,x_s_vid,"units","meters")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, x_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
     !!====Y Grid Coordinate at Nodes (VY) (Meters)===========!
     ierr = nf90_def_var(nc_ofid,"y",nf90_float,stat2ds,y_s_vid)
     ierr = nf90_put_att(nc_ofid,y_s_vid,"long_name","station y-coordinate")
     ierr = nf90_put_att(nc_ofid,y_s_vid,"units","meters")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, y_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
     !!====Longitudinal Coordinate at Nodes (LON) (degrees)===!
     ierr = nf90_def_var(nc_ofid,"lon",nf90_float,stat2ds,lon_s_vid)
     ierr = nf90_put_att(nc_ofid,lon_s_vid,"long_name","Longitude")
     ierr = nf90_put_att(nc_ofid,lon_s_vid,"standard_name","longitude")
     ierr = nf90_put_att(nc_ofid,lon_s_vid,"units","degrees_east")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, lon_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
     !!====Latitudinal  Coordinate at Nodes (LAT) (degrees)===!
     ierr = nf90_def_var(nc_ofid,"lat",nf90_float,stat2ds,lat_s_vid)
@@ -414,6 +427,9 @@ MODULE MOD_SPARSE_TIMESERIES
     ierr = nf90_put_att(nc_ofid,lat_s_vid,"standard_name","latitude")
     ierr = nf90_put_att(nc_ofid,lat_s_vid,"units","degrees_north")
     ierr = nf90_put_att(nc_ofid,lat_s_vid,"grid","Bathymetry_Mesh")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, lat_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
 !--Define Mesh Relevant Variables and Attributes
 
@@ -423,6 +439,9 @@ MODULE MOD_SPARSE_TIMESERIES
     ierr = nf90_put_att(nc_ofid,h_s_vid,"units","meters")
     ierr = nf90_put_att(nc_ofid,h_s_vid,"positive","down")
     ierr = nf90_put_att(nc_ofid,h_s_vid,"standard_name","depth")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, h_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
 !--Define Model Time Variables and Attributes    
     IF(USE_REAL_WORLD_TIME)THEN
@@ -445,9 +464,15 @@ MODULE MOD_SPARSE_TIMESERIES
 !JQI      ierr = nf90_put_att(nc_ofid,time_s_vid,"calendar","none")
       ierr = nf90_put_att(nc_ofid,time_s_vid,"time_zone","none")
     END IF  
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, time_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
     ierr = nf90_def_var(nc_ofid,"iint",nf90_int,dynmtime,iint_vid)
     ierr = nf90_put_att(nc_ofid,iint_vid,"long_name","internal mode iteration number")
+#   if defined (USE_NETCDF4) && (USE_COMPRESSION)
+    ierr = nf90_def_var_deflate(nc_ofid, iint_vid, shuffle=1, deflate=1, deflate_level=9)
+#   endif
 
 !--Define Time Dependent Flow Variables (selected by user from input file)
 
@@ -465,6 +490,11 @@ MODULE MOD_SPARSE_TIMESERIES
      ierr = nf90_put_att(nc_ofid,vvwind_s_vid,"standard_name","northward wind")
      ierr = nf90_put_att(nc_ofid,vvwind_s_vid,"type","data")
      ierr = nf90_put_att(nc_ofid,vvwind_s_vid,"coordinates","time station")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, uuwind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, vvwind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
 
@@ -475,6 +505,9 @@ MODULE MOD_SPARSE_TIMESERIES
      ierr = nf90_put_att(nc_ofid,hs_s_vid,"positive","up")
      ierr = nf90_put_att(nc_ofid,hs_s_vid,"standard_name","signaficant_wave_height")
      ierr = nf90_put_att(nc_ofid,hs_s_vid,"type","data")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, hs_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_REL_PEAK_PERIOD_SPARSE)then
@@ -483,6 +516,9 @@ MODULE MOD_SPARSE_TIMESERIES
      ierr = nf90_put_att(nc_ofid,pperiod_s_vid,"units","seconds")
      ierr = nf90_put_att(nc_ofid,pperiod_s_vid,"standard_name","relative_peak_period")
      ierr = nf90_put_att(nc_ofid,pperiod_s_vid,"type","data")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, pperiod_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_WAVE_DIRECTION_SPARSE)then
@@ -491,6 +527,9 @@ MODULE MOD_SPARSE_TIMESERIES
      ierr = nf90_put_att(nc_ofid,wdir_s_vid,"units","degrees")
      ierr = nf90_put_att(nc_ofid,wdir_s_vid,"standard_name","wave_direction")
      ierr = nf90_put_att(nc_ofid,wdir_s_vid,"type","data")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, wdir_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_ENERGY_SPECTRUM_SPARSE)then
@@ -499,6 +538,9 @@ MODULE MOD_SPARSE_TIMESERIES
      ierr = nf90_put_att(nc_ofid,sdensity_s_vid,"units","m^2/hz")
      ierr = nf90_put_att(nc_ofid,sdensity_s_vid,"standard_name","energy_dpectrum")
      ierr = nf90_put_att(nc_ofid,sdensity_s_vid,"type","data")
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, sdensity_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
     if(OUT_WAVE_PARTITION_SPARSE)then
@@ -549,6 +591,17 @@ MODULE MOD_SPARSE_TIMESERIES
      ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"units","non")
      ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"standard_name","dirdeg_pos_swell")
      ierr = nf90_put_att(nc_ofid,tswellp_s_vid,"type","data")
+
+#    if defined (USE_NETCDF4) && (USE_COMPRESSION)
+     ierr = nf90_def_var_deflate(nc_ofid, hwind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, dwind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, twind_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, twindp_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, hswell_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, dswell_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, tswell_s_vid, shuffle=1, deflate=1, deflate_level=9)
+     ierr = nf90_def_var_deflate(nc_ofid, tswellp_s_vid, shuffle=1, deflate=1, deflate_level=9)
+#    endif
     end if
 
 !--Exit Define Mode
