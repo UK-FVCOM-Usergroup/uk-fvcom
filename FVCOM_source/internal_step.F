@@ -104,6 +104,10 @@ SUBROUTINE INTERNAL_STEP
 # if defined (PWP)
   USE MOD_PWP
 # endif
+# if defined (PROJ) && !defined (SPHERICAL)
+  USE MOD_VECTOR_PROJECTION  ! Siqi Li, 20221005
+# endif
+
   IMPLICIT NONE
   INTEGER :: I,J,K
   REAL(SP) :: UTMP,VTMP
@@ -1754,6 +1758,15 @@ SUBROUTINE INTERNAL_STEP
   !==============================================================================!
   U = UF
   V = VF
+
+# if defined (PROJ) && !defined (SPHERICAL)
+  !==============================================================================!
+  !     UV-PROJECTION                                                            !
+  !==============================================================================!
+  ! Siqi Li, 20221005
+  CALL UV_PROJECTION
+# endif
+
   !==============================================================================!
   !    PERFORM DATA EXCHANGE FOR ELEMENT BASED INFORMATION AT PROC BNDRIES       |
   !==============================================================================!

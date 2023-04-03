@@ -82,3 +82,5 @@ adv_uv_edge_gcn.F, extuv_edge.F, fvcom.F, internal_step.F, mod_gotm.F, mod_ncdio
 Add mod sediment heat flux
 bcond_gcn.F, vdif_ts.F, mod_heatflux_sediment.F
 
+Add mod_vector_projection
+internal_step.F,  fvcom.F,  mod_main.F,  mod_ncdio.F,  mod_vector_projection.F, makefile

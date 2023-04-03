@@ -1727,6 +1727,29 @@ MODULE ALL_VARS
 
   REAL(SP), ALLOCATABLE,TARGET :: HYW(:,:)
 
+
+# if defined (PROJ) && !defined (SPHERICAL)
+  !--------------------------UV-PROJECTION------------------------------------------!
+  ! Siqi Li, 20221005
+   REAL(SP), ALLOCATABLE,TARGET :: ACLON_X(:)  !PROJECTED Ux ON EAST
+   REAL(SP), ALLOCATABLE,TARGET :: ACLON_Y(:)  !PROJECTED Vy ON EAST
+   REAL(SP), ALLOCATABLE,TARGET :: ALAT_X(:)   !PROJECTED Ux ON NORTH
+   REAL(SP), ALLOCATABLE,TARGET :: ALAT_Y(:)   !PROJECTED Vy ON NORTH
+   REAL(SP), ALLOCATABLE,TARGET :: UA_EAST(:)   !VERTICALLY AVERAGED EASTWARD U   
+   REAL(SP), ALLOCATABLE,TARGET :: VA_NORTH(:)   !VERTICALLY AVERAGED NORTHWARD V  
+   REAL(SP), ALLOCATABLE,TARGET :: U_EAST(:,:)  !EASTWARD U
+   REAL(SP), ALLOCATABLE,TARGET :: V_NORTH(:,:)  !NORTHWARD V 
+# endif
+
+  !-----Surface drag coefficient----------------------------------------------------!
+  ! Siqi Li, 2021-01-27
+  REAL(SP), ALLOCATABLE,TARGET :: Cd(:)          !! Surface drag coefficient
+  REAL(SP), ALLOCATABLE,TARGET :: Z0(:)          !! Surface roughness
+  REAL(SP), ALLOCATABLE,TARGET :: U_star(:)      !! friction velocity
+  REAL(SP), ALLOCATABLE,TARGET :: TAU_WIND(:)    !! Total wind stress
+  REAL(SP), ALLOCATABLE,TARGET :: Cwave(:)       !! peak wave phase speed
+  REAL(SP) :: Pair_unit_factor                   !! used for converting Pair unit 
+
 # if defined (EQUI_TIDE)
   INTEGER,  ALLOCATABLE :: EQUI_ID(:)
   REAL*8,   ALLOCATABLE :: EQUI_VN(:)
@@ -2315,6 +2338,28 @@ CONTAINS
 
 
    ALLOCATE(HYW(0:MT,KB))        ;HYW     = ZERO
+
+# if defined (PROJ) && !defined (SPHERICAL)
+  !--------------------------UV-PROJECTION------------------------------------------!
+  ! Siqi Li, 20221005
+   ALLOCATE(ACLON_X(0:NT))      ;ACLON_X = ZERO   !PROJECTED Ux ON EAST
+   ALLOCATE(ACLON_Y(0:NT))      ;ACLON_Y = ZERO   !PROJECTED Vy ON EAST
+   ALLOCATE(ALAT_X(0:NT))       ;ALAT_X = ZERO    !PROJECTED Ux ON NORTH
+   ALLOCATE(ALAT_Y(0:NT))       ;ALAT_Y = ZERO    !PROJECTED Vy ON NORTH
+   ALLOCATE(UA_EAST(0:NT))      ;UA_EAST = ZERO   !VERTICALLY AVERAGED EASTWARD U 
+   ALLOCATE(VA_NORTH(0:NT))     ;VA_NORTH = ZERO  !VERTICALLY AVERAGED NORTHWARD V 
+   ALLOCATE(U_EAST(0:NT,KB))    ;U_EAST  = ZERO   !EASTWARD U
+   ALLOCATE(V_NORTH(0:NT,KB))   ;V_NORTH  = ZERO  !NORTHWARD V 
+# endif
+
+  !-----Surface drag coefficient----------------------------------------------------!
+  ! Siqi Li, 2021-01-27
+  ALLOCATE(Cd(0:NT))                  ;Cd       = ZERO
+  ALLOCATE(Z0(0:NT))                  ;Z0       = ZERO
+  ALLOCATE(U_star(0:NT))              ;U_star   = ZERO
+  ALLOCATE(Cwave(0:NT))               ;Cwave    = ZERO
+  ALLOCATE(TAU_WIND(0:NT))            ;TAU_WIND = ZERO
+
 !-----special initialization which probably do nothing------------------------------!
 
    DT1(0)   = 100.0_SP
