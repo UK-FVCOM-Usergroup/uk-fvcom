@@ -1186,7 +1186,16 @@
        UF(I,K)=U(I,K)*DT1(I)/D1(I)-DTI*XFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
        VF(I,K)=V(I,K)*DT1(I)/D1(I)-DTI*YFLUX(I,K)/ART(I)/(D1(I)*DZ1(I,K))
        IF(ADCOR_ON) THEN
+!JQI20201123 -- start add
+#      if defined (SPHERICAL)
+         UBETA(I,K)=XFLUX(I,K)+(COR(I)*V(I,K)-1.458E-4_SP*W(I,K)*cos(YC(I)*DEG2RAD))&
+                    *DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
+#      else
+!JQI20201123 -- end add
          UBETA(I,K)=XFLUX(I,K) +COR(I)*V(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
+!JQI20201123 -- start add
+#      endif
+!JQI20201123 -- end add
          VBETA(I,K)=YFLUX(I,K) -COR(I)*U(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
        ENDIF
 #      else
@@ -1197,7 +1206,16 @@
          XFLUX3(I,K)=XFLUX(I,K)
          YFLUX3(I,K)=YFLUX(I,K)
          IF(ADCOR_ON) THEN
+!JQI20201123 -- start add
+#      if defined (SPHERICAL)
+           UBETA(I,K)=XFLUX(I,K) +(COR(I)*V(I,K)-1.458E-4_SP*W(I,K)*cos(YC(I)*DEG2RAD))&
+                      *DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
+#      else
+!JQI20201123 -- end add
            UBETA(I,K)=XFLUX(I,K) +COR(I)*V(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
+!JQI20201123 -- start add
+#      endif
+!JQI20201123 -- end add
            VBETA(I,K)=YFLUX(I,K) -COR(I)*U(I,K)*DT1(I)*DZ1(I,K)*ART(I)*EPOR(I)
          ENDIF
        ENDIF
