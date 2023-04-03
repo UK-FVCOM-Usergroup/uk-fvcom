@@ -2523,6 +2523,7 @@ in:  DO WHILE(.TRUE.)
        ITIMEA  = CUR_OBS(I)%N_T_WEIGHT
        NLAY   = CUR_OBS(I)%N_LAYERS
        DO K=1,NLAY
+         IF(ABS(CUR_OBS(I)%UO(ITIMEA,K)) + ABS(CUR_OBS(I)%VO(ITIMEA,K)) >= .0001)THEN  !lwang added
          K1           = CUR_OBS(I)%S_INT(K,1)
          K2           = CUR_OBS(I)%S_INT(K,2)
          W1           = CUR_OBS(I)%S_WEIGHT(K,1)
@@ -2547,9 +2548,11 @@ in:  DO WHILE(.TRUE.)
          VCORR(J1,K2) = VCORR(J1,K2) + CORRECTION*WEIGHT2*WEIGHT2
 
 !        GEOFF NEW
-         IF(ABS(CUR_OBS(I)%UO(ITIMEA,K)) + ABS(CUR_OBS(I)%VO(ITIMEA,K)) < .0001)THEN
-           TWGHT(J1,K1) = 0.
-           TWGHT(J1,K2) = 0.
+! lwang modified at Jul 18, 2019
+!         IF(ABS(CUR_OBS(I)%UO(ITIMEA,K)) + ABS(CUR_OBS(I)%VO(ITIMEA,K)) < .0001)THEN
+!           TWGHT(J1,K1) = 0.
+!           TWGHT(J1,K2) = 0.
+! lwang
          END IF
        END DO
      END DO
@@ -3364,6 +3367,11 @@ in:  DO WHILE(.TRUE.)
 #  if defined (PWP)
    INTEGER, ALLOCATABLE, DIMENSION(:) :: MLD_GLB
 #  endif
+
+   ! lwang added for OI-TS_limit_control  20190423
+   integer, allocatable, dimension(:,:) :: T_FLAG1 
+   ! lwang
+
 !==============================================================================|
 
    IF (DBG_SET(DBG_SBR)) WRITE(IPT,*) "START: TEMP_ASSIMILATION" 
@@ -3499,6 +3507,9 @@ in:  DO WHILE(.TRUE.)
 
    ALLOCATE(TWGHT_T(MGL,KBM1))   ; TWGHT_T = 0.
    ALLOCATE(TCORR(MGL,KBM1))     ; TCORR   = 0.
+   ! lwang added for OI-TS_limit_control  20190423
+   ALLOCATE(T_FLAG1(0:MGL,KB)) ; T_FLAG1 = 1
+   ! lwang
 
    IF(TS_NGASSIM)THEN
      DO I=1,N_ASSIM_TS_w
@@ -3514,6 +3525,19 @@ in:  DO WHILE(.TRUE.)
            W2             = TS_OBS(Id)%S_WEIGHT(K,2)
 
            DEFECT         = TS_OBS(Id)%TEMP(ITIMEA,K) - TINT(I,K)
+
+           ! lwang added for OI-TS_limit_control  20190423
+           U1 = TG(J1,TS_OBS(Id)%S_INT(K,1))
+           U2 = TG(J1,TS_OBS(Id)%S_INT(K,2))
+           if (DEFECT>0.) then
+             if (U1>=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,1))=0
+             if (U2>=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,2))=0
+           elseif (DEFECT<0.) then
+             if (U1<=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,1))=0
+             if (U2<=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,2))=0
+           endif
+           ! lwang
+
            IF(ABS(DEFECT) < 20.0_SP)THEN     !quality control
              WEIGHT1        = TS_OBS(Id)%T_WEIGHT*TS_OBS(Id)%X_WEIGHT(J)*W1
              WEIGHT2        = TS_OBS(Id)%T_WEIGHT*TS_OBS(Id)%X_WEIGHT(J)*W2
@@ -3570,6 +3594,22 @@ in:  DO WHILE(.TRUE.)
          W2             = TS_OBS(Id)%S_WEIGHT(K,2)
 
          DEFECT         = TS_OBS(Id)%TEMP(ITIMEA,K) - TINT(I,K)
+
+! lwang added for OI-TS_limit_control 
+         DO J=1,TS_OBS(Id)%N_INTPTS
+           J1 = TS_OBS(Id)%INTPTS(J)
+           U1 = TG(J1,TS_OBS(Id)%S_INT(K,1))
+           U2 = TG(J1,TS_OBS(Id)%S_INT(K,2))
+           if (DEFECT>0.) then
+             if (U1>=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,1))=0
+             if (U2>=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,2))=0
+           elseif (DEFECT<0.) then
+             if (U1<=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,1))=0
+             if (U2<=TS_OBS(Id)%TEMP(ITIMEA,K)) T_FLAG1(J1,TS_OBS(Id)%S_INT(K,2))=0
+           endif
+         END DO
+! lwang
+
          IF(ABS(DEFECT) < 20.0)THEN     !quality control
            WEIGHT1        = TS_OBS(Id)%T_WEIGHT*W1
            WEIGHT2        = TS_OBS(Id)%T_WEIGHT*W2
@@ -3619,12 +3659,19 @@ in:  DO WHILE(.TRUE.)
          IF(DA_TS(I) == 1)THEN
 !QXU         TG(I,K) = TG(I,K) + TCORR1(I,K)
 !           TG(I,K) = TG(I,K) + TS_GALPHA*TCORR1(I,K)
-           TG(I,K) = TG(I,K) + TS_OIGALPHA*TCORR1(I,K)
+
+           ! lwang added for OI-TS_limit_control  20190423
+           !  TG(I,K) = TG(I,K) + TS_OIGALPHA*TCORR1(I,K)
+           TG(I,K) = TG(I,K) + TS_OIGALPHA*TCORR1(I,K)*T_FLAG1(I,K)
+           ! lwang
          END IF
        END DO
      END DO
 
      DEALLOCATE(TWGHT_T,TCORR,TINT,TCORR1)
+     ! lwang added for OI-TS_limit_control  20190423
+     DEALLOCATE(T_FLAG1)
+     ! lwang
    ELSE
      WRITE(IPT,*)'EITHER TS_NGASSIM OR TS_OIASSIM SHOULD BE TRUE'
      CALL PSTOP
@@ -3993,7 +4040,9 @@ in:  DO WHILE(.TRUE.)
 !------------------------------------------------------------------------------|
 ! param: inverse of the correlation length                                     |
 !------------------------------------------------------------------------------|
-   REAL(SP) :: PARAM(2,N_ASSIM_TS)
+! lwang 20211018
+!   REAL(SP) :: PARAM(2,N_ASSIM_TS)
+   REAL(SP) :: PARAM(2,N_ASSIM_TS_W)
 
    INTEGER  :: I,J,MM   
    INTEGER ID
@@ -4008,7 +4057,9 @@ in:  DO WHILE(.TRUE.)
 !------------------------------------------------------------------------------|   
 ! param is the inverse of the correlation length                               |
 !------------------------------------------------------------------------------|
-   PARAM = 1.0_SP/TS_PARAM             
+! lwang 20211018 TS_PARAM is for all obs during the whole runing period
+! but here we need PARAM(2,N_ASSIM_TS_W) 
+!   PARAM = 1.0_SP/TS_PARAM             
  
    MM = TS_N_INFLU
 
@@ -4024,6 +4075,8 @@ in:  DO WHILE(.TRUE.)
      ID = ID_STATION(I)
      X(1,I) = TS_OBS(Id)%X
      X(2,I) = TS_OBS(Id)%Y
+     !lwang 20211018
+     PARAM(:,I) = 1.0_SP/TS_PARAM(:,ID)
    END DO  
 
 !------------------------------------------------------------------------------|
@@ -4133,8 +4186,26 @@ in:  DO WHILE(.TRUE.)
       ! ADJUSMENT = MAX_WEIGHT * (TRUTH-CURRENT) * (WEIGHT_BY_TIME)
       ADJUSTMENT = SSTGRD_WEIGHT_MAX*(TRUTH-T1(i,1))*T_WEIGHT
       ! RESULT = CURRENT + DTI*TIMESCALE * ADJUSTMENT 
-      T1(I,1)=T1(I,1)+DTI*SSTGRD_TIMESCALE*ADJUSTMENT
-
+! lwang modified for sst assim order Jan 2, 2020 
+!      T1(I,1)=T1(I,1)+DTI*SSTGRD_TIMESCALE*ADJUSTMENT
+      TF1(I,1)=TF1(I,1)+DTI*SSTGRD_TIMESCALE*ADJUSTMENT
+! lwang Jan 2, 2020
+! lwang added for the SST mld assimilation
+      IF(SSTGRD_MLD)THEN
+!        MLD_OUT(I)=MLD_RHO(I)   ! Siqi Li for MLD_output @ 2019-05-01  ! Siqi Li, 20210809
+        DO K=1,KBM1
+          IF (-ZZ(I,K)*D(I)<=MLD_RHO(I))THEN
+! lwang modified for sst assim order Jan 2, 2020
+!            T1(I,K)=T1(I,1)
+            TF1(I,K)=TF1(I,1)
+! lwang Jan 2, 220
+!            MLD_Nsiglay(I)=K  ! Siqi Li for MLD_output @ 2019-05-01 ! @20210809
+          ELSE
+            EXIT
+          END IF
+        END DO
+      END IF
+! lwang
 #     if defined (PWP)
       IF(MLD(I)>0) THEN
         S_AVG = 0.0_SP
@@ -4143,7 +4214,10 @@ in:  DO WHILE(.TRUE.)
         ENDDO
         S1(I,1) = S_AVG
         DO K=2,MLD(I)
-          T1(I,K)=T1(I,1)
+! lwang modified for sst assim order Jan 2, 2020
+!          T1(I,K)=T1(I,1)
+          TF1(I,K)=TF1(I,1)
+! lwang Jan 2, 2020
           S1(I,K)=S_AVG
         END DO
       ENDIF
@@ -4239,6 +4313,7 @@ in:  DO WHILE(.TRUE.)
       ADJUSTMENT = SSHGRD_WEIGHT_MAX*(TRUTH-EL(i))*T_WEIGHT*F_SPATIAL
       ! RESULT = CURRENT + DTI*TIMESCALE * ADJUSTMENT 
       EL(I)=EL(I)+DTI*SSHGRD_TIMESCALE*ADJUSTMENT
+      EL(I)=EL(I)*RAMP
    ENDDO    
 
    
