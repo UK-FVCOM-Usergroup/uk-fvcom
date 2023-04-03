@@ -1263,6 +1263,18 @@ SUBROUTINE INTERNAL_STEP
 #    if defined (SEMI_IMPLICIT)
      ENDDO
 #    endif
+  ELSE
+    ALLOCATE(Q2B(0:MT,KB))      ;  Q2B = 0.0_SP
+    ALLOCATE(Q2LB(0:MT,KB))     ;  Q2LB = 0.0_SP
+    Q2B  = Q2
+    Q2LB = Q2L
+    RCOFT = 0.5_SP
+    DO ITER = 1,2
+     CALL ADV_Q_RK(Q2,Q2B,Q2F)       !!Advection of Q2 
+     CALL ADV_Q_RK(Q2L,Q2LB,Q2LF)
+#    if defined(MULTIPROCESSOR)
+     IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,Q2F)
+     IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,Q2LF)
 #    endif
 
      IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_Q2             !Conservation Correction   !
