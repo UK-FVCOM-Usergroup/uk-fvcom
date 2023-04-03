@@ -217,7 +217,6 @@ SUBROUTINE VDIF_TS(NCON1,F)
 # endif
            END DO
         END DO
-     END IF
 
   CASE(2)
 

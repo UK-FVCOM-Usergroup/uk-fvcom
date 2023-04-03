@@ -89,7 +89,7 @@ mod_dam.o : mod_dam.F mod_spherical.o mod_utils.o mod_main.o mod_main.o mod_par_
 mod_station_timeseries.o : mod_station_timeseries.F mod_types.o mod_clock.o mod_nctools.o swmod1.o mod_obcs.o mod_par_special.o mod_main.o mod_main.o mod_set_time.o mod_utils.o mod_main.o mod_main_wave.o mod_time.o mod_prec.o 
 mod_sparse_timeseries.o : mod_sparse_timeseries.F mod_par_special.o mod_main.o mod_clock.o mod_nctools.o swmod1.o mod_main.o mod_set_time.o mod_utils.o mod_main.o mod_station_timeseries.o mod_main_wave.o mod_time.o mod_prec.o 
 mod_boundschk.o : mod_boundschk.F mod_main_wave.o mod_par_special.o mod_ncdio.o mod_wd.o mod_utils.o mod_main.o mod_prec.o mod_prec.o 
-mod_esmf_nesting.o : mod_esmf_nesting.F mod_main.o mod_types.o mod_main.o swmod1.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
+mod_esmf_nesting.o : mod_esmf_nesting.F mod_main.o mod_types.o mod_main.o swmod1.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o mod_par.o
 mod_ncdio_surface.o : mod_ncdio_surface.F mod_par_special.o mod_wd.o mod_force.o mod_clock.o mod_main.o mod_ice2d.o mod_ice.o mod_main.o mod_wave_current_interaction.o mod_main_wave.o swmod1.o swmod1.o mod_input.o mod_time.o mod_utils.o mod_nctools.o mod_prec.o mod_main.o mod_prec.o 
 mod_cstms_vars.o : mod_cstms_vars.F mod_types.o mod_prec.o mod_par_special.o mod_prec.o 
 mod_flocmod.o : mod_flocmod.F mod_main.o mod_main.o mod_scal.o mod_cstms_vars.o mod_types.o mod_prec.o mod_par_special.o mod_main.o mod_wave_current_interaction.o mod_prec.o 
@@ -98,7 +98,7 @@ mod_fluid_mud.o : mod_fluid_mud.F mod_spherical.o mod_main.o mod_northpole.o eqs
 mod_mld_rho.o : mod_mld_rho.F mod_main.o mod_prec.o mod_prec.o 
 mod_main_wave.o : mod_main_wave.F mod_obcs.o mod_main.o mod_prec.o 
 mod_vector_projection.o : mod_vector_projection.F mod_main.o mod_par.o
-mod_sediment_heatflux.o : mod_heatflux_sediment.F mod_main.o mod_prec.o mod_utils.o mod_par.o
+mod_heatflux_sediment.o : mod_heatflux_sediment.F mod_main.o mod_prec.o mod_utils.o mod_par.o
 swmod1.o : swmod1.F mod_prec.o mod_prec.o 
 swmod2.o : swmod2.F swmod1.o mod_prec.o 
 swmod3.o : swmod3.F swmod2.o swmod1.o mod_prec.o 
@@ -111,7 +111,7 @@ fvcom.o : fvcom.F mod_sparse_timeseries.o mod_station_timeseries.o mod_pwp.o mod
 genmap.o : genmap.F mod_utils.o mod_par_special.o mod_main.o mod_main.o mod_prec.o mod_par.o
 tge.o : tge.F mod_obcs.o mod_par_special.o mod_spherical.o mod_main.o mod_prec.o 
 longshore_flow.o : longshore_flow.F mod_par_special.o mod_main.o mod_utils.o mod_prec.o mod_par.o
-cell_area.o : cell_area.F mod_spherical.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
+cell_area.o : cell_area.F mod_spherical.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o mod_par.o
 open_all.o : open_all.F mod_nesting.o mod_input.o mod_main.o mod_prec.o 
 load_grid.o : load_grid.F mod_nesting.o mod_main.o mod_obcs.o mod_input.o mod_main.o mod_prec.o 
 allocate_all.o : allocate_all.F mod_non_hydro.o mod_semi_implicit.o mod_wqm.o mod_nesting.o mod_spherical.o mod_wd.o mod_obcs.o mod_utils.o mod_main.o mod_prec.o 
@@ -141,7 +141,7 @@ baropg.o : baropg.F mod_wd.o mod_northpole.o mod_spherical.o mod_main.o mod_prec
 external_step.o : external_step.F mod_dam.o mod_obcs3.o mod_obcs2.o mod_meanflow.o mod_plbc.o mod_ice2d.o mod_ice.o mod_par_special.o mod_wd.o mod_obcs.o mod_time.o mod_main.o mod_utils.o mod_nesting.o mod_prec.o 
 extel_edge.o : extel_edge.F mod_dam.o mod_ice.o mod_balance_2d.o mod_northpole.o mod_obcs.o mod_main.o mod_main.o mod_prec.o 
 extuv_edge.o : extuv_edge.F mod_wave_current_interaction.o mod_non_hydro.o mod_balance_2d.o mod_northpole.o mod_wd.o mod_utils.o mod_main.o mod_prec.o 
-depth_check.o : depth_check.F mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
+depth_check.o : depth_check.F mod_par_special.o mod_utils.o mod_main.o mod_prec.o mod_par.o 
 vertvl_edge.o : vertvl_edge.F mod_dam.o mod_plbc.o mod_meanflow.o mod_semi_implicit.o mod_northpole.o mod_wd.o mod_main.o mod_main.o mod_prec.o 
 adv_uv_edge_gcn.o : adv_uv_edge_gcn.F mod_dam.o mod_wave_current_interaction.o mod_non_hydro.o mod_semi_implicit.o mod_obcs3.o mod_obcs2.o mod_meanflow.o mod_wd.o mod_northpole.o mod_spherical.o mod_utils.o mod_main.o mod_main.o mod_prec.o 
 adv_uv_edge_gcy.o : adv_uv_edge_gcy.F mod_wave_current_interaction.o mod_non_hydro.o mod_semi_implicit.o mod_onedtide.o mod_wd.o mod_main.o mod_northpole.o mod_spherical.o mod_utils.o mod_main.o mod_prec.o 
@@ -160,7 +160,7 @@ vdif_ts.o : vdif_ts.F mod_dam.o mod_wd.o mod_main.o mod_utils.o mod_main.o mod_p
 vdif_ts_gom.o : vdif_ts_gom.F mod_wd.o mod_main.o mod_utils.o mod_main.o mod_prec.o 
 fct_s.o : fct_s.F mod_obcs.o mod_main.o mod_utils.o mod_main.o mod_prec.o 
 bcond_ts.o : bcond_ts.F mod_force.o mod_obcs.o mod_utils.o mod_main.o mod_main.o mod_prec.o 
-adjust_ts.o : adjust_ts.F mod_main.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
+adjust_ts.o : adjust_ts.F mod_main.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o mod_par.o
 conv_over.o : conv_over.F mod_utils.o mod_main.o mod_prec.o 
 visitsim.o : visitsim.F mod_utils.o mod_prec.o 
 startup_type.o : startup_type.F mod_fabm_data.o mod_bio_3D.o mod_wqm.o mod_utils.o mod_main.o mod_prec.o 
