@@ -129,3 +129,6 @@ mod_startup.F
 
 Remove call to rho mean
 fvcom.F
+
+Add NUOPC option
+adv_uv_edge_gcy.F, mod_main.F, extuv_edge.F, fvcom.F

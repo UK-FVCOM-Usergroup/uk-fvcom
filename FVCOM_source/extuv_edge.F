@@ -140,7 +140,7 @@
 #  endif
 
 
-#  if defined (WAVE_CURRENT_INTERACTION)
+#  if defined (WAVE_CURRENT_INTERACTION) || (NUOPC)
        RESX(I) = RESX(I) + WAVESTRX_2D(I)
        RESY(I) = RESY(I) + WAVESTRY_2D(I)
 #  endif  
