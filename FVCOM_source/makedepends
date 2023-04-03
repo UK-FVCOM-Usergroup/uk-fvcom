@@ -97,6 +97,7 @@ mod_sed_cstms.o : mod_sed_cstms.F mod_obcs.o mod_scal.o mod_newinp.o mod_utils.o
 mod_fluid_mud.o : mod_fluid_mud.F mod_spherical.o mod_main.o mod_northpole.o eqs_of_state.o mod_obcs.o mod_newinp.o mod_utils.o mod_main.o mod_main.o mod_main.o mod_wd.o mod_types.o mod_prec.o mod_par_special.o mod_time.o mod_prec.o 
 mod_mld_rho.o : mod_mld_rho.F mod_main.o mod_prec.o mod_prec.o 
 mod_main_wave.o : mod_main_wave.F mod_obcs.o mod_main.o mod_prec.o 
+mod_vector_projection.o : mod_vector_projection.F mod_main.o mod_par.o
 swmod1.o : swmod1.F mod_prec.o mod_prec.o 
 swmod2.o : swmod2.F swmod1.o mod_prec.o 
 swmod3.o : swmod3.F swmod2.o swmod1.o mod_prec.o 
