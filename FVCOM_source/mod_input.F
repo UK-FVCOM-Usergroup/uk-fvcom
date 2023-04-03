@@ -411,7 +411,7 @@ CONTAINS
     WIND_X = 0.0_SP
     WIND_Y = 0.0_SP
     HEATING_ON = .FALSE.
-    HEATING_TYPE = "'body' or 'flux'"
+    HEATING_TYPE = "'surface' or 'flux' or 'body'" 
     HEATING_FILE = trim(casename)//"_hfx.nc"
     HEATING_KIND = "Options:"//TRIM(CNSTNT)//","//TRIM(STTC)//","//TRIM(TMDPNDNT)//","//TRIM(PRDC)//","//TRIM(VRBL)
     HEATING_RADIATION = 0.0_SP

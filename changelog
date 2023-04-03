@@ -133,5 +133,8 @@ fvcom.F
 Add NUOPC option
 adv_uv_edge_gcy.F, mod_main.F, extuv_edge.F, fvcom.F
 
-Tidy up tvd and add additional constraint on smoother
+Tidy up tvd and smoother
 adv_s.F, adv_t.F, mod_tvd.F, mod_wqm.F, mod_bio_3d.F
+
+Add heating type surface
+mod_input.F, vdif_ts.F,

@@ -87,10 +87,10 @@ CONTAINS
        STRY(I) = 1.2_SP*CD*TY*WDS
 
     END DO
-    
 
   END SUBROUTINE PSIMPLE_DRAG
   
+
 
 
 END MODULE mod_bulk
