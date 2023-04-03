@@ -198,7 +198,8 @@ SUBROUTINE CNTRL_PRMTRS
         ZETA2=0.0_SP
      END IF
 #    endif     
-     
+
+     IF(.not. NESTING_ON)THEN    ! Siqi Li    
      IF( .not. OBC_ON .or. .not. OBC_ELEVATION_FORCING_ON) THEN
         IF (OBC_LONGSHORE_FLOW_ON) THEN
            CALL FATAL_ERROR &
@@ -206,6 +207,8 @@ SUBROUTINE CNTRL_PRMTRS
                 &WITHOUT OPEN BOUNDARY ELEVATION FORCING!")
         END IF
      END IF
+     END IF        ! Siqi Li
+
      
      ! SET DEFAULT RUN MODE - DATA ASSIMILATION IS OFF
      FVCOM_RUN_MODE = FVCOM_PURE_SIM
