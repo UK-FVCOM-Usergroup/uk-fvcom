@@ -112,3 +112,6 @@ mod_wqm.F
 Update KDMAX from 5 to 3 based on MELLOR(2015)
 mod_wave_current_interaction.F 
 
+Remove quatorial coriolis adjustment in setup
+mod_setup.F
+

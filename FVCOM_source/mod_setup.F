@@ -424,10 +424,12 @@ CONTAINS
     COR = 2.*7.292e-5_SP * SIN(COR * DEG2RAD)
     
     !!  ggao for equatoral min (4deg)
-    IF(.NOT. EQUATOR_BETA_PLANE)THEN
-     WHERE(COR <  1.e-5_SP .AND. COR > 0.0_SP) COR =  1.e-5_SP
-     WHERE(COR > -1.e-5_SP .AND. COR < 0.0_SP) COR = -1.e-5_SP
-    END IF 
+!JQI20201123 -- start comment
+!    IF(.NOT. EQUATOR_BETA_PLANE)THEN
+!     WHERE(COR <  1.e-5_SP .AND. COR > 0.0_SP) COR =  1.e-5_SP
+!     WHERE(COR > -1.e-5_SP .AND. COR < 0.0_SP) COR = -1.e-5_SP
+!    END IF 
+!JQI20201123 -- end comment
 
     IF(DBG_SET(DBG_SBR)) write(IPT,*) "SETUP_CORIOLIS: END"
 
