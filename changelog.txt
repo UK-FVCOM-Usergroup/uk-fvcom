@@ -33,3 +33,13 @@ brough.F
 
 adv_uv_edge_gcn.F
 - Flux adj to reflect flux (as for extuv_edj)
+
+CMakeLists.txt (in both source and base dir)
+- Update with new Bast version
+
+patch*.sh (in libs)
+- Add in from Base updated cmake version
+
+FindNetCDF.cmake (in cmake)
+- Add in from Base updated cmake version and remove Modules folder
+
