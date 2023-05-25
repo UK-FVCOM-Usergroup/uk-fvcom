@@ -1384,12 +1384,15 @@ SUBROUTINE INTERNAL_STEP
 # if defined (DATA_ASSIM)
   ELSEIF (.NOT. DATA_ASSIMILATION) THEN
 !----------------------------------------------------!
-  IF (FABM_MODEL) THEN
+    IF (FABM_MODEL) THEN
+      WHERE(S1<0.0_SP)
+         S1=0.0_SP
+      END WHERE
      CALL FABM_UPDATE
-     CALL FABM_UPDATE_DEPTH
+      CALL FABM_UPDATE_DEPTH
+    ENDIF
   ENDIF
-  ENDIF
-# endif
+#    endif
 #   endif
 
   !==============================================================================!
