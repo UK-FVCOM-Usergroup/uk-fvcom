@@ -554,98 +554,101 @@ SUBROUTINE FABM_UPDATE
 
 # if !defined (ONE_D_MODEL)
 
-# if defined (MULTIPROCESSOR)
+#     if defined (MULTIPROCESSOR)
 ! RJT just to check this is needed...
      IF(PAR)CALL FABM_EXCHANGE(FABM_ALL)
-# endif
+#     endif
 ! RJT 2023
 
-# if !defined (SEMI_IMPLICIT)
+#     if !defined (SEMI_IMPLICIT)
       IF(.NOT. RK_3D_ON)THEN
-# endif
+#     endif
 !-----------syshi 20191013--------------
 #   if defined(SEMI_IMPLICIT)
-    TSC_FABM_ALL=FABM_ALL
-    DO STAGE = 1,KSTAGE_FABM
+         TSC_FABM_ALL=FABM_ALL
+         DO STAGE = 1,KSTAGE_FABM
 #   endif
 !-----------syshi 20191013--------------
 
      ! Advection and horizontal diffusion
-     CALL FABM_ADV  ! This applies advection and horizontal diffusion operators to FABM_ALL to compute forecast field FABM_F
-     IF (FABM_DEBUG) THEN
-       PRINT_STATE = .TRUE.
-        IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_ADV'
-       PRINT_STATE = .FALSE.
-      END IF
-     ! Redirect FABM to forecast pelagic state FABM_F to ensure that any further FABM calls (check_state, check_conservation)
-     ! operate on the right data.
-     DO IFABM=1,size(model%interior_state_variables)
-       CALL model%link_interior_state_data(IFABM,FABM_F(1:M,:,IFABM))
-     END DO
+            CALL FABM_ADV  ! This applies advection and horizontal diffusion operators to FABM_ALL to compute forecast field FABM_F
+            IF (FABM_DEBUG) THEN
+               PRINT_STATE = .TRUE.
+               IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_ADV'
+               PRINT_STATE = .FALSE.
+            END IF
+            ! Redirect FABM to forecast pelagic state FABM_F to ensure that any further FABM calls (check_state, check_conservation)
+            ! operate on the right data.
+            DO IFABM=1,size(model%interior_state_variables)
+               CALL model%link_interior_state_data(IFABM,FABM_F(1:M,:,IFABM))
+            END DO
 
 #   if defined (MULTIPROCESSOR)
-     DO IFABM=1,size(model%interior_state_variables)
-        IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
-     END DO
+            DO IFABM=1,size(model%interior_state_variables)
+               IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
+            END DO
 #   endif
 
 !-----------syshi 20191013--------------
 #   if defined(SEMI_IMPLICIT)
-     FABM_ALL=TSC_FABM_ALL
+            FABM_ALL=TSC_FABM_ALL
 #   endif
 !-----------syshi 20191013--------------
-     IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
-     ! Remove the impact of FABM_ADV on the open boundary nodes that experience inflow.
-     ! For those, we want to run water column simulations that only include sources, residual vertical movement and vertical mixing.
-     ! We are not ignoring non-advective variables here but we do in BCOND RJT
-     CALL FABM_BCOND_PREPARE
+            IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM       !Conservation Correction of FABM_F  !
+            ! Remove the impact of FABM_ADV on the open boundary nodes that experience inflow.
+            ! For those, we want to run water column simulations that only include sources, residual vertical movement and vertical mixing.
+            ! We are not ignoring non-advective variables here but we do in BCOND RJT
+            CALL FABM_BCOND_PREPARE
 # endif
 ! end if defined 1D
 
      ! Vertical mixing
 # if !defined (ONE_D_MODEL)
 ! We need to remove non advecting/mixing variables from FABM_ALL for this case RJT
-     CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
+            CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
 # else
 ! We need to remove non advecting/miixing variables from FABM_ALL for this case RJT
-     CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
+            CALL FABM_MIXING(FABM_ALL) ! This operates on the supplied argument
 # endif
-     IF (FABM_DEBUG) THEN
-       PRINT_STATE = .TRUE.
-       IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_MIXING'
-       PRINT_STATE = .FALSE.
-     END IF
+            IF (FABM_DEBUG) THEN
+               PRINT_STATE = .TRUE.
+               IF (.NOT.CHECK_STATE(.TRUE.)) WRITE (IPT,'(A)') 'WARNING: state was clipped to correct out-of-bounds values after FABM_MIXING'
+               PRINT_STATE = .FALSE.
+            END IF
 
 ! FABM_exchange needs to remain before call to BCOND
 # if defined (MULTIPROCESSOR)
-     IF(PAR)CALL FABM_EXCHANGE(FABM_F)
+            IF(PAR)CALL FABM_EXCHANGE(FABM_F)
 # endif
      ! Process open boundaries (and depending on RIVER_TS_SETTING, also rivers)
-     CALL FABM_BCOND  ! This operates on FABM_F
+            CALL FABM_BCOND  ! This operates on FABM_F
+     #   if defined(SEMI_IMPLICIT)
+         ENDDO
+#   endif
 ! RK FABM code 
 # if !defined (SEMI_IMPLICIT)
-   ELSE
-     ALLOCATE(FABM_FB1(0:MT,KB,size(model%interior_state_variables)))        ; FABM_FB1 = 0.0_SP
-     FABM_FB1 = FABM_F
-     RCOFT = 0.5_SP
-     DO ITER = 1,2
-      CALL FABM_ADV_RK(FABM_FB1)      !Advection                 !
+      ELSE
+         ALLOCATE(FABM_FB1(0:MT,KB,size(model%interior_state_variables)))        ; FABM_FB1 = 0.0_SP
+         FABM_FB1 = FABM_F
+         RCOFT = 0.5_SP
+         DO ITER = 1,2
+            CALL FABM_ADV_RK(FABM_FB1)      !Advection                 !
  #    if defined(MULTIPROCESSOR)
-         DO IFABM=1,size(model%interior_state_variables)
-            IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
-         END DO
+            DO IFABM=1,size(model%interior_state_variables)
+               IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
+            END DO
 #    endif
  
       !#                                                   if !defined !(DOUBLE_PRECISION)
-      IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM            !Conservation Correction   !
+         IF(SCALAR_POSITIVITY_CONTROL) CALL FCT_FABM            !Conservation Correction   !
       !#                                                   endif
-      CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
+         CALL FABM_MIXING(FABM_F)   ! This operates on the supplied argument
       ! FABM_exchange needs to remain before call to BCOND
 # if defined (MULTIPROCESSOR)
-      IF(PAR)CALL FABM_EXCHANGE(FABM_F)
+         IF(PAR)CALL FABM_EXCHANGE(FABM_F)
 # endif
 ! Process open boundaries (and depending on RIVER_TS_SETTING, also rivers)
-      CALL FABM_BCOND  ! This operates on FABM_F
+         CALL FABM_BCOND  ! This operates on FABM_F
 ! this needs looking at because FABM_ALL is not updated until later
       FABM_ALL = FABM_F
       IF(ITER /= 2)THEN
@@ -660,10 +663,10 @@ SUBROUTINE FABM_UPDATE
      IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
             CALL SET_VAR(intTime,FABM_ALL=FABM_F)
      END IF
-!-----------syshi 20191013--------------
-#   if defined(SEMI_IMPLICIT)
-      ENDDO
-#   endif
+! !-----------syshi 20191013--------------
+! #   if defined(SEMI_IMPLICIT)
+!       ENDDO
+! #   endif
 !---------------------THINK ABOUT THE CODE BELOW----------------------
 !-----------syshi 20191013--------------
 # if defined (MULTIPROCESSOR)
