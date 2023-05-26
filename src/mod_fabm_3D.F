@@ -622,18 +622,18 @@ SUBROUTINE FABM_UPDATE
 # endif
      ! Process open boundaries (and depending on RIVER_TS_SETTING, also rivers)
             CALL FABM_BCOND  ! This operates on FABM_F
-     #   if defined(SEMI_IMPLICIT)
+#   if defined(SEMI_IMPLICIT)
          ENDDO
 #   endif
 ! RK FABM code 
 # if !defined (SEMI_IMPLICIT)
       ELSE
-         ALLOCATE(FABM_FB1(0:MT,KB,size(model%interior_state_variables)))        ; FABM_FB1 = 0.0_SP
+         ALLOCATE(FABM_FB1(0:MT,KB,size(model%interior_state_variables))); FABM_FB1 = 0.0_SP
          FABM_FB1 = FABM_F
          RCOFT = 0.5_SP
          DO ITER = 1,2
             CALL FABM_ADV_RK(FABM_FB1)      !Advection                 !
- #    if defined(MULTIPROCESSOR)
+#   if defined(MULTIPROCESSOR)
             DO IFABM=1,size(model%interior_state_variables)
                IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
             END DO
@@ -657,7 +657,7 @@ SUBROUTINE FABM_UPDATE
      END DO
      DEALLOCATE(FABM_FB1)
    END IF
- # endif
+# endif
  
      ! Nesting procedure should go after BCOND treatments shouldn't it?  At least that is how it es elsewhere
      IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
