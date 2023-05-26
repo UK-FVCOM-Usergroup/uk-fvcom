@@ -551,6 +551,7 @@
      J2=IENODE(I,2)
 
 #    if !defined (SEMI_IMPLICIT)
+! Additions from Akvaplan to account for pressure gradients under wet/dry option? RJT2023
 #    if defined (WET_DRY)
      DIJ=0.5_SP*(D(J1)-DELF(J1)+D(J2)-DELF(J2))
      ELIJ=0.5_SP*(EL(J1)-DELF(J1)+EL(J2)-DELF(J2))
