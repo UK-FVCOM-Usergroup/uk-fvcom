@@ -1,0 +1,12 @@
+Proposed changes and other issues to consider
+
+Add support for offline Sediment and FABM at the same time
+Transfer advection routine to use single function such as the adv_scal.F and monitor performance
+Include RK for advection of FABM variables. This requires mirroring changes in internal_step as well as create a fabm_adv_rk.F
+Use findent to indent all files to make reading code easier?
+RK doesn't allow for MPDATA or semi-implicit
+SMEAN1 (on nodes) doesn't get updated ever. Not sure what it role is in the advection routine other than increasing accuracy?
+our approach to recalculating fabmmean seems more appropriate
+
+The implementation of advecting only a subset of FABM interior variables is missing from this repo
+Actioned changes
