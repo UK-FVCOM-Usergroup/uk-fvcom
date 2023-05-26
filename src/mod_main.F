@@ -1963,7 +1963,7 @@ CONTAINS
 
 
    
-   MEMCNT = NT*4 + MT*3 +M*6*12*NDB  + NCT*3 + NCT*12*NDB  + MEMCNT
+   MEMCNT = NT*4*NDB + MT*5*NDB +M*6*12*NDB  + NCT*15*NDB  + MEMCNT
 
 !----------------2-d arrays for the general vertical coordinate -------------------------------!
 
