@@ -17,6 +17,7 @@ mod_nctools.o : mod_nctools.F mod_main.o mod_par_special.o mod_ncll.o mod_prec.o
 mod_wd.o : mod_wd.F mod_par_special.o mod_main.o mod_prec.o 
 mod_sng.o : mod_sng.F mod_utils.o mod_prec.o 
 mod_solar.o : mod_solar.F mod_main.o mod_prec.o mod_utils.o 
+mod_vegetation.o : mod_vegetation.F mod_main.o mod_prec.o mod_par.o mod_nctools.o mod_wd.o mod_types.o mod_wave_current_interaction.o
 mod_fabm_data.o : mod_fabm_data.F mod_prec.o 
 mod_tvd.o : mod_tvd.F mod_main.o mod_prec.o 
 mod_bulk.o : mod_bulk.F mod_main_wave.o mod_par_special.o mod_main.o mod_prec.o 
