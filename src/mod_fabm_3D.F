@@ -533,6 +533,8 @@ SUBROUTINE FABM_UPDATE
 # endif
      INTEGER :: IFABM
      LOGICAL :: VALID
+     REAL(SP) :: RCOFT  ! for RK integration
+     INTEGER :: ITER ! for RK integration
      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE" 
 
      ! Integrate biogeochemical sources-sinks
