@@ -185,7 +185,8 @@ MODULE MOD_FABM_3D
     call CONFIGURE_OUTPUT
 
     ! Tell FABM about the extents of the spatial domain.
-    call model%set_domain(M,KB)
+    call model%set_domain(M,KB, seconds_per_time_unit=DTI)
+!    call model%set_domain(M,KB)
     call model%set_domain_stop(M,KBM1)
 
 # if defined(WET_DRY)
@@ -917,7 +918,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
 !     MASK_SAFE = 1 ! restore to no mask
 # endif
      ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
-     CALL model%prepare_inputs()
+     CALL model%prepare_inputs(REAL(IINT,SP) )
+!     CALL model%prepare_inputs()
 
      FLUX_SF = 0.
      FLUX_BT = 0.
@@ -2721,7 +2723,8 @@ END SUBROUTINE FABM_ADV_RK
         DO K=1,KBM1
 #    if !defined (MPDATA)      
 ! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021
-           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+! K. Lettmann, 2022, Aug: set the comment sign again for the line below
+!           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
 #      if !defined (THIN_DAM)
@@ -2764,9 +2767,11 @@ END SUBROUTINE FABM_ADV_RK
 #      endif
 
 #      else
+! SEMI-IMPLICIT 
         FABM_F(I,K,IFABM)=(TSC_FABM_ALL(I,K,IFABM)-RK_FABM(STAGE)*XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I)) !syshi 20191013
 #      endif
 #    else
+! IF MPDATA
         FABM_F(I,K,IFABM)=WQM_SF(I,K)
 #    endif              
      END DO

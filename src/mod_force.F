@@ -2075,8 +2075,15 @@ CONTAINS
        NULLIFY(RIVER_FORCING(I)%BIO20_P)
 # endif         
 # if defined (FABM)
-       ALLOCATE(RIVER_FORCING(I)%FABM_N(size(model%interior_state_variables)))
-       ALLOCATE(RIVER_FORCING(I)%FABM_P(size(model%interior_state_variables)))
+       IF (FABM_MODEL) THEN 
+         ALLOCATE(RIVER_FORCING(I)%FABM_N(size(model%interior_state_variables)))
+         ALLOCATE(RIVER_FORCING(I)%FABM_P(size(model%interior_state_variables)))
+         DO IFABM=1,size(model%interior_state_variables)
+           NULLIFY(RIVER_FORCING(I)%FABM_N(IFABM)%P)
+           NULLIFY(RIVER_FORCING(I)%FABM_P(IFABM)%P)
+         END DO      
+       END IF
+       
 # endif
     END DO
 
@@ -2100,7 +2107,9 @@ CONTAINS
     END IF
 # endif
 # if defined (FABM)
-    ALLOCATE(FABMDIS(NUMQBC,size(model%interior_state_variables))); FABMDIS  = 0.0_SP
+    IF (FABM_MODEL) THEN
+      ALLOCATE(FABMDIS(NUMQBC,size(model%interior_state_variables))); FABMDIS  = 0.0_SP
+    END IF
 # endif
     ALLOCATE(TDIS(NUMQBC));         TDIS   = 0.0_SP
     ALLOCATE(SDIS(NUMQBC));         SDIS   = 0.0_SP
