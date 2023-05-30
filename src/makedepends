@@ -16,7 +16,8 @@ mod_wd.o : mod_wd.F mod_par_special.o mod_main.o mod_prec.o mod_prec.o
 mod_sng.o : mod_sng.F mod_utils.o mod_prec.o 
 mod_heatflux.o : mod_heatflux.F mod_main.o mod_prec.o mod_utils.o mod_main.o mod_prec.o 
 mod_solar.o : mod_solar.F mod_main.o mod_prec.o mod_utils.o mod_main.o mod_prec.o 
-mod_fabm_data.o : mod_fabm_data.F mod_prec.o mod_prec.o 
+mod_fabm_data.o : mod_fabm_data.F mod_prec.o 
+mod_tvd.o : mod_tvd.F mod_main.o mod_prec.o 
 mod_bulk.o : mod_bulk.F mod_main_wave.o mod_par_special.o mod_main.o mod_prec.o mod_prec.o 
 mod_input.o : mod_input.F mod_main.o mod_main.o mod_solar.o mod_heatflux.o mod_main.o mod_sng.o mod_fabm_data.o mod_utils.o mod_nctools.o mod_prec.o 
 mod_fabm_3D.o : mod_fabm_3D.F mod_semi_implicit.o mod_main.o mod_dam.o mod_main.o mod_obcs.o mod_main.o mod_par_special.o mod_wd.o mod_utils.o mod_main.o mod_fabm_data.o mod_prec.o mod_nesting.o mod_tvd.o
@@ -93,7 +94,6 @@ mod_cstms_vars.o : mod_cstms_vars.F mod_types.o mod_prec.o mod_par_special.o mod
 mod_flocmod.o : mod_flocmod.F mod_main.o mod_main.o mod_scal.o mod_cstms_vars.o mod_types.o mod_prec.o mod_par_special.o mod_main.o mod_wave_current_interaction.o mod_prec.o 
 mod_sed_cstms.o : mod_sed_cstms.F mod_obcs.o mod_scal.o mod_newinp.o mod_utils.o mod_main.o mod_flocmod.o mod_cstms_vars.o mod_fluid_mud.o mod_wave_current_interaction.o mod_main.o mod_main.o mod_wd.o mod_types.o mod_prec.o mod_par_special.o mod_prec.o 
 mod_fluid_mud.o : mod_fluid_mud.F mod_spherical.o mod_main.o mod_northpole.o eqs_of_state.o mod_obcs.o mod_newinp.o mod_utils.o mod_main.o mod_main.o mod_main.o mod_wd.o mod_types.o mod_prec.o mod_par_special.o mod_time.o mod_prec.o 
-mod_tvd.o : mod_tvd.F mod_main.o mod_main.o mod_prec.o mod_prec.o 
 mod_mld_rho.o : mod_mld_rho.F mod_main.o mod_prec.o mod_prec.o 
 mod_main_wave.o : mod_main_wave.F mod_obcs.o mod_main.o mod_prec.o 
 swmod1.o : swmod1.F mod_prec.o mod_prec.o 
