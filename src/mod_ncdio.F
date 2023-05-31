@@ -660,10 +660,12 @@ CONTAINS
 #   endif    
 
 #   if defined (FABM)
-       IF(NC_FABM)THEN
-          NCF2 => FABM_FILE_OBJECT(1)
-          NCF => ADD(NCF,NCF2)
+       IF (FABM_MODEL) THEN
+         IF(NC_FABM)THEN
+           NCF2 => FABM_FILE_OBJECT(1)
+           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,BIO_FILE_OBJECT() )
+         END IF
        END IF
 #   endif  
        
@@ -1117,10 +1119,12 @@ CONTAINS
 #   endif   
 
 #   if defined (FABM)
-    IF(NCAV_FABM)THEN
-      NCF_TMP => FABM_FILE_OBJECT(2)
-      NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+    IF (FABM_MODEL) THEN
+      IF(NCAV_FABM)THEN
+        NCF_TMP => FABM_FILE_OBJECT(2)
+        NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$      NC_AVG_DATA => ADD(NC_AVG_DATA,BIO_FILE_OBJECT() )
+      END IF
     END IF
 #   endif   
 
@@ -1564,8 +1568,10 @@ CONTAINS
 #   endif      
 
 #   if defined (FABM)
-    NC_RST2 => FABM_FILE_OBJECT(3)
-    NC_RST => ADD(NC_RST,NC_RST2)
+    IF (FABM_MODEL) THEN 
+      NC_RST2 => FABM_FILE_OBJECT(3)
+      NC_RST => ADD(NC_RST,NC_RST2)
+    END IF
 !!$    NC_RST => ADD(NC_RST,BIO_FILE_OBJECT() )
 #   endif
 
