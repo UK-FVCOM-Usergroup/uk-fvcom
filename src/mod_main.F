@@ -1882,6 +1882,7 @@ CONTAINS
    logical,intent(in) :: dbg_set
    INTEGER NCT,NDB
 !==============================================================================!
+   if(DBG_SET(dbg_sbr)) write(IPT,*) "Subroutine Starts: ALLOC_VARS"
 # if !defined (DOUBLE_PRECISION)
    NDB = 1       !!GWC BASE THIS ON KIND
 # else
@@ -2392,7 +2393,7 @@ CONTAINS
    ALLOCATE(V_STOKES_3D(0:NT,KB));   V_STOKES_3D = 0.0_SP
 #  endif   
    
-
+if(DBG_SET(dbg_sbr)) write(IPT,*) "Subroutine Ends: ALLOC_VARS"
    RETURN
    END SUBROUTINE ALLOC_VARS
 !==============================================================================|
