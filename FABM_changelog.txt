@@ -29,8 +29,26 @@ Nope, still crashes. I have tried multiple timestep combinations (10,1; 5,5; 5,1
 The error here appears with the convergence of calculating Z0 in mod_solar. 
 
 In a way there is no point in me pursuing this farther as I am not familiar with the ICE model. 
+As one last test... switching off the wind doesn't make it work either. 
 
 I need to check that FABM and sediments work and I can do this in the ideal estuary, with waves and semi-implicit. 
 I should ask Karsten for the setup
 
+Testing that should happen before PML can use a new version of the code
+In the idealised estuary
+    test sediments (with and without tvd, with and without RK)
+    test dye release (with and without tvd, with and without RK)
+    test fabm - 1) only a passive tracer
+                2) test carbonate system alone
+                3) test standard ERSEM
+                4) test RK and non RK
+                5) test with TVD and without
+    test rivers with fabm (test river_no_dilution behaviour)
+    test with heating calculated and without
 
+
+May 31, 2023
+Tests with ideal estuary
+only with physics (including sediment)   passed
+
+With FABM on, it is another matter. 

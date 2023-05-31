@@ -85,6 +85,8 @@ CONTAINS
 
     INTEGER  :: J, K
 
+    if(DBG_SET(dbg_sbr)) write(IPT,*) "Subroutine Begins: UV_PROJECTION;"
+
     DO J = 1, N
       UA_EAST(J) = ACLON_X(J)*UA(J) + ACLON_Y(J)*VA(J)
       VA_NORTH(J) =  ALAT_X(J)*UA(J) +  ALAT_Y(J)*VA(J)
@@ -98,6 +100,8 @@ CONTAINS
     CALL AEXCHANGE(EC,MYID,NPROCS,U_EAST,V_NORTH)  
     CALL AEXCHANGE(EC,MYID,NPROCS,UA_EAST,VA_NORTH)
 # endif
+
+     if(DBG_SET(dbg_sbr)) write(IPT,*) "Subroutine ends: UV_PROJECTION;"
 
   END SUBROUTINE UV_PROJECTION
 # endif

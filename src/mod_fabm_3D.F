@@ -188,7 +188,7 @@ MODULE MOD_FABM_3D
     call model%set_domain(M,KB, seconds_per_time_unit=DTI)
 !    call model%set_domain(M,KB)
     call model%set_domain_stop(M,KBM1)
-
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "In: FABM_ALLOCATE after set_domain"
 # if defined(WET_DRY)
     ! Provide FABM with pointer to the real mask.
       call model%set_mask(ISWETN(1:M))
