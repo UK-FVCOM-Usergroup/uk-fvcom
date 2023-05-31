@@ -169,7 +169,9 @@ CONTAINS
     END IF
 #   endif
 #   if defined (FABM)
-    ALLOCATE(FABM_OBC(IOBCN,KBM1,size(model%interior_state_variables)));FABM_OBC = ZERO
+    IF (FABM_MODEL) THEN 
+      ALLOCATE(FABM_OBC(IOBCN,KBM1,size(model%interior_state_variables)));FABM_OBC = ZERO
+    END IF
 #   endif
 #   if defined (OFFLINE_FABM)
 ! allocate offline_UARD_OBCN here 
