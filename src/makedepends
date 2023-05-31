@@ -156,7 +156,7 @@ vdif_q.o : vdif_q.F mod_dam.o mod_wave_current_interaction.o mod_semi_implicit.o
 adv_t.o : adv_t.F mod_tvd.o mod_dam.o mod_semi_implicit.o mod_northpole.o mod_spherical.o mod_wd.o mod_obcs.o mod_main.o mod_par_special.o mod_utils.o mod_main.o mod_prec.o 
 adv_s.o : adv_s.F mod_tvd.o mod_dam.o mod_semi_implicit.o mod_northpole.o mod_spherical.o mod_wd.o mod_par_special.o mod_obcs.o mod_main.o mod_utils.o mod_main.o mod_prec.o 
 fct_t.o : fct_t.F mod_obcs.o mod_main.o mod_utils.o mod_main.o mod_prec.o 
-vdif_ts.o : vdif_ts.F mod_dam.o mod_wd.o mod_main.o mod_utils.o mod_main.o mod_prec.o 
+vdif_ts.o : vdif_ts.F mod_dam.o mod_wd.o mod_main.o mod_utils.o mod_main.o mod_prec.o  mod_heatflux_sediment.o
 vdif_ts_gom.o : vdif_ts_gom.F mod_wd.o mod_main.o mod_utils.o mod_main.o mod_prec.o 
 fct_s.o : fct_s.F mod_obcs.o mod_main.o mod_utils.o mod_main.o mod_prec.o 
 bcond_ts.o : bcond_ts.F mod_force.o mod_obcs.o mod_utils.o mod_main.o mod_prec.o 
