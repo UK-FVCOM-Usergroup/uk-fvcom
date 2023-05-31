@@ -139,7 +139,7 @@ CONTAINS
     USE MOD_FABM_DATA
 #   endif
     IMPLICIT NONE
-
+    IF(DBG_SET(DBG_LOG))  WRITE(IPT,*)  'In ALLOC_OBC_DATA: Start'
     ALLOCATE(ELM1(0:MT))             ;ELM1       = ZERO 
     ALLOCATE(ELM2(0:MT))             ;ELM2       = ZERO 
     ALLOCATE(NEXT_OBC(IOBCN))        ;NEXT_OBC   = 0
@@ -184,7 +184,7 @@ CONTAINS
        ALLOCATE(S1M1(0:MT,KBM1))        ;S1M1       = ZERO 
        ALLOCATE(S1M2(0:MT,KBM1))        ;S1M2       = ZERO 
     END IF
-    IF(DBG_SET(DBG_LOG))  WRITE(IPT,*)  'In ALLOC_OBC_DATA'
+    IF(DBG_SET(DBG_LOG))  WRITE(IPT,*)  'In ALLOC_OBC_DATA: End'
 
     RETURN
   END SUBROUTINE ALLOC_OBC_DATA
