@@ -14,7 +14,7 @@ mod_heatflux.o : mod_heatflux.F mod_main.o mod_prec.o mod_utils.o mod_par.o
 mod_heatflux_sediment.o : mod_heatflux_sediment.F mod_main.o mod_prec.o mod_utils.o mod_par.o 
 mod_ncll.o : mod_ncll.F mod_main.o mod_interp.o mod_utils.o mod_time.o mod_prec.o 
 mod_nctools.o : mod_nctools.F mod_main.o mod_par_special.o mod_ncll.o mod_prec.o 
-mod_wd.o : mod_wd.F mod_par_special.o mod_main.o mod_prec.o 
+mod_wd.o : mod_wd.F mod_par_special.o mod_main.o mod_prec.o mod_par.o
 mod_sng.o : mod_sng.F mod_utils.o mod_prec.o 
 mod_solar.o : mod_solar.F mod_main.o mod_prec.o mod_utils.o 
 mod_vegetation.o : mod_vegetation.F mod_main.o mod_prec.o mod_par.o mod_nctools.o mod_wd.o mod_types.o mod_wave_current_interaction.o
