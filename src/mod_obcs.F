@@ -184,6 +184,8 @@ CONTAINS
        ALLOCATE(S1M1(0:MT,KBM1))        ;S1M1       = ZERO 
        ALLOCATE(S1M2(0:MT,KBM1))        ;S1M2       = ZERO 
     END IF
+    IF(DBG_SET(DBG_LOG))  WRITE(IPT,*)  'In ALLOC_OBC_DATA'
+
     RETURN
   END SUBROUTINE ALLOC_OBC_DATA
   !==========================================================================|
