@@ -52,3 +52,5 @@ Tests with ideal estuary
 only with physics (including sediment)   passed
 
 With FABM on, it is another matter. 
+There are If (FABM) statements missing from this version. 
+Do a meld at directory level with V4.3 with special attention to those
