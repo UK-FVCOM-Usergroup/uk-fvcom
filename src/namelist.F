@@ -271,6 +271,10 @@ SUBROUTINE NAMELIST
 # endif
 # if defined (FABM)
   CALL NAME_LIST_READ_FABM
+  IF(FABM_NESTING_ON .AND. .not. FABM_MODEL )THEN
+    IF(MSR) WRITE(*,*) 'PLEASE Switch FABM nesting off or activate FABM model. STOP RUNNING...'
+    CALL PSTOP
+  END IF
 # endif
 # if defined (NH)
   CALL NAME_LIST_READ_NH

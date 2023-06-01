@@ -14,6 +14,7 @@ The implementation of advecting only a subset of FABM interior variables is miss
 
 What do we need to do to support parallel MPI output to work with FABM? 
 
+Add barrier to diffusive transport between dry and wet nodes in mod_fabm_3D
 Actioned changes
 
 
