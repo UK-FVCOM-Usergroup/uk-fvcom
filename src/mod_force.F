@@ -1149,9 +1149,10 @@ CONTAINS
     ! THE TIDAL FORCING FILE
 # if !defined (EQUI_TIDE)
     IF (.NOT. OBC_ELEVATION_FORCING_ON ) THEN
-       IF(DBG_SET(DBG_LOG)) write(IPT,*) "! TIDAL ELEVATION FORCING IS OFF!"
+       IF(DBG_SET(DBG_LOG)) write(IPT,*) &
+        "! TIDAL ELEVATION FORCING IS EITHER IN NESTING OR OFF!"
        ALLOCATE(TIDE_FORCING_COMMENTS(1))
-       TIDE_FORCING_COMMENTS="TIDAL ELEVATION FORCING IS OFF!"
+       TIDE_FORCING_COMMENTS="TIDAL ELEVATION FORCING IS EITHER IN NESTING OR OFF!"
        RETURN
     END IF
 # endif
@@ -2074,8 +2075,15 @@ CONTAINS
        NULLIFY(RIVER_FORCING(I)%BIO20_P)
 # endif         
 # if defined (FABM)
-       ALLOCATE(RIVER_FORCING(I)%FABM_N(size(model%interior_state_variables)))
-       ALLOCATE(RIVER_FORCING(I)%FABM_P(size(model%interior_state_variables)))
+       IF (FABM_MODEL) THEN 
+         ALLOCATE(RIVER_FORCING(I)%FABM_N(size(model%interior_state_variables)))
+         ALLOCATE(RIVER_FORCING(I)%FABM_P(size(model%interior_state_variables)))
+         DO IFABM=1,size(model%interior_state_variables)
+           NULLIFY(RIVER_FORCING(I)%FABM_N(IFABM)%P)
+           NULLIFY(RIVER_FORCING(I)%FABM_P(IFABM)%P)
+         END DO      
+       END IF
+       
 # endif
     END DO
 
@@ -2099,7 +2107,9 @@ CONTAINS
     END IF
 # endif
 # if defined (FABM)
-    ALLOCATE(FABMDIS(NUMQBC,size(model%interior_state_variables))); FABMDIS  = 0.0_SP
+    IF (FABM_MODEL) THEN
+      ALLOCATE(FABMDIS(NUMQBC,size(model%interior_state_variables))); FABMDIS  = 0.0_SP
+    END IF
 # endif
     ALLOCATE(TDIS(NUMQBC));         TDIS   = 0.0_SP
     ALLOCATE(SDIS(NUMQBC));         SDIS   = 0.0_SP

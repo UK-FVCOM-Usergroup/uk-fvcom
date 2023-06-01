@@ -141,7 +141,7 @@ CONTAINS
 !  FVCOM VERSION                                                               !
 !==============================================================================!
 
-   FVCOM_VERSION     = 'FVCOM_4.3'
+   FVCOM_VERSION     = 'FVCOM_5.0.1'
    FVCOM_WEBSITE     = 'http://fvcom.smast.umassd.edu, http://codfish.smast.umassd.edu'
    INSTITUTION       = 'School for Marine Science and Technology'
 
@@ -2134,8 +2134,12 @@ CONTAINS
 
    isintriangle = .false. 
 
-   xt = vx(nv(i,1:3))
-   yt = vy(nv(i,1:3))
+!---> Siqi Li, 20230221
+   xt = reshape(vx(nv(i,1:3)), (/3/))
+   yt = reshape(vy(nv(i,1:3)), (/3/))
+!   xt = vx(nv(i,1:3))
+!   yt = vy(nv(i,1:3))
+!<--- Siqi Li
 
    isintriangle = ISINTRI(X0,Y0,Xt,Yt)
 
@@ -2300,19 +2304,28 @@ CONTAINS
 ! CREATED USING: http://www.mudmagic.com/figlet-server/
 !     146) rounded.flf :
 
-WRITE(IPT,*)'!=============================================================================!'
-WRITE(IPT,*)'            _______ _     _ _______ _______ _______    _     _   ______       !'
-WRITE(IPT,*)'           (_______)_)   (_)_______)_______)_______)  | |   (_) (_____ \       '
-WRITE(IPT,*)'            _____   _     _ _       _     _ _  _  _   | |_____   _____) )      '
-WRITE(IPT,*)'           |  ___) | |   | | |     | |   | | ||_|| |  |_____  | (_____ (       '
-WRITE(IPT,*)'           | |      \ \ / /| |_____| |___| | |   | |        | |_ _____) )      '
-WRITE(IPT,*)'           |_|       \___/  \______)\_____/|_|   |_|        |_(_)______/       '
-WRITE(IPT,*)''
-WRITE(IPT,*)'!=============================================================================!'
-WRITE(IPT,*)'!                                                                             !'
-WRITE(IPT,*)'!================== DOMAIN DECOMPOSITION USING: METIS 4.0.1 ==================!'
-WRITE(IPT,*)'!============= Copyright 1998, Regents of University of Minnesota ============!'
-WRITE(IPT,*)'!                                                                             !'
+!!$WRITE(IPT,*)'!================================================================!'
+!!$WRITE(IPT,*)'  _______  _     _  _______  _______  _______  ______     _____  '
+!!$WRITE(IPT,*)' (_______)(_)   (_)(_______)(_______)(_______)(______|   (_____) '
+!!$WRITE(IPT,*)'  _____    _     _  _        _     _  _  _  _ | |___     _  __ _ '
+!!$WRITE(IPT,*)' |  ___)  | |   | || |      | |   | || ||_|| |(_____ \  | |/ /| |'
+!!$WRITE(IPT,*)' | |       \ \ / / | |_____ | |___| || |   | | _____) )_|   /_| |'
+!!$WRITE(IPT,*)' |_|        \___/   \______) \_____/ |_|   |_|(______/(_)\_____/ '
+!!$WRITE(IPT,*)' -- Beta Release'
+!!$WRITE(IPT,*)'!================================================================!'
+WRITE(IPT,*)'!================================================================!'
+WRITE(IPT,*)'          _______  _     _  _______  _______  _______             '
+WRITE(IPT,*)'         (_______)(_)   (_)(_______)(_______)(_______)            '
+WRITE(IPT,*)'          _____    _     _  _        _     _  _  _  _             '
+WRITE(IPT,*)'         |  ___)  | |   | || |      | |   | || ||_|| |            '
+WRITE(IPT,*)'         | |       \ \ / / | |_____ | |___| || |   | |            '
+WRITE(IPT,*)'         |_|        \___/   \______) \_____/ |_|   |_|            '
+WRITE(IPT,*)' -- Version 5.0 Release'
+WRITE(IPT,*)'!================================================================!'
+WRITE(IPT,*)'!                                                                !'
+WRITE(IPT,*)'!========DOMAIN DECOMPOSITION USING: METIS 4.0.1 ================!'
+WRITE(IPT,*)'!======Copyright 1998, Regents of University of Minnesota========!'
+WRITE(IPT,*)'!                                                                !'
 IF(PAR) THEN
    WRITE(chr_np,'(I3.3)') NP
    WRITE(chr_id,'(I3.3)') ID

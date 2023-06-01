@@ -124,13 +124,27 @@
        RESY(I) = ADY2D(I)+ADVVA(I)+DRY2D(I)+PSTY(I)+COR(I)*UA(I)*D1(I)*ART(I)  &
                  -(WVSURF2(I)+WVBOT(I))*ART(I)
 #      endif
+#      else
+#      if defined (WET_DRY)
+       RESX(I) = ADX2D(I)+ADVUA(I)+DRX2D(I)+PSTX(I)-COR(I)*VA(I)*(D1(I)-DELF1(I))*ART(I)  &
+                 -(WUSURF2(I)+WUBOT(I))*ART(I)+NHQ2DX(I)
+       RESY(I) = ADY2D(I)+ADVVA(I)+DRY2D(I)+PSTY(I)+COR(I)*UA(I)*(D1(I)-DELF1(I))*ART(I)  &
+                 -(WVSURF2(I)+WVBOT(I))*ART(I)+NHQ2DY(I)
+#else
+       RESX(I) = ADX2D(I)+ADVUA(I)+DRX2D(I)+PSTX(I)-COR(I)*VA(I)*D1(I)*ART(I)  &
+                 -(WUSURF2(I)+WUBOT(I))*ART(I)+NHQ2DX(I)
+       RESY(I) = ADY2D(I)+ADVVA(I)+DRY2D(I)+PSTY(I)+COR(I)*UA(I)*D1(I)*ART(I)  &
+                 -(WVSURF2(I)+WVBOT(I))*ART(I)+NHQ2DY(I)
+#      endif
+! WD if statement
+#      endif
+! NH if statement
 # if defined (VEGETATION)
        IF(VEGETATION_MODEL.and.VEG_DRAG)THEN
          RESX(I) = RESX(I) + step2d_uveg(i)*ART(I)
          RESY(I) = RESY(I) + step2d_vveg(i)*ART(I)
        END IF
 # endif
-#      endif
 
 #  if defined (SPHERICAL)
        RESX(I) = RESX(I)     &

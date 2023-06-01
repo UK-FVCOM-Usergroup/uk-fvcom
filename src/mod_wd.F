@@ -179,7 +179,7 @@ MODULE MOD_WD
    ALLOCATE(INUNDATION_MAPS(0:NT))      ; INUNDATION_MAPS   = 1
 !qxu}
 
-   memcnt = memcnt + 3*NT + 2*MT
+   memcnt = memcnt + 3*NT + 2*MT + NT
 
    ALLOCATE(DELF(0:MT))           ; DELF       = ZERO  
    ALLOCATE(DELF1(0:NT))          ; DELF1       = ZERO

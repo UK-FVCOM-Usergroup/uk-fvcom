@@ -660,10 +660,12 @@ CONTAINS
 #   endif    
 
 #   if defined (FABM)
-       IF(NC_FABM)THEN
-          NCF2 => FABM_FILE_OBJECT(1)
-          NCF => ADD(NCF,NCF2)
+       IF (FABM_MODEL) THEN
+         IF(NC_FABM)THEN
+           NCF2 => FABM_FILE_OBJECT(1)
+           NCF => ADD(NCF,NCF2)
 !!$          NCF => ADD(NCF,BIO_FILE_OBJECT() )
+         END IF
        END IF
 #   endif  
        
@@ -1117,10 +1119,12 @@ CONTAINS
 #   endif   
 
 #   if defined (FABM)
-    IF(NCAV_FABM)THEN
-      NCF_TMP => FABM_FILE_OBJECT(2)
-      NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
+    IF (FABM_MODEL) THEN
+      IF(NCAV_FABM)THEN
+        NCF_TMP => FABM_FILE_OBJECT(2)
+        NC_AVG_DATA => ADD(NC_AVG_DATA,NCF_TMP)
 !!$      NC_AVG_DATA => ADD(NC_AVG_DATA,BIO_FILE_OBJECT() )
+      END IF
     END IF
 #   endif   
 
@@ -1564,8 +1568,10 @@ CONTAINS
 #   endif      
 
 #   if defined (FABM)
-    NC_RST2 => FABM_FILE_OBJECT(3)
-    NC_RST => ADD(NC_RST,NC_RST2)
+    IF (FABM_MODEL) THEN 
+      NC_RST2 => FABM_FILE_OBJECT(3)
+      NC_RST => ADD(NC_RST,NC_RST2)
+    END IF
 !!$    NC_RST => ADD(NC_RST,BIO_FILE_OBJECT() )
 #   endif
 
@@ -6505,7 +6511,8 @@ CONTAINS
     NCF => NEW_FILE()
 
     ! W4ZT
-    VAR  => NC_MAKE_AVAR(name='w4zt',&
+!    VAR  => NC_MAKE_AVAR(name='w4zt',&    ! Siqi
+    VAR  => NC_MAKE_AVAR(name='W4ZT',&
          & values=W4ZT, DIM1= DIM_node, DIM2= DIM_siglev, DIM3 = DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Temp Vertical Velocity in Z')
@@ -6523,7 +6530,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQDRX
-    VAR  => NC_MAKE_AVAR(name='nhqdrx',&
+!    VAR  => NC_MAKE_AVAR(name='nhqdrx',&   ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQDRX',&
          & values=NHQDRX, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient XCor')
@@ -6541,7 +6549,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQDRY
-    VAR  => NC_MAKE_AVAR(name='nhqdry',&
+!    VAR  => NC_MAKE_AVAR(name='nhqdry',&  ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQDRY',&
          & values=NHQDRY, DIM1= DIM_nele, DIM2= DIM_siglay, DIM3 = DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient YCor')
@@ -6577,7 +6586,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQ2DX
-    VAR  => NC_MAKE_AVAR(name='nhq2dx',&
+!    VAR  => NC_MAKE_AVAR(name='nhq2dx',&   ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQ2DX',&
          & values=NHQ2DX, DIM1= DIM_nele, DIM2= DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient XCor 2D')
@@ -6595,7 +6605,8 @@ CONTAINS
     NCF  => ADD(NCF,VAR)
 
     ! NHQ2DY
-    VAR  => NC_MAKE_AVAR(name='nhq2dy',&
+!    VAR  => NC_MAKE_AVAR(name='nhq2dy',&   ! Siqi
+    VAR  => NC_MAKE_AVAR(name='NHQ2DY',&
          & values=NHQ2DY, DIM1= DIM_nele, DIM2= DIM_time)
 
     ATT  => NC_MAKE_ATT(name='long_name',values='Nonhydrostatic Pressure Gradient YCor 2D')
@@ -10224,7 +10235,8 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
            IF(STATUS /=0) CALL FATAL_ERROR("FVCOM2GRID: COULD NOT ALLOCATE G%NV")
            G%NV=0
            DO I = 1,G%NT
-              G%NV(I,:) = G%NGID_X(NV(I,1:3))
+              G%NV(I,:) = G%NGID_X( reshape(NV(I,1:3),(/3/)) ) ! Siqi Li, 20230221
+              ! G%NV(I,:) = G%NGID_X(NV(I,1:3))
            END DO
         
 
@@ -10232,7 +10244,8 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
            IF(STATUS /=0) CALL FATAL_ERROR("FVCOM2GRID: COULD NOT ALLOCATE G%NBE")
            G%NBE = 0
            DO I = 1,N
-              G%NBE(I,:) = G%EGID_X(NBE(I,:))
+              G%NBE(I,:) = G%EGID_X( reshape(NBE(I,:),(/3/)) ) ! Siqi Li, 20230221
+              ! G%NBE(I,:) = G%EGID_X(NBE(I,:))
            END DO
 
 
@@ -10245,9 +10258,11 @@ END SUBROUTINE LOAD_SUBDOMAIN_FILE
            G%NBVE = 0
 
            DO I = 1,M
-              G%NBVE(I,:) = G%EGID_X(NBVE(I,:))
+              G%NBVE(I,:) = G%EGID_X( reshape(NBVE(I,:),(/MX_NBR_ELEM+1/)) ) ! Siqi Li, 20230221
+              ! G%NBVE(I,:) = G%EGID_X(NBVE(I,:))
 
-              G%NBSN(I,:) = G%NGID_X(NBSN(I,:))
+              G%NBSN(I,:) = G%NGID_X( reshape(NBSN(I,:),(/MX_NBR_ELEM+3/)) ) ! Siqi Li, 20230221
+              ! G%NBSN(I,:) = G%NGID_X(NBSN(I,:))
            END DO
 
 

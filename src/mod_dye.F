@@ -35,6 +35,9 @@ MODULE MOD_DYE
    USE CONTROL
    USE MOD_PAR
    USE MOD_SET_TIME
+#  if defined (TVD)
+   USE MOD_TVD
+#  endif
    IMPLICIT NONE
    SAVE
 !
@@ -256,9 +259,6 @@ MODULE MOD_DYE
    USE MOD_NORTHPOLE
 #  if defined (SEMI_IMPLICIT)
    USE MOD_SEMI_IMPLICIT
-#  endif
-#  if defined (TVD)
-   USE MOD_TVD
 #  endif
 
    IMPLICIT NONE
@@ -1046,9 +1046,9 @@ MODULE MOD_DYE
    USE MOD_WD
    USE MOD_SPHERICAL
    USE MOD_NORTHPOLE
-#  if defined (TVD)
-   USE MOD_TVD
-#  endif
+! #  if defined (TVD)
+!    USE MOD_TVD
+! #  endif
 
    IMPLICIT NONE
    REAL(SP), DIMENSION(0:MT,KB)     :: XFLUX,XFLUX_ADV,DYEB

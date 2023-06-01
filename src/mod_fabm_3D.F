@@ -51,8 +51,6 @@ MODULE MOD_FABM_3D
 !  REAL(SP), ALLOCATABLE,TARGET :: ERSEM1(:,:)
 !  INTEGER :: ERSEMid
 !RJT 
-! for RK time stepping
-  REAL(SP), ALLOCATABLE :: FABM_FB1(:,:,:)
 # if defined (SEDIMENT)
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM(:,:)   ! mg/m^3
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM_g(:,:) ! g/m^3
@@ -185,9 +183,10 @@ MODULE MOD_FABM_3D
     call CONFIGURE_OUTPUT
 
     ! Tell FABM about the extents of the spatial domain.
-    call model%set_domain(M,KB)
+    call model%set_domain(M,KB, seconds_per_time_unit=DTI)
+!    call model%set_domain(M,KB)
     call model%set_domain_stop(M,KBM1)
-
+    IF(DBG_SET(DBG_SBR)) write(ipt,*) "In: FABM_ALLOCATE after set_domain"
 # if defined(WET_DRY)
     ! Provide FABM with pointer to the real mask.
       call model%set_mask(ISWETN(1:M))
@@ -533,6 +532,8 @@ SUBROUTINE FABM_UPDATE
 # endif
      INTEGER :: IFABM
      LOGICAL :: VALID
+     REAL(SP) :: RCOFT  ! for RK integration
+     INTEGER :: ITER ! for RK integration
      IF(DBG_SET(DBG_SBR)) write(ipt,*) "Start: FABM_UPDATE" 
 
      ! Integrate biogeochemical sources-sinks
@@ -622,18 +623,18 @@ SUBROUTINE FABM_UPDATE
 # endif
      ! Process open boundaries (and depending on RIVER_TS_SETTING, also rivers)
             CALL FABM_BCOND  ! This operates on FABM_F
-     #   if defined(SEMI_IMPLICIT)
+#   if defined(SEMI_IMPLICIT)
          ENDDO
 #   endif
 ! RK FABM code 
 # if !defined (SEMI_IMPLICIT)
       ELSE
-         ALLOCATE(FABM_FB1(0:MT,KB,size(model%interior_state_variables)))        ; FABM_FB1 = 0.0_SP
+         ALLOCATE(FABM_FB1(0:MT,KB,size(model%interior_state_variables))); FABM_FB1 = 0.0_SP
          FABM_FB1 = FABM_F
          RCOFT = 0.5_SP
          DO ITER = 1,2
             CALL FABM_ADV_RK(FABM_FB1)      !Advection                 !
- #    if defined(MULTIPROCESSOR)
+#   if defined(MULTIPROCESSOR)
             DO IFABM=1,size(model%interior_state_variables)
                IF(PAR)CALL NODE_MATCH(1,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,FABM_F(:,:,IFABM))
             END DO
@@ -657,7 +658,7 @@ SUBROUTINE FABM_UPDATE
      END DO
      DEALLOCATE(FABM_FB1)
    END IF
- # endif
+# endif
  
      ! Nesting procedure should go after BCOND treatments shouldn't it?  At least that is how it es elsewhere
      IF(NESTING_ON.AND.FABM_NESTING_ON) THEN
@@ -915,7 +916,8 @@ SUBROUTINE FABM_SOURCES(DELTA_T,UPDATE)
 !     MASK_SAFE = 1 ! restore to no mask
 # endif
      ! Ensure that light attenuation, absorption, scattering are up to date in FABM.
-     CALL model%prepare_inputs()
+     CALL model%prepare_inputs(REAL(IINT,SP) )
+!     CALL model%prepare_inputs()
 
      FLUX_SF = 0.
      FLUX_BT = 0.
@@ -2719,7 +2721,8 @@ END SUBROUTINE FABM_ADV_RK
         DO K=1,KBM1
 #    if !defined (MPDATA)      
 ! why is the line below commented out? Surely we need to update FABM_F if not using MPDATA? RJT2021
-           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
+! K. Lettmann, 2022, Aug: set the comment sign again for the line below
+!           FABM_F(I,K,IFABM)=(FABM_ALL(I,K,IFABM)-XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I))
 #      if !defined (SEMI_IMPLICIT)
 
 #      if !defined (THIN_DAM)
@@ -2762,9 +2765,11 @@ END SUBROUTINE FABM_ADV_RK
 #      endif
 
 #      else
+! SEMI-IMPLICIT 
         FABM_F(I,K,IFABM)=(TSC_FABM_ALL(I,K,IFABM)-RK_FABM(STAGE)*XFLUX(I,K,IFABM)/ART1(I)*(DTI/(DT(I)*DZ(I,K))))*(DT(I)/DTFA(I)) !syshi 20191013
 #      endif
 #    else
+! IF MPDATA
         FABM_F(I,K,IFABM)=WQM_SF(I,K)
 #    endif              
      END DO

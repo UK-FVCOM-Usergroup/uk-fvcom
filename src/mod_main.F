@@ -1435,12 +1435,12 @@ MODULE ALL_VARS
 
    REAL(SP), ALLOCATABLE,TARGET :: SWRAD_WATTS(:)  !!SURFACE INCIDENT RADIATION
    REAL(SP), ALLOCATABLE,TARGET :: WTSURF_WATTS(:) !!NET HEAT FLUX AT SURFACE
-#  if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
+!#  if defined (HEATING_CALCULATED) || (HEATING_SOLAR) || (ICE)
    !EJA edit to add Sensible, Latent, Longwave heat fluxes for output 05/03/2016
    REAL(SP), ALLOCATABLE,TARGET :: HSENS_WATTS(:)  !!SENSIBLE HEAT FLUX AT SURFACE
    REAL(SP), ALLOCATABLE,TARGET :: HLAT_WATTS(:)   !!LATENT HEAT FLUX AT SURFACE
    REAL(SP), ALLOCATABLE,TARGET :: LWRAD_WATTS(:)  !!LONGWAVE RADIATION AT SURFACE
-#  endif
+!#  endif
 
    ! THESE TWO ARE DIVIDED BY THE SPECFIC HEAT AND AVERAGE DENSITY!
    REAL(SP), ALLOCATABLE,TARGET :: SWRAD(:)         !!SURFACE INCIDENT RADIATION
@@ -1516,7 +1516,7 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: WPER_BOT(:)     !!BOTTOM WAVE PERIOD
    REAL(SP), ALLOCATABLE,TARGET :: WUB_BOT(:)      !!BOTTOM ORBITAL VELOCITY
 
-# if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
+!# if defined (OFFLINE_SEDIMENT) || (OFFLINE_BIOLOGY)
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_U(:,:)  !! OFFLINE U VELOCITY
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_V(:,:)  !! OFFLINE V VELOCITY
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_W(:,:)  !! OFFLINE W VELOCITY
@@ -1524,39 +1524,39 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_T1(:,:) !! OFFLINE TEMPERATURE
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_EL(:)   !! OFFLINE ELEVATION
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_KH(:,:) !! OFFLINE KH
-# if defined (GOTM)
+!# if defined (GOTM)
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_TEPS(:,:) !! OFFLINE TEPS
-# else
+!# else
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_Q2(:,:) !! OFFLINE Q2
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINE_Q2L(:,:)!! OFFLINE Q2L
-# endif
+!# endif
    INTEGER , ALLOCATABLE,TARGET :: OFFLINE_WN(:)   !! OFFLINE WET NODES
    INTEGER , ALLOCATABLE,TARGET :: OFFLINE_WC(:)   !! OFFLINE WET CELLS
-# endif
-# if defined (OFFLINE_FABM)
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_U(:,:)  !! OFFLINE U VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_V(:,:)  !! OFFLINE V VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_W(:,:)  !! OFFLINE W VELOCITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_S1(:,:) !! OFFLINE SALINITY
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_T1(:,:) !! OFFLINE TEMPERATURE
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_EL(:)   !! OFFLINE ELEVATION
-   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_KH(:,:) !! OFFLINE KH
+!# endif
+!# if defined (OFFLINE_FABM)
+!   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_U(:,:)  !! OFFLINE U VELOCITY
+!   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_V(:,:)  !! OFFLINE V VELOCITY
+!   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_W(:,:)  !! OFFLINE W VELOCITY
+!   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_S1(:,:) !! OFFLINE SALINITY
+!   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_T1(:,:) !! OFFLINE TEMPERATURE
+!   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_EL(:)   !! OFFLINE ELEVATION
+!   REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_KH(:,:) !! OFFLINE KH
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_DTFA(:) !! OFFLINE DTFA RJT 03/2020
    REAL(SP), ALLOCATABLE,TARGET :: OFFLINEB_UARD_OBCN(:) !! OFFLINE UARD_OBCN It can't be allocated here
-   INTEGER , ALLOCATABLE,TARGET :: OFFLINEB_WN(:)   !! OFFLINE WET NODES
-   INTEGER , ALLOCATABLE,TARGET :: OFFLINEB_WC(:)   !! OFFLINE WET CELLS
-# endif
+!   INTEGER , ALLOCATABLE,TARGET :: OFFLINEB_WN(:)   !! OFFLINE WET NODES
+!   INTEGER , ALLOCATABLE,TARGET :: OFFLINEB_WC(:)   !! OFFLINE WET CELLS
+!# endif
 
 !----------------boundary conditions: meteo conditions-----------------!
-# if defined (ICE) || (HEATING_CALCULATED) || (HEATING_SOLAR)
+!# if defined (ICE) || (HEATING_CALCULATED) || (HEATING_SOLAR)
    REAL(SP), ALLOCATABLE,TARGET  :: T_AIR(:)         !!BULK AIR TEMPERATURE( deg C ) AT HEIGHT ?(m)
-# endif
-# if defined (ICE) || (HEATING_CALCULATED)
+!# endif
+!# if defined (ICE) || (HEATING_CALCULATED)
    REAL(SP), ALLOCATABLE,TARGET  :: RH_AIR(:)        !!RELATIVE HUMIDITY
    REAL(SP), ALLOCATABLE,TARGET  :: DLW_AIR(:)       !!DOWNWARD LONGWAVE RADIATION
    REAL(SP), ALLOCATABLE,TARGET  :: DSW_AIR(:)       !!DOWNWARD SHORTWAVE RADIATION
-# endif
-# if defined (OBSICE)
+!# endif
+!# if defined (OBSICE)
    REAL(SP), ALLOCATABLE,TARGET  :: ICE_COV(:)        !!ICE COVER FROM OBSERVATIONS
    REAL(SP), ALLOCATABLE,TARGET  :: ICE_TIK(:)        !!ICE COVER FROM OBSERVATIONS
    REAL(SP), ALLOCATABLE,TARGET  :: FMELT(:)          !!HEAT FLUX FOR MELTING
@@ -1566,8 +1566,8 @@ MODULE ALL_VARS
    REAL(SP), PARAMETER :: DRAGW = 0.0055_SP*1022._SP  !!drag coefficient for water on ice *rhow (kg/m^3)
    REAL(SP), PARAMETER :: COSW = 0.9063_SP  !cos(ocean turning angle) !turning angle = 25.
    REAL(SP), PARAMETER :: SINW = 0.4226_SP  !sin(ocean turning angle) !turning angle = 25.
-# endif
-# if defined (ICE)
+!# endif
+!# if defined (ICE)
    REAL(SP), ALLOCATABLE,TARGET  :: QA_AIR(:)        !!SPECIFIC HUMIDITY  (KG/KG)
 !   REAL(SP), ALLOCATABLE,TARGET  :: CLOUD(:)         !!Total Cloud Cover
    REAL(SP), ALLOCATABLE,TARGET  :: WSSURF(:)        !!  sea surface salinity    flux
@@ -1578,7 +1578,7 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: QPICE(:)         !!SURFACE ice volume FOR INT
 !!============yding end===========================================================
 
-#   if defined (ICE_EMBEDDING)
+!#   if defined (ICE_EMBEDDING)
    REAL(SP), ALLOCATABLE,TARGET :: QFLICE(:)         !!water volume FOR INT
 
    REAL(SP), ALLOCATABLE,TARGET :: QTHICE(:)         !!ice thickness in the water
@@ -1587,18 +1587,18 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: QTHICE_incr(:)    !!ice thickness increament
    REAL(SP), ALLOCATABLE,TARGET :: QTHICE1(:)         !!ice thickness in the water
 
-#   endif
+!#   endif
 
-# endif
-# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
+!# endif
+!# if defined (AIR_PRESSURE) || (HEATING_CALCULATED)
    REAL(SP), ALLOCATABLE,TARGET  :: PA_AIR(:)        !!SURFACE PRESSURE
-# endif
-# if defined (ICE) || (HEATING_SOLAR)
+!# endif
+!# if defined (ICE) || (HEATING_SOLAR)
    REAL(SP), ALLOCATABLE,TARGET  :: CLOUD(:)         !!Total Cloud Cover
-# endif
-# if defined (HEATING_SOLAR)
+!# endif
+!# if defined (HEATING_SOLAR)
    REAL(SP), ALLOCATABLE,TARGET  :: TDEW(:)         !!Dew Point
-# endif
+!# endif
 
 !-----------------------2-d flow fluxes--------------------------------------------!
 
@@ -1641,12 +1641,12 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: Q2(:,:)        !2 X TURBULENT KINETIC ENERGY AT NODES
    REAL(SP), ALLOCATABLE,TARGET :: L(:,:)         !TURBULENT LENGTH MACROSCALE 
    REAL(SP), ALLOCATABLE,TARGET :: Q2L(:,:)       !2 X TURBULENT KE X LENGTH AT NODES
-#  if defined (GOTM)
+!#  if defined (GOTM)
   REAL(SP), ALLOCATABLE,TARGET :: TKE(:,:)       !TURBULENT KINETIC ENERGY AT NODES
   REAL(SP), ALLOCATABLE,TARGET :: TKEF(:,:)      !TURBULENT KINETIC ENERGY AT PREVIOUS TIME
   REAL(SP), ALLOCATABLE,TARGET :: TEPS(:,:)      !TURBULENT DISSIPATION AT NODES
   REAL(SP), ALLOCATABLE,TARGET :: TEPSF(:,:)     !TURBULENT DISSIPATION AT PREVIOUS TIME
-#  endif
+!#  endif
   REAL(SP), ALLOCATABLE,TARGET :: KM(:,:)        !TURBULENT EDDY VISCOSITY FOR MOMENTUM 
   REAL(SP), ALLOCATABLE,TARGET :: KH(:,:)        !TURBULENT DIFFUSIVITY FOR SALINITY/TEMP 
   REAL(SP), ALLOCATABLE,TARGET :: KQ(:,:)        !TURBULENT DIFFUSIVITY FOR Q2/Q2L 
@@ -1736,7 +1736,7 @@ MODULE ALL_VARS
   REAL(SP), ALLOCATABLE,TARGET :: HYW(:,:)
 
 
-# if defined (PROJ) && !defined (SPHERICAL)
+!# if defined (PROJ) && !defined (SPHERICAL)
   !--------------------------UV-PROJECTION------------------------------------------!
   ! Siqi Li, 20221005
    REAL(SP), ALLOCATABLE,TARGET :: ACLON_X(:)  !PROJECTED Ux ON EAST
@@ -1747,7 +1747,7 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET :: VA_NORTH(:)   !VERTICALLY AVERAGED NORTHWARD V  
    REAL(SP), ALLOCATABLE,TARGET :: U_EAST(:,:)  !EASTWARD U
    REAL(SP), ALLOCATABLE,TARGET :: V_NORTH(:,:)  !NORTHWARD V 
-# endif
+!# endif
 
   !-----Surface drag coefficient----------------------------------------------------!
   ! Siqi Li, 2021-01-27
@@ -1882,6 +1882,7 @@ CONTAINS
    logical,intent(in) :: dbg_set
    INTEGER NCT,NDB
 !==============================================================================!
+   if(DBG_SET) write(IPT,*) "Subroutine Starts: ALLOC_VARS"
 # if !defined (DOUBLE_PRECISION)
    NDB = 1       !!GWC BASE THIS ON KIND
 # else
@@ -1963,7 +1964,7 @@ CONTAINS
 
 
    
-   MEMCNT = NT*4 + MT*3 +M*6*12*NDB  + NCT*3 + NCT*12*NDB  + MEMCNT
+   MEMCNT = NT*4*NDB + MT*5*NDB +M*6*12*NDB  + NCT*15*NDB  + MEMCNT
 
 !----------------2-d arrays for the general vertical coordinate -------------------------------!
 
@@ -2392,7 +2393,7 @@ CONTAINS
    ALLOCATE(V_STOKES_3D(0:NT,KB));   V_STOKES_3D = 0.0_SP
 #  endif   
    
-
+if(DBG_SET) write(IPT,*) "Subroutine Ends: ALLOC_VARS"
    RETURN
    END SUBROUTINE ALLOC_VARS
 !==============================================================================|

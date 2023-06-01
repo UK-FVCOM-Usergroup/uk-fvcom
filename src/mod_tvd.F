@@ -32,7 +32,7 @@ MODULE MOD_TVD
 !
 !--Parameters for TVD advection                 
 !
-   REAL(SP), ALLOCATABLE :: DELF(:)  
+   !REAL(SP), ALLOCATABLE :: DELF(:)   here probably an error? variable used in mod_wd
 
    REAL(SP), ALLOCATABLE :: Anear_node(:), Bnear_node(:)
    REAL(SP), ALLOCATABLE :: YUAdist(:), YUBdist(:), XUAdist(:), XUBdist(:)

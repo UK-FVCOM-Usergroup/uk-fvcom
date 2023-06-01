@@ -10,3 +10,50 @@ our approach to recalculating fabmmean seems more appropriate
 
 The implementation of advecting only a subset of FABM interior variables is missing from this repo
 Actioned changes
+<<<<<<< HEAD
+=======
+
+
+
+Testing of update to FVCOMv5
+
+Testing are being done in LakeErie implementation with and without semi-implicit, with and without TVD, RK and comparing with FVCOMv5 from UMASSD
+
+So far I haven't managed to run FVCOMv5 physics only. 
+The setup have no rivers at the moment. 
+With the same time step setup as with v4.3 the model PETSC diverges (presume ice calculations)
+The original dt of 60 was reduced to 50, 40, 30 and 20 with no success. 
+
+Trying now with standard timesteping 
+The problems could have been with the ICE_EMBEDDING flag. Without ICE_EMBEDDING also crashes. 
+
+Nope, still crashes. I have tried multiple timestep combinations (10,1; 5,5; 5,1; and others).
+The error here appears with the convergence of calculating Z0 in mod_solar. 
+
+In a way there is no point in me pursuing this farther as I am not familiar with the ICE model. 
+As one last test... switching off the wind doesn't make it work either. 
+
+I need to check that FABM and sediments work and I can do this in the ideal estuary, with waves and semi-implicit. 
+I should ask Karsten for the setup
+
+Testing that should happen before PML can use a new version of the code
+In the idealised estuary
+    test sediments (with and without tvd, with and without RK)
+    test dye release (with and without tvd, with and without RK)
+    test fabm - 1) only a passive tracer
+                2) test carbonate system alone
+                3) test standard ERSEM
+                4) test RK and non RK
+                5) test with TVD and without
+    test rivers with fabm (test river_no_dilution behaviour)
+    test with heating calculated and without
+
+
+May 31, 2023
+Tests with ideal estuary
+only with physics (including sediment)   passed
+
+With FABM on, it is another matter. 
+There are If (FABM) statements missing from this version. 
+Do a meld at directory level with V4.3 with special attention to those
+>>>>>>> bb25993858d10ef6636af3b4d6ab4d17a0606613
