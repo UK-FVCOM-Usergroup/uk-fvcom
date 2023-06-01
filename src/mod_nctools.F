@@ -4374,7 +4374,7 @@ SUBROUTINE NC_WRITE_VAR(VAR,DUMP,COLLECTDATA,COLLECTOR,STKCNT,STKRNG,IOSTART,IOC
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "START NC_WRITE_VAR:"
 
   IF(.NOT. ASSOCIATED(VAR)) CALL FATAL_ERROR &
-       & ("NC_WRITE_VAR: Variable object argument is not assocaited!")
+       & ("NC_WRITE_VAR: Variable object argument is not associated!")
 
   ! INITIALIZE SOME MEMORY
   STATUS=0
