@@ -8,10 +8,13 @@ RK doesn't allow for MPDATA or semi-implicit
 SMEAN1 (on nodes) doesn't get updated ever. Not sure what it role is in the advection routine other than increasing accuracy?
 our approach to recalculating fabmmean seems more appropriate
 
-The implementation of advecting only a subset of FABM interior variables is missing from this repo
+DYE source term is concentration rather than a flux so how much goes in depends on the time step. Change code to reflect a proper flux like in rivers or groundwater
+
+The implementation of advecting only a subset of FABM interior variables is missing from this repo (not sure it was ever done... but can't remember why)
+
+What do we need to do to support parallel MPI output to work with FABM? 
+
 Actioned changes
-<<<<<<< HEAD
-=======
 
 
 
@@ -56,4 +59,3 @@ only with physics (including sediment)   passed
 With FABM on, it is another matter. 
 There are If (FABM) statements missing from this version. 
 Do a meld at directory level with V4.3 with special attention to those
->>>>>>> bb25993858d10ef6636af3b4d6ab4d17a0606613
