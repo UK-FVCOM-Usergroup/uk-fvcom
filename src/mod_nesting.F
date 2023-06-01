@@ -1538,13 +1538,18 @@ END SUBROUTINE GENMAP_NESTING
 
        MEMCNT = MEMCNT + G%NT * (2 + 2*KB)* NDB + G%MT * (1 + 3*KB)* NDB
 # if defined (FABM)
-       IF(FABM_NESTING_ON) THEN
-          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,IFABMadv),stat=status) !RJT restricting nesting actions to advectable variables only
+       IF (FABM_MODEL) THEN
+         IF(FABM_NESTING_ON) THEN
+            ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,IFABMadv),stat=status) !RJT restricting nesting actions to advectable variables only
 !          ALLOCATE(FABM_ALL_NEST(0:G%MT,KB,size(model%interior_state_variables)),stat=status)
-          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_NEST")
+            if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_NEST")
 !          ALLOCATE(FABM_ALL_BLK(0:G%MT,KB,NESTING_BLOCKSIZE,size(model%interior_state_variables)),stat=status)
 !          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_BLK")
-       END IF
+         END IF
+      ELSE IF
+         WRITE(IPT,*) "FABM model not running, but FABM nesting is on. Correct this in the namelist"
+         CALL FATAL_ERROR("ALLOC_NEST: FABM nesting is on, but FABM model is not running")
+      END IF
 
        MEMCNT = MEMCNT + G%MT * KB * IFABMadv
 # endif
