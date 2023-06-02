@@ -1568,8 +1568,8 @@ MODULE ALL_VARS
    REAL(SP), ALLOCATABLE,TARGET  :: HEAT_FREEZ(:)     !!HEAT FLUX FOR ICING 
 !   REAL(SP), PARAMETER :: DRAGW = 0.0055_SP*1022._SP  !!drag coefficient for water on ice *rhow (kg/m^3) 
    ! already defined in mod_ice2d.F
-   REAL(SP), PARAMETER :: COSW = 0.9063_SP  !cos(ocean turning angle) !turning angle = 25.
-   REAL(SP), PARAMETER :: SINW = 0.4226_SP  !sin(ocean turning angle) !turning angle = 25.
+!   REAL(SP), PARAMETER :: COSW = 0.9063_SP  !cos(ocean turning angle) !turning angle = 25.
+!   REAL(SP), PARAMETER :: SINW = 0.4226_SP  !sin(ocean turning angle) !turning angle = 25.
 !# endif
 !# if defined (ICE)
    REAL(SP), ALLOCATABLE,TARGET  :: QA_AIR(:)        !!SPECIFIC HUMIDITY  (KG/KG)
