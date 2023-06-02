@@ -51,7 +51,10 @@ MODULE MOD_FABM_3D
 !  REAL(SP), ALLOCATABLE,TARGET :: ERSEM1(:,:)
 !  INTEGER :: ERSEMid
 !RJT 
-# if defined (SEDIMENT)
+! For RK integration
+  REAL(SP), ALLOCATABLE, TARGET     :: FABM_FB1(:,:,:)    !! temporary salinity in RK
+
+  # if defined (SEDIMENT)
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM(:,:)   ! mg/m^3
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM_g(:,:) ! g/m^3
 ! No longer needed... they are directly calculated in light_iop_ady_spm... 
