@@ -15,6 +15,9 @@ The implementation of advecting only a subset of FABM interior variables is miss
 What do we need to do to support parallel MPI output to work with FABM? 
 
 Add barrier to diffusive transport between dry and wet nodes in mod_fabm_3D
+
+Harmonise reading of offline forcing for sediment and fabm (don't have a separate one for fabm)
+
 Actioned changes
 
 
@@ -60,3 +63,6 @@ only with physics (including sediment)   passed
 With FABM on, it is another matter. 
 There are If (FABM) statements missing from this version. 
 Do a meld at directory level with V4.3 with special attention to those
+Wed June 7
+These (if FABM statements) should be sorted now. 
+
