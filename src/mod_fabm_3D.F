@@ -79,7 +79,7 @@ MODULE MOD_FABM_3D
          & USE_FABM_BOTTOM_THICKNESS, &
          & FABM_DEBUG, &
          & FABM_DIAG_OUT&
-         & ADJUST_FABM
+         & FABM_ADJUST_METHOD
 
   TYPE (type_universal_standard_variable),PARAMETER :: mass_concentration_of_solute &
      = type_universal_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
@@ -129,7 +129,7 @@ MODULE MOD_FABM_3D
    USE_FABM_BOTTOM_THICKNESS = .FALSE.
    FABM_DEBUG = .FALSE.
    FABM_DIAG_OUT = .TRUE.
-   ADJUST_FABM = .TRUE.
+   FABM_ADJUST_METHOD = .TRUE.
 
    END SUBROUTINE NAME_LIST_INITIALIZE_FABM  
 
@@ -3485,8 +3485,8 @@ SUBROUTINE ADJUST_FABM_RIVERS
    use mod_par
    USE BCS
    IMPLICIT NONE
-   REAL(SP), DIMENSION(size(model%interior_state_variables)) :: TAVE(IFABM),TAVE1,TAVE2
-   INTEGER :: I,K,JJ,I1,J,J1,J2,NUM_TAVE,NUM_TAVE1,NUM_TAVE2
+   REAL(SP), DIMENSION(size(model%interior_state_variables)) :: TAVE,TAVE1,TAVE2
+   INTEGER :: IFABM,I,K,JJ,I1,J,J1,J2,NUM_TAVE,NUM_TAVE1,NUM_TAVE2
 !==============================================================================|
    
    IF (DBG_SET(DBG_SBR)) WRITE(IPT,*) "Start: ADJUST_FABM_RIVERS"
@@ -3499,7 +3499,7 @@ SUBROUTINE ADJUST_FABM_RIVERS
           DO K=1,KBM1
             DO I=1,NUMQBC
               JJ=INODEQ(I)
-              TAVE(IFABM) = 0.0_SP
+              TAVE(:) = 0.0_SP
               NUM_TAVE = 0
               DO J=2,NTSN(JJ)-1
                 I1=NBSN(JJ,J)
