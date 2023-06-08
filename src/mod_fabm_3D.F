@@ -52,7 +52,7 @@ MODULE MOD_FABM_3D
 !  INTEGER :: ERSEMid
 !RJT 
 ! For RK integration
-  REAL(SP), ALLOCATABLE, TARGET     :: FABM_FB1(:,:,:)    !! temporary salinity in RK
+  REAL(SP), ALLOCATABLE, TARGET     :: FABM_FB1(:,:,:)    !! temporary FABM in RK scheme
 
 # if defined (SEDIMENT)
   REAL(SP), ALLOCATABLE,TARGET :: SPM_FABM(:,:)   ! mg/m^3
@@ -692,7 +692,11 @@ SUBROUTINE FABM_UPDATE
      END IF
 
 # if !defined (ONE_D_MODEL)
-  DO IFABM=1,size(model%interior_state_variables)
+#   if !defined (MPDATA)
+  IF( RIVER_TS_SETTING == 'calculated')THEN
+     CALL ADJUST_FABM_RIVERS ! this operations on FABM_F
+  END IF
+#   endif     DO IFABM=1,size(model%interior_state_variables)
       IF (.not. DISABLE_TRANSPORT(IFABM) ) then    
         FABM_ALL(:,:,IFABM) = FABM_F(:,:,IFABM)      ! Update to new time level skipping non-advective variables
       END IF
