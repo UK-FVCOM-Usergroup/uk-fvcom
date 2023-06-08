@@ -11,7 +11,7 @@ mod_interp.o : mod_interp.F mod_main.o mod_spherical.o mod_clock.o mod_prec.o mo
 mod_par.o : mod_par.F mod_main.o mod_time.o  mod_utils.o mod_types.o mod_prec.o 
 mod_par_special.o : mod_par_special.F mod_main.o mod_time.o mod_main.o mod_utils.o mod_types.o mod_prec.o 
 mod_heatflux.o : mod_heatflux.F mod_main.o mod_prec.o mod_utils.o mod_par.o
-mod_heatflux_sediment.o : mod_heatflux_sediment.F mod_main.o mod_prec.o mod_utils.o mod_par.o 
+mod_heatflux_sediment.o : mod_heatflux_sediment.F mod_par.o mod_main.o mod_prec.o mod_utils.o 
 mod_ncll.o : mod_ncll.F mod_main.o mod_interp.o mod_utils.o mod_time.o mod_prec.o 
 mod_nctools.o : mod_nctools.F mod_main.o mod_par_special.o mod_ncll.o mod_prec.o 
 mod_wd.o : mod_wd.F mod_par_special.o mod_main.o mod_prec.o mod_par.o
