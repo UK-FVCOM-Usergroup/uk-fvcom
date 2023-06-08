@@ -78,7 +78,8 @@ MODULE MOD_FABM_3D
          & USE_FABM_SALINITY,         &
          & USE_FABM_BOTTOM_THICKNESS, &
          & FABM_DEBUG, &
-         & FABM_DIAG_OUT
+         & FABM_DIAG_OUT&
+         & ADJUST_FABM
 
   TYPE (type_universal_standard_variable),PARAMETER :: mass_concentration_of_solute &
      = type_universal_standard_variable(name='mass_concentration_of_solute',units='kg/m**3', aggregate_variable=.true.)
@@ -128,6 +129,7 @@ MODULE MOD_FABM_3D
    USE_FABM_BOTTOM_THICKNESS = .FALSE.
    FABM_DEBUG = .FALSE.
    FABM_DIAG_OUT = .TRUE.
+   ADJUST_FABM = .TRUE.
 
    END SUBROUTINE NAME_LIST_INITIALIZE_FABM  
 
@@ -3470,8 +3472,193 @@ CONTAINS
       IF (.NOT.FOUND) CALL FATAL_ERROR(PATH//': FABM variable with name "'//TRIM(NAME)//'" not found.')
    END SUBROUTINE
 
-END SUBROUTINE
+END SUBROUTINE CONFIGURE_OUTPUT
 
+SUBROUTINE ADJUST_FABM_RIVERS
+! This smooths out gradients in surrounding nodes of a river mouth if MPDATA is not used
+! Copied from adust_ts.F90
+! RJT 2023-06-08
+! The default is to average the surrounding nodes      
+!==============================================================================|
+   USE ALL_VARS
+   USE MOD_UTILS
+   use mod_par
+   USE BCS
+   IMPLICIT NONE
+   REAL(SP), DIMENSION(size(model%interior_state_variables)) :: TAVE(IFABM),TAVE1,TAVE2
+   INTEGER :: I,K,JJ,I1,J,J1,J2,NUM_TAVE,NUM_TAVE1,NUM_TAVE2
+!==============================================================================|
+   
+   IF (DBG_SET(DBG_SBR)) WRITE(IPT,*) "Start: ADJUST_FABM_RIVERS"
+      
+   IF(NUMQBC > 0)THEN   
+   
+   !JQI NOV2021
+      IF(TRIM(FABM_ADJUST_METHOD) == 'average')THEN
+        IF(RIVER_INFLOW_LOCATION == 'node')THEN
+          DO K=1,KBM1
+            DO I=1,NUMQBC
+              JJ=INODEQ(I)
+              TAVE(IFABM) = 0.0_SP
+              NUM_TAVE = 0
+              DO J=2,NTSN(JJ)-1
+                I1=NBSN(JJ,J)
+                  IF(NUMQBC == 1)THEN
+                     NUM_TAVE = NUM_TAVE + 1
+                     DO IFABM=1,SIZE(model%interior_state_variables)
+                        TAVE(IFABM) = TAVE(IFABM)+ FABM_F(I1,K,IFABM)
+                     END DO
+                  ELSE
+                     IF(I == 1)THEN
+                        IF(I1 /= INODEQ(I+1))THEN 
+                           NUM_TAVE = NUM_TAVE + 1
+                           DO IFABM=1,SIZE(model%interior_state_variables)
+                              TAVE(IFABM) = TAVE(IFABM) + FABM_F(I1,K,IFABM)
+                           END DO
+                        END IF
+                     ELSE IF(I == NUMQBC)THEN
+                        IF(I1 /= INODEQ(I-1))THEN	 
+                           NUM_TAVE = NUM_TAVE + 1
+                           DO IFABM=1,SIZE(model%interior_state_variables)
+                              TAVE(IFABM) = TAVE(IFABM) + FABM_F(I1,K,IFABM)
+                           END DO
+                        END IF
+                     ELSE IF(I1 /= INODEQ(I-1) .AND. I1 /= INODEQ(I+1))THEN
+                        NUM_TAVE = NUM_TAVE + 1
+                        DO IFABM=1,SIZE(model%interior_state_variables)
+                           TAVE(IFABM) = TAVE(IFABM) + FABM_F(I1,K,IFABM)
+                        END DO
+                     END IF	 
+                  END IF
+               END DO
+               DO IFABM=1,SIZE(model%interior_state_variables)
+                  FABM_F(JJ,K,IFABM) = TAVE(IFABM)/FLOAT(NUM_TAVE)
+               END DO
+            END DO
+          END DO
+        ELSE IF(RIVER_INFLOW_LOCATION == 'edge')THEN
+          DO K=1,KBM1
+            DO I=1,NUMQBC
+               J1=N_ICELLQ(I,1)
+               J2=N_ICELLQ(I,2)
+               TAVE1(:) = 0.0_SP
+               TAVE2(:) = 0.0_SP
+               NUM_TAVE1 = 0
+               NUM_TAVE2 = 0
+   
+               DO J=2,NTSN(J1)-1
+                  I1=NBSN(J1,J)
+                  IF(NUMQBC == 1)THEN
+                     IF(I1 /= J2)THEN
+                        NUM_TAVE1 = NUM_TAVE1 + 1
+                        DO IFABM=1,SIZE(model%interior_state_variables)
+                           TAVE1(IFABM) = TAVE1(IFABM) + FABM_F(I1,K,IFABM)
+                        END DO                        
+                     END IF
+                  ELSE IF(I == 1)THEN
+                     IF(I1 /= J2 .AND. I1 /= N_ICELLQ(I+1,1) .AND. &
+                        I1 /= N_ICELLQ(I+1,2))THEN
+                        NUM_TAVE1 = NUM_TAVE1 + 1
+                        DO IFABM=1,SIZE(model%interior_state_variables)
+                           TAVE1(IFABM) = TAVE1(IFABM) + FABM_F(I1,K,IFABM)
+                        END DO                        
+                     END IF
+                  ELSE IF(I == NUMQBC)THEN
+                     IF(I1 /= J2 .AND. I1 /= N_ICELLQ(I-1,1) .AND. &
+                        I1 /= N_ICELLQ(I-1,2))THEN
+                        NUM_TAVE1 = NUM_TAVE1 + 1
+                        DO IFABM=1,SIZE(model%interior_state_variables)
+                           TAVE1(IFABM) = TAVE1(IFABM) + FABM_F(I1,K,IFABM)
+                        END DO                        
+                     END IF
+                  ELSE IF(I1 /= J2 .AND. &
+                     I1 /= N_ICELLQ(I-1,1) .AND. I1 /= N_ICELLQ(I-1,2) .AND.  &
+                     I1 /= N_ICELLQ(I+1,1) .AND. I1 /= N_ICELLQ(I+1,2))THEN
+                     NUM_TAVE1 = NUM_TAVE1 + 1
+                     DO IFABM=1,SIZE(model%interior_state_variables)
+                        TAVE1(IFABM) = TAVE1(IFABM) + FABM_F(I1,K,IFABM)
+                     END DO                  
+                  END IF
+               END DO
+               DO IFABM=1,SIZE(model%interior_state_variables)
+                  FABM_F(J1,K,IFABM) = TAVE1(IFABM)/FLOAT(NUM_TAVE1)
+               END DO   
+               DO J=2,NTSN(J2)-1
+                  I1=NBSN(J2,J)
+                  IF(NUMQBC == 1)THEN
+                     IF(I1 /= J1)THEN
+                        NUM_TAVE2 = NUM_TAVE2 + 1
+                        DO IFABM=1,SIZE(model%interior_state_variables)
+                           TAVE2(IFABM) = TAVE2(IFABM) + FABM_F(I1,K,IFABM)
+                        END DO                        
+                     END IF
+                  ELSE IF(I == 1)THEN
+                     IF(I1 /= J1 .AND. I1 /= N_ICELLQ(I+1,1) .AND. &
+                        I1 /= N_ICELLQ(I+1,2))THEN
+                        NUM_TAVE2 = NUM_TAVE2 + 1
+                        DO IFABM=1,SIZE(model%interior_state_variables)
+                           TAVE2(IFABM) = TAVE2(IFABM) + FABM_F(I1,K,IFABM)
+                        END DO                        
+                     END IF
+                  ELSE IF(I == NUMQBC)THEN  
+                     IF(I1 /= J1 .AND. I1 /= N_ICELLQ(I-1,1) .AND. &
+                        I1 /= N_ICELLQ(I-1,2))THEN
+                        NUM_TAVE2 = NUM_TAVE2 + 1
+                        DO IFABM=1,SIZE(model%interior_state_variables)
+                           TAVE2(IFABM) = TAVE2(IFABM) + FABM_F(I1,K,IFABM)
+                        END DO                        
+                     END IF
+                  ELSE IF(I1 /= J1 .AND. &
+                     I1 /= N_ICELLQ(I-1,1) .AND. I1 /= N_ICELLQ(I-1,2) .AND.  &
+                     I1 /= N_ICELLQ(I+1,1) .AND. I1 /= N_ICELLQ(I+1,2))THEN
+                     NUM_TAVE2 = NUM_TAVE2 + 1
+                     DO IFABM=1,SIZE(model%interior_state_variables)
+                        TAVE2(IFABM) = TAVE2(IFABM) + FABM_F(I1,K,IFABM)
+                     END DO                        
+                  END IF
+               END DO
+               DO IFABM=1,SIZE(model%interior_state_variables)
+                     FABM_F(J2,K, IFABM) = TAVE2(IFABM)/FLOAT(NUM_TAVE2)
+               END DO
+            END DO
+          END DO	 
+        END IF
+      
+      ELSE IF(TRIM(FABM_ADJUST_METHOD) == 'maximum')THEN
+         DO I=1,NUMQBC
+            IF(RIVER_INFLOW_LOCATION == 'node')THEN
+               J = INODEQ(I)
+               DO K=1,KBM1
+                  DO IFABM=1,SIZE(model%interior_state_variables)
+                     FABM_F(J,K,IFABM) = MAX(FABM_F(J,K,IFABM),FABMDIS(I, IFABM))
+                  END DO
+               END DO
+            ELSE IF(RIVER_INFLOW_LOCATION == 'edge')THEN
+               J1 = N_ICELLQ(I,1)
+               J2 = N_ICELLQ(I,2)
+               DO K=1,KBM1
+                  DO IFABM=1,SIZE(model%interior_state_variables)
+                     FABM_F(J1,K, IFABM) = MAX(FABM_F(J1,K, IFABM),FABMDIS(I, IFABM))
+                     FABM_F(J2,K, IFABM) = MAX(FABM_F(J2,K, IFABM),FABMDIS(I, IFABM))
+                  END DO
+               END DO
+            END IF
+         END DO
+      ELSE
+        CALL FATAL_ERROR("THE PARAMETER FABM_ADJUST_METHOD SHOULD BE 'average' or 'maximum'")
+      END IF
+   !JQI NOV2021
+   
+   END IF
+   
+   IF (DBG_SET(DBG_SBR)) WRITE(IPT,*) "End: ADJUST_FABM_RIVERS"
+    
+   
+   RETURN
+   END SUBROUTINE ADJUST_FABM_RIVERS
+!==============================================================================|
+   
+   
 # endif
 
 END MODULE MOD_FABM_3D
