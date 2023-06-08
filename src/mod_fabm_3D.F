@@ -78,7 +78,7 @@ MODULE MOD_FABM_3D
          & USE_FABM_SALINITY,         &
          & USE_FABM_BOTTOM_THICKNESS, &
          & FABM_DEBUG, &
-         & FABM_DIAG_OUT&
+         & FABM_DIAG_OUT, &
          & FABM_ADJUST_METHOD
 
   TYPE (type_universal_standard_variable),PARAMETER :: mass_concentration_of_solute &
