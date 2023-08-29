@@ -1,5 +1,7 @@
 Differences between FVCOM-FABM and FVCOM main branch (other than directly FABM stuff)
 
+Not a difference between the two branches but new in V5 and worth considering. FVCOMv5 expects Air pressure units in Pa rather than mb. 
+
 GOTM charnok surface not commented out, also intisialisng to 0 not NN, parameters DP - mod_gotm.F
 
 Initialise variables to 0 - mod_assim.F
@@ -14,9 +16,9 @@ river name length max 200 not 60 mod_main.F
 
 makedepends to allow pll compilation
 
-Avoid negative salinitys - internal_step.F
+Avoid negative salinities - internal_step.F
 
-Sediment mixing ration - mod_input.F
+Sediment mixing ratio - mod_input.F
 
 Remove if ucf from mod_ncdio.F
 
@@ -37,3 +39,5 @@ Oned tide allowed arbitrary constituents - mod_onedtide.F
 Dye release in mod_report.F
 
 Changes to bed_thickness mod_sed.F
+
+Allowing for spatially variable bottom roughness - mod_brough.F

@@ -1,0 +1,4 @@
+{
+    "fortran.formatting.formatter": "fprettify",
+    "fortran.fortls.sortKeywords": true
+}

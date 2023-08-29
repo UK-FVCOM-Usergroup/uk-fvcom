@@ -1,0 +1,68 @@
+Proposed changes and other issues to consider
+
+Add support for offline Sediment and FABM at the same time
+Transfer advection routine to use single function such as the adv_scal.F and monitor performance
+Include RK for advection of FABM variables. This requires mirroring changes in internal_step as well as create a fabm_adv_rk.F
+Use findent to indent all files to make reading code easier?
+RK doesn't allow for MPDATA or semi-implicit
+SMEAN1 (on nodes) doesn't get updated ever. Not sure what it role is in the advection routine other than increasing accuracy?
+our approach to recalculating fabmmean seems more appropriate
+
+DYE source term is concentration rather than a flux so how much goes in depends on the time step. Change code to reflect a proper flux like in rivers or groundwater
+
+The implementation of advecting only a subset of FABM interior variables is missing from this repo (not sure it was ever done... but can't remember why)
+
+What do we need to do to support parallel MPI output to work with FABM? 
+
+Add barrier to diffusive transport between dry and wet nodes in mod_fabm_3D
+
+Harmonise reading of offline forcing for sediment and fabm (don't have a separate one for fabm)
+
+Actioned changes
+
+
+
+Testing of update to FVCOMv5
+
+Testing are being done in LakeErie implementation with and without semi-implicit, with and without TVD, RK and comparing with FVCOMv5 from UMASSD
+
+So far I haven't managed to run FVCOMv5 physics only. 
+The setup have no rivers at the moment. 
+With the same time step setup as with v4.3 the model PETSC diverges (presume ice calculations)
+The original dt of 60 was reduced to 50, 40, 30 and 20 with no success. 
+
+Trying now with standard timesteping 
+The problems could have been with the ICE_EMBEDDING flag. Without ICE_EMBEDDING also crashes. 
+
+Nope, still crashes. I have tried multiple timestep combinations (10,1; 5,5; 5,1; and others).
+The error here appears with the convergence of calculating Z0 in mod_solar. 
+
+In a way there is no point in me pursuing this farther as I am not familiar with the ICE model. 
+As one last test... switching off the wind doesn't make it work either. 
+
+I need to check that FABM and sediments work and I can do this in the ideal estuary, with waves and semi-implicit. 
+I should ask Karsten for the setup
+
+Testing that should happen before PML can use a new version of the code
+In the idealised estuary
+    test sediments (with and without tvd, with and without RK)
+    test dye release (with and without tvd, with and without RK)
+    test fabm - 1) only a passive tracer
+                2) test carbonate system alone
+                3) test standard ERSEM
+                4) test RK and non RK
+                5) test with TVD and without
+    test rivers with fabm (test river_no_dilution behaviour)
+    test with heating calculated and without
+
+
+May 31, 2023
+Tests with ideal estuary
+only with physics (including sediment)   passed
+
+With FABM on, it is another matter. 
+There are If (FABM) statements missing from this version. 
+Do a meld at directory level with V4.3 with special attention to those
+Wed June 7
+These (if FABM statements) should be sorted now. 
+

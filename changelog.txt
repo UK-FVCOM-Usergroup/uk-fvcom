@@ -156,3 +156,18 @@ mod_scal.F
 
 add rk advection (non fabm)
 internal_step.F,mod_input.F, mod_main.F, adv_q_rk.F, adv_s_rk.F, adv_t_rk.F, adv_uv_edge_gcn_rk.F, adv_uv_edge_gcy_rk.F
+
+RJT
+modifications to makedepends to mirror FVCOMv5 on github
+makedepends, make_lakeErie.inc
+
+addition of RK option for mod_fabm
+mod_fabm_3D.F, 
+
+Small updates from fvcomv5 as of 05/2023
+mod_input.F, mode_force.F, fvcom.F, ice_therm_vertical.F, extuv_edge.F, mod_utils.F, mod_wd.F,setup_domain.F, 
+mod_sed.F, mod_ncdio.F, mod_main.F, mod_input.F, 
+
+Changes in FVCOMv5 relating to genmap (subdomains shapes of some variables)
+mod_ncdio.F,
+
