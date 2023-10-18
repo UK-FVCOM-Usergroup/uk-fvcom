@@ -1,10 +1,10 @@
 FVCOM
 -----
 
-The main FVCOM website is http://fvcom.smast.umassd.edu/fvcom.
+The main FVCOM website is http://fvcom.smast.umassd.edu/fvcom. The code can be downloaded from [FVCOM github](https://github.com/FVCOM-GitHub/FVCOM)
 
-This repository is for the UK FVCOM Users' code development and includes some changes with respect to the official v4.3 release contributed by a variety of partners. 
-See the commit history for a flavour of those updates. 
+This repository is for the UK FVCOM Users' code development and includes some changes with respect to the official v5.0 release contributed by a variety of partners. 
+See the commit history for a flavour of those updates. The main addition to the core FVCOM code is the FABM coupler, developed and maintained by Plymouth Marine Laboratory and partners.
 
 Register
 --------
@@ -14,33 +14,35 @@ Users of FVCOM must [register first](http://fvcom.smast.umassd.edu/wp-login.php?
 Download
 --------
 
-Once registered, the official releases of FVCOM are available for download as tarballs from http://fvcom.smast.umassd.edu/download.
+Once registered, the official releases of FVCOM are available for download from [FVCOM github](https://github.com/FVCOM-GitHub/FVCOM) if you don't need the FABM coupler or other international contributions to the core code base.
 
 Support
 -------
 
-The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is a wiki available at https://wiki.fvcom.pml.ac.uk and one associated with this repo. 
+The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is a user focused FVCOM [wiki](https://github.com/UK-FVCOM-Usergroup/uk-fvcom/wiki) available which has been developed by users. 
 
 FABM
 ----------
 
 The main FABM website is https://github.com/fabm-model/fabm/. While this branch has been updated to work with FABM v1 it has not been tested in a realistic application. Consider this branch a beta version. 
-The yaml modules from FABM have been moved and FVCOM make.inc requires an extra include entry:
-BIOINCS = -I<FABMINSTALLDIR>/include -I<FABMINSTALLDIR>/include/yaml
 
 
 FABM-ERSEM
 ----------
 
-The ERSEM biogeochemical model can be requested from the Shelf Seas Biogeochemistry website: http://www.shelfseasmodelling.org.
+The ERSEM biogeochemical model can be downloaded from PMLs [github repository](https://github.com/pmlmodelling/ersem).
+
+## Other resources 
+
+[PML](https://github.com/pmlmodelling/) github repositories include other tools that work with FVCOM such as the pre/postprocessing python toolbox [PyFVCOM](https://github.com/pmlmodelling/pyfvcom) and the lagrangian particle model [PyLag](https://github.com/pmlmodelling/pylag).
 
 ## Todo list:
 
 - [x] Remove vectorised advection from FABM coupler 
-- [x ] Enable combined nesting and OBC approach
+- [ ] Enable combined nesting and OBC approach
 - [x] Look at river_dilution behaviour (non conservation when non dilution is active)
 - [ ] Enable interaction between sediments and spectrally resolved light
-- [x ] Remove any hard coded links between sediments and FABM that are domain specific
+- [x] Remove any hard coded links between sediments and FABM that are domain specific
 - [ ] Identify and solve offline conservation issues on first time step. 
 
 ## Fixes Log:
