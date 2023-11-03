@@ -362,6 +362,7 @@ CONTAINS
     STRUCTURE_ON = .FALSE.
     STRUCTURE_FILE = trim(casename)//"_tt.nc"
     STRUCTURE_KIND = "Options:"//TRIM(TTMSINK)//","//TRIM(TTBROUGH)
+    STRUCTURE_TKE = .FALSE.
     STRUCTURE_CT = "Options:"//TRIM(TTCNSTNT)//","//TRIM(TTVRBL)
     STRUCTURE_ARTT = "Options:"//TRIM(TTCNSTNT)//","//TRIM(TTVRBL)
 

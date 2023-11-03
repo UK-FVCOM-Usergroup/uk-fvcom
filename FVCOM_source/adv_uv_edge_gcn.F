@@ -998,7 +998,9 @@
         IF (STRUCTURE_ON .AND. (STRUCTURE_KIND .EQ. TTMSINK)) THEN
          XFLUX(I,K) = XFLUX(I,K) + 0.5*KBTT(I,K)*NTT(I)*CT(I)*ARTT(I)*((U(I,K)**2 + V(I,K)**2)**0.5)*U(I,K)
          YFLUX(I,K) = YFLUX(I,K) + 0.5*KBTT(I,K)*NTT(I)*CT(I)*ARTT(I)*((U(I,K)**2 + V(I,K)**2)**0.5)*V(I,K)
-        END IF
+!         Pd(I,K) = 0
+         Pd(I,K) = 0.5*KBTT(I,K)*NTT(I)*CT(I)*ARTT(I)*((U(I,K)**2 + V(I,K)**2)**1.5) 
+       END IF
 
      END DO
 #  if defined (WET_DRY)
