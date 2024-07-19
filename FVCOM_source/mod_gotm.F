@@ -237,7 +237,7 @@ MODULE MOD_GOTM
 
       IF (STRUCTURE_ON .AND. STRUCTURE_TKE ) THEN
       Pd1d(0:kbm1)  = Pd_node(i,kb:1:-1)
-      call do_turbulence(kbm1,time_step,depth,u_taus,u_taub,z0s_gotm,z0b_gotm,h,nn1D,ss1D,Pd1d) 
+      call do_turbulence(kbm1,time_step,depth,u_taus,u_taub,z0s_gotm,z0b_gotm,h,nn1D,ss1D,Pd1d,Pd1d) 
       ELSE
       call do_turbulence(kbm1,time_step,depth,u_taus,u_taub,z0s_gotm,z0b_gotm,h,nn1D,ss1D)
       END IF
