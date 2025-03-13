@@ -21,9 +21,9 @@ Once registered, the official releases of FVCOM are available for download from 
 Support
 -------
 
-The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is another (user written) wiki available at https://wiki.fvcom.pml.ac.uk.
+The official FVCOM Forum can be accessed at http://fvcom.smast.umassd.edu/bbs/. There is another (user written) wiki available at [https://wiki.fvcom.pml.ac.uk](https://github.com/UK-FVCOM-Usergroup/uk-fvcom/wiki).
 
-The examples bundled with the official FVCOM release can be found in this gitlab 
+The examples bundled with the official FVCOM release can be found in the Google drive linked in the official FVCOM repo. 
 ```bash 
 git clone git@gitlab.ecosystem-modelling.pml.ac.uk:fvcom/fvcom-examples.git ./fvcom-examples
 ```
