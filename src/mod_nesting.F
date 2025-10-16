@@ -1547,8 +1547,11 @@ END SUBROUTINE GENMAP_NESTING
 !          if(status /= 0) call fatal_error("ALLOC_NEST: can not allocate:FABM_ALL_BLK")
          END IF
       ELSE
-         WRITE(IPT,*) "FABM model not running, but FABM nesting is on. Correct this in the namelist"
-         CALL FATAL_ERROR("ALLOC_NEST: FABM nesting is on, but FABM model is not running")
+         # If statement added by Håvard Espenes - this error was thrown eventhough fabm nesting was off in the namelist
+         IF (FABM_NESTING_ON) THEN
+            WRITE(IPT,*) "FABM model not running, but FABM nesting is on. Correct this in the namelist"
+            CALL FATAL_ERROR("ALLOC_NEST: FABM nesting is on, but FABM model is not running")
+         END IF
       END IF
 
        MEMCNT = MEMCNT + G%MT * KB * IFABMadv
