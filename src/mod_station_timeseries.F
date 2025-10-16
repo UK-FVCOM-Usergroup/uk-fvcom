@@ -1434,9 +1434,10 @@ NETCDF_TIMESTRING = 'seconds after 00:00:00'
        WRITE(10,'(I4)') MX_NBR_ELEM_GL+1
 !  Added by Zheng
 
-       DO I=1,MGL
-         WRITE(10,'(2I10,<MX_NBR_ELEM_GL+1>I10)') I,NTVEGL(I),(NBVEGL(I,J),J=1,NTVEGL(I))
-       END DO
+       ! Removed by hes to be compliant with modern compilers, needs to be written in modern syntax
+       !DO I=1,MGL
+       !  WRITE(10,'(2I10,<MX_NBR_ELEM_GL+1>I10)') I,NTVEGL(I),(NBVEGL(I,J),J=1,NTVEGL(I))
+       !END DO
        CLOSE(10)
      END IF
    ELSE
