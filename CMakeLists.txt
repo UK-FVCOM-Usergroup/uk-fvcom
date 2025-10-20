@@ -28,6 +28,7 @@ if(FVCOM_USE_DOUBLE_PRECISION)
   endif()
 else()
   set(FABM_REAL_KIND "SELECTED_REAL_KIND(6)")
+  option(FVCOM_USE_SINGLE_OUTPUT "Use single precision for output" ON)
 endif()
 
 option(FVCOM_USE_WET_DRY "Enable wetting-drying" ON)
@@ -145,8 +146,8 @@ add_library(fjulian
 )
 
 if(FVCOM_USE_FABM)
-  find_path(FABM_BASE src/fabm.F90 DOC "Path to FABM source directory.")
-  set(FABM_FORCED_HOST fvcom)
+  find_path(${FABM_BASE} src/fabm.F90 DOC "Path to FABM source directory.")
+  set(FABM_FORCED_HOST "fvcom")
   add_subdirectory(${FABM_BASE}/src fabm)
   set(EXTRA_SOURCES ${EXTRA_SOURCES} ${ROOT}/mod_fabm_3D.F ${ROOT}/mod_fabm_data.F)
 endif()

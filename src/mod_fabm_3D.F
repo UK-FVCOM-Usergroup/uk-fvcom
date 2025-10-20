@@ -3198,8 +3198,7 @@ SUBROUTINE INITIALIZE_FABM_INPUTS()
 
    INQUIRE(FILE=NMLPATH,EXIST=FOUND)
    IF (.NOT.FOUND) RETURN
-   CALL FOPEN(FABM_INPUT_UNIT,NMLPATH,'cfr')
-
+      CALL FOPEN(FABM_INPUT_UNIT,NMLPATH,'cfr')
    DO
       ! Initialize namelist variables with default value.
       VARIABLE_NAME = ''
