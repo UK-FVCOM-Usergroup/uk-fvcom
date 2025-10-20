@@ -28,6 +28,7 @@ if(FVCOM_USE_DOUBLE_PRECISION)
   endif()
 else()
   set(FABM_REAL_KIND "SELECTED_REAL_KIND(6)")
+  option(FVCOM_USE_SINGLE_OUTPUT "Use single precision for output" ON)
 endif()
 
 option(FVCOM_USE_WET_DRY "Enable wetting-drying" ON)
