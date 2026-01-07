@@ -56,7 +56,7 @@ MODULE MOD_SETUP
   REAL(SP), ALLOCATABLE, TARGET :: R_SPG(:),C_SPG(:),X_SPG(:),Y_SPG(:)
   INTEGER :: NSPONGE
 
-  PRIVATE :: SIGMA_GEOMETRIC, SIGMA_GENERALIZED, SIGMA_TANH
+  PRIVATE :: SIGMA_GEOMETRIC, SIGMA_GENERALIZED, SIGMA_TANH, SIGMA_SOUZA
 
 CONTAINS
 
@@ -876,6 +876,9 @@ CONTAINS
     !---------------------------------------------   
        CALL SIGMA_GENERALIZED
 
+    CASE(STYPE_SOUZA)
+       CALL SIGMA_SOUZA
+
     ! THIS IS A CURRENTLY UNUSED METHOD
 !!$!---------------------------------------------   
 !!$!SIGMA_COORDINATE_TYPE = WHAT THE HELL IS THIS?
@@ -1000,6 +1003,44 @@ CONTAINS
          END DO
       END DO
     END SUBROUTINE SIGMA_TANH
+
+! -------------------------------------------------------------------
+! Added by Akvaplan Jan 7th 2026, hes
+   SUBROUTINE SIGMA_SOUZA
+    ! Calculate sigma levels with surface and bottom refinement as proposed in 
+    ! "The Vorticity Balance of the Ocean Surface in Hawaii fron a Regional Reanalysis" by Souza et. al. (2014). 
+    !This is equivalent to Vstretching = 5 in ROMS (https://www.myroms.org/wiki/Vertical_S-coordinate)
+    IMPLICIT NONE
+    INTEGER I, M, k, k
+    REAL(SP) :: TMPSIG, SURFACE_CORRECTED
+
+    DO K = 1, KB
+      upper_left = -(K**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
+      lower_left = KBM1**2 - KBM1
+      upper_right = (K-1)**2 - (K-1)*KBM1
+      lower_right = 1 - KBM1
+      
+      ! Calculate sigma levels on nodes
+      DO I=1,M
+         ! Calculate the Quadratic Legendre polynomial
+         TMPSIG = upper_left / lower_left - 1/100 * upper_right/lower_right
+
+         ! Apply the surface refinement function
+         SURFACE_CORRECTED = (1 - COSH(THETA_S * TMPSIG)) / (COSH(THETA_S) - 1)
+
+         ! And finally, apply the bottom refinement function
+         Z(I, K) = (EXP(THETA_B * SURFACE_CORRECTED) - 1) / (1 - EXP(-THETA_B))
+      END DO
+
+      ! Calculate sigma levels on cells
+      DO I=1,N
+         DO K=1,KB
+            Z1(I, K) = (Z(NV(I,1),K)+Z(NV(I,2),K)+Z(NV(I,3),K))/3.0_SP
+         END DO
+      END DO
+    END DO
+   END SUBROUTINE SIGMA_SOUZA
+
 !--------------------------------------------------------------------
 !!$ SUBROUTINE SIGMA_UNKNOWN
 !!$   DO I=1,M
@@ -1130,6 +1171,10 @@ CONTAINS
        CASE(STYPE_GENERALIZED) ! THIS IS CASE SPECIFIC 
           WRITE(IPT,*)"SET CASE SPECIFIC GENERALIZED SIGMA LAYER OUTPUT TO SCREEN &
                &IN mod_setup.F"
+       CASE(STYPE_SOUZA)
+          DO K=1,KB
+             WRITE(IPT,80) K,Z(1,K),ZZ(1,K),DZ(1,K),DZZ(1,K)
+          END DO
        END SELECT
        WRITE(IPT,*  )'!'
     END IF

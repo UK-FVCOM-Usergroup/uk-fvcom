@@ -3681,6 +3681,10 @@ CONTAINS
           IF(KU>0) CALL MPI_BCAST(ZKU,KU,MPI_F,SENDER,MPI_FVCOM_GROUP,IERR)
           IF(KL>0) CALL MPI_BCAST(ZKL,KL,MPI_F,SENDER,MPI_FVCOM_GROUP,IERR)
 
+       case(STYPE_SOUZA)
+          CALL MPI_BCAST(THETA_S,1,MPI_F,SENDER,MPI_FVCOM_GROUP,IERR)
+          CALL MPI_BCAST(THETA_B,1,MPI_F,SENDER,MPI_FVCOM_GROUP,IERR)
+
        CASE DEFAULT
 
            call fatal_error('STYPE CHARACTER STRING PASSED FROM MASTER&
@@ -4963,7 +4967,7 @@ CONTAINS
             &# '//trim(temp),&
             & 'The header must contain: "SIGMA COORDINATE TYPE"', &
             & 'Followed by one of four defined types:',&
-            & '"UNIFORM" or "GEOMETRIC" or "TANH" or "GENERALIZED" ')
+            & '"UNIFORM", "GEOMETRIC", "TANH", "GENERALIZED" or "SOUZA"')
     END IF
 
     ! SELECT CASE BASED ON SIGMA COORDINATE TYPE
@@ -5084,6 +5088,28 @@ CONTAINS
                & 'For GENERALIZED SIGMA COORDINATE TYPE', &
                & 'The header must conatain "KL"',&
                & 'Followed by a real value (See set_sigma.F')
+       END IF
+
+! Surface and bottom refined sigma distribution
+   case(TRIM(STYPE_SOUZA))
+      ISCAN = SCAN_FILE(SIGMAUNIT, "THETA_S", FSCAL = THETA_S)
+       IF(ISCAN /= 0) then
+          write(temp,'(I2)') ISCAN
+          call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
+               &# '//trim(temp),&
+               & 'For the SOUZA SIGMA COORDINATE TYPE', &
+               & 'The header must contain "THETA_S"',&
+               & 'Followed by a real value in the range 0 <= THETA_S <= 10')
+       END IF
+
+       ISCAN = SCAN_FILE(SIGMAUNIT, "THETA_B", FSCAL = THETA_S)
+       IF(ISCAN /= 0) then
+          write(temp,'(I2)') ISCAN
+          call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
+               &# '//trim(temp),&
+               & 'For the SOUZA SIGMA COORDINATE TYPE', &
+               & 'The header must contain "THETA_B"',&
+               & 'Followed by a real value in the range 0 <= THETA_B <= 4')
        END IF
 
 !------------------------------------------------------------------------------|
