@@ -1013,6 +1013,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER I, M, k, k
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
+    REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
 
     DO K = 1, KB
       upper_left = -(K**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
@@ -1022,6 +1023,7 @@ CONTAINS
       
       ! Calculate sigma levels on nodes
       DO I=1,M
+         ! 1. Calculate the stretching parameter
          ! Calculate the Quadratic Legendre polynomial
          TMPSIG = upper_left / lower_left - 1/100 * upper_right/lower_right
 
@@ -1029,10 +1031,17 @@ CONTAINS
          SURFACE_CORRECTED = (1 - COSH(THETA_S * TMPSIG)) / (COSH(THETA_S) - 1)
 
          ! And finally, apply the bottom refinement function
-         Z(I, K) = (EXP(THETA_B * SURFACE_CORRECTED) - 1) / (1 - EXP(-THETA_B))
+         STRETCHED_SIG = (EXP(THETA_B * SURFACE_CORRECTED) - 1) / (1 - EXP(-THETA_B))
+
+         ! 2. Calculate the unstretched sigma
+         UNIFORM_SIG = (K-1-KBM1)/KBM1
+
+         ! 3. Calculate the layer depth as a function of the bathymetry
+         Z(I,K) = (TCLINE*UNIFORM_SIG + H[I]*STRETCHED_SIG) / (TCLINE + H[I])
       END DO
 
-      ! Calculate sigma levels on cells
+      ! Calculate sigma levels on cells -- do we need to calculate this as well?
+      ! The geometric sigma levels uses the arithmetic average, so then the average should be fine here as well...
       DO I=1,N
          DO K=1,KB
             Z1(I, K) = (Z(NV(I,1),K)+Z(NV(I,2),K)+Z(NV(I,3),K))/3.0_SP

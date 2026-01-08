@@ -3684,6 +3684,7 @@ CONTAINS
        case(STYPE_SOUZA)
           CALL MPI_BCAST(THETA_S,1,MPI_F,SENDER,MPI_FVCOM_GROUP,IERR)
           CALL MPI_BCAST(THETA_B,1,MPI_F,SENDER,MPI_FVCOM_GROUP,IERR)
+          CALL MPI_BCAST(TCLINE,1,MPI_F,SENDER,MPI_FVCOM_GROUP,IERR)
 
        CASE DEFAULT
 
@@ -5110,6 +5111,15 @@ CONTAINS
                & 'For the SOUZA SIGMA COORDINATE TYPE', &
                & 'The header must contain "THETA_B"',&
                & 'Followed by a real value in the range 0 <= THETA_B <= 4')
+
+       ISCAN = SCAN_FILE(SIGMAUNIT, "TCLINE", FSCAL = TCLINE)
+        IF(ISCAN /= 0) then
+          write(temp,'(I2)') ISCAN
+          call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
+               &# '//trim(temp),&
+               & 'For the SOUZA SIGMA COORDINATE TYPE', &
+               & 'The header must contain "TCLINE", the effective surface layer width,',&
+               & 'Followed by a real value greater than zero.')
        END IF
 
 !------------------------------------------------------------------------------|

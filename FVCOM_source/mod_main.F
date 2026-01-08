@@ -1520,9 +1520,14 @@ MODULE CONTROL
    REAL(SP) :: HMAX         !!GLOBAL MAXIMUM DEPTH IN DEPTH FILE
    REAL(SP) :: HMIN         !!GLOBAL MINIMUM DEPTH IN DEPTH FILE
 
+!--General Vertical Level Parameters for case SOUZA
+   REAL(SP) :: THETA_S      !!Surface stretching parameter
+   REAL(SP) :: THETA_B      !!Bottom stretching parameter
+   REAL(SP) :: TCLINE       !!A transition depth where the sigma distribution changes from uniform to stretched
+
 
    ! All file identifiers go here
-   INTEGER :: IPT                     !! IUNIT FOR LOG FILE OUTPUT
+   INTEGER :: IPT           !! IUNIT FOR LOG FILE OUTPUT
    INTEGER, PUBLIC, PARAMETER :: IPT_BASE= 7000 ! FOR PAR LOG FILES
 
    INTEGER, PARAMETER :: TESTUNIT = 200 !! TEST TO SEE IF OUTPUT DIR EXISTS/WRITABLE
