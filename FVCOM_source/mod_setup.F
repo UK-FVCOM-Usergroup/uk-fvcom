@@ -1014,6 +1014,7 @@ CONTAINS
     INTEGER I, M, K
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
+    REAL(SP) :: upper_left, upper_right, lower_left, lower_right
 
     DO K = 1, KB
       upper_left = -(K**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
