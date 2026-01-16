@@ -1011,7 +1011,7 @@ CONTAINS
     ! "The Vorticity Balance of the Ocean Surface in Hawaii fron a Regional Reanalysis" by Souza et. al. (2014). 
     !This is equivalent to Vstretching = 5 in ROMS (https://www.myroms.org/wiki/Vertical_S-coordinate)
     IMPLICIT NONE
-    INTEGER I, M, k, k
+    INTEGER I, M, K
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
 
