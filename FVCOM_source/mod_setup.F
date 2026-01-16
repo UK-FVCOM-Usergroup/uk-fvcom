@@ -1038,7 +1038,7 @@ CONTAINS
          UNIFORM_SIG = (K-1-KBM1)/KBM1
 
          ! 3. Calculate the layer depth as a function of the bathymetry
-         Z(I,K) = (TCLINE*UNIFORM_SIG + H[I]*STRETCHED_SIG) / (TCLINE + H[I])
+         Z(I,K) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
       END DO
 
       ! Calculate sigma levels on cells -- do we need to calculate this as well?
