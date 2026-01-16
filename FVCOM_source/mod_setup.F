@@ -1044,9 +1044,7 @@ CONTAINS
       ! Calculate sigma levels on cells -- do we need to calculate this as well?
       ! The geometric sigma levels uses the arithmetic average, so then the average should be fine here as well...
       DO I=1,N
-         DO K=1,KB
-            Z1(I, K) = (Z(NV(I,1),K)+Z(NV(I,2),K)+Z(NV(I,3),K))/3.0_SP
-         END DO
+         Z1(I, K) = (Z(NV(I,1),K)+Z(NV(I,2),K)+Z(NV(I,3),K))/3.0_SP
       END DO
     END DO
    END SUBROUTINE SIGMA_SOUZA
