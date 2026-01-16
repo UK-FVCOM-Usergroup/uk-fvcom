@@ -5111,9 +5111,10 @@ CONTAINS
                & 'For the SOUZA SIGMA COORDINATE TYPE', &
                & 'The header must contain "THETA_B"',&
                & 'Followed by a real value in the range 0 <= THETA_B <= 4')
+       END IF
 
        ISCAN = SCAN_FILE(SIGMAUNIT, "TCLINE", FSCAL = TCLINE)
-        IF(ISCAN /= 0) then
+       IF(ISCAN /= 0) then
           write(temp,'(I2)') ISCAN
           call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
                &# '//trim(temp),&
@@ -5175,13 +5176,13 @@ CONTAINS
              & 'For GENERALIZED SIGMA COORDINATE TYPE', &
              & 'THE NUMBER OF SPECIFIED DEPTHS IN ZKL IS NOT EQUAL TO KL') 
      END IF
-     
-  ELSE IF (KL .NE. 0) THEN
-     call fatal_error('Improper formatting of SIGMA FILE:',&
-          & 'For GENERALIZED SIGMA COORDINATE TYPE', &
-          & 'Requirement: 1<= KL <= 150;') 
-     
-  END IF
+      
+   ELSE IF (KL .NE. 0) THEN
+      call fatal_error('Improper formatting of SIGMA FILE:',&
+            & 'For GENERALIZED SIGMA COORDINATE TYPE', &
+            & 'Requirement: 1<= KL <= 150;') 
+      
+   END IF
 
    ! END GET VARIABLES
   
