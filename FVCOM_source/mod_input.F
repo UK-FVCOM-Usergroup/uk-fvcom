@@ -5103,7 +5103,7 @@ CONTAINS
               & 'Followed by a real value in the range 0 <= THETA_S <= 10')
       END IF
 
-      ISCAN = SCAN_FILE(SIGMAUNIT, "THETA_B", FSCAL = THETA_S)
+      ISCAN = SCAN_FILE(SIGMAUNIT, "THETA_B", FSCAL = THETA_B)
       IF(ISCAN /= 0) then
          write(temp,'(I2)') ISCAN
          call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
