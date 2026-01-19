@@ -5141,7 +5141,7 @@ case default
         & 'Allowed SIGMA COORDINATE TYPEs are:',&
          & '"UNIFORM" or "GEOMETRIC" or "TANH" or "GENERALIZED"',&
          & 'See Set_Sigma.F for a description')
-    end select
+end select
     
     
  END SUBROUTINE READ_COLDSTART_SIGMA
