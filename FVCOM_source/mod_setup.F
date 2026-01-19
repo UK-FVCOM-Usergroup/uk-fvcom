@@ -1041,7 +1041,7 @@ CONTAINS
          ! 3. Calculate the layer depth as a function of the bathymetry
          Z(I,K) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
 
-         if I .EQ. 100 then
+         if (I == 4000) then
             write(*,*) 'TMPSIG: ', TMPSIG
             write(*,*) 'SURFACE CORRECTED: ', SURFACE_CORRECTED
             write(*,*) 'STRETCHED SIG: ', STRETCHED_SIG
