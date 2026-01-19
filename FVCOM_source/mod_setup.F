@@ -876,6 +876,7 @@ CONTAINS
     !---------------------------------------------   
        CALL SIGMA_GENERALIZED
 
+    ! SIGMA_COORDINATE_TYPE = TANH
     CASE(STYPE_SOUZA)
        CALL SIGMA_SOUZA
 
@@ -887,8 +888,7 @@ CONTAINS
 !!$
 !!$    CALL SIGMA_UNKNOWN
     CASE DEFAULT
-       CALL FATAL_ERROR("SET_SIGMA: REACHED DEFAULT CASE FOR SIGMA COOR&
-            &DINATE TYPE")
+       CALL FATAL_ERROR("SET_SIGMA: REACHED DEFAULT CASE FOR SIGMA COORDINATE TYPE")
     END SELECT
 
     !---------COMPUTE SIGMA DERIVATIVES AND INTRA SIGMA LEVELS---------------------!
@@ -1015,6 +1015,16 @@ CONTAINS
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
+
+    IF(DBG_SET(DBG_LOG)) THEN
+       WRITE(IPT,*  )'!'
+       WRITE(IPT,*  )'!'
+       WRITE(IPT,*)'!                SIGMA LAYER INFO     '
+       WRITE(IPT,*) "SIGMA TYPE:",TRIM(STYPE)
+       WRITE(IPT,70)
+       WRITE(IPT,80) THETA_S,THETA_B,TCLINE
+       WRITE(IPT,*  )'!'
+    END IF
 
     DO K = 1, KB
       upper_left = -(K**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
