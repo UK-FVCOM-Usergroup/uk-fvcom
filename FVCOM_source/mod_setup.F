@@ -1016,16 +1016,6 @@ CONTAINS
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
 
-    IF(DBG_SET(DBG_LOG)) THEN
-       WRITE(IPT,*  )'!'
-       WRITE(IPT,*  )'!'
-       WRITE(IPT,*)'!                SIGMA LAYER INFO     '
-       WRITE(IPT,*) "SIGMA TYPE:",TRIM(STYPE)
-       WRITE(IPT,70)
-       WRITE(IPT,80) THETA_S,THETA_B,TCLINE
-       WRITE(IPT,*  )'!'
-    END IF
-
     DO K = 1, KB
       upper_left = -(K**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
       lower_left = KBM1**2 - KBM1

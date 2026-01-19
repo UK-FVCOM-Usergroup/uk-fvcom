@@ -5195,6 +5195,9 @@ CONTAINS
      WRITE(IPT,*)'!  MIN CONSTANT DEPTH    = : ',HMIN1
      WRITE(IPT,*)'!  KU                    = : ',KU
      WRITE(IPT,*)'!  KL                    = : ',KL
+     WRITE(IPT,*)'!  THETA_S               = : ',THETA_S
+     WRITE(IPT,*)'!  THETA_B               = : ',THETA_B
+     WRITE(IPT,*)'!  TCLINE                = : ',TCLINE
      WRITE(IPT,*)'!'
   end if
   
