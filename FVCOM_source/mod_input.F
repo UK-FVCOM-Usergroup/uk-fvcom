@@ -5094,107 +5094,40 @@ CONTAINS
 ! Surface and bottom refined sigma distribution
    case(TRIM(STYPE_SOUZA))
       ISCAN = SCAN_FILE(SIGMAUNIT, "THETA_S", FSCAL = THETA_S)
-       IF(ISCAN /= 0) then
-          write(temp,'(I2)') ISCAN
-          call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
-               &# '//trim(temp),&
-               & 'For the SOUZA SIGMA COORDINATE TYPE', &
-               & 'The header must contain "THETA_S"',&
-               & 'Followed by a real value in the range 0 <= THETA_S <= 10')
-       END IF
+      IF(ISCAN /= 0) then
+         write(temp,'(I2)') ISCAN
+         call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
+              &# '//trim(temp),&
+              & 'For the SOUZA SIGMA COORDINATE TYPE', &
+              & 'The header must contain "THETA_S"',&
+              & 'Followed by a real value in the range 0 <= THETA_S <= 10')
+      END IF
 
-       ISCAN = SCAN_FILE(SIGMAUNIT, "THETA_B", FSCAL = THETA_S)
-       IF(ISCAN /= 0) then
-          write(temp,'(I2)') ISCAN
-          call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
-               &# '//trim(temp),&
-               & 'For the SOUZA SIGMA COORDINATE TYPE', &
-               & 'The header must contain "THETA_B"',&
-               & 'Followed by a real value in the range 0 <= THETA_B <= 4')
-       END IF
+      ISCAN = SCAN_FILE(SIGMAUNIT, "THETA_B", FSCAL = THETA_S)
+      IF(ISCAN /= 0) then
+         write(temp,'(I2)') ISCAN
+         call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
+              &# '//trim(temp),&
+              & 'For the SOUZA SIGMA COORDINATE TYPE', &
+              & 'The header must contain "THETA_B"',&
+              & 'Followed by a real value in the range 0 <= THETA_B <= 4')
+      END IF
 
-       ISCAN = SCAN_FILE(SIGMAUNIT, "TCLINE", FSCAL = TCLINE)
-       IF(ISCAN /= 0) then
-          write(temp,'(I2)') ISCAN
-          call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
-               &# '//trim(temp),&
-               & 'For the SOUZA SIGMA COORDINATE TYPE', &
-               & 'The header must contain "TCLINE", the effective surface layer width,',&
-               & 'Followed by a real value greater than zero.')
-       END IF
-
-!------------------------------------------------------------------------------|
-!     "ZKU"   !! 
-!------------------------------------------------------------------------------|
-   IF(KU .ge. 1 .and. KU .LE. 150)THEN
-
-     ALLOCATE(ZKU(KU)); ZKU=0.0_SP
-     ISCAN = SCAN_FILE(SIGMAUNIT,"ZKU",FVEC = ZKU ,NSZE = N1)
-     IF(ISCAN /= 0) then
-        write(temp,'(I2)') ISCAN
-        call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
-             &# '//trim(temp),&
-             & 'For GENERALIZED SIGMA COORDINATE TYPE', &
-             & 'The header must conatain "ZKU"',&
-             & 'Followed by a real values (See set_sigma.F')
-     END IF
-     
-     
-     IF(N1 /= KU)THEN
-        call fatal_error('Improper formatting of SIGMA FILE:',&
-             & 'For GENERALIZED SIGMA COORDINATE TYPE', &
-             & 'THE NUMBER OF SPECIFIED DEPTHS IN ZKU IS NOT EQUAL TO KU') 
-     END IF
-     
-
-
-  ELSE IF( KU .NE. 0) THEN
-     call fatal_error('Improper formatting of SIGMA FILE:',&
-          & 'For GENERALIZED SIGMA COORDINATE TYPE', &
-          & 'Requirement: 1<= KL <= 150;') 
-     
-  END IF
-!------------------------------------------------------------------------------|
-!     "ZKL"   !! 
-!--------------------------------------------------------------------
-   IF(KL .ge. 1 .and. KL .LE. 150)THEN
-
-     ALLOCATE(ZKL(KL)); ZKL=0.0_SP
-     ISCAN = SCAN_FILE(SIGMAUNIT,"ZKL",FVEC = ZKL ,NSZE = N1)
-     IF(ISCAN /= 0) then
-        write(temp,'(I2)') ISCAN
-        call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
-             &# '//trim(temp),&
-             & 'For GENERALIZED SIGMA COORDINATE TYPE', &
-             & 'The header must conatain "ZKL"',&
-             & 'Followed by a real values (See set_sigma.F')
-     END IF
-     
-     
-     IF(N1 /= KL)THEN
-        call fatal_error('Improper formatting of SIGMA FILE:',&
-             & 'For GENERALIZED SIGMA COORDINATE TYPE', &
-             & 'THE NUMBER OF SPECIFIED DEPTHS IN ZKL IS NOT EQUAL TO KL') 
-     END IF
-      
-   ELSE IF (KL .NE. 0) THEN
-      call fatal_error('Improper formatting of SIGMA FILE:',&
-            & 'For GENERALIZED SIGMA COORDINATE TYPE', &
-            & 'Requirement: 1<= KL <= 150;') 
-      
-   END IF
-
+      ISCAN = SCAN_FILE(SIGMAUNIT, "TCLINE", FSCAL = TCLINE)
+      IF(ISCAN /= 0) then
+         write(temp,'(I2)') ISCAN
+         call fatal_error('Improper formatting of SIGMA FILE: ISCAN ERROR&
+              &# '//trim(temp),&
+              & 'For the SOUZA SIGMA COORDINATE TYPE', &
+              & 'The header must contain "TCLINE", the effective surface layer width,',&
+              & 'Followed by a real value greater than zero.')
+      END IF
    ! END GET VARIABLES
   
   if(DBG_SET(dbg_log)) then
      WRITE(IPT,*)'!  Finished Reading SIGMA File'
      WRITE(IPT,*)'!  SIGMA COORDINATE TYPE = : '//trim(STYPE)
      WRITE(IPT,*)'!  # OF SIGMA LEVELS(KB) = : ',KB
-     WRITE(IPT,*)'!  DU                    = : ',DUU
-     WRITE(IPT,*)'!  DL                    = : ',DLL
-     WRITE(IPT,*)'!  MIN CONSTANT DEPTH    = : ',HMIN1
-     WRITE(IPT,*)'!  KU                    = : ',KU
-     WRITE(IPT,*)'!  KL                    = : ',KL
      WRITE(IPT,*)'!  THETA_S               = : ',THETA_S
      WRITE(IPT,*)'!  THETA_B               = : ',THETA_B
      WRITE(IPT,*)'!  TCLINE                = : ',TCLINE
