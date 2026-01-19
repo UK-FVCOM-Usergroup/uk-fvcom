@@ -1016,10 +1016,12 @@ CONTAINS
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
     DO K = 1, KB
-      upper_left = -((K-1)**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
+      upper_left = -((K-1)**2 - 2*(K-1)*KBM1 + (K-1) + KBM1**2 - KBM1)
       lower_left = KBM1**2 - KBM1
       upper_right = (K-1)**2 - (K-1)*KBM1
       lower_right = 1 - KBM1
+
+      KB_TMP = KB - K + 1
 
       ! Calculate sigma levels on nodes
       DO I=1,M
@@ -1037,14 +1039,14 @@ CONTAINS
          UNIFORM_SIG = ((K-1)-KBM1)/KBM1
 
          ! 3. Calculate the layer depth as a function of the bathymetry
-         Z(I,K) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
+         Z(I, KB_TMP) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
 
       END DO
 
       ! Calculate sigma levels on cells -- do we need to calculate this as well?
       ! The geometric sigma levels uses the arithmetic average, so then the average should be fine here as well...
       DO I=1,N
-         Z1(I, K) = (Z(NV(I,1),K)+Z(NV(I,2),K)+Z(NV(I,3),K))/3.0_SP
+         Z1(I, KB_TMP) = (Z(NV(I,1), KB_TMP) + Z(NV(I,2), KB_TMP) + Z(NV(I,3), KB_TMP))/3.0_SP
       END DO
     END DO
    END SUBROUTINE SIGMA_SOUZA
