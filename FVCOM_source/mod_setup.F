@@ -1015,7 +1015,7 @@ CONTAINS
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
-    write(*.*) 'Live from SIGMA SOUZA'
+    write(*,*) 'Live from SIGMA SOUZA'
     DO K = 1, KB
       upper_left = -(K**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
       lower_left = KBM1**2 - KBM1
