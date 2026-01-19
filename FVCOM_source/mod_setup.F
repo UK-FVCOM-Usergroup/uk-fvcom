@@ -1016,7 +1016,7 @@ CONTAINS
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
     DO K = 1, KB
-      upper_left = -(K**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
+      upper_left = -((K-1)**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
       lower_left = KBM1**2 - KBM1
       upper_right = (K-1)**2 - (K-1)*KBM1
       lower_right = 1 - KBM1
@@ -1034,7 +1034,7 @@ CONTAINS
          STRETCHED_SIG = (EXP(THETA_B * SURFACE_CORRECTED) - 1) / (1 - EXP(-THETA_B))
 
          ! 2. Calculate the unstretched sigma
-         UNIFORM_SIG = (K-1-KBM1)/KBM1
+         UNIFORM_SIG = ((K-1)-KBM1)/KBM1
 
          ! 3. Calculate the layer depth as a function of the bathymetry
          Z(I,K) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
