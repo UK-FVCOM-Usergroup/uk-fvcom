@@ -1046,6 +1046,7 @@ CONTAINS
       DO I=1,N
          Z1(I, K) = (Z(NV(I,1),K)+Z(NV(I,2),K)+Z(NV(I,3),K))/3.0_SP
       END DO
+      write(*,*) 'K at I=1 ', Z(1,K), ' and ', Z(2,K)
     END DO
    END SUBROUTINE SIGMA_SOUZA
 
