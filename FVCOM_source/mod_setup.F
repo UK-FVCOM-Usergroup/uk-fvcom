@@ -1015,13 +1015,14 @@ CONTAINS
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
-    write(*,*) 'Live from SIGMA SOUZA'
     DO K = 1, KB
       upper_left = -(K**2 - 2*(K-1)*KBM1 + (K-1) + KBM1*2 - KBM1)
       lower_left = KBM1**2 - KBM1
       upper_right = (K-1)**2 - (K-1)*KBM1
       lower_right = 1 - KBM1
-      
+      write(*,*) 'upper_left', upper_left, ' and lower_left ', lower_left
+      write(*,*) 'KBM1: ', KBM1
+
       ! Calculate sigma levels on nodes
       DO I=1,M
          ! 1. Calculate the stretching parameter
@@ -1039,6 +1040,16 @@ CONTAINS
 
          ! 3. Calculate the layer depth as a function of the bathymetry
          Z(I,K) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
+
+         if I .EQ. 100 then
+            write(*,*) 'TMPSIG: ', TMPSIG
+            write(*,*) 'SURFACE CORRECTED: ', SURFACE_CORRECTED
+            write(*,*) 'STRETCHED SIG: ', STRETCHED_SIG
+            write(*,*) 'UNIFORM SIG: ', UNIFORM_SIG
+            write(*,*) 'H: ', H(I)
+            write(*,*) 'TCLINE: ', TCLINE
+         end if
+
       END DO
 
       ! Calculate sigma levels on cells -- do we need to calculate this as well?
@@ -1046,7 +1057,6 @@ CONTAINS
       DO I=1,N
          Z1(I, K) = (Z(NV(I,1),K)+Z(NV(I,2),K)+Z(NV(I,3),K))/3.0_SP
       END DO
-      write(*,*) 'K at I=1 ', Z(1,K), ' and ', Z(2,K)
     END DO
    END SUBROUTINE SIGMA_SOUZA
 
