@@ -1011,7 +1011,7 @@ CONTAINS
     ! "The Vorticity Balance of the Ocean Surface in Hawaii fron a Regional Reanalysis" by Souza et. al. (2014). 
     !This is equivalent to Vstretching = 5 in ROMS (https://www.myroms.org/wiki/Vertical_S-coordinate)
     IMPLICIT NONE
-    INTEGER I, M, K
+    INTEGER I, K
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
@@ -1020,8 +1020,6 @@ CONTAINS
       lower_left = KBM1**2 - KBM1
       upper_right = (K-1)**2 - (K-1)*KBM1
       lower_right = 1 - KBM1
-      write(*,*) 'upper_left', upper_left, ' and lower_left ', lower_left
-      write(*,*) 'KBM1: ', KBM1
 
       ! Calculate sigma levels on nodes
       DO I=1,M
@@ -1040,15 +1038,6 @@ CONTAINS
 
          ! 3. Calculate the layer depth as a function of the bathymetry
          Z(I,K) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
-
-         if (I == 4000) then
-            write(*,*) 'TMPSIG: ', TMPSIG
-            write(*,*) 'SURFACE CORRECTED: ', SURFACE_CORRECTED
-            write(*,*) 'STRETCHED SIG: ', STRETCHED_SIG
-            write(*,*) 'UNIFORM SIG: ', UNIFORM_SIG
-            write(*,*) 'H: ', H(I)
-            write(*,*) 'TCLINE: ', TCLINE
-         end if
 
       END DO
 
