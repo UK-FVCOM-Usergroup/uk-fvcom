@@ -1011,7 +1011,7 @@ CONTAINS
     ! "The Vorticity Balance of the Ocean Surface in Hawaii fron a Regional Reanalysis" by Souza et. al. (2014). 
     !This is equivalent to Vstretching = 5 in ROMS (https://www.myroms.org/wiki/Vertical_S-coordinate)
     IMPLICIT NONE
-    INTEGER I, K
+    INTEGER I, K, KB_TMP
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
@@ -1021,6 +1021,7 @@ CONTAINS
       upper_right = (K-1)**2 - (K-1)*KBM1
       lower_right = 1 - KBM1
 
+      ! Loop backwards since in FVCOM, the surface is the first index and the bottom is the last.
       KB_TMP = KB - K + 1
 
       ! Calculate sigma levels on nodes
