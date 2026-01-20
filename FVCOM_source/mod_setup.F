@@ -1021,28 +1021,27 @@ CONTAINS
 
       ! 1. Calculate the stretching parameter
       !  - Calculate the Quadratic Legendre polynomial
-      upper_left = -((K - 1)**2 - 2*(K - 1)*KBM1 + (K - 1) + KBM1**2 - KBM1)
+      upper_left = -((K - 1.0_SP)**2.0_SP - 2.0_SP*(K - 1.0_SP)*KBM1 + (K - 1.0_SP) + KBM1**2 - KBM1)
       lower_left = KBM1**2 - KBM1
-      upper_right = (K - 1)**2 - (K - 1)*KBM1
-      lower_right = 1 - KBM1
+      upper_right = (K - 1.0_SP)**2.0_SP - (K - 1.0_SP)*KBM1
+      lower_right = 1.0_SP - KBM1
 
-      TMPSIG = upper_left / lower_left - 1/100 * upper_right/lower_right
+      TMPSIG = upper_left / lower_left - 1.0_SP/100.0_SP * upper_right/lower_right
 
       ! 2. Calculate the unstretched sigma
-      UNIFORM_SIG = ((K - 1) - KBM1)/KBM1
+      UNIFORM_SIG = ((K - 1.0_SP) - KBM1)/KBM1
 
       ! Apply the surface refinement function
-      SURFACE_CORRECTED = (1 - COSH(THETA_S * TMPSIG)) / (COSH(THETA_S) - 1)
+      SURFACE_CORRECTED = (1.0_SP - COSH(THETA_S * TMPSIG)) / (COSH(THETA_S) - 1.0_SP)
 
       ! And finally, apply the bottom refinement function
-      STRETCHED_SIG = (EXP(THETA_B * SURFACE_CORRECTED) - 1) / (1 - EXP(-THETA_B))
+      STRETCHED_SIG = (EXP(THETA_B * SURFACE_CORRECTED) - 1.0_SP) / (1.0_SP - EXP(-THETA_B))
 
       write(IPT, *) 'TCLINE = ', TCLINE, ' UNIFORM_SIG = ', UNIFORM_SIG, ' SURFACE_CORRECTED = ', SURFACE_CORRECTED
       ! Calculate sigma levels on nodes
       DO I=1,M
          ! 3. Calculate the layer depth as a function of the bathymetry
          Z(I, K_REVERSE) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
-
       END DO
       
       ! Report the values back then
