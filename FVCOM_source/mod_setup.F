@@ -1037,15 +1037,11 @@ CONTAINS
       ! And finally, apply the bottom refinement function
       STRETCHED_SIG = (EXP(THETA_B * SURFACE_CORRECTED) - 1.0_SP) / (1.0_SP - EXP(-THETA_B))
 
-      write(IPT, *) 'TCLINE = ', TCLINE, ' UNIFORM_SIG = ', UNIFORM_SIG, ' SURFACE_CORRECTED = ', SURFACE_CORRECTED
       ! Calculate sigma levels on nodes
       DO I=1,M
          ! 3. Calculate the layer depth as a function of the bathymetry
          Z(I, K_REVERSE) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
       END DO
-      
-      ! Report the values back then
-      write(IPT, *) 'K_REVERSE = ', K_REVERSE, '. K = ', K,'. Z(1, K_REVERSE) = ', Z(1, K_REVERSE)
 
       ! Calculate sigma levels on cells -- do we need to calculate this as well?
       ! The geometric sigma levels uses the arithmetic average, so then the average should be fine here as well...
