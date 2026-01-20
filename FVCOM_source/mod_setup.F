@@ -1011,18 +1011,18 @@ CONTAINS
     ! "The Vorticity Balance of the Ocean Surface in Hawaii fron a Regional Reanalysis" by Souza et. al. (2014). 
     !This is equivalent to Vstretching = 5 in ROMS (https://www.myroms.org/wiki/Vertical_S-coordinate)
     IMPLICIT NONE
-    INTEGER I, K, KB_TMP
+    INTEGER I, K, K_REVERSE
     REAL(SP) :: TMPSIG, SURFACE_CORRECTED
     REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
     REAL(SP) :: upper_left, upper_right, lower_left, lower_right
-    DO K = 1, KB
-      upper_left = -((K-1)**2 - 2*(K-1)*KBM1 + (K-1) + KBM1**2 - KBM1)
+    DO K = 1,KB
+      upper_left = -((K - 1)**2 - 2*(K - 1)*KBM1 + (K - 1) + KBM1**2 - KBM1)
       lower_left = KBM1**2 - KBM1
-      upper_right = (K-1)**2 - (K-1)*KBM1
+      upper_right = (K - 1)**2 - (K - 1)*KBM1
       lower_right = 1 - KBM1
 
       ! Loop backwards since in FVCOM, the surface is the first index and the bottom is the last.
-      KB_TMP = KB - K + 1
+      K_REVERSE = KB + 1 - K
 
       ! Calculate sigma levels on nodes
       DO I=1,M
@@ -1037,17 +1037,17 @@ CONTAINS
          STRETCHED_SIG = (EXP(THETA_B * SURFACE_CORRECTED) - 1) / (1 - EXP(-THETA_B))
 
          ! 2. Calculate the unstretched sigma
-         UNIFORM_SIG = ((K-1)-KBM1)/KBM1
+         UNIFORM_SIG = ((K - 1) - KBM1)/KBM1
 
          ! 3. Calculate the layer depth as a function of the bathymetry
-         Z(I, KB_TMP) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
+         Z(I, K_REVERSE) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
 
       END DO
 
       ! Calculate sigma levels on cells -- do we need to calculate this as well?
       ! The geometric sigma levels uses the arithmetic average, so then the average should be fine here as well...
       DO I=1,N
-         Z1(I, KB_TMP) = (Z(NV(I,1), KB_TMP) + Z(NV(I,2), KB_TMP) + Z(NV(I,3), KB_TMP))/3.0_SP
+         Z1(I, K_REVERSE) = (Z(NV(I,1), K_REVERSE) + Z(NV(I,2), K_REVERSE) + Z(NV(I,3), K_REVERSE))/3.0_SP
       END DO
     END DO
    END SUBROUTINE SIGMA_SOUZA
