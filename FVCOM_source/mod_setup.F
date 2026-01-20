@@ -1024,6 +1024,8 @@ CONTAINS
       ! Loop backwards since in FVCOM, the surface is the first index and the bottom is the last.
       K_REVERSE = KB + 1 - K
 
+      write(*,*) 'K_REVERSE = ', K_REVERSE
+
       ! Calculate sigma levels on nodes
       DO I=1,M
          ! 1. Calculate the stretching parameter
@@ -1043,6 +1045,9 @@ CONTAINS
          Z(I, K_REVERSE) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
 
       END DO
+      
+      write(*,*) 'Z(40000, K_REVERSE) = ', Z(40000, K_REVERSE)
+      write(*,*)
 
       ! Calculate sigma levels on cells -- do we need to calculate this as well?
       ! The geometric sigma levels uses the arithmetic average, so then the average should be fine here as well...
