@@ -1007,48 +1007,65 @@ CONTAINS
 ! -------------------------------------------------------------------
 ! Added by Akvaplan Jan 7th 2026, hes
    SUBROUTINE SIGMA_SOUZA
-    ! Calculate sigma levels with surface and bottom refinement as proposed in 
-    ! "The Vorticity Balance of the Ocean Surface in Hawaii fron a Regional Reanalysis" by Souza et. al. (2014). 
-    !This is equivalent to Vstretching = 5 in ROMS (https://www.myroms.org/wiki/Vertical_S-coordinate)
-    IMPLICIT NONE
-    INTEGER I, K, K_REVERSE
-    REAL(SP) :: TMPSIG, SURFACE_CORRECTED
-    REAL(SP) :: STRETCHED_SIG, UNIFORM_SIG
-    REAL(SP) :: upper_left, upper_right, lower_left, lower_right
-    DO K = 1,KB
-      ! Loop backwards since in FVCOM, the surface is the first index and the bottom is the last.
-      K_REVERSE = KB + 1 - K
+      ! Souza et al. (2015), quadratic sigma and double stretching
+      ! Implemented using ChatGPT
+      IMPLICIT NONE
+      INTEGER :: I, K
+      REAL(SP) :: NLEV, X, Q, SIGMA, C_SURFACE, C_STRETCHED
 
-      ! 1. Calculate the stretching parameter
-      !  - Calculate the Quadratic Legendre polynomial
-      upper_left = -((K - 1.0_SP)**2.0_SP - 2.0_SP*(K - 1.0_SP)*KBM1 + (K - 1.0_SP) + KBM1**2 - KBM1)
-      lower_left = KBM1**2 - KBM1
-      upper_right = (K - 1.0_SP)**2.0_SP - (K - 1.0_SP)*KBM1
-      lower_right = 1.0_SP - KBM1
+      ! For this particular quadratic formula, the siglay-points lie between consecutive siglev-points only for 8 <= KBM1 <= 199.
+      IF (KBM1 < 8 .OR. KBM1 > 199) &
+           CALL FATAL_ERROR('SIGMA_SOUZA', 'Requires 8 <= KBM1 <= 199')
+      IF (THETA_S < 0.0_SP .OR. THETA_S > 10.0_SP) &
+           CALL FATAL_ERROR('SIGMA_SOUZA', 'Requires 0 <= THETA_S <= 10')
+      IF (THETA_B < 0.0_SP .OR. THETA_B > 4.0_SP) &
+           CALL FATAL_ERROR('SIGMA_SOUZA', 'Requires 0 <= THETA_B <= 4')
+      IF (TCLINE <= 0.0_SP) &
+           CALL FATAL_ERROR('SIGMA_SOUZA', 'TCLINE must be positive')
+      IF (ANY(H(1:M) <= 0.0_SP)) &
+           CALL FATAL_ERROR('SIGMA_SOUZA', 'Water depth H must be positive')
 
-      TMPSIG = upper_left / lower_left - 1.0_SP/100.0_SP * upper_right/lower_right
+      NLEV = REAL(KBM1, SP)
 
-      ! 2. Calculate the unstretched sigma
-      UNIFORM_SIG = ((K - 1.0_SP) - KBM1)/KBM1
+      DO K = 1, KB
+         ! Reversed W-point index: X=N at surface, X=0 at bottom.
+         X = REAL(KB-K, SP)
+         Q = NLEV-X
 
-      ! Apply the surface refinement function
-      SURFACE_CORRECTED = (1.0_SP - COSH(THETA_S * TMPSIG)) / (COSH(THETA_S) - 1.0_SP)
+         ! Souza quadratic fractional vertical coordinate, sigma(X).
+         ! The factored form avoids cancellation of large terms.
+         SIGMA = -Q*(Q-1.0_SP)/(NLEV*(NLEV-1.0_SP)) - 0.01_SP*X*Q/(NLEV-1.0_SP)
 
-      ! And finally, apply the bottom refinement function
-      STRETCHED_SIG = (EXP(THETA_B * SURFACE_CORRECTED) - 1.0_SP) / (1.0_SP - EXP(-THETA_B))
+         ! Surface refinement: limit at THETA_S=0 is -SIGMA**2.
+         IF (THETA_S > 0.0_SP) THEN
+            C_SURFACE = -(SINH(0.5_SP*THETA_S*SIGMA) / SINH(0.5_SP*THETA_S))**2
+         ELSE
+            C_SURFACE = -SIGMA**2
+         END IF
 
-      ! Calculate sigma levels on nodes
-      DO I=1,M
-         ! 3. Calculate the layer depth as a function of the bathymetry
-         Z(I, K_REVERSE) = (TCLINE*UNIFORM_SIG + H(I)*STRETCHED_SIG) / (TCLINE + H(I))
+         ! Bottom refinement: limit at THETA_B=0 is C_SURFACE.
+         ! Equivalent to (EXP(THETA_B*C_SURFACE)-1) /
+         !               (1-EXP(-THETA_B)), but more stable.
+         IF (THETA_B > 0.0_SP) THEN
+            C_STRETCHED = EXP(0.5_SP*THETA_B*(C_SURFACE+1.0_SP)) &
+                          * SINH(0.5_SP*THETA_B*C_SURFACE) &
+                          / SINH(0.5_SP*THETA_B)
+         ELSE
+            C_STRETCHED = C_SURFACE
+         END IF
+
+         DO I = 1, M
+            Z(I,K) = (TCLINE*SIGMA + H(I)*C_STRETCHED)  / (TCLINE + H(I))
+         END DO
       END DO
 
-      ! Calculate sigma levels on cells -- do we need to calculate this as well?
-      ! The geometric sigma levels uses the arithmetic average, so then the average should be fine here as well...
-      DO I=1,N
-         Z1(I, K_REVERSE) = (Z(NV(I,1), K_REVERSE) + Z(NV(I,2), K_REVERSE) + Z(NV(I,3), K_REVERSE))/3.0_SP
+      ! element-centre levels
+      DO K = 1, KB
+         DO I = 1, N
+            Z1(I,K) = (Z(NV(I,1),K) + Z(NV(I,2),K) &
+                       + Z(NV(I,3),K))/3.0_SP
+         END DO
       END DO
-    END DO
    END SUBROUTINE SIGMA_SOUZA
 
 !--------------------------------------------------------------------
