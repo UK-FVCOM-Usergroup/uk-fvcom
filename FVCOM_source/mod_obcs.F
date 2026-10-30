@@ -1197,6 +1197,40 @@ CONTAINS
   END SUBROUTINE SETUP_OBC
   !==============================================================================|
 
+  !==============================================================================|
+  LOGICAL FUNCTION OBC_OUTFLOW(I)
+    !==============================================================================|
+    ! .TRUE. if water leaves the domain at open boundary node I (local OBC index).  |
+    ! Used by the tracer OBCs (T/S, BIO, FABM) to choose between upwinding the      |
+    ! interior value (outflow) and the prescribed/nudged value (inflow).            |
+    !                                                                              |
+    ! OBC_TS_EDGE_FLOW = .TRUE.: sign of the depth-mean velocity of the adjacent    |
+    !   open-boundary edge cells normal to the boundary (FLUXF_OBC weights).        |
+    ! OBC_TS_EDGE_FLOW = .FALSE. (old): sign of UARD_OBCN, the continuity defect of |
+    !   the node's control volume. That defect also contains the along-boundary     |
+    !   exchange with the neighbouring OBC nodes, so it can alternate in sign from  |
+    !   node to node when there is no flow through the boundary at all.             |
+    !==============================================================================|
+    USE ALL_VARS, ONLY : UA,VA
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: I
+    INTEGER  :: IC
+    REAL(SP) :: QOUT
+
+    IF(OBC_TS_EDGE_FLOW) THEN
+       QOUT = 0.0_SP
+       DO IC=1,NADJC_OBC(I)
+          QOUT = QOUT - FLUXF_OBC(I,IC)*(UA(ADJC_OBC(I,IC))*NXOBC(I)   &
+               &                       + VA(ADJC_OBC(I,IC))*NYOBC(I))
+       END DO
+    ELSE
+       QOUT = UARD_OBCN(I)
+    END IF
+    OBC_OUTFLOW = QOUT > 0.0_SP
+
+  END FUNCTION OBC_OUTFLOW
+  !==============================================================================|
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%|
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%|
 

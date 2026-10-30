@@ -2287,7 +2287,7 @@ END SUBROUTINE FABM_ADV
      DO IFABM=1,size(model%interior_state_variables)
        DO I=1,IOBCN
          J=I_OBC_N(I)
-         IF(UARD_OBCN(I) > 0.0_SP) THEN
+         IF(OBC_OUTFLOW(I)) THEN
            ! Outward flow over open boundary. Imposed boundary condition has no effect.
            J1=NEXT_OBC(I)
 

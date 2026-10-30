@@ -835,7 +835,7 @@ END SUBROUTINE BIO_3D1D
            T2D_NEXT=T2D_NEXT+BIO_F(J1,K,N1)*DZ(J1,K)
            XFLUX2D=XFLUX2D+XFLUX_OBCB(I,K,N1)           !*DZ(K)
          END DO
-         IF(UARD_OBCN(I) > 0.0_SP) THEN
+         IF(OBC_OUTFLOW(I)) THEN
            TMP=XFLUX2D+T2D*UARD_OBCN(I)
            T2D_OBC=(T2D*DT(J)-TMP*DTI/ART1(J))/D(J)
            DO K=1,KBM1

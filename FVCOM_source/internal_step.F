@@ -599,6 +599,22 @@ SUBROUTINE INTERNAL_STEP
              & TRIM(BAROCLINIC_PRESSURE_GRADIENT))
      END SELECT
 
+     ! Open-boundary edge cells (ISBCE=2) get no baroclinic PG. The 3-D
+     ! momentum equation already drops it there (XFLUX=0 in ADV_UV_EDGE_*),
+     ! so without this only the external mode feels it, through DRX2D. Two of
+     ! the cell's three nodes have prescribed elevation and the cell has no
+     ! horizontal momentum fluxes, so nothing can balance it: density
+     ! differences between neighbouring OBC nodes then drive a steady,
+     ! depth-uniform, sign-alternating jet along the OBC row (obc_fix.md).
+     IF(.NOT. OBC_EDGE_BAROCLINIC_PG) THEN
+        DO I=1,N
+           IF(ISBCE(I) == 2) THEN
+              DRHOX(I,1:KBM1) = 0.0_SP
+              DRHOY(I,1:KBM1) = 0.0_SP
+           END IF
+        END DO
+     END IF
+
   END IF                                      !                             !
 
 # if !defined (SEMI_IMPLICIT)

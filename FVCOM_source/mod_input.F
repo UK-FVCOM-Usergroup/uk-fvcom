@@ -504,6 +504,8 @@ CONTAINS
     OBC_TIDEOUT_INITIAL  = 0       !TIME STEPS
     OBC_TIDEOUT_INTERVAL = 0       !TIME STEPS
     OBC_DEPTH_CONTROL_ON = .TRUE.
+    OBC_EDGE_BAROCLINIC_PG = .FALSE.
+    OBC_TS_EDGE_FLOW = .TRUE.
 
     !--Parameters in NameList GRID_COORDINATES
     GRID_FILE = trim(casename)//"_grd.dat"
