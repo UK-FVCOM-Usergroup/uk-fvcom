@@ -748,6 +748,8 @@ SUBROUTINE INTERNAL_STEP
      
      
   END DO
+  IF(NESTING_ON .AND. TRIM(NESTING_TYPE)=='4') &
+       & CALL NEST4_CORRECT_BAROTROPIC(IntTime)
 # endif
 
 # if defined (THIN_DAM)

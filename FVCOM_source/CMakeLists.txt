@@ -81,6 +81,7 @@ target_sources(fvcom
     mod_enkf_obs.F
     mod_enkfassim.F
     mod_assim.F
+    mod_nesting_type4.F
     mod_nesting.F
     mod_visit.F
     mod_plbc.F

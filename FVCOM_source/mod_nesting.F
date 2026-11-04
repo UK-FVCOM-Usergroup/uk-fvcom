@@ -32,6 +32,8 @@ Module Mod_Nesting
   use mod_ncdio
   use mod_par
   use sinter
+  use mod_nesting_type4, only: nest4_relax_weight, nest4_relax_shear, nest4_project_transport
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   implicit none
 
   SAVE
@@ -159,12 +161,18 @@ Module Mod_Nesting
   !                            values from the NCNEST output of large domain
   !                            FVCOM model plus the Forman tidal analysis 
   !                            elevations and velocities
-  !  3:  RELAXATION NESTING -- The nesting with a relaxation method (an example
-  !                            is to get nesting data from HYCOM)
+  !  3:  RELAXATION NESTING -- Direct per-step state blending (legacy)
+  !  4:  PHYSICAL-TIMESCALE NESTING: hard OBC elevation/T/S,
+  !      interior T/S and shear relaxation, conservative barotropic correction.
   LOGICAL NESTING_ON                   !!TRUE IF OUTPUT RESART FILES
-  CHARACTER(LEN=80) NESTING_TYPE       !!TYPE OF NESTING: 1, 2, 3
+  CHARACTER(LEN=80) NESTING_TYPE       !!TYPE OF NESTING: 1, 2, 3, 4
   INTEGER :: NESTING_BLOCKSIZE         !!SIZE OF DATA BLOCKS IN FILE
   CHARACTER(LEN=80) NESTING_FILE_NAME  !!NAME OF RESTART FILE
+  REAL(SP) :: NESTING_TAU_TS           !!T/S relaxation timescale [seconds]
+  REAL(SP) :: NESTING_TAU_SHEAR        !!3-D shear relaxation timescale [seconds]
+  REAL(SP) :: NESTING_TAU_ETA          !!Barotropic SSH e-folding time [seconds]
+  REAL(SP) :: NESTING_TAU_TRANSPORT    !!Soft transport e-folding time [seconds]
+  REAL(SP) :: NESTING_MAX_CORRECTION_SPEED  !!Abort if |delta Q| / depth exceeds threshold [m/s]
 # if defined (FABM)
   LOGICAL FABM_NESTING_ON
 !  LOGICAL FABM_NCNEST_ON
@@ -177,7 +185,12 @@ Module Mod_Nesting
 # endif
        & NESTING_TYPE,       &
        & NESTING_BLOCKSIZE,  &
-       & NESTING_FILE_NAME
+       & NESTING_FILE_NAME,  &
+       & NESTING_TAU_TS,        &
+       & NESTING_TAU_SHEAR,     &
+       & NESTING_TAU_ETA,       &
+       & NESTING_TAU_TRANSPORT, &
+       & NESTING_MAX_CORRECTION_SPEED
 
 
   !--Parameters in NameList NML_NCNEST
@@ -238,9 +251,14 @@ CONTAINS
 # if defined (FABM)
     FABM_NESTING_ON = .FALSE.
 # endif
-    NESTING_TYPE = "'1' or '2' or '3'"
+    NESTING_TYPE = "'1' or '2' or '3' or '4'"
     NESTING_BLOCKSIZE = -1
     NESTING_FILE_NAME = trim(casename)//"_nesting.nc"
+    NESTING_TAU_TS = 43200.0_SP
+    NESTING_TAU_SHEAR = 10800.0_SP
+    NESTING_TAU_ETA = 21600.0_SP
+    NESTING_TAU_TRANSPORT = 7200.0_SP
+    NESTING_MAX_CORRECTION_SPEED = 5.0_SP
 
     !--Parameters in NameList NML_NCNEST
     NCNEST_ON = .FALSE.
@@ -386,6 +404,34 @@ CONTAINS
 
        IF(LEN_TRIM(NESTING_FILE_NAME) == 0 ) CALL FATAL_ERROR &
             & ("THE NESTING FILE NAME IS EMPTY IN THE NAME LIST")
+
+       IF(TRIM(NESTING_TYPE) == '4') THEN
+          IF(.NOT. IEEE_IS_FINITE(NESTING_TAU_TS) .OR. NESTING_TAU_TS <= 0.0_SP) &
+               CALL FATAL_ERROR("TYPE 4: NESTING_TAU_TS MUST BE POSITIVE")
+          IF(.NOT. IEEE_IS_FINITE(NESTING_TAU_SHEAR) .OR. NESTING_TAU_SHEAR <= 0.0_SP) &
+               CALL FATAL_ERROR("TYPE 4: NESTING_TAU_SHEAR MUST BE POSITIVE")
+          IF(.NOT. IEEE_IS_FINITE(NESTING_TAU_ETA) .OR. NESTING_TAU_ETA <= 0.0_SP) &
+               CALL FATAL_ERROR("TYPE 4: NESTING_TAU_ETA MUST BE POSITIVE")
+          IF(.NOT. IEEE_IS_FINITE(NESTING_TAU_TRANSPORT) .OR. NESTING_TAU_TRANSPORT <= 0.0_SP) &
+               CALL FATAL_ERROR("TYPE 4: NESTING_TAU_TRANSPORT MUST BE POSITIVE")
+          IF(.NOT. IEEE_IS_FINITE(NESTING_MAX_CORRECTION_SPEED) .OR. &
+               & NESTING_MAX_CORRECTION_SPEED <= 0.0_SP) &
+               CALL FATAL_ERROR('TYPE 4: NESTING_MAX_CORRECTION_SPEED MUST BE POSITIVE')
+# if defined (SEMI_IMPLICIT) || defined (NH) || defined (WET_DRY) || defined (MEAN_FLOW) || defined (TWO_D_MODEL) || defined (ONE_D_MODEL) || defined (ISOMIP)
+          CALL FATAL_ERROR("TYPE 4: UNSUPPORTED BUILD CONFIGURATION")
+# endif
+# if defined (FABM)
+          IF(FABM_NESTING_ON) CALL FATAL_ERROR("TYPE 4: FABM NESTING NOT SUPPORTED")
+# endif
+          IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) &
+               'TYPE 4: CONSERVATIVE BAROTROPIC PROJECTION (EXPERIMENTAL).'
+# if defined (PLBC)
+          CALL FATAL_ERROR('TYPE 4: PLBC NOT SUPPORTED IN PROJECTION')
+# endif
+# if defined (ICESHELF)
+          CALL FATAL_ERROR('TYPE 4: ICE SHELF NOT VALIDATED')
+# endif
+       END IF
 
     END IF
 
@@ -1845,8 +1891,8 @@ END SUBROUTINE GENMAP_NESTING
 # endif
 
 ! songhu
-       IF(TRIM(NESTING_TYPE) == '3')THEN 
-       
+       IF(TRIM(NESTING_TYPE) == '3' .OR. TRIM(NESTING_TYPE) == '4')THEN
+
        VAR => FIND_VAR(NESTING_FILE,"weight_cell",FOUND)
        IF(.not. FOUND) CALL FATAL_ERROR &
             & ("IN NESTING FILE OBJECT NO 'weight_cell' FOUND?")
@@ -2840,6 +2886,8 @@ END SUBROUTINE GENMAP_NESTING
     REAL(SP), DIMENSION(KBM1)   :: VARZ    !Variable in standary Z levels 
     REAL(SP), DIMENSION(KBM1_L)  :: ZM      !Depth (m) in every sigma levels for giving node
     REAL(SP), DIMENSION(KBM1_L)  :: VARS    !Variable AT SIGMA LEVELS
+    REAL(SP), DIMENSION(KBM1)    :: NEST4_SHEAR_NEW
+    REAL(SP)                    :: NEST4_W
 
  
     REAL(DP)     :: denom, numer
@@ -2896,6 +2944,12 @@ END SUBROUTINE GENMAP_NESTING
 !!$    ! GET THE DATA
 !!$    DAT = NEXT_W * BLK_DAT(:,:,NEXT_I) + PREV_W * BLK_DAT(:,:,PREV_I)
 
+    ! Type 4 treats the 2-D velocity components together in the conservative
+    ! barotropic correction, not through independent legacy SET_VAR blending.
+    IF(TRIM(NESTING_TYPE) == '4') THEN
+       IF(PRESENT(UA) .OR. PRESENT(VA)) RETURN
+    END IF
+
     IF(PRESENT(UA)) THEN
        UA_NEST =  NESTING_DATA%UA_BLK(:,PREV) * PREV_W +&
                 & NESTING_DATA%UA_BLK(:,NEXT) * NEXT_W
@@ -2935,7 +2989,13 @@ END SUBROUTINE GENMAP_NESTING
     
        DO I = 1, NESTING_GRID%MT
          I_TMP = NESTING_GRID%NLID_X(I)
-         EL(I_TMP) =  EL_NEST(I) * WNODE_NEST(I) + EL(I_TMP) * (1_SP - WNODE_NEST(I)) 
+         IF(TRIM(NESTING_TYPE) == '4') THEN
+            ! Clamp OBC elevation after RK-stage scaling; interior elevation
+            ! is relaxed together with transport in NEST4_CORRECT_BAROTROPIC.
+            IF(ISONB(I_TMP) == 2) EL(I_TMP) = EL_NEST(I)
+         ELSE
+            EL(I_TMP) = EL_NEST(I) * WNODE_NEST(I) + EL(I_TMP) * (1_SP - WNODE_NEST(I))
+         END IF
        END DO
 
     ELSEIF(PRESENT(U)) THEN
@@ -2943,8 +3003,9 @@ END SUBROUTINE GENMAP_NESTING
                 & NESTING_DATA%U_BLK(:,:,NEXT) * NEXT_W
 		
        WCELL_NEST = 1.0_SP
-       IF(TRIM(NESTING_TYPE) == '3') WCELL_NEST =  NESTING_DATA%WCELL_BLK(:,PREV) * PREV_W +&
-                & NESTING_DATA%WCELL_BLK(:,NEXT) * NEXT_W
+       IF(TRIM(NESTING_TYPE) == '3' .OR. TRIM(NESTING_TYPE) == '4') &
+            WCELL_NEST = NESTING_DATA%WCELL_BLK(:,PREV) * PREV_W + &
+            & NESTING_DATA%WCELL_BLK(:,NEXT) * NEXT_W
 
        DO I = 1, NESTING_GRID%NT
          I_TMP = NESTING_GRID%ELID_X(I)
@@ -2953,7 +3014,15 @@ END SUBROUTINE GENMAP_NESTING
          VARS(1:KBM1_L) = U_NEST_L(I,1:KBM1_L)
          VARZ(1:KBM1) = U_NEST(I,1:KBM1)
          CALL SINTER_EXTRP_NONE(ZM,VARS,PHY_Z,VARZ,KBM1_L,KBM1)
-         U(I_TMP,1:KBM1) =  VARZ(1:KBM1) * WCELL_NEST(I) + U(I_TMP,1:KBM1) * (1_SP -  WCELL_NEST(I))
+         IF(TRIM(NESTING_TYPE) == '4') THEN
+            NEST4_W = NEST4_CELL_WEIGHT(I,DTI,NESTING_TAU_SHEAR)
+            CALL NEST4_RELAX_SHEAR(U(I_TMP,1:KBM1),VARZ(1:KBM1), &
+                 & DZ1(I_TMP,1:KBM1),NEST4_W,NEST4_SHEAR_NEW)
+            U(I_TMP,1:KBM1) = NEST4_SHEAR_NEW
+         ELSE
+            U(I_TMP,1:KBM1) = VARZ(1:KBM1) * WCELL_NEST(I) &
+                 & + U(I_TMP,1:KBM1) * (1_SP - WCELL_NEST(I))
+         END IF
 !         CALL SINTER_EXTRP_NONE(ZZ1_L(I,1:KBM1_L),U_NEST_L(I,1:KBM1_L),ZZ1(I_TMP,1:KBM1),U_NEST(I,1:KBM1),KBM1_L,KBM1)
 !         U(I_TMP,:) =  U_NEST(I,:) * WCELL_NEST(I) + U(I_TMP,:) * (1_SP -  WCELL_NEST(I))
        END DO
@@ -2963,8 +3032,9 @@ END SUBROUTINE GENMAP_NESTING
                 & NESTING_DATA%V_BLK(:,:,NEXT) * NEXT_W
 
        WCELL_NEST = 1.0_SP
-       IF(TRIM(NESTING_TYPE) == '3') WCELL_NEST =  NESTING_DATA%WCELL_BLK(:,PREV) * PREV_W +&
-                & NESTING_DATA%WCELL_BLK(:,NEXT) * NEXT_W
+       IF(TRIM(NESTING_TYPE) == '3' .OR. TRIM(NESTING_TYPE) == '4') &
+            WCELL_NEST = NESTING_DATA%WCELL_BLK(:,PREV) * PREV_W + &
+            & NESTING_DATA%WCELL_BLK(:,NEXT) * NEXT_W
 
        DO I = 1, NESTING_GRID%NT
          I_TMP = NESTING_GRID%ELID_X(I)
@@ -2973,7 +3043,15 @@ END SUBROUTINE GENMAP_NESTING
          VARS(1:KBM1_L) = V_NEST_L(I,1:KBM1_L)
          VARZ(1:KBM1) = V_NEST(I,1:KBM1)
          CALL SINTER_EXTRP_NONE(ZM,VARS,PHY_Z,VARZ,KBM1_L,KBM1)
-         V(I_TMP,1:KBM1) =  VARZ(1:KBM1) * WCELL_NEST(I) + V(I_TMP,1:KBM1) * (1_SP -  WCELL_NEST(I))
+         IF(TRIM(NESTING_TYPE) == '4') THEN
+            NEST4_W = NEST4_CELL_WEIGHT(I,DTI,NESTING_TAU_SHEAR)
+            CALL NEST4_RELAX_SHEAR(V(I_TMP,1:KBM1),VARZ(1:KBM1), &
+                 & DZ1(I_TMP,1:KBM1),NEST4_W,NEST4_SHEAR_NEW)
+            V(I_TMP,1:KBM1) = NEST4_SHEAR_NEW
+         ELSE
+            V(I_TMP,1:KBM1) = VARZ(1:KBM1) * WCELL_NEST(I) &
+                 & + V(I_TMP,1:KBM1) * (1_SP - WCELL_NEST(I))
+         END IF
 !         CALL SINTER_EXTRP_NONE(ZZ1_L(I,1:KBM1_L),V_NEST_L(I,1:KBM1_L),ZZ1(I_TMP,1:KBM1),V_NEST(I,1:KBM1),KBM1_L,KBM1)
 !         V(I_TMP,:) =  V_NEST(I,:)  * WCELL_NEST(I) + V(I_TMP,:) * (1_SP -  WCELL_NEST(I))
        END DO
@@ -2983,8 +3061,9 @@ END SUBROUTINE GENMAP_NESTING
                 & NESTING_DATA%S1_BLK(:,:,NEXT) * NEXT_W
 
        WNODE_NEST = 1.0_SP
-       IF(TRIM(NESTING_TYPE) == '3') WNODE_NEST =  NESTING_DATA%WNODE_BLK(:,PREV) * PREV_W +&
-                & NESTING_DATA%WNODE_BLK(:,NEXT) * NEXT_W
+       IF(TRIM(NESTING_TYPE) == '3' .OR. TRIM(NESTING_TYPE) == '4') &
+            WNODE_NEST = NESTING_DATA%WNODE_BLK(:,PREV) * PREV_W + &
+            & NESTING_DATA%WNODE_BLK(:,NEXT) * NEXT_W
 
        DO I = 1, NESTING_GRID%MT
          I_TMP = NESTING_GRID%NLID_X(I)
@@ -2993,7 +3072,14 @@ END SUBROUTINE GENMAP_NESTING
          VARS(1:KBM1_L) = S1_NEST_L(I,1:KBM1_L)
          VARZ(1:KBM1) = S1_NEST(I,1:KBM1)
          CALL SINTER_EXTRP_NONE(ZM,VARS,PHY_Z,VARZ,KBM1_L,KBM1)
-         S1(I_TMP,1:KBM1) =  VARZ(1:KBM1) * WNODE_NEST(I) + S1(I_TMP,1:KBM1) * (1_SP -  WNODE_NEST(I))
+         IF(TRIM(NESTING_TYPE) == '4') THEN
+            NEST4_W = NEST4_NODE_WEIGHT(I,DTI,NESTING_TAU_TS)
+            S1(I_TMP,1:KBM1) = VARZ(1:KBM1)*NEST4_W &
+                 & + S1(I_TMP,1:KBM1)*(1.0_SP-NEST4_W)
+         ELSE
+            S1(I_TMP,1:KBM1) = VARZ(1:KBM1)*WNODE_NEST(I) &
+                 & + S1(I_TMP,1:KBM1)*(1.0_SP-WNODE_NEST(I))
+         END IF
 !         CALL SINTER_EXTRP_NONE(ZZ_L(I,1:KBM1_L),S1_NEST_L(I,1:KBM1_L),ZZ(I_TMP,1:KBM1),S1_NEST(I,1:KBM1),KBM1_L,KBM1)
 !         S1(I_TMP,:) =  S1_NEST(I,:) * WNODE_NEST(I) + S1(I_TMP,:) * (1_SP - WNODE_NEST(I))
        END DO
@@ -3003,8 +3089,9 @@ END SUBROUTINE GENMAP_NESTING
                 & NESTING_DATA%T1_BLK(:,:,NEXT) * NEXT_W
 
        WNODE_NEST = 1.0_SP
-       IF(TRIM(NESTING_TYPE) == '3') WNODE_NEST =  NESTING_DATA%WNODE_BLK(:,PREV) * PREV_W +&
-                & NESTING_DATA%WNODE_BLK(:,NEXT) * NEXT_W
+       IF(TRIM(NESTING_TYPE) == '3' .OR. TRIM(NESTING_TYPE) == '4') &
+            WNODE_NEST = NESTING_DATA%WNODE_BLK(:,PREV) * PREV_W + &
+            & NESTING_DATA%WNODE_BLK(:,NEXT) * NEXT_W
 
        DO I = 1, NESTING_GRID%MT
          I_TMP = NESTING_GRID%NLID_X(I)
@@ -3013,7 +3100,14 @@ END SUBROUTINE GENMAP_NESTING
          VARS(1:KBM1_L) = T1_NEST_L(I,1:KBM1_L)
          VARZ(1:KBM1) = T1_NEST(I,1:KBM1)
          CALL SINTER_EXTRP_NONE(ZM,VARS,PHY_Z,VARZ,KBM1_L,KBM1)
-         T1(I_TMP,1:KBM1) =  VARZ(1:KBM1) * WNODE_NEST(I) + T1(I_TMP,1:KBM1) * (1_SP -  WNODE_NEST(I))
+         IF(TRIM(NESTING_TYPE) == '4') THEN
+            NEST4_W = NEST4_NODE_WEIGHT(I,DTI,NESTING_TAU_TS)
+            T1(I_TMP,1:KBM1) = VARZ(1:KBM1)*NEST4_W &
+                 & + T1(I_TMP,1:KBM1)*(1.0_SP-NEST4_W)
+         ELSE
+            T1(I_TMP,1:KBM1) = VARZ(1:KBM1)*WNODE_NEST(I) &
+                 & + T1(I_TMP,1:KBM1)*(1.0_SP-WNODE_NEST(I))
+         END IF
 !         CALL SINTER_EXTRP_NONE(ZZ_L(I,1:KBM1_L),T1_NEST_L(I,1:KBM1_L),ZZ(I_TMP,1:KBM1),T1_NEST(I,1:KBM1),KBM1_L,KBM1)
 !         T1(I_TMP,:) =  T1_NEST(I,:) * WNODE_NEST(I) + T1(I_TMP,:) * (1_SP - WNODE_NEST(I))
        END DO
@@ -3122,6 +3216,206 @@ END SUBROUTINE GENMAP_NESTING
     
   END SUBROUTINE SET_VAR
 
+  REAL(SP) FUNCTION NEST4_NODE_WEIGHT(I,DT,TAU) RESULT(W)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: I
+    REAL(SP), INTENT(IN) :: DT,TAU
+    INTEGER :: J
+    REAL(SP) :: ALPHA_NEST
+    J = NESTING_GRID%NLID_X(I)
+    ALPHA_NEST = WNODE_NEST(I)
+    IF(.NOT. IEEE_IS_FINITE(ALPHA_NEST) .OR. ALPHA_NEST < 0.0_SP &
+         & .OR. ALPHA_NEST > 1.0_SP) &
+         CALL FATAL_ERROR("TYPE 4: INVALID weight_node, MUST BE FINITE IN [0,1]")
+    ! Land and OBC have different priorities: no nudging at land nodes;
+    ! hard clamping at OBC nodes, regardless of alpha.
+    IF(ISONB(J) == 1) THEN
+       W = 0.0_SP
+    ELSE
+       W = NEST4_RELAX_WEIGHT(ALPHA_NEST,DT,TAU,ISONB(J) == 2)
+    END IF
+  END FUNCTION NEST4_NODE_WEIGHT
+
+  REAL(SP) FUNCTION NEST4_CELL_WEIGHT(I,DT,TAU) RESULT(W)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: I
+    REAL(SP), INTENT(IN) :: DT,TAU
+    INTEGER :: J
+    REAL(SP) :: ALPHA_NEST
+    J = NESTING_GRID%ELID_X(I)
+    ALPHA_NEST = WCELL_NEST(I)
+    IF(.NOT. IEEE_IS_FINITE(ALPHA_NEST) .OR. ALPHA_NEST < 0.0_SP &
+         & .OR. ALPHA_NEST > 1.0_SP) &
+         CALL FATAL_ERROR("TYPE 4: INVALID weight_cell, MUST BE FINITE IN [0,1]")
+    ! Never destroy the no-normal-flow land boundary projection.
+    IF(ISBCE(J) == 1 .OR. ISBCE(J) == 3) THEN
+       W = 0.0_SP
+    ELSE
+       W = NEST4_RELAX_WEIGHT(ALPHA_NEST,DT,TAU,ISBCE(J) == 2)
+    END IF
+  END FUNCTION NEST4_CELL_WEIGHT
+
+  ! Conservative operator-split transport/SSH update, once per internal DTI.
+  ! Never mutate FVCOM state until the projection converges and has been checked.
+  SUBROUTINE NEST4_CORRECT_BAROTROPIC(NOW)
+# if defined (SPHERICAL)
+    USE MOD_NORTHPOLE, ONLY : NODE_NORTHPOLE
+# endif
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    INTEGER :: STEP,PREV,NEXT,I,J,INFO,ITER
+    REAL(DP) :: NUMER,DENOM,PW,NW,NET_VOLUME_CHANGE
+    REAL(SP) :: W,RELRES,DEPTH_NEW
+    REAL(SP), ALLOCATABLE :: DA(:),QSX(:),QSY(:),MOB(:),DQX(:),DQY(:)
+    REAL(SP), ALLOCATABLE :: NEW_EL(:),NEW_EL1(:),NEW_D1(:)
+
+    IF(TRIM(NESTING_TYPE)/='4') RETURN
+# if defined (SPHERICAL)
+    ! EXTEL_EDGE_XY replaces the polar stencil, so standard B cannot be used.
+    IF(NODE_NORTHPOLE/=0) CALL FATAL_ERROR('TYPE 4: NORTH POLE GRID NOT SUPPORTED')
+# endif
+    IF(NESTING_DATA%TIME_BLK(1)>NOW .OR. &
+         & NESTING_DATA%TIME_BLK(NESTING_DATA%NBLK)<NOW) CALL UPDATE_BLOCK(NOW)
+    DO STEP=2,NESTING_DATA%NBLK
+       IF(NOW <= NESTING_DATA%TIME_BLK(STEP)) EXIT
+    END DO
+    STEP=MIN(STEP,NESTING_DATA%NBLK)
+    PREV=STEP-1; NEXT=STEP
+    NUMER=SECONDS(NOW-NESTING_DATA%TIME_BLK(PREV))
+    DENOM=SECONDS(NESTING_DATA%TIME_BLK(NEXT)-NESTING_DATA%TIME_BLK(PREV))
+    IF(DENOM<=0.0_DP .OR. NUMER<0.0_DP .OR. NUMER>DENOM) &
+         & CALL FATAL_ERROR('TYPE 4: BAD TIME BRACKET IN BAROTROPIC CORRECTION')
+    NW=NUMER/DENOM; PW=1.0_DP-NW
+    EL_NEST=NESTING_DATA%EL_BLK(:,PREV)*PW+NESTING_DATA%EL_BLK(:,NEXT)*NW
+    UA_NEST=NESTING_DATA%UA_BLK(:,PREV)*PW+NESTING_DATA%UA_BLK(:,NEXT)*NW
+    VA_NEST=NESTING_DATA%VA_BLK(:,PREV)*PW+NESTING_DATA%VA_BLK(:,NEXT)*NW
+    WNODE_NEST=NESTING_DATA%WNODE_BLK(:,PREV)*PW+NESTING_DATA%WNODE_BLK(:,NEXT)*NW
+    WCELL_NEST=NESTING_DATA%WCELL_BLK(:,PREV)*PW+NESTING_DATA%WCELL_BLK(:,NEXT)*NW
+
+    ALLOCATE(DA(0:MT),QSX(0:NT),QSY(0:NT),MOB(0:NT), &
+         & DQX(0:NT),DQY(0:NT),NEW_EL(0:MT),NEW_EL1(0:NT),NEW_D1(0:NT))
+    DA=0.0_SP; QSX=0.0_SP; QSY=0.0_SP; MOB=0.0_SP
+    ! Nodal sea-level target. OBC nodes are *never* changed by this correction:
+    ! they were already clamped during every RK stage in EXTERNAL_STEP.
+    DO I=1,NESTING_GRID%MT
+       J=NESTING_GRID%NLID_X(I)
+       IF(ISONB(J)/=0) CYCLE
+       W=NEST4_NODE_WEIGHT(I,DTI,NESTING_TAU_ETA)
+       DA(J)=W*(EL_NEST(I)-EL(J))
+    END DO
+    DO I=1,NESTING_GRID%NT
+       J=NESTING_GRID%ELID_X(I)
+       IF(ISBCE(J)==1 .OR. ISBCE(J)==3) CYCLE
+       IF(.NOT. IEEE_IS_FINITE(WCELL_NEST(I)) .OR. &
+            & WCELL_NEST(I)<0.0_SP .OR. WCELL_NEST(I)>1.0_SP) &
+            & CALL FATAL_ERROR('TYPE 4: INVALID weight_cell FOR BAROTROPIC PROJECTION')
+       ! Only interior elements receive parent transport nudging.
+       IF(ISBCE(J)==0) THEN
+          W=NEST4_CELL_WEIGHT(I,DTI,NESTING_TAU_TRANSPORT)
+          QSX(J)=W*D1(J)*(UA_NEST(I)-UA(J))
+          QSY(J)=W*D1(J)*(VA_NEST(I)-VA(J))
+       END IF
+       ! A small non-zero mobility permits correction near the inner margin.
+       ! Outside the nesting map MOB=0, so these velocities remain untouched.
+       IF(WCELL_NEST(I)>0.0_SP .OR. ISBCE(J)==2) &
+            & MOB(J)=MAX(WCELL_NEST(I),0.01_SP)
+    END DO
+
+    CALL NEST4_PROJECT_TRANSPORT(M,MT,NT,NCV,NTRG,NIEC,DLTXE,DLTYE, &
+         & ART1,ISONB,MOB,DA,QSX,QSY,DTI,DQX,DQY,INFO,ITER,RELRES, &
+         & NEST4_EXCHANGE_NODE,NEST4_EXCHANGE_CELL,NEST4_SUM_DP)
+    IF(INFO/=0) THEN
+       WRITE(IPT,*) 'TYPE 4: BAROTROPIC PROJECTION FAILED: ',INFO,ITER,RELRES
+       CALL FATAL_ERROR('TYPE 4: CONSERVATIVE PROJECTION DID NOT CONVERGE')
+    END IF
+
+    ! Never cap a converged correction: clipping would violate continuity.
+    ! Reject the entire step instead if a user-configured safety bound is hit.
+    IF(NEST4_MAX_DP(REAL(MAXVAL(SQRT(DQX(1:N)**2+DQY(1:N)**2) / &
+         & MAX(D1(1:N),MIN_DEPTH)),DP)) > REAL(NESTING_MAX_CORRECTION_SPEED,DP)) &
+         & CALL FATAL_ERROR('TYPE 4: REQUIRED TRANSPORT CORRECTION EXCEEDS SPEED LIMIT')
+    NET_VOLUME_CHANGE=NEST4_SUM_DP(SUM(REAL(ART1(1:M),DP)*REAL(DA(1:M),DP)))
+    IF(DBG_SET(DBG_SCL) .AND. MOD(IINT,100)==0) &
+         & WRITE(IPT,*) 'TYPE 4 D_VOLUME [m3] = ',NET_VOLUME_CHANGE
+    NEW_EL=EL+DA
+    IF(MINVAL(H(1:M)+NEW_EL(1:M))<=MIN_DEPTH) &
+         & CALL FATAL_ERROR('TYPE 4: PROJECTION WOULD CREATE DRY/INVALID DEPTH')
+    ! New element elevation must use the original FVCOM nodal-to-element operator.
+    ! N2E2D is applied only after a converged projection.
+    EL=NEW_EL
+# if defined (MULTIPROCESSOR)
+    IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,EL)
+# endif
+    ELF=EL
+    CALL N2E2D(EL,EL1)
+    ELF1=EL1
+    D=H+EL
+    NEW_D1=H1+EL1
+    DO I=1,NT
+       ! Apply the projected *transport* (m2/s), not a velocity blend.
+       ! D1 in the numerator is the pre-projection depth.
+       DEPTH_NEW=NEW_D1(I)
+       IF(DEPTH_NEW<=MIN_DEPTH) CALL FATAL_ERROR('TYPE 4: BAD ELEMENT DEPTH')
+       UA(I)=(D1(I)*UA(I)+DQX(I))/DEPTH_NEW
+       VA(I)=(D1(I)*VA(I)+DQY(I))/DEPTH_NEW
+    END DO
+    D1=NEW_D1
+    UAF=UA; VAF=VA
+    DTFA=D
+    ! UARD/VARD are stored as sums over ISPLIT; ADJUST2D3D(2) divides by ISPLIT.
+    ! The operator-split correction must be reflected in the target 3D transport.
+    UARD=UARD+REAL(ISPLIT,SP)*DQX
+    VARD=VARD+REAL(ISPLIT,SP)*DQY
+# if defined (MULTIPROCESSOR)
+    IF(PAR) CALL AEXCHANGE(EC,MYID,NPROCS,UA,VA,D1)
+# endif
+    IF(DBG_SET(DBG_SCL) .AND. MOD(IINT,100)==0) &
+         & WRITE(IPT,*) 'TYPE 4 PROJECTION: ITER, RELRES = ',ITER,RELRES
+  END SUBROUTINE NEST4_CORRECT_BAROTROPIC
+
+  ! Communication adapters keep the projection kernel independent of MPI/FVCOM.
+  SUBROUTINE NEST4_EXCHANGE_NODE(F)
+    REAL(SP), ALLOCATABLE, INTENT(INOUT) :: F(:)
+# if defined (MULTIPROCESSOR)
+    IF(PAR) CALL AEXCHANGE(NC,MYID,NPROCS,F)
+# endif
+  END SUBROUTINE NEST4_EXCHANGE_NODE
+
+  SUBROUTINE NEST4_EXCHANGE_CELL(F)
+    REAL(SP), ALLOCATABLE, INTENT(INOUT) :: F(:)
+# if defined (MULTIPROCESSOR)
+    IF(PAR) CALL AEXCHANGE(EC,MYID,NPROCS,F)
+# endif
+  END SUBROUTINE NEST4_EXCHANGE_CELL
+
+  REAL(DP) FUNCTION NEST4_MAX_DP(X) RESULT(Y)
+    REAL(DP), INTENT(IN) :: X
+# if defined (MULTIPROCESSOR)
+    INTEGER :: IERR
+    IF(PAR) THEN
+       CALL MPI_ALLREDUCE(X,Y,1,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_FVCOM_GROUP,IERR)
+    ELSE
+       Y=X
+    END IF
+# else
+    Y=X
+# endif
+  END FUNCTION NEST4_MAX_DP
+
+  REAL(DP) FUNCTION NEST4_SUM_DP(X) RESULT(Y)
+    REAL(DP), INTENT(IN) :: X
+# if defined (MULTIPROCESSOR)
+    INTEGER :: IERR
+    IF(PAR) THEN
+       CALL MPI_ALLREDUCE(X,Y,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_FVCOM_GROUP,IERR)
+    ELSE
+       Y=X
+    END IF
+# else
+    Y=X
+# endif
+  END FUNCTION NEST4_SUM_DP
+
   SUBROUTINE UPDATE_BLOCK(NOW)
     IMPLICIT NONE
     TYPE(TIME) :: NOW
@@ -3218,8 +3512,10 @@ END SUBROUTINE GENMAP_NESTING
        END IF
 # endif
 
-    IF(TRIM(NESTING_TYPE) == '3') CALL NC_READ_VAR(VAR_WCELL,STKRNG=NESTING_DATA%RNG)
-    IF(TRIM(NESTING_TYPE) == '3') CALL NC_READ_VAR(VAR_WNODE,STKRNG=NESTING_DATA%RNG)
+    IF(TRIM(NESTING_TYPE) == '3' .OR. TRIM(NESTING_TYPE) == '4') &
+         CALL NC_READ_VAR(VAR_WCELL,STKRNG=NESTING_DATA%RNG)
+    IF(TRIM(NESTING_TYPE) == '3' .OR. TRIM(NESTING_TYPE) == '4') &
+         CALL NC_READ_VAR(VAR_WNODE,STKRNG=NESTING_DATA%RNG)
 
     ! TIME IS A PROBLEM IS THE BLOCK SIZE DOES NOT MATCH THE
     ! ALLOCATED SIZE

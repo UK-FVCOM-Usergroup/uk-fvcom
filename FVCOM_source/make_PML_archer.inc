@@ -47,7 +47,8 @@
 #
 #========== TOPDIR ========================================================
 # TOPDIR is the directory in which this make file and the fvcom source reside
-           TOPDIR        = /fs4/n01/n01/pica/src/uk-fvcom/FVCOM_source
+
+           TOPDIR        =  $(HOME)/uk-fvcom/FVCOM/PML/src/FVCOM_source/
 #EXAMPLE
 # TOPDIR = /home/user/cchen/FVCOM_source
 # TOPDIR must be set!
@@ -57,7 +58,7 @@
             INSTALLDIR    = $(TOPDIR)/libs/install
 #===========================================================================
 # PREPROCESSOR OPTIONS FOR CPP
-            DEF_FLAGS     = -C
+            DEF_FLAGS     = -P -C -traditional
 #===========================================================================
 #
 ####################### MEDM ENVIRONMENT #####################################
@@ -79,10 +80,10 @@ dashL= $(empty) -L
 
 
 #--------------------------------------------------------------------------
-#  STANDARD LIBRARIES FOR DATA AND TIME IN fVCOM:
+#	STANDARD LIBRARIES FOR DATA AND TIME IN fVCOM:
 #
-             DTLIBS       = -ljulian
-             DTINCS       =
+	    DTLIBS	= -ljulian
+	    DTINCS	=
 #
 #--------------------------------------------------------------------------
 #        NETCDF OUTPUT      NETCDF IS NOW REQUIRED TO COMPILE FVCOM
@@ -92,7 +93,7 @@ dashL= $(empty) -L
 #                           SET PATH TO LIBRARIES WITH IOLIBS
 #                           SET PATH TO INCLUDE FILES (netcdf.mod) WITH IOINCS
 #--------------------------------------------------------------------------
-             IOLIBS       =  -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz -lm
+             IOLIBS       =  -lnetcdf
              IOINCS       =
 #--------------------------------------------------------------------------
 
@@ -115,8 +116,8 @@ dashL= $(empty) -L
 
 #            FLAG_1 =  -DDOUBLE_PRECISION
 
-## SINGLE PRECISION OUTPUT FOR VISIT. ALSO ADD DEFLATE COMPRESSION.
-            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT -DNETCDF4_COMPRESSION
+## SINGLE PRECISION OUTPUT FOR VISIT
+            FLAG_1 =  -DDOUBLE_PRECISION -DSINGLE_OUTPUT
 
 #--------------------------------------------------------------------------
 #        SPHERICAL          SELECT SPHERICAL COORDINATES FOR INTEGRATION
@@ -231,8 +232,8 @@ dashL= $(empty) -L
 #   !!!!!! ONLY ONE OF THE FLAGS BELOW CAN BE AND MUST BE CHOSEN
 #---------------------------------------------------------------------------
 
-             FLAG_10  = -DGCN
-#             FLAG_10  = -DGCY1
+#             FLAG_10  = -DGCN
+             FLAG_10  = -DGCY1
 #             FLAG_10 = -DGCY2
 
 #--------------------------------------------------------------------------
@@ -243,9 +244,11 @@ dashL= $(empty) -L
 #              do_turbulence interface and will not work.
 #--------------------------------------------------------------------------
 
-#            FLAG_11 = -DGOTM
-#            GOTMLIB       = -L../GOTM_source/ -lturbulence -lutil #-lmeanflow
-#            GOTMINCS      = -I../GOTM_source/
+            FLAG_11 = -DGOTM
+            GOTMLIB       = -L../GOTM_source/PML/gotm-4.0.0/lib/FTN/ -lturbulence_prod -lutil_prod -lmeanflow_prod
+            GOTMINCS      = -I../GOTM_source/PML/gotm-4.0.0/modules/FTN/
+#            GOTMLIB       = -L$(HOME)/src/FVCOM/gotm-4.0.0/lib/IFORT/  -lturbulence_prod -lutil_prod -lmeanflow_prod
+#            GOTMINCS      = -I$(HOME)/src/FVCOM/gotm-4.0.0/modules/IFORT/
 
 #--------------------------------------------------------------------------
 #       EQUILIBRIUM TIDE
@@ -276,7 +279,7 @@ dashL= $(empty) -L
 #        Physics, 54, 325-362, 1984
 #--------------------------------------------------------------------------
 
-#            FLAG_15 = -DMPDATA
+            FLAG_15 = -DMPDATA
 
 #--------------------------------------------------------------------------
 #         Run Two-D Barotropic Mode Only
@@ -314,24 +317,11 @@ dashL= $(empty) -L
 
 #--------------------------------------------------------------------------
 #        SUSPENDED SEDIMENT MODEL:   UNCOMMENT TO INCLUDE MODEL
-# ORIG : the sediment transport model developed by Geoffey Cowles in v3.1-v3.2
-# CSTMS: Community Sediment Transport Modeling System with cohesive model
-# DELFT: Sediment modeling system as Delft Flow (not included)
-#
-# note: only one model should be chosen for modeling.
-#
-#  Utilities:
-#    OFFLINE_SEDIMENT : run sediment with offline hydrodynamic forcing
-#    FLUID_MUD : activate the 2-D fluid mud at bed-water interface
 #--------------------------------------------------------------------------
 
 #            FLAG_21 =  -DSEDIMENT
-#            FLAG_211 = -DORIG_SED
-#            FLAG_211 = -DCSTMS_SED
-#
 #            FLAG_22 =  -DOFFLINE_SEDIMENT
-#            FLAG_43 =  -DFLUID_MUD
-#
+
 #--------------------------------------------------------------------------
 #         KALMAN FILTERS
 #--------------------------------------------------------------------------
@@ -356,38 +346,32 @@ dashL= $(empty) -L
 
 #--------------------------------------------------------------------------
 #       GENERAL BIOLOGICAL MODEL:    UNCOMMENT TO INCLUDE MODEL
-#-------------------------------------------------------------------------- 
-#            FLAG_25  = -DBioGen
-#            FLAG_251 = -DOFFLINE_BIOLOGY
-#            BIOLIB   = -L$(TOPDIR)/BIO_source -lbiomodule
-#            BIOINCS  = -I$(TOPDIR)/BIO_source
-
+#--------------------------------------------------------------------------
+#            FLAG_25 = -DBioGen
+#            BIOLIB       = -L$(TOPDIR)/BIO_source -lbiomodule
+#            BIOINCS      = -I$(TOPDIR)/BIO_source/
+            FLAG_25 = -DFABM
+            BIOLIB       = -L$(HOME)/local/fabm/fvcom/lib -lfabm
+            BIOINCS      = -I$(HOME)/local/fabm/fvcom/include
 
 #--------------------------------------------------------------------------
 #         Dynamic/Thermodynamic Ice
 #--------------------------------------------------------------------------
 
 # NOTE: Must use -DSPHERICAL  and -DHEAT_FLUX ----- this note only for old version v2.7
-#       ICE_EMBEDDING must with SEMI_IMPLICIT
-#            FLAG_26 = -DICE  
-#            FLAG_261 = -DICE_EMBEDDING  
+#            FLAG_26 = -DICE
 
 #--------------------------------------------------------------------------
-#         CALCULATE THE NET HEAT FLUX IN MODEL (THREE CHOICES):
-#         1. CALCULATE THE NET HEAT FLUX USING COARE26Z
-#         2. CALCULATE THE NET HEAT FLUX USING COARE26Z for Great Lake
-#         3. CALCULATE THE NET HEAT FLUX USING SOLAR HEATING MODULE                          
+#         CALCULATE THE NET HEAT FLUX IN MODEL
 #--------------------------------------------------------------------------
 
-#            FLAG_27 = -DHEATING_CALCULATED  
-#            FLAG_27 = -DHEATING_CALCULATED_GL  
-#            FLAG_27 = -DHEATING_SOLAR  
+             FLAG_27 = -DHEATING_CALCULATED
 
 #--------------------------------------------------------------------------
 #         AIR_PRESSURE FROM SURFACE FORCING
 #--------------------------------------------------------------------------
 
-#            FLAG_28 = -DAIR_PRESSURE
+             FLAG_28 = -DAIR_PRESSURE
 
 #--------------------------------------------------------------------------
 # Visit online simulation mode
@@ -456,12 +440,6 @@ dashL= $(empty) -L
 #             FLAG_41 = -DOLD_PETSC
 
 #--------------------------------------------------------------------------
-#        SPECIAL PARTITION
-#        This flag can make sure the identical repeat run for same amount of CPUs
-#--------------------------------------------------------------------------
-#             FLAG_42 = -DPARTITION_SPECIAL
-
-#--------------------------------------------------------------------------
 #        DEVELOPMENT FLAGS
 #            FOR BETA WORK ONLY
 #--------------------------------------------------------------------------
@@ -471,6 +449,8 @@ dashL= $(empty) -L
 #             FLAG_103 = -DDEVELOP3
 #             FLAG_104 = -DDEVELOP4
 #             FLAG_105 = -DDEVELOP5
+#-- !da -------------- use it adv_t.F to activate rivers temperature use
+#             FLAG_42  = -DRIVERTS
 
 #--------------------------------------------------------------------------
 #        SELECT COMPILER/PLATFORM SPECIFIC DEFINITIONS
@@ -481,6 +461,23 @@ dashL= $(empty) -L
 #          OPT:  COMPILER OPTIONS
 #       MPILIB:  PATH TO MPI LIBRARIES (IF NOT LINKED THROUGH COMPILE SCRIPT)
 #--------------------------------------------------------------------------
+#  CRAY-XC30       at ARCHER (!da dima ) Intel/MPI Compiler
+#--------------------------------------------------------------------------
+         CPP      = /usr/bin/cpp
+         COMPILER = -DIFORT
+         CC       = cc
+         CXX      = CC
+         CFLAGS   = -O3
+         FC       = ftn
+#         DEBFLGS  = -check all
+# Use 'OPT = -O0 -g'  for fast compile to test the make
+#        OPT      = -axN -xN
+         OPT      = -O3
+#         OPT      = -O0
+# Do not set static for use with visit!
+#         VISOPT   = -Wl,--export-dynamic
+#         LDFLAGS  =  $(VISITLIBPATH)
+         COPTIONS = -c89
 #--------------------------------------------------------------------------
 #  Intel/MPI Compiler Definitions (PML)
 #--------------------------------------------------------------------------
@@ -556,7 +553,7 @@ dashL= $(empty) -L
 #         CXX      = mpicxx
 #         CFLAGS   = -O3
 #         FC       = mpif90
-#         DEBFLGS  = -check all -traceback
+#         DEBFLGS  = -check all
 # Use 'OPT = -O0 -g'  for fast compile to test the make
 # Use 'OPT = -xP' for fast run on em64t (Hydra and Guppy)
 # Use 'OPT = -xN' for fast run on ia32 (Salmon and Minke)
@@ -601,18 +598,13 @@ dashL= $(empty) -L
 #         DEBFLGS  =  # -qcheck -C -g
 #         OPT      = -O5 -qarch=g5 -qtune=g5  -qhot -qmaxmem=8096 -qunroll=yes -Wl,-stack_size,10000000
 #--------------------------------------------------------------------------
-#  ARCHER Intel/MPI Compiler
+#  OTHER
 #--------------------------------------------------------------------------
-         CPP      = /usr/bin/cpp
-         COMPILER = -DIFORT  
-         CC       = cc
-         CXX      = CC
-         CFLAGS   = -O3 
-         FC       = ftn
-#         DEBFLGS  = -check all
-         OPT      = -O3
-         COPTIONS = -c89
-#--------------------------------------------------------------------------
+#         COMPILER =
+#         CPP      =
+#         FC       =
+#         DEBFLGS  =
+#         OPT      =
 #==========================================================================
 #  END USER DEFINITION SECTION
 #==========================================================================
@@ -635,9 +627,8 @@ dashL= $(empty) -L
    $(FLAG_31) $(FLAG_32) $(FLAG_33) $(FLAG_34) \
    $(FLAG_35) $(FLAG_36) $(FLAG_37) $(FLAG_38) \
    $(FLAG_39) $(FLAG_40) $(FLAG_41) $(FLAG_42) \
-   $(FLAG_43) $(FLAG_LAM)\
-   $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)\
-   $(FLAG_211) $(FLAG_212) $(FLAG_213) $(FLAG_251) $(FLAG_261)
+   $(FLAG_LAM)\
+   $(FLAG_101) $(FLAG_102) $(FLAG_103) $(FLAG_104) $(FLAG_105)
 #--------------------------------------------------------------------------
 #  Libraries
 #--------------------------------------------------------------------------
@@ -649,3 +640,4 @@ dashL= $(empty) -L
             INCS  = 	$(INCDIR) $(IOINCS) $(GOTMINCS) $(BIOINCS)\
 			 $(VISITINCPATH) $(PROJINCS) $(DTINCS) \
 			 $(PETSC_FC_INCLUDES)
+

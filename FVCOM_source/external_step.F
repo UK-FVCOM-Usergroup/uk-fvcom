@@ -315,17 +315,24 @@ SUBROUTINE EXTERNAL_STEP
      CALL BCOND_GCY(1,K)
 #   endif
  
-     IF(NESTING_ON )THEN
+     IF(NESTING_ON .AND. TRIM(NESTING_TYPE) /= '4')THEN
 # if !defined (ISOMIP)
-        CALL SET_VAR(ExtTime,EL=ELF)  
+        CALL SET_VAR(ExtTime,EL=ELF)
 # endif
      END IF
-     
+
      DO I=1,IBCN(1)
         JN = OBC_LST(1,I)
         J=I_OBC_N(JN)
         ELF(J)=ELRK(J)+ALPHA_RK(K)*(ELF(J)-ELRK(J))
      END DO
+
+     ! Type 4 must clamp AFTER the ordinary OBC RK scaling; use stage time.
+     IF(NESTING_ON .AND. TRIM(NESTING_TYPE) == '4') THEN
+# if !defined (ISOMIP)
+        CALL SET_VAR(RKTime,EL=ELF)
+# endif
+     END IF
 # endif
 
      
@@ -377,7 +384,9 @@ SUBROUTINE EXTERNAL_STEP
          CALL replace_vel_2D
 # endif
 
-     IF(NESTING_ON )THEN
+     ! Type 4 updates the 2-D transport collectively in NEST4_CORRECT_BAROTROPIC
+     ! after external subcycling; do not blend UA and VA separately here.
+     IF(NESTING_ON .AND. TRIM(NESTING_TYPE) /= '4')THEN
 # if !defined (ISOMIP)
        CALL SET_VAR(ExtTime,UA=UAF)
        CALL SET_VAR(ExtTime,VA=VAF)
