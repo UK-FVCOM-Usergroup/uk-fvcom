@@ -3309,12 +3309,12 @@ END SUBROUTINE GENMAP_NESTING
        IF(.NOT. IEEE_IS_FINITE(WCELL_NEST(I)) .OR. &
             & WCELL_NEST(I)<0.0_SP .OR. WCELL_NEST(I)>1.0_SP) &
             & CALL FATAL_ERROR('TYPE 4: INVALID weight_cell FOR BAROTROPIC PROJECTION')
-       ! Only interior elements receive parent transport nudging.
-       IF(ISBCE(J)==0) THEN
-          W=NEST4_CELL_WEIGHT(I,DTI,NESTING_TAU_TRANSPORT)
-          QSX(J)=W*D1(J)*(UA_NEST(I)-UA(J))
-          QSY(J)=W*D1(J)*(VA_NEST(I)-VA(J))
-       END IF
+       ! Apply the parent transport target to interior and OBC elements.
+       ! The conservative projection can still alter the OBC transport.
+       ! Solid-boundary elements (ISBCE=1 or 3) remain excluded above.
+       W=NEST4_CELL_WEIGHT(I,DTI,NESTING_TAU_TRANSPORT)
+       QSX(J)=W*D1(J)*(UA_NEST(I)-UA(J))
+       QSY(J)=W*D1(J)*(VA_NEST(I)-VA(J))
        ! A small non-zero mobility permits correction near the inner margin.
        ! Outside the nesting map MOB=0, so these velocities remain untouched.
        IF(WCELL_NEST(I)>0.0_SP .OR. ISBCE(J)==2) &
