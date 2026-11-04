@@ -31,8 +31,10 @@ Module Mod_Nesting
   use mod_utils
   use mod_ncdio
   use mod_par
+  use mod_obcs, only: IOBCN, NADJC_OBC, ADJC_OBC, NXOBC, NYOBC
   use sinter
-  use mod_nesting_type4, only: nest4_relax_weight, nest4_relax_shear, nest4_project_transport
+  use mod_nesting_type4, only: nest4_relax_weight, nest4_relax_shear, &
+       & nest4_project_transport, nest4_transport_target
   use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   implicit none
 
@@ -171,7 +173,9 @@ Module Mod_Nesting
   REAL(SP) :: NESTING_TAU_TS           !!T/S relaxation timescale [seconds]
   REAL(SP) :: NESTING_TAU_SHEAR        !!3-D shear relaxation timescale [seconds]
   REAL(SP) :: NESTING_TAU_ETA          !!Barotropic SSH e-folding time [seconds]
-  REAL(SP) :: NESTING_TAU_TRANSPORT    !!Soft transport e-folding time [seconds]
+  REAL(SP) :: NESTING_TAU_TRANSPORT    !!Interior transport e-folding time [seconds]
+  REAL(SP) :: NESTING_TAU_TRANSPORT_NORMAL     !!OBC normal transport e-folding time [s]
+  REAL(SP) :: NESTING_TAU_TRANSPORT_TANGENTIAL !!OBC tangential transport e-folding time [s]
   REAL(SP) :: NESTING_MAX_CORRECTION_SPEED  !!Abort if |delta Q| / depth exceeds threshold [m/s]
 # if defined (FABM)
   LOGICAL FABM_NESTING_ON
@@ -190,6 +194,8 @@ Module Mod_Nesting
        & NESTING_TAU_SHEAR,     &
        & NESTING_TAU_ETA,       &
        & NESTING_TAU_TRANSPORT, &
+       & NESTING_TAU_TRANSPORT_NORMAL, &
+       & NESTING_TAU_TRANSPORT_TANGENTIAL, &
        & NESTING_MAX_CORRECTION_SPEED
 
 
@@ -258,6 +264,9 @@ CONTAINS
     NESTING_TAU_SHEAR = 10800.0_SP
     NESTING_TAU_ETA = 21600.0_SP
     NESTING_TAU_TRANSPORT = 7200.0_SP
+    ! -1 means inherit NESTING_TAU_TRANSPORT from the namelist.
+    NESTING_TAU_TRANSPORT_NORMAL = -1.0_SP
+    NESTING_TAU_TRANSPORT_TANGENTIAL = -1.0_SP
     NESTING_MAX_CORRECTION_SPEED = 5.0_SP
 
     !--Parameters in NameList NML_NCNEST
@@ -406,6 +415,16 @@ CONTAINS
             & ("THE NESTING FILE NAME IS EMPTY IN THE NAME LIST")
 
        IF(TRIM(NESTING_TYPE) == '4') THEN
+          IF(NESTING_TAU_TRANSPORT_NORMAL == -1.0_SP) &
+               & NESTING_TAU_TRANSPORT_NORMAL = NESTING_TAU_TRANSPORT
+          IF(NESTING_TAU_TRANSPORT_TANGENTIAL == -1.0_SP) &
+               & NESTING_TAU_TRANSPORT_TANGENTIAL = NESTING_TAU_TRANSPORT
+          IF(.NOT. IEEE_IS_FINITE(NESTING_TAU_TRANSPORT_NORMAL) .OR. &
+               & NESTING_TAU_TRANSPORT_NORMAL <= 0.0_SP) &
+               & CALL FATAL_ERROR('TYPE 4: NESTING_TAU_TRANSPORT_NORMAL MUST BE POSITIVE')
+          IF(.NOT. IEEE_IS_FINITE(NESTING_TAU_TRANSPORT_TANGENTIAL) .OR. &
+               & NESTING_TAU_TRANSPORT_TANGENTIAL <= 0.0_SP) &
+               & CALL FATAL_ERROR('TYPE 4: NESTING_TAU_TRANSPORT_TANGENTIAL MUST BE POSITIVE')
           IF(.NOT. IEEE_IS_FINITE(NESTING_TAU_TS) .OR. NESTING_TAU_TS <= 0.0_SP) &
                CALL FATAL_ERROR("TYPE 4: NESTING_TAU_TS MUST BE POSITIVE")
           IF(.NOT. IEEE_IS_FINITE(NESTING_TAU_SHEAR) .OR. NESTING_TAU_SHEAR <= 0.0_SP) &
@@ -3265,9 +3284,11 @@ END SUBROUTINE GENMAP_NESTING
     TYPE(TIME), INTENT(IN) :: NOW
     INTEGER :: STEP,PREV,NEXT,I,J,INFO,ITER
     REAL(DP) :: NUMER,DENOM,PW,NW,NET_VOLUME_CHANGE
-    REAL(SP) :: W,RELRES,DEPTH_NEW
+    REAL(SP) :: W,RELRES,DEPTH_NEW,WN,WT,DNORM
     REAL(SP), ALLOCATABLE :: DA(:),QSX(:),QSY(:),MOB(:),DQX(:),DQY(:)
     REAL(SP), ALLOCATABLE :: NEW_EL(:),NEW_EL1(:),NEW_D1(:)
+    REAL(SP), ALLOCATABLE :: OBC_NX(:),OBC_NY(:)
+    INTEGER :: INODE,ICELL
 
     IF(TRIM(NESTING_TYPE)/='4') RETURN
 # if defined (SPHERICAL)
@@ -3295,6 +3316,24 @@ END SUBROUTINE GENMAP_NESTING
     ALLOCATE(DA(0:MT),QSX(0:NT),QSY(0:NT),MOB(0:NT), &
          & DQX(0:NT),DQY(0:NT),NEW_EL(0:MT),NEW_EL1(0:NT),NEW_D1(0:NT))
     DA=0.0_SP; QSX=0.0_SP; QSY=0.0_SP; MOB=0.0_SP
+    ! Use FVCOM's inward OBC node normals and adjacent OBC-element mapping.
+    ! Sum node normals first, then normalize per element. Sign of the normal
+    ! is immaterial to the two-component relaxation tensor.
+    ALLOCATE(OBC_NX(0:NT),OBC_NY(0:NT))
+    OBC_NX=0.0_SP; OBC_NY=0.0_SP
+    DO INODE=1,IOBCN
+       DO ICELL=1,NADJC_OBC(INODE)
+          J=ADJC_OBC(INODE,ICELL)
+          IF(J<1 .OR. J>NT) CYCLE
+          IF(ISBCE(J)/=2) CYCLE
+          OBC_NX(J)=OBC_NX(J)+NXOBC(INODE)
+          OBC_NY(J)=OBC_NY(J)+NYOBC(INODE)
+       END DO
+    END DO
+# if defined (MULTIPROCESSOR)
+    IF(PAR) CALL AEXCHANGE(EC,MYID,NPROCS,OBC_NX,OBC_NY)
+# endif
+
     ! Nodal sea-level target. OBC nodes are *never* changed by this correction:
     ! they were already clamped during every RK stage in EXTERNAL_STEP.
     DO I=1,NESTING_GRID%MT
@@ -3309,12 +3348,22 @@ END SUBROUTINE GENMAP_NESTING
        IF(.NOT. IEEE_IS_FINITE(WCELL_NEST(I)) .OR. &
             & WCELL_NEST(I)<0.0_SP .OR. WCELL_NEST(I)>1.0_SP) &
             & CALL FATAL_ERROR('TYPE 4: INVALID weight_cell FOR BAROTROPIC PROJECTION')
-       ! Apply the parent transport target to interior and OBC elements.
-       ! The conservative projection can still alter the OBC transport.
-       ! Solid-boundary elements (ISBCE=1 or 3) remain excluded above.
-       W=NEST4_CELL_WEIGHT(I,DTI,NESTING_TAU_TRANSPORT)
-       QSX(J)=W*D1(J)*(UA_NEST(I)-UA(J))
-       QSY(J)=W*D1(J)*(VA_NEST(I)-VA(J))
+       IF(ISBCE(J)==2) THEN
+          ! Separate physical e-folding times at the open boundary. Unlike
+          ! the hard OBC tracer/shear weight, these are NOT direct overwrites.
+          DNORM=SQRT(OBC_NX(J)**2+OBC_NY(J)**2)
+          IF(DNORM<=1.0E-6_SP .OR. .NOT. IEEE_IS_FINITE(DNORM)) &
+               & CALL FATAL_ERROR('TYPE 4: OBC CELL NORMAL MISSING OR AMBIGUOUS')
+          WN=NEST4_RELAX_WEIGHT(1.0_SP,DTI,NESTING_TAU_TRANSPORT_NORMAL,.FALSE.)
+          WT=NEST4_RELAX_WEIGHT(1.0_SP,DTI,NESTING_TAU_TRANSPORT_TANGENTIAL,.FALSE.)
+          CALL NEST4_TRANSPORT_TARGET(UA_NEST(I)-UA(J),VA_NEST(I)-VA(J), &
+               & D1(J),OBC_NX(J)/DNORM,OBC_NY(J)/DNORM,WN,WT,QSX(J),QSY(J))
+       ELSE
+          ! Existing isotropic relaxation inside the nesting zone is unchanged.
+          W=NEST4_CELL_WEIGHT(I,DTI,NESTING_TAU_TRANSPORT)
+          QSX(J)=W*D1(J)*(UA_NEST(I)-UA(J))
+          QSY(J)=W*D1(J)*(VA_NEST(I)-VA(J))
+       END IF
        ! A small non-zero mobility permits correction near the inner margin.
        ! Outside the nesting map MOB=0, so these velocities remain untouched.
        IF(WCELL_NEST(I)>0.0_SP .OR. ISBCE(J)==2) &
