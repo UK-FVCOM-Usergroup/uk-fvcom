@@ -3358,6 +3358,14 @@ END SUBROUTINE GENMAP_NESTING
           WT=NEST4_RELAX_WEIGHT(1.0_SP,DTI,NESTING_TAU_TRANSPORT_TANGENTIAL,.FALSE.)
           CALL NEST4_TRANSPORT_TARGET(UA_NEST(I)-UA(J),VA_NEST(I)-VA(J), &
                & D1(J),OBC_NX(J)/DNORM,OBC_NY(J)/DNORM,WN,WT,QSX(J),QSY(J))
+       ELSEIF(COUNT(ISONB(NV(J,1:3))==2)>0 .AND. &
+            & NESTING_TAU_TRANSPORT_NORMAL==NESTING_TAU_TRANSPORT_TANGENTIAL) THEN
+          ! Diagnostic OBC vertex band: treat one-OBC-node cells like OBC
+          ! edge cells when normal and tangential relaxation times are equal.
+          ! With WN==WT the target is isotropic and requires no edge normal.
+          W=NEST4_RELAX_WEIGHT(1.0_SP,DTI,NESTING_TAU_TRANSPORT_NORMAL,.FALSE.)
+          QSX(J)=W*D1(J)*(UA_NEST(I)-UA(J))
+          QSY(J)=W*D1(J)*(VA_NEST(I)-VA(J))
        ELSE
           ! Existing isotropic relaxation inside the nesting zone is unchanged.
           W=NEST4_CELL_WEIGHT(I,DTI,NESTING_TAU_TRANSPORT)
@@ -3366,7 +3374,9 @@ END SUBROUTINE GENMAP_NESTING
        END IF
        ! A small non-zero mobility permits correction near the inner margin.
        ! Outside the nesting map MOB=0, so these velocities remain untouched.
-       IF(WCELL_NEST(I)>0.0_SP .OR. ISBCE(J)==2) &
+       IF(WCELL_NEST(I)>0.0_SP .OR. ISBCE(J)==2 .OR. &
+            & (COUNT(ISONB(NV(J,1:3))==2)>0 .AND. &
+            & NESTING_TAU_TRANSPORT_NORMAL==NESTING_TAU_TRANSPORT_TANGENTIAL)) &
             & MOB(J)=MAX(WCELL_NEST(I),0.01_SP)
     END DO
 
