@@ -5,7 +5,8 @@ MODULE MOD_NESTING_TYPE4
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: NEST4_RELAX_WEIGHT, NEST4_RELAX_SHEAR, NEST4_PROJECT_TRANSPORT, &
-       & NEST4_TRANSPORT_TARGET
+       & NEST4_TRANSPORT_TARGET, NEST4_EDGE_NORMAL, NEST4_CHARACTERISTIC_PAIR, &
+       & NEST4_MATCH_EDGE_NORMALS
 
 CONTAINS
 
@@ -21,6 +22,64 @@ CONTAINS
     QX = DEPTH*(WN*DN*NX - WT*DT*NY)
     QY = DEPTH*(WN*DN*NY + WT*DT*NX)
   END SUBROUTINE NEST4_TRANSPORT_TARGET
+
+  ! Unit outward normal to an open edge, using the third vertex/centroid to
+  ! distinguish the interior side. Coordinates must be in metres.
+  PURE SUBROUTINE NEST4_EDGE_NORMAL(DX,DY,IX,IY,NX,NY,EDGE_LENGTH)
+    REAL(SP), INTENT(IN) :: DX,DY,IX,IY
+    REAL(SP), INTENT(OUT) :: NX,NY,EDGE_LENGTH
+    EDGE_LENGTH = SQRT(DX*DX+DY*DY)
+    NX=0.0_SP; NY=0.0_SP
+    IF(EDGE_LENGTH<=TINY(EDGE_LENGTH)) RETURN
+    NX=DY/EDGE_LENGTH
+    NY=-DX/EDGE_LENGTH
+    IF(NX*IX+NY*IY>0.0_SP) THEN
+       NX=-NX
+       NY=-NY
+    END IF
+  END SUBROUTINE NEST4_EDGE_NORMAL
+
+  ! Linear subcritical shallow-water characteristics, outward normal positive.
+  ! Return both elevation and outward normal velocity from ONE incoming parent
+  ! characteristic and ONE outgoing FVCOM characteristic.
+  PURE SUBROUTINE NEST4_CHARACTERISTIC_PAIR(UN_INT,ETA_INT,UN_EXT,ETA_EXT,G,DEPTH, &
+       & UN_BC,ETA_BC)
+    REAL(SP), INTENT(IN) :: UN_INT,ETA_INT,UN_EXT,ETA_EXT,G,DEPTH
+    REAL(SP), INTENT(OUT) :: UN_BC,ETA_BC
+    REAL(SP) :: A,R_PLUS,R_MINUS
+    A=SQRT(G/DEPTH)
+    R_PLUS=UN_INT+A*ETA_INT
+    R_MINUS=UN_EXT-A*ETA_EXT
+    UN_BC=0.5_SP*(R_PLUS+R_MINUS)
+    ETA_BC=0.5_SP*(R_PLUS-R_MINUS)/A
+  END SUBROUTINE NEST4_CHARACTERISTIC_PAIR
+
+  ! Impose one or two edge-normal velocity conditions on a B-grid cell.
+  ! With one open edge, retain its tangential component from the model.
+  ! With two open edges, uniquely reconstruct the Cartesian cell velocity.
+  PURE SUBROUTINE NEST4_MATCH_EDGE_NORMALS(U,V,NEDGE,NX,NY,UN_TARGET,U_NEW,V_NEW,INFO)
+    REAL(SP), INTENT(IN) :: U,V,NX(:),NY(:),UN_TARGET(:)
+    INTEGER, INTENT(IN) :: NEDGE
+    REAL(SP), INTENT(OUT) :: U_NEW,V_NEW
+    INTEGER, INTENT(OUT) :: INFO
+    REAL(SP) :: DET,DELTA
+    U_NEW=U; V_NEW=V; INFO=0
+    IF(NEDGE==1) THEN
+       DELTA=UN_TARGET(1)-U*NX(1)-V*NY(1)
+       U_NEW=U+DELTA*NX(1)
+       V_NEW=V+DELTA*NY(1)
+    ELSE IF(NEDGE==2) THEN
+       DET=NX(1)*NY(2)-NX(2)*NY(1)
+       IF(ABS(DET)<1.0E-3_SP) THEN
+          INFO=1
+          RETURN
+       END IF
+       U_NEW=(UN_TARGET(1)*NY(2)-UN_TARGET(2)*NY(1))/DET
+       V_NEW=(NX(1)*UN_TARGET(2)-NX(2)*UN_TARGET(1))/DET
+    ELSE
+       INFO=2
+    END IF
+  END SUBROUTINE NEST4_MATCH_EDGE_NORMALS
 
   PURE REAL(SP) FUNCTION NEST4_RELAX_WEIGHT(ALPHA_NEST, DT, TAU, ON_OBC) RESULT(W)
     REAL(SP), INTENT(IN) :: ALPHA_NEST, DT, TAU

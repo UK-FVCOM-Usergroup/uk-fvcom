@@ -327,10 +327,15 @@ SUBROUTINE EXTERNAL_STEP
         ELF(J)=ELRK(J)+ALPHA_RK(K)*(ELF(J)-ELRK(J))
      END DO
 
-     ! Type 4 must clamp AFTER the ordinary OBC RK scaling; use stage time.
+     ! Type 4 boundary: retain the legacy Dirichlet path by default.
+     ! The optional characteristic path sets both incoming/outgoing waves.
      IF(NESTING_ON .AND. TRIM(NESTING_TYPE) == '4') THEN
 # if !defined (ISOMIP)
-        CALL SET_VAR(RKTime,EL=ELF)
+        IF(NESTING_CHARACTERISTIC_OBC) THEN
+           CALL NEST4_CHAR_STAGE_EL(RKTime)
+        ELSE
+           CALL SET_VAR(RKTime,EL=ELF)
+        END IF
 # endif
      END IF
 # endif
@@ -379,6 +384,9 @@ SUBROUTINE EXTERNAL_STEP
 # else
      CALL BCOND_GCY(2,K)
 # endif
+
+     IF(NESTING_ON .AND. TRIM(NESTING_TYPE)=='4' .AND. &
+          & NESTING_CHARACTERISTIC_OBC) CALL NEST4_CHAR_STAGE_UV
 
 # if defined (PLBC)
          CALL replace_vel_2D

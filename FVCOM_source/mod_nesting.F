@@ -34,7 +34,8 @@ Module Mod_Nesting
   use mod_obcs, only: IOBCN, NADJC_OBC, ADJC_OBC, NXOBC, NYOBC
   use sinter
   use mod_nesting_type4, only: nest4_relax_weight, nest4_relax_shear, &
-       & nest4_project_transport, nest4_transport_target
+       & nest4_project_transport, nest4_transport_target, &
+       & nest4_edge_normal, nest4_characteristic_pair, nest4_match_edge_normals
   use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   implicit none
 
@@ -149,6 +150,15 @@ Module Mod_Nesting
 # endif
   
   LOGICAL, PRIVATE :: NEED_INIT_NEST = .TRUE.
+  ! Optional characteristic OBC: geometry is cached after the mesh is set up.
+  LOGICAL, PRIVATE :: N4_CHAR_READY = .FALSE.
+  INTEGER, PRIVATE :: N4_NCELL = 0, N4_NNODE = 0
+  INTEGER, ALLOCATABLE, PRIVATE :: N4_CELLMAP(:),N4_NODEMAP(:),N4_NEDGE(:)
+  INTEGER, ALLOCATABLE, PRIVATE :: N4_CELLIDS(:),N4_NODEIDS(:)
+  INTEGER, ALLOCATABLE, PRIVATE :: N4_N1(:,:),N4_N2(:,:),N4_INNER(:,:)
+  REAL(SP), ALLOCATABLE, PRIVATE :: N4_NX(:,:),N4_NY(:,:),N4_LENGTH(:,:)
+  REAL(SP), ALLOCATABLE, PRIVATE :: N4_UN_TARGET(:,:)
+  REAL(SP), ALLOCATABLE, PRIVATE :: N4_ETA_SUM(:),N4_ETA_LENGTH(:)
 
   TYPE(TIME) :: INTERVAL_TIME_NCNEST, TIME_INTERVAL
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -168,6 +178,7 @@ Module Mod_Nesting
   !      interior T/S and shear relaxation, conservative barotropic correction.
   LOGICAL NESTING_ON                   !!TRUE IF OUTPUT RESART FILES
   CHARACTER(LEN=80) NESTING_TYPE       !!TYPE OF NESTING: 1, 2, 3, 4
+  LOGICAL NESTING_CHARACTERISTIC_OBC   !!Experimental type-4 outward-wave OBC
   INTEGER :: NESTING_BLOCKSIZE         !!SIZE OF DATA BLOCKS IN FILE
   CHARACTER(LEN=80) NESTING_FILE_NAME  !!NAME OF RESTART FILE
   REAL(SP) :: NESTING_TAU_TS           !!T/S relaxation timescale [seconds]
@@ -188,6 +199,7 @@ Module Mod_Nesting
        & FABM_NESTING_ON,    &
 # endif
        & NESTING_TYPE,       &
+       & NESTING_CHARACTERISTIC_OBC, &
        & NESTING_BLOCKSIZE,  &
        & NESTING_FILE_NAME,  &
        & NESTING_TAU_TS,        &
@@ -258,6 +270,7 @@ CONTAINS
     FABM_NESTING_ON = .FALSE.
 # endif
     NESTING_TYPE = "'1' or '2' or '3' or '4'"
+    NESTING_CHARACTERISTIC_OBC = .FALSE.
     NESTING_BLOCKSIZE = -1
     NESTING_FILE_NAME = trim(casename)//"_nesting.nc"
     NESTING_TAU_TS = 43200.0_SP
@@ -407,6 +420,8 @@ CONTAINS
 
     ! DO SOME BASIC CHECKING ON THE NESTING NAMELIST
     IF(NESTING_ON) THEN
+       IF(NESTING_CHARACTERISTIC_OBC .AND. TRIM(NESTING_TYPE)/='4') &
+            & CALL FATAL_ERROR('CHARACTERISTIC OBC REQUIRES NESTING_TYPE=4')
 
        IF( NESTING_BLOCKSIZE < 2) CALL FATAL_ERROR &
             & ("THE NESTING_BLOCKSIZE IS LESS THAN TWO IN THE NESTING NAME LIST")
@@ -415,6 +430,8 @@ CONTAINS
             & ("THE NESTING FILE NAME IS EMPTY IN THE NAME LIST")
 
        IF(TRIM(NESTING_TYPE) == '4') THEN
+          IF(NESTING_CHARACTERISTIC_OBC .AND. DBG_SET(DBG_LOG)) &
+               & WRITE(IPT,*) 'TYPE 4: CHARACTERISTIC OBC (EXPERIMENTAL)'
           IF(NESTING_TAU_TRANSPORT_NORMAL == -1.0_SP) &
                & NESTING_TAU_TRANSPORT_NORMAL = NESTING_TAU_TRANSPORT
           IF(NESTING_TAU_TRANSPORT_TANGENTIAL == -1.0_SP) &
@@ -3274,6 +3291,186 @@ END SUBROUTINE GENMAP_NESTING
     END IF
   END FUNCTION NEST4_CELL_WEIGHT
 
+  ! First-use initialization: cache actual OBC edge geometry, not nodal normals.
+  ! NBE(J,E)==0 marks a mesh-exterior edge opposite vertex E. Check BOTH
+  ! endpoints are OBC nodes to exclude land edges and MPI partition edges.
+  SUBROUTINE NEST4_CHAR_INIT
+# if defined (SPHERICAL)
+    USE MOD_SPHERICAL, ONLY : ARCX, ARCY
+# endif
+    IMPLICIT NONE
+    INTEGER :: I,J,E,N1,N2,NE
+    REAL(DP) :: DX,DY,IX,IY
+    IF(N4_CHAR_READY) RETURN
+    ALLOCATE(N4_CELLMAP(0:NT),N4_NODEMAP(0:MT),N4_NEDGE(0:NT), &
+         & N4_CELLIDS(NT),N4_NODEIDS(MT), &
+         & N4_N1(0:NT,2),N4_N2(0:NT,2),N4_INNER(0:NT,2), &
+         & N4_NX(0:NT,2),N4_NY(0:NT,2),N4_LENGTH(0:NT,2), &
+         & N4_UN_TARGET(0:NT,2),N4_ETA_SUM(0:MT),N4_ETA_LENGTH(0:MT))
+    N4_CELLMAP=0; N4_NODEMAP=0; N4_NEDGE=0
+    N4_N1=0; N4_N2=0; N4_INNER=0
+    N4_NX=0.0_SP; N4_NY=0.0_SP; N4_LENGTH=0.0_SP
+    N4_UN_TARGET=0.0_SP
+    N4_ETA_SUM=0.0_SP; N4_ETA_LENGTH=0.0_SP
+    N4_NCELL=0; N4_NNODE=0
+    DO I=1,NESTING_GRID%MT
+       J=NESTING_GRID%NLID_X(I)
+       N4_NODEMAP(J)=I
+    END DO
+    DO I=1,NESTING_GRID%NT
+       J=NESTING_GRID%ELID_X(I)
+       N4_CELLMAP(J)=I
+    END DO
+    DO J=1,NT
+       IF(ISBCE(J)/=2) CYCLE
+       IF(N4_CELLMAP(J)==0) &
+            & CALL FATAL_ERROR('TYPE 4 CHAR: OBC CELL MISSING FROM NESTING GRID')
+       DO E=1,3
+          IF(NBE(J,E)/=0) CYCLE
+          N1=NV(J,MOD(E,3)+1)
+          N2=NV(J,MOD(E+1,3)+1)
+          IF(ISONB(N1)/=2 .OR. ISONB(N2)/=2) CYCLE
+          NE=N4_NEDGE(J)+1
+          IF(NE>2) CALL FATAL_ERROR('TYPE 4 CHAR: THREE OPEN EDGES IN ONE CELL')
+          IF(N4_NODEMAP(N1)==0 .OR. N4_NODEMAP(N2)==0) &
+               & CALL FATAL_ERROR('TYPE 4 CHAR: OBC NODE MISSING FROM NESTING GRID')
+          N4_NEDGE(J)=NE
+          N4_N1(J,NE)=N1
+          N4_N2(J,NE)=N2
+          N4_INNER(J,NE)=NV(J,E)
+# if defined (SPHERICAL)
+          CALL ARCX(REAL(VX(N1),DP),REAL(VY(N1),DP), &
+               & REAL(VX(N2),DP),REAL(VY(N2),DP),DX)
+          CALL ARCY(REAL(VX(N1),DP),REAL(VY(N1),DP), &
+               & REAL(VX(N2),DP),REAL(VY(N2),DP),DY)
+          CALL ARCX(REAL(VX(N1),DP),REAL(VY(N1),DP), &
+               & REAL(XC(J),DP),REAL(YC(J),DP),IX)
+          CALL ARCY(REAL(VX(N1),DP),REAL(VY(N1),DP), &
+               & REAL(XC(J),DP),REAL(YC(J),DP),IY)
+# else
+          DX=REAL(VX(N2),DP)-REAL(VX(N1),DP)
+          DY=REAL(VY(N2),DP)-REAL(VY(N1),DP)
+          IX=REAL(XC(J),DP)-REAL(VX(N1),DP)
+          IY=REAL(YC(J),DP)-REAL(VY(N1),DP)
+# endif
+          CALL NEST4_EDGE_NORMAL(REAL(DX,SP),REAL(DY,SP),REAL(IX,SP), &
+               & REAL(IY,SP),N4_NX(J,NE),N4_NY(J,NE),N4_LENGTH(J,NE))
+          IF(N4_LENGTH(J,NE)<=0.0_SP .OR. &
+               & .NOT. IEEE_IS_FINITE(N4_LENGTH(J,NE))) &
+               & CALL FATAL_ERROR('TYPE 4 CHAR: DEGENERATE OPEN EDGE')
+          IF(N4_ETA_LENGTH(N1)==0.0_SP) THEN
+             N4_NNODE=N4_NNODE+1
+             N4_NODEIDS(N4_NNODE)=N1
+          END IF
+          IF(N4_ETA_LENGTH(N2)==0.0_SP) THEN
+             N4_NNODE=N4_NNODE+1
+             N4_NODEIDS(N4_NNODE)=N2
+          END IF
+          N4_ETA_LENGTH(N1)=N4_ETA_LENGTH(N1)+N4_LENGTH(J,NE)
+          N4_ETA_LENGTH(N2)=N4_ETA_LENGTH(N2)+N4_LENGTH(J,NE)
+       END DO
+       IF(N4_NEDGE(J)==0) CALL FATAL_ERROR('TYPE 4 CHAR: OBC CELL HAS NO OPEN EDGE')
+       N4_NCELL=N4_NCELL+1
+       N4_CELLIDS(N4_NCELL)=J
+    END DO
+    DO I=1,IOBCN
+       J=I_OBC_N(I)
+       IF(N4_ETA_LENGTH(J)<=0.0_SP) &
+            & CALL FATAL_ERROR('TYPE 4 CHAR: LOCAL OBC NODE HAS NO OPEN EDGE')
+    END DO
+    N4_CHAR_READY=.TRUE.
+  END SUBROUTINE NEST4_CHAR_INIT
+
+  ! Called after the RK elevation boundary scaling, before N2E2D/FLUX_OBN.
+  ! Incoming characteristic comes from time-interpolated parent data;
+  ! outgoing characteristic is estimated from the adjacent FVCOM cell and
+  ! its interior vertex (ELRK1 fallback at a two-edge corner).
+  SUBROUTINE NEST4_CHAR_STAGE_EL(NOW)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    INTEGER :: I,J,E,N1,N2,K,PREV,NEXT,IDX,STEP,IC
+    REAL(DP) :: NUMER,DENOM,PW,NW
+    REAL(SP) :: ETA_EXT,ETA_INT,U_EXT,U_INT,DEPTH,G,ETA_BC,UN_BC,L
+    CALL NEST4_CHAR_INIT
+    IF(NESTING_DATA%TIME_BLK(1)>NOW .OR. &
+         & NESTING_DATA%TIME_BLK(NESTING_DATA%NBLK)<NOW) CALL UPDATE_BLOCK(NOW)
+    DO STEP=2,NESTING_DATA%NBLK
+       IF(NOW<=NESTING_DATA%TIME_BLK(STEP)) EXIT
+    END DO
+    STEP=MIN(STEP,NESTING_DATA%NBLK)
+    PREV=STEP-1; NEXT=STEP
+    NUMER=SECONDS(NOW-NESTING_DATA%TIME_BLK(PREV))
+    DENOM=SECONDS(NESTING_DATA%TIME_BLK(NEXT)-NESTING_DATA%TIME_BLK(PREV))
+    IF(DENOM<=0.0_DP .OR. NUMER<0.0_DP .OR. NUMER>DENOM) &
+         & CALL FATAL_ERROR('TYPE 4 CHAR: INVALID PARENT TIME BRACKET')
+    NW=NUMER/DENOM; PW=1.0_DP-NW
+    EL_NEST=NESTING_DATA%EL_BLK(:,PREV)*PW+NESTING_DATA%EL_BLK(:,NEXT)*NW
+    UA_NEST=NESTING_DATA%UA_BLK(:,PREV)*PW+NESTING_DATA%UA_BLK(:,NEXT)*NW
+    VA_NEST=NESTING_DATA%VA_BLK(:,PREV)*PW+NESTING_DATA%VA_BLK(:,NEXT)*NW
+    DO I=1,N4_NNODE
+       N4_ETA_SUM(N4_NODEIDS(I))=0.0_SP
+    END DO
+    DO IC=1,N4_NCELL
+       J=N4_CELLIDS(IC)
+       IDX=N4_CELLMAP(J)
+       DO E=1,N4_NEDGE(J)
+          N1=N4_N1(J,E); N2=N4_N2(J,E)
+          ETA_EXT=0.5_SP*(EL_NEST(N4_NODEMAP(N1))+EL_NEST(N4_NODEMAP(N2)))
+          U_EXT=UA_NEST(IDX)*N4_NX(J,E)+VA_NEST(IDX)*N4_NY(J,E)
+          U_INT=UA(J)*N4_NX(J,E)+VA(J)*N4_NY(J,E)
+          K=N4_INNER(J,E)
+          IF(ISONB(K)==2) THEN
+             ETA_INT=ELRK1(J)
+          ELSE
+             ETA_INT=ELF(K)
+          END IF
+          DEPTH=0.5_SP*(H(N1)+H(N2))+ETA_EXT
+          IF(DEPTH<=MIN_DEPTH) &
+               & CALL FATAL_ERROR('TYPE 4 CHAR: INVALID EDGE WATER DEPTH')
+          G=0.5_SP*(GRAV_N(N1)+GRAV_N(N2))
+          IF(G<=0.0_SP) CALL FATAL_ERROR('TYPE 4 CHAR: INVALID GRAVITY')
+          CALL NEST4_CHARACTERISTIC_PAIR(U_INT,ETA_INT,U_EXT,ETA_EXT,G,DEPTH, &
+               & UN_BC,ETA_BC)
+          IF(.NOT. IEEE_IS_FINITE(ETA_BC) .OR. .NOT. IEEE_IS_FINITE(UN_BC)) &
+               & CALL FATAL_ERROR('TYPE 4 CHAR: NONFINITE BOUNDARY STATE')
+          N4_UN_TARGET(J,E)=UN_BC
+          L=N4_LENGTH(J,E)
+          N4_ETA_SUM(N1)=N4_ETA_SUM(N1)+L*ETA_BC
+          N4_ETA_SUM(N2)=N4_ETA_SUM(N2)+L*ETA_BC
+       END DO
+    END DO
+    ! The existing AEXCHANGE immediately after this routine updates halos.
+    DO I=1,IOBCN
+       J=I_OBC_N(I)
+       ELF(J)=N4_ETA_SUM(J)/N4_ETA_LENGTH(J)
+       IF(H(J)+ELF(J)<=MIN_DEPTH) &
+            & CALL FATAL_ERROR('TYPE 4 CHAR: OBC ELEVATION WOULD DRY NODE')
+    END DO
+  END SUBROUTINE NEST4_CHAR_STAGE_EL
+
+  ! Called after the regular velocity BCOND, before the RK state update.
+  ! Applying to UAF/VAF (not UA/VA) ensures the next stage sees the modified
+  ! boundary velocity and the interior momentum solver is left unchanged.
+  SUBROUTINE NEST4_CHAR_STAGE_UV
+    IMPLICIT NONE
+    INTEGER :: J,INFO,IC
+    REAL(SP) :: U_NEW,V_NEW
+    DO IC=1,N4_NCELL
+       J=N4_CELLIDS(IC)
+       CALL NEST4_MATCH_EDGE_NORMALS(UAF(J),VAF(J),N4_NEDGE(J), &
+            & N4_NX(J,1:2),N4_NY(J,1:2),N4_UN_TARGET(J,1:2), &
+            & U_NEW,V_NEW,INFO)
+       IF(INFO/=0 .OR. .NOT. IEEE_IS_FINITE(U_NEW) .OR. &
+            & .NOT. IEEE_IS_FINITE(V_NEW)) &
+            & CALL FATAL_ERROR('TYPE 4 CHAR: INVALID B-GRID EDGE VELOCITY')
+       IF(SQRT((U_NEW-UAF(J))**2+(V_NEW-VAF(J))**2) > &
+            & NESTING_MAX_CORRECTION_SPEED) &
+            & CALL FATAL_ERROR('TYPE 4 CHAR: OBC VELOCITY CORRECTION TOO LARGE')
+       UAF(J)=U_NEW
+       VAF(J)=V_NEW
+    END DO
+  END SUBROUTINE NEST4_CHAR_STAGE_UV
+
   ! Conservative operator-split transport/SSH update, once per internal DTI.
   ! Never mutate FVCOM state until the projection converges and has been checked.
   SUBROUTINE NEST4_CORRECT_BAROTROPIC(NOW)
@@ -3345,6 +3542,9 @@ END SUBROUTINE GENMAP_NESTING
     DO I=1,NESTING_GRID%NT
        J=NESTING_GRID%ELID_X(I)
        IF(ISBCE(J)==1 .OR. ISBCE(J)==3) CYCLE
+       ! The characteristic RK update already set boundary-cell normal
+       ! transport. Do not overwrite it with the post-step projection.
+       IF(NESTING_CHARACTERISTIC_OBC .AND. ISBCE(J)==2) CYCLE
        IF(.NOT. IEEE_IS_FINITE(WCELL_NEST(I)) .OR. &
             & WCELL_NEST(I)<0.0_SP .OR. WCELL_NEST(I)>1.0_SP) &
             & CALL FATAL_ERROR('TYPE 4: INVALID weight_cell FOR BAROTROPIC PROJECTION')
