@@ -38,6 +38,7 @@ MODULE MOD_GOTM
    USE MOD_VEGETATION
 # endif
 
+   USE ALL_VARS
    IMPLICIT NONE
    SAVE
 
@@ -97,7 +98,7 @@ MODULE MOD_GOTM
 !--Variables from FVCOM Modules------------------------------
    use lims, only : m,kbm1,kb
    use all_vars, only : rho1,dz,dzz,d,t1,u,v,km,kh,tke,teps,wusurf,wvsurf,l,  &
-                        z,zz,nbve,ntve,grav_n,cc_z0b
+                        z,zz,nbve,ntve,grav_n,cc_z0b,Pd
    use control, only: dti,umol,iint,iend
 
 !--Variables from GOTM Modules-------------------------------
@@ -115,7 +116,7 @@ MODULE MOD_GOTM
    DOUBLE PRECISION          :: u_taus,u_taub,z0s_gotm,z0b_gotm,umold
    DOUBLE PRECISION          :: h(0:KBM1)
    REAL(SP)                  :: NN(M,1:KB),SS(M,1:KB)
-   DOUBLE PRECISION          :: NN1d(0:KBM1),SS1d(0:KBM1)
+   DOUBLE PRECISION          :: NN1d(0:KBM1),SS1d(0:KBM1),Pd1d(0:KBM1)
 !--Parameters------------------------------------------------
    REAL(SP), PARAMETER       :: KAPPA  = .4          !!Von Karman's Constant
    REAL(DP), PARAMETER       :: CHARNOK_VAL = 1400.  !!Charnok Constant 
@@ -174,7 +175,17 @@ MODULE MOD_GOTM
    SS(:,KB) = SS(:,KBM1)
 
 !------------------Main Loop Over Elements-------------------------------------!
+   DO K=1,KBM1
+     DO I=1,M
+       Pd_node(I,K)   = 0.0_SP
+       DO J=1,NTVE(I)
+         Pd_node(I,K)   = Pd_node(I,K) + Pd(NBVE(I,J),K)
+       END DO
+       Pd_node(I,K)   = Pd_node(I,K)/FLOAT(NTVE(I))
+     END DO
+    END DO
 
+   
    DO I=1,M
       !Surface Friction Velocity [m/s]
      WUSURF_NODE = 0.0_SP
@@ -254,7 +265,15 @@ MODULE MOD_GOTM
 # endif
 
       !Update Turbulence Model
-      call do_turbulence(kbm1,time_step,depth,u_taus,u_taub,z0s_gotm,z0b_gotm,h,nn1D,ss1D) 
+ 
+
+      ! NiD4OCEAN: pass Pd as structure production (xP) only; it was also passed as SSCSTK (Stokes shear)
+      IF (STRUCTURE_ON .AND. STRUCTURE_TKE ) THEN
+      Pd1d(0:kbm1)  = Pd_node(i,kb:1:-1)
+      call do_turbulence(kbm1,time_step,depth,u_taus,u_taub,z0s_gotm,z0b_gotm,h,nn1D,ss1D,xP=Pd1d)
+      ELSE
+      call do_turbulence(kbm1,time_step,depth,u_taus,u_taub,z0s_gotm,z0b_gotm,h,nn1D,ss1D)
+      END IF
 
       !Update 3D Fields of TKE,EPS,KM,KH
        tke(I,1:KB) = tke1d(KBM1:0:-1)

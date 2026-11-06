@@ -158,6 +158,14 @@ SUBROUTINE BOTTOM_ROUGHNESS
 # endif
 
   !==============================================================================|
+  !  ADD ON BOTTOM ROUGHNESS FOR STRUCTURE IF BED ROUGHNESS OPTION SELECTED
+  !  |
+  !==============================================================================|
+  IF (STRUCTURE_ON .AND. (STRUCTURE_KIND .EQ. TTBROUGH)) THEN
+     CBC = CBC + ( NTT * (CT*ARTT/(2*ART)) )
+  END IF
+
+  !==============================================================================|
   !  CALCULATE SHEAR STRESS ON BOTTOM  --> WUBOT/WVBOT                           |
   !==============================================================================|
   DO  I = 1, N
