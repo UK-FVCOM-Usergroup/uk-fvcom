@@ -6,7 +6,7 @@ MODULE MOD_NESTING_TYPE4
   PRIVATE
   PUBLIC :: NEST4_RELAX_WEIGHT, NEST4_RELAX_SHEAR, NEST4_PROJECT_TRANSPORT, &
        & NEST4_TRANSPORT_TARGET, NEST4_EDGE_NORMAL, NEST4_CHARACTERISTIC_PAIR, &
-       & NEST4_MATCH_EDGE_NORMALS
+       & NEST4_MATCH_EDGE_NORMALS, NEST4_FLATHER_NORMAL
 
 CONTAINS
 
@@ -53,6 +53,15 @@ CONTAINS
     UN_BC=0.5_SP*(R_PLUS+R_MINUS)
     ETA_BC=0.5_SP*(R_PLUS-R_MINUS)/A
   END SUBROUTINE NEST4_CHARACTERISTIC_PAIR
+
+  ! Flather's incoming subcritical characteristic at an outward normal edge.
+  ! UN - sqrt(g/D)*ETA is inherited from the parent model, while ETA_LOCAL
+  ! comes from FVCOM's own RK continuity update.
+  PURE REAL(SP) FUNCTION NEST4_FLATHER_NORMAL(ETA_LOCAL,ETA_PARENT, &
+       & UN_PARENT,G,DEPTH) RESULT(UN_BC)
+    REAL(SP), INTENT(IN) :: ETA_LOCAL,ETA_PARENT,UN_PARENT,G,DEPTH
+    UN_BC=UN_PARENT+SQRT(G/DEPTH)*(ETA_LOCAL-ETA_PARENT)
+  END FUNCTION NEST4_FLATHER_NORMAL
 
   ! Impose one or two edge-normal velocity conditions on a B-grid cell.
   ! With one open edge, retain its tangential component from the model.

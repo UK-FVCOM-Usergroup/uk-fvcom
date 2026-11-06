@@ -35,7 +35,8 @@ Module Mod_Nesting
   use sinter
   use mod_nesting_type4, only: nest4_relax_weight, nest4_relax_shear, &
        & nest4_project_transport, nest4_transport_target, &
-       & nest4_edge_normal, nest4_characteristic_pair, nest4_match_edge_normals
+       & nest4_edge_normal, nest4_characteristic_pair, nest4_match_edge_normals, &
+       & nest4_flather_normal
   use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
   implicit none
 
@@ -179,6 +180,7 @@ Module Mod_Nesting
   LOGICAL NESTING_ON                   !!TRUE IF OUTPUT RESART FILES
   CHARACTER(LEN=80) NESTING_TYPE       !!TYPE OF NESTING: 1, 2, 3, 4
   LOGICAL NESTING_CHARACTERISTIC_OBC   !!Experimental type-4 outward-wave OBC
+  LOGICAL NESTING_FLATHER_OBC          !!Experimental type-4 velocity-only OBC
   INTEGER :: NESTING_BLOCKSIZE         !!SIZE OF DATA BLOCKS IN FILE
   CHARACTER(LEN=80) NESTING_FILE_NAME  !!NAME OF RESTART FILE
   REAL(SP) :: NESTING_TAU_TS           !!T/S relaxation timescale [seconds]
@@ -200,6 +202,7 @@ Module Mod_Nesting
 # endif
        & NESTING_TYPE,       &
        & NESTING_CHARACTERISTIC_OBC, &
+       & NESTING_FLATHER_OBC, &
        & NESTING_BLOCKSIZE,  &
        & NESTING_FILE_NAME,  &
        & NESTING_TAU_TS,        &
@@ -271,6 +274,7 @@ CONTAINS
 # endif
     NESTING_TYPE = "'1' or '2' or '3' or '4'"
     NESTING_CHARACTERISTIC_OBC = .FALSE.
+    NESTING_FLATHER_OBC = .FALSE.
     NESTING_BLOCKSIZE = -1
     NESTING_FILE_NAME = trim(casename)//"_nesting.nc"
     NESTING_TAU_TS = 43200.0_SP
@@ -422,6 +426,10 @@ CONTAINS
     IF(NESTING_ON) THEN
        IF(NESTING_CHARACTERISTIC_OBC .AND. TRIM(NESTING_TYPE)/='4') &
             & CALL FATAL_ERROR('CHARACTERISTIC OBC REQUIRES NESTING_TYPE=4')
+       IF(NESTING_FLATHER_OBC .AND. TRIM(NESTING_TYPE)/='4') &
+            & CALL FATAL_ERROR('FLATHER OBC REQUIRES NESTING_TYPE=4')
+       IF(NESTING_CHARACTERISTIC_OBC .AND. NESTING_FLATHER_OBC) &
+            & CALL FATAL_ERROR('TYPE 4: SELECT ONLY ONE BAROTROPIC OBC')
 
        IF( NESTING_BLOCKSIZE < 2) CALL FATAL_ERROR &
             & ("THE NESTING_BLOCKSIZE IS LESS THAN TWO IN THE NESTING NAME LIST")
@@ -432,6 +440,8 @@ CONTAINS
        IF(TRIM(NESTING_TYPE) == '4') THEN
           IF(NESTING_CHARACTERISTIC_OBC .AND. DBG_SET(DBG_LOG)) &
                & WRITE(IPT,*) 'TYPE 4: CHARACTERISTIC OBC (EXPERIMENTAL)'
+          IF(NESTING_FLATHER_OBC .AND. DBG_SET(DBG_LOG)) &
+               & WRITE(IPT,*) 'TYPE 4: FLATHER OBC (EXPERIMENTAL)'
           IF(NESTING_TAU_TRANSPORT_NORMAL == -1.0_SP) &
                & NESTING_TAU_TRANSPORT_NORMAL = NESTING_TAU_TRANSPORT
           IF(NESTING_TAU_TRANSPORT_TANGENTIAL == -1.0_SP) &
@@ -3471,6 +3481,75 @@ END SUBROUTINE GENMAP_NESTING
     END DO
   END SUBROUTINE NEST4_CHAR_STAGE_UV
 
+  ! Velocity-only Flather experiment.  Do NOT prescribe OBC elevation:
+  ! EXTEL_EDGE and the FVCOM RK machinery provide ELF at this stage.
+  ! Parent data provide the incoming barotropic characteristic.  Edge geometry
+  ! is initialized once by NEST4_CHAR_INIT and shared with the prior experiment.
+  SUBROUTINE NEST4_FLATHER_STAGE_UV(NOW)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    INTEGER :: STEP,PREV,NEXT,I,J,E,N1,N2,IDX,IC,INFO
+    REAL(DP) :: NUMER,DENOM,PW,NW
+    REAL(SP) :: ETA_PARENT,ETA_LOCAL,UN_PARENT,DEPTH,G,U_NEW,V_NEW,DU,DV
+
+    CALL NEST4_CHAR_INIT
+    IF(NESTING_DATA%TIME_BLK(1)>NOW .OR. &
+         & NESTING_DATA%TIME_BLK(NESTING_DATA%NBLK)<NOW) CALL UPDATE_BLOCK(NOW)
+    DO STEP=2,NESTING_DATA%NBLK
+       IF(NOW <= NESTING_DATA%TIME_BLK(STEP)) EXIT
+    END DO
+    STEP=MIN(STEP,NESTING_DATA%NBLK)
+    PREV=STEP-1; NEXT=STEP
+    NUMER=SECONDS(NOW-NESTING_DATA%TIME_BLK(PREV))
+    DENOM=SECONDS(NESTING_DATA%TIME_BLK(NEXT)-NESTING_DATA%TIME_BLK(PREV))
+    IF(DENOM<=0.0_DP .OR. NUMER<0.0_DP .OR. NUMER>DENOM) &
+         & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID PARENT TIME BRACKET')
+    NW=NUMER/DENOM; PW=1.0_DP-NW
+
+    DO IC=1,N4_NCELL
+       J=N4_CELLIDS(IC)
+       IDX=N4_CELLMAP(J)
+       DO E=1,N4_NEDGE(J)
+          N1=N4_N1(J,E); N2=N4_N2(J,E)
+          ! The current FVCOM RK elevation, evaluated at this open edge.
+          ETA_LOCAL=0.5_SP*(ELF(N1)+ELF(N2))
+          ! Interpolate the parent elevation and cell-centered transport
+          ! velocity to the same RK stage time as ELF and UAF/VAF.
+          ETA_PARENT=0.5_SP*( &
+               & REAL(PW,SP)*(NESTING_DATA%EL_BLK(N4_NODEMAP(N1),PREV)+ &
+               &              NESTING_DATA%EL_BLK(N4_NODEMAP(N2),PREV)) + &
+               & REAL(NW,SP)*(NESTING_DATA%EL_BLK(N4_NODEMAP(N1),NEXT)+ &
+               &              NESTING_DATA%EL_BLK(N4_NODEMAP(N2),NEXT)))
+          UN_PARENT=REAL(PW,SP)*( &
+               & NESTING_DATA%UA_BLK(IDX,PREV)*N4_NX(J,E)+ &
+               & NESTING_DATA%VA_BLK(IDX,PREV)*N4_NY(J,E)) + &
+               & REAL(NW,SP)*( &
+               & NESTING_DATA%UA_BLK(IDX,NEXT)*N4_NX(J,E)+ &
+               & NESTING_DATA%VA_BLK(IDX,NEXT)*N4_NY(J,E))
+          DEPTH=0.5_SP*(H(N1)+H(N2))+ETA_LOCAL
+          IF(DEPTH<=MIN_DEPTH .OR. .NOT. IEEE_IS_FINITE(DEPTH)) &
+               & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID EDGE WATER DEPTH')
+          G=0.5_SP*(GRAV_N(N1)+GRAV_N(N2))
+          IF(G<=0.0_SP .OR. .NOT. IEEE_IS_FINITE(G)) &
+               & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID GRAVITY')
+          N4_UN_TARGET(J,E)=NEST4_FLATHER_NORMAL( &
+               & ETA_LOCAL,ETA_PARENT,UN_PARENT,G,DEPTH)
+          IF(.NOT. IEEE_IS_FINITE(N4_UN_TARGET(J,E))) &
+               & CALL FATAL_ERROR('TYPE 4 FLATHER: NONFINITE NORMAL VELOCITY')
+       END DO
+       CALL NEST4_MATCH_EDGE_NORMALS(UAF(J),VAF(J),N4_NEDGE(J), &
+            & N4_NX(J,1:2),N4_NY(J,1:2),N4_UN_TARGET(J,1:2), &
+            & U_NEW,V_NEW,INFO)
+       IF(INFO/=0 .OR. .NOT. IEEE_IS_FINITE(U_NEW) .OR. &
+            & .NOT. IEEE_IS_FINITE(V_NEW)) &
+            & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID B-GRID EDGE VELOCITY')
+       DU=U_NEW-UAF(J); DV=V_NEW-VAF(J)
+       IF(SQRT(DU**2+DV**2)>NESTING_MAX_CORRECTION_SPEED) &
+            & CALL FATAL_ERROR('TYPE 4 FLATHER: OBC VELOCITY CORRECTION TOO LARGE')
+       UAF(J)=U_NEW; VAF(J)=V_NEW
+    END DO
+  END SUBROUTINE NEST4_FLATHER_STAGE_UV
+
   ! Conservative operator-split transport/SSH update, once per internal DTI.
   ! Never mutate FVCOM state until the projection converges and has been checked.
   SUBROUTINE NEST4_CORRECT_BAROTROPIC(NOW)
@@ -3544,7 +3623,8 @@ END SUBROUTINE GENMAP_NESTING
        IF(ISBCE(J)==1 .OR. ISBCE(J)==3) CYCLE
        ! The characteristic RK update already set boundary-cell normal
        ! transport. Do not overwrite it with the post-step projection.
-       IF(NESTING_CHARACTERISTIC_OBC .AND. ISBCE(J)==2) CYCLE
+       IF((NESTING_CHARACTERISTIC_OBC .OR. NESTING_FLATHER_OBC) &
+            & .AND. ISBCE(J)==2) CYCLE
        IF(.NOT. IEEE_IS_FINITE(WCELL_NEST(I)) .OR. &
             & WCELL_NEST(I)<0.0_SP .OR. WCELL_NEST(I)>1.0_SP) &
             & CALL FATAL_ERROR('TYPE 4: INVALID weight_cell FOR BAROTROPIC PROJECTION')

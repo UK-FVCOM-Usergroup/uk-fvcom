@@ -327,13 +327,13 @@ SUBROUTINE EXTERNAL_STEP
         ELF(J)=ELRK(J)+ALPHA_RK(K)*(ELF(J)-ELRK(J))
      END DO
 
-     ! Type 4 boundary: retain the legacy Dirichlet path by default.
-     ! The optional characteristic path sets both incoming/outgoing waves.
+     ! Type 4 OBC modes are mutually exclusive.  For the Flather experiment
+     ! leave the RK elevation from FVCOM's continuity equation untouched.
      IF(NESTING_ON .AND. TRIM(NESTING_TYPE) == '4') THEN
 # if !defined (ISOMIP)
         IF(NESTING_CHARACTERISTIC_OBC) THEN
            CALL NEST4_CHAR_STAGE_EL(RKTime)
-        ELSE
+        ELSEIF(.NOT. NESTING_FLATHER_OBC) THEN
            CALL SET_VAR(RKTime,EL=ELF)
         END IF
 # endif
@@ -385,8 +385,13 @@ SUBROUTINE EXTERNAL_STEP
      CALL BCOND_GCY(2,K)
 # endif
 
-     IF(NESTING_ON .AND. TRIM(NESTING_TYPE)=='4' .AND. &
-          & NESTING_CHARACTERISTIC_OBC) CALL NEST4_CHAR_STAGE_UV
+     IF(NESTING_ON .AND. TRIM(NESTING_TYPE)=='4') THEN
+        IF(NESTING_CHARACTERISTIC_OBC) THEN
+           CALL NEST4_CHAR_STAGE_UV
+        ELSEIF(NESTING_FLATHER_OBC) THEN
+           CALL NEST4_FLATHER_STAGE_UV(RKTime)
+        END IF
+     END IF
 
 # if defined (PLBC)
          CALL replace_vel_2D
