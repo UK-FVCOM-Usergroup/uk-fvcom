@@ -31,7 +31,7 @@ Module Mod_Nesting
   use mod_utils
   use mod_ncdio
   use mod_par
-  use mod_obcs, only: IOBCN, NADJC_OBC, ADJC_OBC, NXOBC, NYOBC
+  use mod_obcs, only: IOBCN, I_OBC_N, NADJC_OBC, ADJC_OBC, NXOBC, NYOBC
   use sinter
   use mod_nesting_type4, only: nest4_relax_weight, nest4_relax_shear, &
        & nest4_project_transport, nest4_transport_target, &
