@@ -3,7 +3,8 @@ MODULE MOD_FABM_3D
 
   USE fabm
   USE fabm_config
-  USE fabm_types, only: domain_bottom, attribute_length, get_safe_name, type_universal_standard_variable
+  USE fabm_types, only: domain_bottom, attribute_length, get_safe_name, type_universal_standard_variable, &
+                        type_interior_standard_variable
   USE fabm_driver, only: type_base_driver, driver
 
   USE MOD_FABM_DATA
@@ -42,6 +43,7 @@ MODULE MOD_FABM_3D
   ! Environment
   REAL(SP), ALLOCATABLE,TARGET :: CELL_THICKNESS(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: DENSITY(:,:)
+  REAL(SP), ALLOCATABLE,TARGET :: CURRENT_SPEED(:,:)   ! NiD4OCEAN: |u| at nodes (m/s) for mms_fauna
   REAL(SP), ALLOCATABLE,TARGET :: PRESSURE(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: DEPTH(:,:)
   REAL(SP), ALLOCATABLE,TARGET :: WIND_SPEED(:)
@@ -259,6 +261,13 @@ MODULE MOD_FABM_3D
        call model%link_interior_data(fabm_standard_variables%density,DENSITY(1:M,:))
     END IF
 
+    ! NiD4OCEAN: horizontal current speed (m/s) at nodes, for flow-dependent structure-fauna feeding
+    IF (model%variable_needs_values(type_interior_standard_variable(name='current_speed',units='m s-1'))) THEN
+       ALLOCATE(CURRENT_SPEED(0:MT,KB)); CURRENT_SPEED = 0.0_SP
+       call model%link_interior_data(type_interior_standard_variable(name='current_speed',units='m s-1'), &
+                                     CURRENT_SPEED(1:M,:))
+    END IF
+
     ! Cell center depth in m (from D and ZZ)
     IF (model%variable_needs_values(fabm_standard_variables%depth)) THEN
        ALLOCATE(DEPTH(0:MT,KB))
@@ -364,6 +373,11 @@ MODULE MOD_FABM_3D
       integer :: status
 
       ! Compute environmental fields that FVCOM does not provide
+
+      IF (ALLOCATED(CURRENT_SPEED)) THEN
+         ! NiD4OCEAN: element speed averaged to nodes
+         CALL E2N3D(SQRT(U**2 + V**2), CURRENT_SPEED)
+      END IF
 
       IF (ALLOCATED(CELL_THICKNESS)) THEN
          ! Cell thickness (m) from dimensionless sigma thickness DZ and column height D
