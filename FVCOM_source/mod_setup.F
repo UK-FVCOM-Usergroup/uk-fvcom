@@ -89,7 +89,7 @@ CONTAINS
   SUBROUTINE SETUP_OBC_VISCOUS_SPONGE
     USE MOD_SPHERICAL, ONLY: ARC
     IMPLICIT NONE
-    REAL(SP), ALLOCATABLE, TARGET :: GX(:),GY(:),GB(:),GW(:),LB(:)
+    REAL(SP), ALLOCATABLE, TARGET :: GX(:),GY(:),GB(:),GW(:)
     REAL(SP), ALLOCATABLE :: DIST(:),EDGE_LENGTH(:)
     INTEGER, ALLOCATABLE :: ROW(:),DEG(:),CUR(:),COL(:),QUEUE(:)
     LOGICAL, ALLOCATABLE :: IN_QUEUE(:)
@@ -102,27 +102,31 @@ CONTAINS
     ALLOCATE(OBC_SPONGE_WEIGHT(0:NT))
     OBC_SPONGE_WEIGHT = 0.0_SP
 
-    ALLOCATE(LB(0:MT))
-    LB = 0.0_SP
-    DO I=1,MT
-       IF(ISONB(I) == 2) LB(I)=1.0_SP
-    END DO
-
-    IF(MSR) ALLOCATE(GX(0:MGL),GY(0:MGL),GB(0:MGL),GW(0:NGL))
+    ! The global OBC list is available after LOAD_GRID.  ISONB is not
+    ! populated until TGE, which runs later in GRID_METRICS.
+    IF(MSR) THEN
+       ALLOCATE(GX(0:MGL),GY(0:MGL),GB(0:MGL),GW(0:NGL))
+       GB=0.0_SP
+       IF(.NOT.OBC_ON .OR. IOBCN_GL <= 0) &
+            & CALL FATAL_ERROR('OBC viscosity sponge requires an open boundary')
+       DO I=1,IOBCN_GL
+          J=I_OBC_GL(I)
+          IF(J < 1 .OR. J > MGL) &
+               & CALL FATAL_ERROR('Invalid OBC node index in viscosity sponge')
+          GB(J)=1.0_SP
+       END DO
+    END IF
 # if defined (MULTIPROCESSOR)
     IF(PAR) THEN
        CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,VX,GX)
        CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,VY,GY)
-       CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,LB,GB)
     ELSE
        GX=VX
        GY=VY
-       GB=LB
     ENDIF
 # else
     GX=VX
     GY=VY
-    GB=LB
 # endif
 
     IF(MSR) THEN
@@ -229,7 +233,6 @@ CONTAINS
     OBC_SPONGE_WEIGHT(1:NT)=GW(1:NT)
 # endif
 
-    DEALLOCATE(LB)
     IF(MSR) DEALLOCATE(GX,GY,GB,GW)
 
     ! Disable only the old sponge coefficients; its source code remains intact.
