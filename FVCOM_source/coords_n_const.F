@@ -250,4 +250,8 @@ SUBROUTINE COORDS_N_CONST
   END SELECT
   
   
+  ! New viscosity sponge is independent of nesting and initialized for all
+  ! startup types, after the OBC mask and mesh coordinates are available.
+  IF(OBC_SPONGE_ON) CALL SETUP_OBC_VISCOUS_SPONGE
+
 END SUBROUTINE COORDS_N_CONST

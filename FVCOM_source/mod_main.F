@@ -894,6 +894,18 @@ MODULE CONTROL
          & CORIOLIS_FILE,                  &
          & SPONGE_FILE
 
+    !-- Optional ROMS-inspired open-boundary viscosity buffer.
+    !-- Independent of NESTING_TYPE and of the legacy SPONGE_FILE.
+    LOGICAL OBC_SPONGE_ON
+    REAL(SP) OBC_SPONGE_VISCOSITY  !! Target kinematic momentum viscosity [m2/s]
+    REAL(SP) OBC_SPONGE_WIDTH      !! Wet-mesh distance from OBC [m]
+    CHARACTER(LEN=80) OBC_SPONGE_PROFILE
+    NAMELIST /NML_OBC_SPONGE/      &
+         & OBC_SPONGE_ON,         &
+         & OBC_SPONGE_VISCOSITY,  &
+         & OBC_SPONGE_WIDTH,      &
+         & OBC_SPONGE_PROFILE
+
     !--Parameters in NameList NML_GROUNDWATER
     LOGICAL GROUNDWATER_ON
     CHARACTER(LEN=80) GROUNDWATER_KIND

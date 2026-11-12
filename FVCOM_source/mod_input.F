@@ -604,6 +604,12 @@ CONTAINS
 
     HIGH_LATITUDE_WAVE = .FALSE.
 
+    ! Optional OBC viscosity buffer defaults (legacy sponge unchanged).
+    OBC_SPONGE_ON = .FALSE.
+    OBC_SPONGE_VISCOSITY = 0.0_SP
+    OBC_SPONGE_WIDTH = 0.0_SP
+    OBC_SPONGE_PROFILE = 'smoothstep'
+
   END SUBROUTINE NAME_LIST_INITIALIZE
 
 
@@ -625,6 +631,7 @@ CONTAINS
     write(UNIT=IPT,NML=NML_NETCDF_AV)
     write(UNIT=IPT,NML=NML_SURFACE_FORCING)
     write(UNIT=IPT,NML=NML_PHYSICS)
+    write(UNIT=IPT,NML=NML_OBC_SPONGE)
     write(UNIT=IPT,NML=NML_RIVER_TYPE)
     write(UNIT=IPT,NML=NML_RIVER)
 # if defined (PLUME)
@@ -789,6 +796,19 @@ CONTAINS
     if(DBG_SET(dbg_scl)) &
          & write(UNIT=IPT,NML=NML_PHYSICS)
 
+
+    ! Optional namelist: absence means the new buffer remains off.
+    READ(UNIT=NMLUNIT,NML=NML_OBC_SPONGE,IOSTAT=ios)
+    IF(ios > 0) CALL FATAL_ERROR("Invalid NML_OBC_SPONGE in "//TRIM(FNAME))
+    REWIND(NMLUNIT)
+    IF(OBC_SPONGE_ON) THEN
+       IF(.NOT.(OBC_SPONGE_WIDTH > 0.0_SP)) &
+            & CALL FATAL_ERROR("OBC_SPONGE_WIDTH must be positive")
+       IF(.NOT.(OBC_SPONGE_VISCOSITY > 0.0_SP)) &
+            & CALL FATAL_ERROR("OBC_SPONGE_VISCOSITY must be positive")
+       IF(TRIM(OBC_SPONGE_PROFILE) /= 'smoothstep') &
+            & CALL FATAL_ERROR("OBC_SPONGE_PROFILE must be smoothstep")
+    END IF
 
     ! Read Surface Forcing Settings
     READ(UNIT=NMLUNIT, NML=NML_SURFACE_FORCING,IOSTAT=ios)

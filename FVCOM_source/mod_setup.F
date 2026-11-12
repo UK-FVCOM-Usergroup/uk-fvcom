@@ -56,9 +56,187 @@ MODULE MOD_SETUP
   REAL(SP), ALLOCATABLE, TARGET :: R_SPG(:),C_SPG(:),X_SPG(:),Y_SPG(:)
   INTEGER :: NSPONGE
 
+  ! ROMS-inspired OBC viscosity buffer, separate from CC_SPONGE.
+  REAL(SP), ALLOCATABLE, TARGET :: OBC_SPONGE_WEIGHT(:)
+
   PRIVATE :: SIGMA_GEOMETRIC, SIGMA_GENERALIZED, SIGMA_TANH, SIGMA_SOUZA
 
 CONTAINS
+
+!==============================================================================!
+!  ROMS-inspired OBC sponge: enforce a lower bound on the native FVCOM viscosity
+!  without multiplying the Smagorinsky parameter or changing tracer diffusion.
+!==============================================================================!
+  REAL(SP) FUNCTION OBC_SPONGE_VISC(NU_FVCOM,IELEM) RESULT(NU_EFFECTIVE)
+    IMPLICIT NONE
+    REAL(SP), INTENT(IN) :: NU_FVCOM
+    INTEGER, INTENT(IN) :: IELEM
+
+    NU_EFFECTIVE = NU_FVCOM
+    IF(.NOT.OBC_SPONGE_ON) RETURN
+    IF(IELEM < 1 .OR. IELEM > NT) RETURN
+    ! Max(0,...) guarantees NU_EFFECTIVE >= NU_FVCOM, even if
+    ! the Smagorinsky closure produces a value greater than the target.
+    NU_EFFECTIVE = NU_FVCOM + OBC_SPONGE_WEIGHT(IELEM) * &
+         & MAX(0.0_SP,OBC_SPONGE_VISCOSITY - NU_FVCOM)
+  END FUNCTION OBC_SPONGE_VISC
+
+!==============================================================================!
+!  Generate sponge weights using wet-mesh shortest-path distances to OBC nodes.
+!  Compute once on master using the global triangle connectivity, then scatter
+!  to local cells. This avoids crossing land and works across MPI partitions.
+!==============================================================================!
+  SUBROUTINE SETUP_OBC_VISCOUS_SPONGE
+    USE MOD_SPHERICAL, ONLY: ARC
+    IMPLICIT NONE
+    REAL(SP), ALLOCATABLE, TARGET :: GX(:),GY(:),GB(:),GW(:),LB(:)
+    REAL(SP), ALLOCATABLE :: DIST(:),EDGE_LENGTH(:)
+    INTEGER, ALLOCATABLE :: ROW(:),DEG(:),CUR(:),COL(:),QUEUE(:)
+    LOGICAL, ALLOCATABLE :: IN_QUEUE(:)
+    INTEGER :: I,J,K,N1,N2,N3,POS,HEAD,TAIL,NQUEUE,NEDGE,NB
+    REAL(SP) :: STEP,CAND,Q,D_CELL
+    REAL(DP) :: X1_DP,Y1_DP,X2_DP,Y2_DP,D_DP
+
+    IF(.NOT.OBC_SPONGE_ON) RETURN
+    IF(ALLOCATED(OBC_SPONGE_WEIGHT)) DEALLOCATE(OBC_SPONGE_WEIGHT)
+    ALLOCATE(OBC_SPONGE_WEIGHT(0:NT))
+    OBC_SPONGE_WEIGHT = 0.0_SP
+
+    ALLOCATE(LB(0:MT))
+    LB = 0.0_SP
+    DO I=1,MT
+       IF(ISONB(I) == 2) LB(I)=1.0_SP
+    END DO
+
+    IF(MSR) ALLOCATE(GX(0:MGL),GY(0:MGL),GB(0:MGL),GW(0:NGL))
+# if defined (MULTIPROCESSOR)
+    IF(PAR) THEN
+       CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,VX,GX)
+       CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,VY,GY)
+       CALL ACOLLECT(MYID,MSRID,NPROCS,NMAP,LB,GB)
+    ELSE
+       GX=VX
+       GY=VY
+       GB=LB
+    ENDIF
+# else
+    GX=VX
+    GY=VY
+    GB=LB
+# endif
+
+    IF(MSR) THEN
+       IF(COUNT(GB(1:MGL) > 0.5_SP) == 0) &
+            & CALL FATAL_ERROR('OBC viscosity sponge requires an open boundary')
+
+       ! Undirected graph of wet triangle edges, including duplicates; CSR layout.
+       ALLOCATE(DEG(1:MGL),ROW(1:MGL+1),CUR(1:MGL))
+       DEG=0
+       DO I=1,NGL
+          DO K=1,3
+             N1=NVG(I,K)
+             N2=NVG(I,MOD(K,3)+1)
+             DEG(N1)=DEG(N1)+1
+             DEG(N2)=DEG(N2)+1
+          END DO
+       END DO
+       ROW(1)=1
+       DO I=1,MGL
+          ROW(I+1)=ROW(I)+DEG(I)
+       END DO
+       NEDGE=ROW(MGL+1)-1
+       ALLOCATE(COL(NEDGE),EDGE_LENGTH(NEDGE))
+       CUR=ROW(1:MGL)
+
+       DO I=1,NGL
+          DO K=1,3
+             N1=NVG(I,K)
+             N2=NVG(I,MOD(K,3)+1)
+# if defined (SPHERICAL)
+             X1_DP=GX(N1)
+             Y1_DP=GY(N1)
+             X2_DP=GX(N2)
+             Y2_DP=GY(N2)
+             CALL ARC(X1_DP,Y1_DP,X2_DP,Y2_DP,D_DP)
+             STEP=REAL(D_DP,SP)
+# else
+             STEP=SQRT((GX(N2)-GX(N1))**2+(GY(N2)-GY(N1))**2)
+# endif
+             POS=CUR(N1)
+             COL(POS)=N2
+             EDGE_LENGTH(POS)=STEP
+             CUR(N1)=POS+1
+             POS=CUR(N2)
+             COL(POS)=N1
+             EDGE_LENGTH(POS)=STEP
+             CUR(N2)=POS+1
+          END DO
+       END DO
+
+       ! Multi-source shortest paths, restricted to the sponge width.
+       ALLOCATE(DIST(0:MGL),QUEUE(1:MGL),IN_QUEUE(0:MGL))
+       DIST=OBC_SPONGE_WIDTH
+       IN_QUEUE=.FALSE.
+       HEAD=1
+       TAIL=0
+       NQUEUE=0
+       DO I=1,MGL
+          IF(GB(I) <= 0.5_SP) CYCLE
+          DIST(I)=0.0_SP
+          TAIL=MOD(TAIL,MGL)+1
+          QUEUE(TAIL)=I
+          IN_QUEUE(I)=.TRUE.
+          NQUEUE=NQUEUE+1
+       END DO
+       DO WHILE(NQUEUE > 0)
+          I=QUEUE(HEAD)
+          HEAD=MOD(HEAD,MGL)+1
+          NQUEUE=NQUEUE-1
+          IN_QUEUE(I)=.FALSE.
+          DO J=ROW(I),ROW(I+1)-1
+             NB=COL(J)
+             CAND=DIST(I)+EDGE_LENGTH(J)
+             IF(CAND >= DIST(NB)) CYCLE
+             DIST(NB)=CAND
+             IF(.NOT.IN_QUEUE(NB)) THEN
+                TAIL=MOD(TAIL,MGL)+1
+                QUEUE(TAIL)=NB
+                IN_QUEUE(NB)=.TRUE.
+                NQUEUE=NQUEUE+1
+             END IF
+          END DO
+       END DO
+
+       GW=0.0_SP
+       DO I=1,NGL
+          ! All boundary-adjacent cells receive maximum weight.
+          D_CELL=MIN(DIST(NVG(I,1)),DIST(NVG(I,2)),DIST(NVG(I,3)))
+          Q=MAX(0.0_SP,1.0_SP-D_CELL/OBC_SPONGE_WIDTH)
+          GW(I)=Q*Q*(3.0_SP-2.0_SP*Q)
+       END DO
+       WRITE(IPT,*) 'OBC viscosity sponge: nodes=',COUNT(GB(1:MGL)>0.5_SP), &
+            & ' cells in buffer=',COUNT(GW(1:NGL)>0.0_SP)
+       DEALLOCATE(DEG,ROW,CUR,COL,EDGE_LENGTH,DIST,QUEUE,IN_QUEUE)
+    ENDIF
+
+# if defined (MULTIPROCESSOR)
+    IF(PAR) THEN
+       CALL ADEAL(MYID,MSRID,NPROCS,EXMAP,GW,OBC_SPONGE_WEIGHT)
+    ELSE
+       OBC_SPONGE_WEIGHT(1:NT)=GW(1:NT)
+    ENDIF
+# else
+    OBC_SPONGE_WEIGHT(1:NT)=GW(1:NT)
+# endif
+
+    DEALLOCATE(LB)
+    IF(MSR) DEALLOCATE(GX,GY,GB,GW)
+
+    ! Disable only the old sponge coefficients; its source code remains intact.
+    ! This also overrides CC_SPONGE loaded from a hotstart restart file.
+    IF(MSR) WRITE(IPT,*) 'OBC viscosity sponge: legacy CC_SPONGE disabled'
+    CC_SPONGE=0.0_SP
+  END SUBROUTINE SETUP_OBC_VISCOUS_SPONGE
 
 !==============================================================================!
   SUBROUTINE SETUP_CENTER_COORDS
