@@ -27,6 +27,7 @@
 !/===========================================================================/
 
 MODULE MOD_NORTHPOLE
+#include "rotated_diffusion_config.h"
    USE ALL_VARS 
    USE MOD_SPHERICAL
    USE MOD_PAR
@@ -2557,8 +2558,13 @@ MODULE MOD_NORTHPOLE
          DLTXE_TMP = VX2_TMP-VX1_TMP
          DLTYE_TMP = VY2_TMP-VY1_TMP
        
+#        if defined (ROTATED_DIFFUSION_FLUX)
+         FXX=0.0_SP
+         FYY=0.0_SP
+#        else
          FXX=-DTIJ(I,K)*TXX*DLTYE_TMP
          FYY= DTIJ(I,K)*TYY*DLTXE_TMP
+#        endif
 
 #        if !defined (SEMI_IMPLICIT)
          UVN_TMP = VIJ_TMP*DLTXE_TMP - UIJ_TMP*DLTYE_TMP  
@@ -2846,8 +2852,13 @@ MODULE MOD_NORTHPOLE
          DLTXE_TMP = VX2_TMP-VX1_TMP
          DLTYE_TMP = VY2_TMP-VY1_TMP
        
+#        if defined (ROTATED_DIFFUSION_FLUX)
+         FXX=0.0_SP
+         FYY=0.0_SP
+#        else
          FXX=-DTIJ(I,K)*TXX*DLTYE_TMP
          FYY= DTIJ(I,K)*TYY*DLTXE_TMP
+#        endif
 
 #        if !defined (SEMI_IMPLICIT)
          UVN_TMP = VIJ_TMP*DLTXE_TMP - UIJ_TMP*DLTYE_TMP

@@ -441,7 +441,7 @@ endforeach()
 option(rotated_diffusion_flux "Use geopotential temperature/salinity diffusion" OFF)
 if(rotated_diffusion_flux)
   foreach(_rotated_unsupported
-      WET_DRY THIN_DAM SPHERICAL NORTHPOLE ONE_D_MODEL TWO_D_MODEL NH
+      WET_DRY THIN_DAM ONE_D_MODEL TWO_D_MODEL NH
       SEMI_IMPLICIT ICESHELF)
     if(ENABLE_${_rotated_unsupported})
       message(FATAL_ERROR

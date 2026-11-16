@@ -61,6 +61,9 @@ SUBROUTINE ADV_S
 # endif
 
   IMPLICIT NONE
+# if defined (ROTATED_DIFFUSION_FLUX) && defined (SPHERICAL)
+  REAL(SP), DIMENSION(0:MT,KB) :: ROTATED_KH
+# endif
   REAL(SP), DIMENSION(0:MT,KB)     :: XFLUX,XFLUX_ADV
   REAL(SP), DIMENSION(0:MT)        :: PUPX,PUPY,PVPX,PVPY  
   REAL(SP), DIMENSION(0:MT)        :: PSPX,PSPY,PSPXD,PSPYD,VISCOFF
@@ -152,6 +155,9 @@ SUBROUTINE ADV_S
   !--Initialize Fluxes-----------------------------------------------------------!
   !
   XFLUX     = 0.0_SP
+# if defined (ROTATED_DIFFUSION_FLUX) && defined (SPHERICAL)
+  ROTATED_KH = 0.0_SP
+# endif
   XFLUX_ADV = 0.0_SP
 
   !
@@ -578,9 +584,21 @@ SUBROUTINE ADV_S
 
 #    if defined (SPHERICAL)
 #    if !defined (SEMI_IMPLICIT)
+#    if defined (ROTATED_DIFFUSION_FLUX)
+       CALL ADV_S_XY(XFLUX,XFLUX_ADV,PSPX,PSPY,PSPXD,PSPYD,VISCOFF(1:M),K,0.0_SP)
+#    else
        CALL ADV_S_XY(XFLUX,XFLUX_ADV,PSPX,PSPY,PSPXD,PSPYD,VISCOFF,K,0.0_SP)
+#    endif
+#    else
+#    if defined (ROTATED_DIFFUSION_FLUX)
+       CALL ADV_S_XY(XFLUX,XFLUX_ADV,PSPX,PSPY,PSPXD,PSPYD,VISCOFF(1:M),K,IFCETA)
 #    else
        CALL ADV_S_XY(XFLUX,XFLUX_ADV,PSPX,PSPY,PSPXD,PSPYD,VISCOFF,K,IFCETA)
+#    endif
+#    endif
+#    if defined (ROTATED_DIFFUSION_FLUX)
+       ! Preserve the existing North Pole correction to the tracer coefficient.
+       ROTATED_KH(1:M,K) = (FACT*VISCOFF(1:M)+FM1)*NN_HVC(1:M)
 #    endif
 #    endif  
 
@@ -1239,7 +1257,11 @@ SUBROUTINE ADV_S
 
 # if defined (ROTATED_DIFFUSION_FLUX)
   ! Diffusion bypasses MPDATA's cellwise advection limiter and never alters WTS.
+# if defined (SPHERICAL)
+  CALL APPLY_ROTATED_TRACER_DIFFUSION(S1,SMEAN1,SF1, DIFFUSIVITY=ROTATED_KH)
+# else
   CALL APPLY_ROTATED_TRACER_DIFFUSION(S1,SMEAN1,SF1)
+# endif
 # endif
 
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: adv_s"

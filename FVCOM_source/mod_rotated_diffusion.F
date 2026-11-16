@@ -38,7 +38,7 @@
 ! This module deliberately has no dependency on model state or MPI. Assemble
 ! owned triangles only; the caller must sum shared-node residuals and bounds.
 MODULE MOD_ROTATED_DIFFUSION
-  USE MOD_PREC, ONLY: SP
+  USE MOD_PREC, ONLY: SP, DP
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: ROTATED_DIFFUSION_RESIDUAL
@@ -46,7 +46,7 @@ MODULE MOD_ROTATED_DIFFUSION
 CONTAINS
 
   SUBROUTINE ROTATED_DIFFUSION_RESIDUAL(NNODE, NELEM, NLAY, TRIANGLES, X, Y, &
-       Z, THICKNESS, KH, ANOMALY, RESIDUAL, BOUND, IERR, LATERAL, INTERFACE_FLUX)
+       Z, THICKNESS, KH, ANOMALY, RESIDUAL, BOUND, IERR, LATERAL, INTERFACE_FLUX, SPHERICAL_RADIUS)
     INTEGER, INTENT(IN) :: NNODE, NELEM, NLAY
     INTEGER, INTENT(IN) :: TRIANGLES(3,NELEM)
     REAL(SP), INTENT(IN) :: X(NNODE), Y(NNODE), Z(NNODE,NLAY)
@@ -56,12 +56,16 @@ CONTAINS
     INTEGER, INTENT(OUT) :: IERR
     REAL(SP), OPTIONAL, INTENT(OUT) :: LATERAL(NNODE,NLAY)
     REAL(SP), OPTIONAL, INTENT(OUT) :: INTERFACE_FLUX(NNODE,NLAY+1)
+    ! Present: X/Y are longitude/latitude in degrees, radius is in metres.
+    ! Absent: retain the original Cartesian metre-coordinate calculation.
+    REAL(SP), OPTIONAL, INTENT(IN) :: SPHERICAL_RADIUS
 
     INTEGER :: E, K, A, I, LO, HI, J
     INTEGER :: NODES(3)
     REAL(SP) :: GX(3), GY(3), BX(3,3), BY(3,3), SPAN(3)
     REAL(SP) :: AREA, SX, SY, DZC, QX, QY, WEIGHT, VFLUX, LX, LY
     REAL(SP) :: SUMBX, SUMBY, DET, DX21, DY21, DX31, DY31, SCALE
+    REAL(SP), ALLOCATABLE :: SPHERE_GX(:,:), SPHERE_GY(:,:), SPHERE_AREA(:)
 
     ! R has units tracer*volume/time. No volume division or timestep occurs
     ! here. BOUND is an upper bound on sum_j abs((B^T W K B)_ij), assembled
@@ -98,35 +102,56 @@ CONTAINS
       RETURN
     END IF
 
-    ! Validate geometry before assembly, leaving outputs zero on any error.
-    DO E = 1, NELEM
-      NODES = TRIANGLES(:,E)
-      DX21 = X(NODES(2))-X(NODES(1))
-      DY21 = Y(NODES(2))-Y(NODES(1))
-      DX31 = X(NODES(3))-X(NODES(1))
-      DY31 = Y(NODES(3))-Y(NODES(1))
-      DET = DX21*DY31-DX31*DY21
-      SCALE = MAX(DX21*DX21+DY21*DY21, DX31*DX31+DY31*DY31)
-      IF (.NOT.(ABS(DET) > EPSILON(1.0_SP)*SCALE)) THEN
-        IERR = 3
+    ! Validate all geometry before assembly, leaving outputs zero on error.
+    IF (PRESENT(SPHERICAL_RADIUS)) THEN
+      IF (.NOT.(SPHERICAL_RADIUS > 0.0_SP .AND. SPHERICAL_RADIUS < HUGE(1.0_SP)) .OR. &
+          .NOT.ALL(ABS(Y) <= 90.0_SP)) THEN
+        IERR = 6
         RETURN
       END IF
-    END DO
+      ALLOCATE(SPHERE_GX(3,NELEM), SPHERE_GY(3,NELEM), SPHERE_AREA(NELEM))
+      DO E = 1, NELEM
+        NODES = TRIANGLES(:,E)
+        CALL SPHERICAL_TRIANGLE(X(NODES),Y(NODES),SPHERICAL_RADIUS, &
+             SPHERE_GX(:,E),SPHERE_GY(:,E),SPHERE_AREA(E),IERR)
+        IF (IERR /= 0) RETURN
+      END DO
+    ELSE
+      DO E = 1, NELEM
+        NODES = TRIANGLES(:,E)
+        DX21 = X(NODES(2))-X(NODES(1))
+        DY21 = Y(NODES(2))-Y(NODES(1))
+        DX31 = X(NODES(3))-X(NODES(1))
+        DY31 = Y(NODES(3))-Y(NODES(1))
+        DET = DX21*DY31-DX31*DY21
+        SCALE = MAX(DX21*DX21+DY21*DY21, DX31*DX31+DY31*DY31)
+        IF (.NOT.(ABS(DET) > EPSILON(1.0_SP)*SCALE)) THEN
+          IERR = 3
+          RETURN
+        END IF
+      END DO
+    END IF
 
     DO E = 1, NELEM
       NODES = TRIANGLES(:,E)
-      DX21 = X(NODES(2))-X(NODES(1))
-      DY21 = Y(NODES(2))-Y(NODES(1))
-      DX31 = X(NODES(3))-X(NODES(1))
-      DY31 = Y(NODES(3))-Y(NODES(1))
-      DET = DX21*DY31-DX31*DY21
-      AREA = 0.5_SP*ABS(DET)
-      GX(2) = DY31/DET
-      GX(3) = -DY21/DET
-      GX(1) = -GX(2)-GX(3)
-      GY(2) = -DX31/DET
-      GY(3) = DX21/DET
-      GY(1) = -GY(2)-GY(3)
+      IF (PRESENT(SPHERICAL_RADIUS)) THEN
+        GX = SPHERE_GX(:,E)
+        GY = SPHERE_GY(:,E)
+        AREA = SPHERE_AREA(E)
+      ELSE
+        DX21 = X(NODES(2))-X(NODES(1))
+        DY21 = Y(NODES(2))-Y(NODES(1))
+        DX31 = X(NODES(3))-X(NODES(1))
+        DY31 = Y(NODES(3))-Y(NODES(1))
+        DET = DX21*DY31-DX31*DY21
+        AREA = 0.5_SP*ABS(DET)
+        GX(2) = DY31/DET
+        GX(3) = -DY21/DET
+        GX(1) = -GX(2)-GX(3)
+        GY(2) = -DX31/DET
+        GY(3) = DX21/DET
+        GY(1) = -GY(2)-GY(3)
+      END IF
 
       DO K = 1, NLAY
         LO = MAX(1,K-1)
@@ -187,4 +212,90 @@ CONTAINS
       END DO
     END DO
   END SUBROUTINE ROTATED_DIFFUSION_RESIDUAL
+
+  ! Local P1 reconstruction in an orthonormal centroid tangent frame, with
+  ! the true spherical triangle area for integration. This is a consistent
+  ! small-element surface discretization, rather than an exact integration
+  ! of curved-element basis functions. Its metric error vanishes on mesh
+  ! refinement. The frame uses a projected edge, so longitude seams and
+  ! either geographic pole introduce no coordinate singularity.
+  SUBROUTINE SPHERICAL_TRIANGLE(LON,LAT,RADIUS,GX,GY,AREA,IERR)
+    REAL(SP), INTENT(IN) :: LON(3), LAT(3), RADIUS
+    REAL(SP), INTENT(OUT) :: GX(3), GY(3), AREA
+    INTEGER, INTENT(OUT) :: IERR
+    REAL(DP) :: P(3,3), CENTRE(3), T1(3), T2(3), EDGE21(3), EDGE31(3)
+    REAL(DP) :: LAMBDA, PHI, DEG, NORM_CENTRE, NORM_EDGE, R
+    REAL(DP) :: DX21, DY21, DX31, DY31, DET, SCALE, SOLID_ANGLE, AREA_DP, DENOM
+    INTEGER :: A
+
+    IERR = 0
+    GX = 0.0_SP
+    GY = 0.0_SP
+    AREA = 0.0_SP
+    DEG = ACOS(-1.0_DP)/180.0_DP
+    R = REAL(RADIUS,DP)
+    DO A = 1, 3
+      LAMBDA = MODULO(REAL(LON(A),DP),360.0_DP)*DEG
+      PHI = REAL(LAT(A),DP)*DEG
+      P(:,A) = (/ COS(PHI)*COS(LAMBDA), COS(PHI)*SIN(LAMBDA), SIN(PHI) /)
+    END DO
+    CENTRE = SUM(P,DIM=2)
+    NORM_CENTRE = SQRT(DOT_PRODUCT(CENTRE,CENTRE))
+    IF (.NOT.(NORM_CENTRE > 64.0_DP*EPSILON(1.0_DP))) THEN
+      IERR = 6
+      RETURN
+    END IF
+    CENTRE = CENTRE/NORM_CENTRE
+    ! Only local triangles fitting inside this open hemisphere are valid.
+    DO A = 1, 3
+      IF (.NOT.(DOT_PRODUCT(CENTRE,P(:,A)) > 64.0_DP*EPSILON(1.0_DP))) THEN
+        IERR = 6
+        RETURN
+      END IF
+    END DO
+    EDGE21 = P(:,2)-P(:,1)
+    EDGE31 = P(:,3)-P(:,1)
+    T1 = EDGE21-CENTRE*DOT_PRODUCT(CENTRE,EDGE21)
+    NORM_EDGE = SQRT(DOT_PRODUCT(T1,T1))
+    IF (.NOT.(NORM_EDGE > 0.0_DP)) THEN
+      IERR = 3
+      RETURN
+    END IF
+    T1 = T1/NORM_EDGE
+    T2 = CROSS_PRODUCT(CENTRE,T1)
+    DX21 = R*DOT_PRODUCT(EDGE21,T1)
+    DY21 = R*DOT_PRODUCT(EDGE21,T2)
+    DX31 = R*DOT_PRODUCT(EDGE31,T1)
+    DY31 = R*DOT_PRODUCT(EDGE31,T2)
+    DET = DX21*DY31-DX31*DY21
+    SCALE = MAX(DX21*DX21+DY21*DY21,DX31*DX31+DY31*DY31)
+    IF (.NOT.(ABS(DET) > REAL(EPSILON(1.0_SP),DP)*SCALE)) THEN
+      IERR = 3
+      RETURN
+    END IF
+    DENOM = 1.0_DP+DOT_PRODUCT(P(:,1),P(:,2))+ &
+         DOT_PRODUCT(P(:,2),P(:,3))+DOT_PRODUCT(P(:,3),P(:,1))
+    SOLID_ANGLE = 2.0_DP*ATAN2(ABS(DOT_PRODUCT(P(:,1),CROSS_PRODUCT(EDGE21,EDGE31))),DENOM)
+    AREA_DP = R*R*SOLID_ANGLE
+    IF (.NOT.(AREA_DP >= REAL(TINY(1.0_SP),DP) .AND. &
+        AREA_DP < REAL(HUGE(1.0_SP),DP)) .OR. &
+        .NOT.(MAX(ABS(DY31/DET),ABS(DY21/DET),ABS(DX31/DET),ABS(DX21/DET)) &
+        < REAL(HUGE(1.0_SP),DP)/2.0_DP)) THEN
+      IERR = 6
+      RETURN
+    END IF
+    AREA = REAL(AREA_DP,SP)
+    GX(2) = REAL(DY31/DET,SP)
+    GX(3) = REAL(-DY21/DET,SP)
+    GX(1) = -GX(2)-GX(3)
+    GY(2) = REAL(-DX31/DET,SP)
+    GY(3) = REAL(DX21/DET,SP)
+    GY(1) = -GY(2)-GY(3)
+  END SUBROUTINE SPHERICAL_TRIANGLE
+
+  PURE FUNCTION CROSS_PRODUCT(A,B) RESULT(C)
+    REAL(DP), INTENT(IN) :: A(3), B(3)
+    REAL(DP) :: C(3)
+    C = (/ A(2)*B(3)-A(3)*B(2), A(3)*B(1)-A(1)*B(3), A(1)*B(2)-A(2)*B(1) /)
+  END FUNCTION CROSS_PRODUCT
 END MODULE MOD_ROTATED_DIFFUSION
