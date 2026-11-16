@@ -33,6 +33,8 @@
 
 SUBROUTINE ADV_T               
 
+#include "rotated_diffusion_config.h"
+
   !------------------------------------------------------------------------------|
 
   USE ALL_VARS
@@ -43,6 +45,9 @@ SUBROUTINE ADV_T
   USE MOD_WD 
   USE MOD_SPHERICAL
   USE MOD_NORTHPOLE
+# if defined (ROTATED_DIFFUSION_FLUX)
+  USE MOD_ROTATED_TRACER, ONLY: APPLY_ROTATED_TRACER_DIFFUSION
+# endif
 # if defined (SEMI_IMPLICIT)
   USE MOD_SEMI_IMPLICIT
 # endif
@@ -549,11 +554,16 @@ SUBROUTINE ADV_T
         VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
 
 
+# if defined (ROTATED_DIFFUSION_FLUX)
+        FXX=0.0_SP
+        FYY=0.0_SP
+# else
         TXX=0.5_SP*(PTPXD(IA)+PTPXD(IB))*VISCOF
         TYY=0.5_SP*(PTPYD(IA)+PTPYD(IB))*VISCOF
 
         FXX=-DTIJ(I,K)*TXX*DLTYE(I)
         FYY= DTIJ(I,K)*TYY*DLTXE(I)
+# endif
 
 #       if !defined (SEMI_IMPLICIT)
 #       if !defined (TVD)
@@ -1219,6 +1229,11 @@ SUBROUTINE ADV_T
      END DO
   END DO
 # endif
+# if defined (ROTATED_DIFFUSION_FLUX)
+  ! Diffusion bypasses MPDATA's cellwise advection limiter and never alters WTS.
+  CALL APPLY_ROTATED_TRACER_DIFFUSION(T1,TMEAN1,TF1)
+# endif
+
   IF(DBG_SET(DBG_SBR)) WRITE(IPT,*)"End: adv_t"
 
 END SUBROUTINE ADV_T

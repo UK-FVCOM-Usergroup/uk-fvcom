@@ -27,6 +27,7 @@
 !/===========================================================================/
 
 SUBROUTINE CNTRL_PRMTRS
+#include "rotated_diffusion_config.h"
   USE LIMS
   USE CONTROL
   USE MOD_UTILS
@@ -43,6 +44,13 @@ SUBROUTINE CNTRL_PRMTRS
 
 
   ! SIMPLE SETTINGS FROM RUN FILE ETC SHOULD GO HERE!
+
+# if defined (ROTATED_DIFFUSION_FLUX)
+  IF(BACKWARD_ADVECTION) CALL FATAL_ERROR &
+       & ('ROTATED_DIFFUSION_FLUX does not support BACKWARD_ADVECTION')
+  IF(SCALAR_POSITIVITY_CONTROL) CALL FATAL_ERROR &
+       & ('ROTATED_DIFFUSION_FLUX does not support SCALAR_POSITIVITY_CONTROL')
+# endif
 
   IF (MSR) USE_PROJ = HAVE_PROJ(PROJECTION_REFERENCE)
 # if defined (MULTIPROCESSOR)

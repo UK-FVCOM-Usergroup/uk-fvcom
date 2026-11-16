@@ -434,3 +434,20 @@ foreach(feature
     target_compile_definitions(fvcom PUBLIC ${feature})
   endif()
 endforeach()
+
+# Geopotential temperature/salinity diffusion is independent of nesting type
+# and of the momentum sponge. Keep the legacy operator unless explicitly ON.
+# Evaluate after the existing ENABLE_* options have acquired their defaults.
+option(rotated_diffusion_flux "Use geopotential temperature/salinity diffusion" OFF)
+if(rotated_diffusion_flux)
+  foreach(_rotated_unsupported
+      WET_DRY THIN_DAM SPHERICAL NORTHPOLE ONE_D_MODEL TWO_D_MODEL NH
+      SEMI_IMPLICIT ICESHELF)
+    if(ENABLE_${_rotated_unsupported})
+      message(FATAL_ERROR
+        "rotated_diffusion_flux does not support ENABLE_${_rotated_unsupported}=ON")
+    endif()
+  endforeach()
+  target_sources(fvcom PRIVATE mod_rotated_diffusion.F mod_rotated_tracer.F)
+  target_compile_definitions(fvcom PUBLIC ROTATED_DIFFUSION_FLUX)
+endif()

@@ -113,6 +113,12 @@ COBJS = func_pointer.c
 
 BIOGEN	= mod_bio_3D.F	mod_onedtide.F
 
+# Match the CMake opt-in. OFF leaves the original source list and flags intact.
+rotated_diffusion_flux ?= OFF
+ifeq ($(rotated_diffusion_flux),ON)
+MODS += mod_rotated_diffusion.F mod_rotated_tracer.F
+endif
+
 SRCS = $(MODS) $(MODS_W) $(MAIN) $(BIOGEN) $(MAIN_W)
 
 # object list is composed of free (*.F) and fixed (*.F90) source
@@ -207,3 +213,11 @@ Makefiles::
 includes::
 include ./makedepends
 include ./make.inc
+
+ifeq ($(rotated_diffusion_flux),ON)
+CPPARGS += -DROTATED_DIFFUSION_FLUX
+mod_rotated_diffusion.o: mod_prec.o
+mod_rotated_tracer.o: mod_rotated_diffusion.o mod_main.o mod_par.o mod_utils.o rotated_diffusion_config.h
+adv_t.o adv_s.o: mod_rotated_tracer.o rotated_diffusion_config.h
+cntrl_prmtrs.o: rotated_diffusion_config.h
+endif
