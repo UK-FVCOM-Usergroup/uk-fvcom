@@ -75,6 +75,7 @@ SUBROUTINE EXTERNAL_STEP
   IMPLICIT NONE
   REAL(SP) :: TMP
   INTEGER :: K, I, J, JN, J1,i1,i2
+  LOGICAL :: FLATHER_OBC_ACTIVE
 
 # if defined (ICE)
     real(SP) :: DUVI,ice_ocnDX,ice_ocnDY
@@ -82,6 +83,7 @@ SUBROUTINE EXTERNAL_STEP
 !------------------------------------------------------------------------------|
 
   if(dbg_set(dbg_sbr)) write(ipt,*) "Start: external_step"
+  FLATHER_OBC_ACTIVE = NESTING_ON .AND. TRIM(NESTING_TYPE)=='4' .AND. NESTING_FLATHER_OBC
  
   !! David for VISIT
   !!=======================================================
@@ -307,6 +309,9 @@ SUBROUTINE EXTERNAL_STEP
 
 # else
 
+     ! Flather evolves OBC elevation in EXTEL_EDGE. Do not overwrite it with
+     ! legacy elevation conditions or apply ALPHA_RK a second time.
+     IF(.NOT. FLATHER_OBC_ACTIVE) THEN
      ! VALUES FOR THE OPEN BOUNDARY ARE ONLY UPDATED IN THE LOCAL DOMAIN
      ! THE HALO IS NOT SET HERE
 #   if defined (GCN)
@@ -326,6 +331,7 @@ SUBROUTINE EXTERNAL_STEP
         J=I_OBC_N(JN)
         ELF(J)=ELRK(J)+ALPHA_RK(K)*(ELF(J)-ELRK(J))
      END DO
+     END IF
 
      ! Type 4 OBC modes are mutually exclusive.  For the Flather experiment
      ! leave the RK elevation from FVCOM's continuity equation untouched.

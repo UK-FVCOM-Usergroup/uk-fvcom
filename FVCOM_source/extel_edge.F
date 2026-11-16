@@ -35,6 +35,8 @@
    USE ALL_VARS
    USE BCS
    USE MOD_OBCS
+   USE MOD_NESTING, ONLY: NESTING_ON, NESTING_TYPE, NESTING_FLATHER_OBC, &
+        & NEST4_FLATHER_ADD_FLUX
 
 #  if defined (SPHERICAL)
    USE MOD_NORTHPOLE
@@ -67,6 +69,7 @@
    REAL(SP) :: XFLUX(0:MT)
    REAL(SP) :: DIJ,UIJ,VIJ,DTK,UN,EXFLUX
    INTEGER  :: I,J,I1,IA,IB,JJ,J1,J2
+   LOGICAL :: FLATHER_OBC_ACTIVE
 
 #  if defined (BALANCE_2D)
    REAL(SP), DIMENSION(0:MT) :: XFLUXU,XFLUXV
@@ -79,6 +82,7 @@
 #  endif
 !==============================================================================|
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "Start: extel_edge.F",K
+   FLATHER_OBC_ACTIVE = NESTING_ON .AND. TRIM(NESTING_TYPE)=='4' .AND. NESTING_FLATHER_OBC
 !----------INITIALIZE FLUX ARRAY ----------------------------------------------!
 
    XFLUX = 0.0_SP
@@ -164,15 +168,19 @@
       XFLUX = XFLUX - BFWDIS2
    END IF
 
-!--SAVE ACCUMULATED FLUX ON OPEN BOUNDARY NODES AND ZERO OUT OPEN BOUNDARY FLUX!
+!--SAVE INTERIOR FLUX ON OBC NODES FOR FLUX_OBN AND THE TRACER FLUX BUDGET-------!
 
    IF(IOBCN > 0) THEN  
      DO I=1,IOBCN
        XFLUX_OBCN(I)=XFLUX(I_OBC_N(I))
-       XFLUX(I_OBC_N(I)) = 0.0_SP
+       IF(.NOT. FLATHER_OBC_ACTIVE) XFLUX(I_OBC_N(I)) = 0.0_SP
      END DO
    END IF
 
+   ! Flather supplies velocity rather than elevation. Close each OBC control
+   ! volume with its physical open-edge flux and retain the RK continuity update.
+   ! Other boundary modes retain the legacy prescribed-elevation treatment.
+   IF(FLATHER_OBC_ACTIVE) CALL NEST4_FLATHER_ADD_FLUX(XFLUX)
 
 !---------ADJUST FLUX FOR FRESH WATER DISCHARGE--------------------------------!
 

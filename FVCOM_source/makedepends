@@ -185,4 +185,10 @@ swancom2.o : swancom2.F mod_spherical.o mod_main.o mod_prec.o swmod2.o mod_main_
 swancom3.o : swancom3.F mod_main_wave.o mod_main.o swmod1.o swmod1.o swmod1.o swmod1.o swmod1.o swmod1.o swmod1.o swmod1.o mod_prec.o 
 swancom4.o : swancom4.F mod_main.o mod_main_wave.o swmod2.o swmod1.o swmod1.o swmod1.o mod_prec.o 
 swancom5.o : swancom5.F swmod1.o mod_main.o swmod1.o swmod1.o swmod2.o mod_main.o mod_action_ex.o swmod1.o swmod1.o swmod1.o swmod2.o mod_prec.o 
-w3part.o : w3part.F mod_prec.o mod_action_ex.o mod_par_special.o swmod2.o mod_main_wave.o swmod1.o swmod1.o mod_prec.o 
+w3part.o : w3part.F mod_prec.o mod_action_ex.o mod_par_special.o swmod2.o mod_main_wave.o swmod1.o swmod1.o mod_prec.o
+
+# Type-4 nesting and viscosity sponge module dependencies.
+mod_nesting_type4.o : mod_nesting_type4.F mod_prec.o
+mod_nesting.o : mod_nesting_type4.o mod_obcs.o
+extel_edge.o : mod_nesting.o
+advave_edge_gcn.o advave_edge_gcy.o adv_uv_edge_gcn.o adv_uv_edge_gcy.o : mod_setup.o

@@ -3513,6 +3513,36 @@ END SUBROUTINE GENMAP_NESTING
     END DO
   END SUBROUTINE NEST4_CHAR_STAGE_UV
 
+  ! Add the missing exterior faces of the OBC nodal control volumes. The
+  ! native half-edge divergence is retained by EXTEL_EDGE in Flather mode.
+  ! Use the same stage velocity and element depth as its interior fluxes;
+  ! using a separate edge depth would spoil the discrete transport budget.
+  SUBROUTINE NEST4_FLATHER_ADD_FLUX(XFLUX)
+    IMPLICIT NONE
+    REAL(SP), INTENT(INOUT) :: XFLUX(0:MT)
+    INTEGER :: IC,J,E,N1,N2
+    REAL(SP) :: HALF_FLUX,UN
+
+    CALL NEST4_CHAR_INIT
+    ! Include halo cells: their open edges can bound an owned OBC node.
+    ! Each physical open edge occurs once in this rank's cell/edge cache.
+    DO IC=1,N4_NCELL
+       J=N4_CELLIDS(IC)
+       IF(.NOT. IEEE_IS_FINITE(D1(J)) .OR. D1(J)<=MIN_DEPTH) &
+            & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID FLUX WATER DEPTH')
+       DO E=1,N4_NEDGE(J)
+          N1=N4_N1(J,E); N2=N4_N2(J,E)
+          UN=UA(J)*N4_NX(J,E)+VA(J)*N4_NY(J,E)
+          ! Outward transport is positive; each endpoint owns half the edge.
+          HALF_FLUX=0.5_SP*N4_LENGTH(J,E)*D1(J)*UN
+          IF(.NOT. IEEE_IS_FINITE(HALF_FLUX)) &
+               & CALL FATAL_ERROR('TYPE 4 FLATHER: NONFINITE OPEN EDGE FLUX')
+          XFLUX(N1)=XFLUX(N1)+HALF_FLUX
+          XFLUX(N2)=XFLUX(N2)+HALF_FLUX
+       END DO
+    END DO
+  END SUBROUTINE NEST4_FLATHER_ADD_FLUX
+
   ! Velocity-only Flather experiment.  Do NOT prescribe OBC elevation:
   ! EXTEL_EDGE and the FVCOM RK machinery provide ELF at this stage.
   ! Parent data provide the incoming barotropic characteristic.  Edge geometry

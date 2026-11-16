@@ -2,6 +2,7 @@
 ! This module deliberately does not modify the external-mode volume transport.
 MODULE MOD_NESTING_TYPE4
   USE MOD_PREC, ONLY : SP, DP
+  USE, INTRINSIC :: IEEE_ARITHMETIC, ONLY : IEEE_IS_FINITE
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: NEST4_RELAX_WEIGHT, NEST4_RELAX_SHEAR, NEST4_PROJECT_TRANSPORT, &
@@ -181,11 +182,25 @@ CONTAINS
     REAL(SP), ALLOCATABLE :: AX(:),AY(:),DIV(:)
     REAL(DP) :: RHSNORM2,RHO,RHO_NEW,PDOT,STEP,BETA,NORM2
     INTEGER :: E,IA,IB,C,I,UNREACHABLE
+    LOGICAL :: NONFINITE
     INTEGER, PARAMETER :: MAXITER = 350
     REAL(DP), PARAMETER :: TOL = 5.0E-6_DP
 
     INFO = 0; ITER = 0; RELRES = 0.0_SP
     DQX = 0.0_SP; DQY = 0.0_SP
+    ! INFO=6 rejects nonfinite data. Make this decision collectively before
+    ! any rank can leave the solver; a local early return could deadlock MPI.
+    NONFINITE = .NOT. IEEE_IS_FINITE(DT) .OR. &
+         & .NOT. ALL(IEEE_IS_FINITE(AREA(1:M))) .OR. &
+         & .NOT. ALL(IEEE_IS_FINITE(DELTA_ETA(1:M))) .OR. &
+         & .NOT. ALL(IEEE_IS_FINITE(QX_SOFT)) .OR. &
+         & .NOT. ALL(IEEE_IS_FINITE(QY_SOFT)) .OR. &
+         & .NOT. ALL(IEEE_IS_FINITE(MOBILITY)) .OR. &
+         & .NOT. ALL(IEEE_IS_FINITE(DX(1:NCV))) .OR. &
+         & .NOT. ALL(IEEE_IS_FINITE(DY(1:NCV)))
+    IF(GLOBAL_SUM(REAL(MERGE(1,0,NONFINITE),DP))>0.0_DP) THEN
+       INFO=6; RETURN
+    END IF
     IF (DT <= 0.0_SP) THEN
        INFO = 4; RETURN
     END IF
@@ -205,6 +220,9 @@ CONTAINS
        DIAG(IB)=DIAG(IB)+MOBILITY(C)*(DX(E)**2+DY(E)**2)
     END DO
     RHSNORM2=GLOBAL_SUM(SUM(REAL(RHS(1:M),DP)**2))
+    IF(.NOT. IEEE_IS_FINITE(RHSNORM2)) THEN
+       INFO=6; RETURN
+    END IF
     IF(RHSNORM2 <= 1.0E-60_DP) THEN
        DQX=QX_SOFT; DQY=QY_SOFT
        RETURN
@@ -225,14 +243,14 @@ CONTAINS
     END DO
     DIR=Z
     RHO=GLOBAL_SUM(SUM(REAL(RES(1:M),DP)*REAL(Z(1:M),DP)))
-    IF(RHO <= 0.0_DP) THEN
+    IF(.NOT. IEEE_IS_FINITE(RHO) .OR. RHO <= 0.0_DP) THEN
        INFO=2; RETURN
     END IF
 
     DO ITER=1,MAXITER
        CALL APPLY_A(DIR,AP)
        PDOT=GLOBAL_SUM(SUM(REAL(DIR(1:M),DP)*REAL(AP(1:M),DP)))
-       IF(PDOT <= 0.0_DP) THEN
+       IF(.NOT. IEEE_IS_FINITE(PDOT) .OR. PDOT <= 0.0_DP) THEN
           INFO=2; EXIT
        END IF
        STEP=RHO/PDOT
@@ -242,6 +260,9 @@ CONTAINS
           RES(I)=RES(I)-REAL(STEP,SP)*AP(I)
        END DO
        NORM2=GLOBAL_SUM(SUM(REAL(RES(1:M),DP)**2))
+       IF(.NOT. IEEE_IS_FINITE(NORM2)) THEN
+          INFO=6; RETURN
+       END IF
        RELRES=REAL(SQRT(NORM2/RHSNORM2),SP)
        IF(RELRES <= TOL) EXIT
        Z=0.0_SP
@@ -249,7 +270,7 @@ CONTAINS
           IF(BTYPE(I) /= 2 .AND. DIAG(I)>0.0_SP) Z(I)=RES(I)/DIAG(I)
        END DO
        RHO_NEW=GLOBAL_SUM(SUM(REAL(RES(1:M),DP)*REAL(Z(1:M),DP)))
-       IF(RHO_NEW<=0.0_DP) THEN
+       IF(.NOT. IEEE_IS_FINITE(RHO_NEW) .OR. RHO_NEW<=0.0_DP) THEN
           INFO=2; EXIT
        END IF
        BETA=RHO_NEW/RHO
@@ -269,6 +290,10 @@ CONTAINS
     CALL EXCHANGE_CELL(AY)
     DQX=AX
     DQY=AY
+    NONFINITE = .NOT. ALL(IEEE_IS_FINITE(DQX)) .OR. .NOT. ALL(IEEE_IS_FINITE(DQY))
+    IF(GLOBAL_SUM(REAL(MERGE(1,0,NONFINITE),DP))>0.0_DP) THEN
+       INFO=6; RETURN
+    END IF
     ! Final residual check for the actual returned transport and state change.
     CALL APPLY_B(DQX,DQY,DIV)
     NORM2=0.0_DP
@@ -276,6 +301,9 @@ CONTAINS
        IF(BTYPE(I) /= 2) NORM2=NORM2+REAL(DIV(I)+AREA(I)*DELTA_ETA(I)/DT,DP)**2
     END DO
     NORM2=GLOBAL_SUM(NORM2)
+    IF(.NOT. IEEE_IS_FINITE(NORM2)) THEN
+       INFO=6; RETURN
+    END IF
     RELRES=REAL(SQRT(NORM2/RHSNORM2),SP)
     IF(RELRES > 2.0E-5_SP) INFO=5
 
