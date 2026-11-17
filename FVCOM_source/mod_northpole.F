@@ -2558,7 +2558,7 @@ MODULE MOD_NORTHPOLE
          DLTXE_TMP = VX2_TMP-VX1_TMP
          DLTYE_TMP = VY2_TMP-VY1_TMP
        
-#        if defined (ROTATED_DIFFUSION_FLUX)
+#        if defined (ROTATED_DIFFUSION_FLUX) && !defined (ROTATED_DIFFUSION_LEGACY)
          FXX=0.0_SP
          FYY=0.0_SP
 #        else
@@ -2852,7 +2852,7 @@ MODULE MOD_NORTHPOLE
          DLTXE_TMP = VX2_TMP-VX1_TMP
          DLTYE_TMP = VY2_TMP-VY1_TMP
        
-#        if defined (ROTATED_DIFFUSION_FLUX)
+#        if defined (ROTATED_DIFFUSION_FLUX) && !defined (ROTATED_DIFFUSION_LEGACY)
          FXX=0.0_SP
          FYY=0.0_SP
 #        else

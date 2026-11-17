@@ -5,3 +5,7 @@
 #error ROTATED_DIFFUSION_FLUX: unsupported geometry or time stepping; see docs/rotated_diffusion.md
 #endif
 #endif
+
+#if defined(ROTATED_DIFFUSION_LEGACY) && !defined(ROTATED_DIFFUSION_FLUX)
+#error ROTATED_DIFFUSION_LEGACY requires ROTATED_DIFFUSION_FLUX
+#endif

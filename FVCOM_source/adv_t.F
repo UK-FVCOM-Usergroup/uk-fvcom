@@ -45,7 +45,9 @@ SUBROUTINE ADV_T
   USE MOD_WD 
   USE MOD_SPHERICAL
   USE MOD_NORTHPOLE
-# if defined (ROTATED_DIFFUSION_FLUX)
+# if defined (ROTATED_DIFFUSION_LEGACY)
+  USE MOD_ROTATED_LEGACY
+# elif defined (ROTATED_DIFFUSION_FLUX)
   USE MOD_ROTATED_TRACER, ONLY: APPLY_ROTATED_TRACER_DIFFUSION
 # endif
 # if defined (SEMI_IMPLICIT)
@@ -61,7 +63,7 @@ SUBROUTINE ADV_T
 # endif
 
   IMPLICIT NONE
-# if defined (ROTATED_DIFFUSION_FLUX) && defined (SPHERICAL)
+# if defined (ROTATED_DIFFUSION_FLUX) && defined (SPHERICAL) && !defined (ROTATED_DIFFUSION_LEGACY)
   REAL(SP), DIMENSION(0:MT,KB) :: ROTATED_KH
 # endif
   REAL(SP), DIMENSION(0:MT,KB)      :: XFLUX,XFLUX_ADV,RF
@@ -147,7 +149,7 @@ SUBROUTINE ADV_T
   !
 
   XFLUX     = 0.0_SP
-# if defined (ROTATED_DIFFUSION_FLUX) && defined (SPHERICAL)
+# if defined (ROTATED_DIFFUSION_FLUX) && defined (SPHERICAL) && !defined (ROTATED_DIFFUSION_LEGACY)
   ROTATED_KH = 0.0_SP
 # endif
   XFLUX_ADV = 0.0_SP
@@ -249,6 +251,10 @@ SUBROUTINE ADV_T
   !
   !--Calculate the Advection and Horizontal Diffusion Terms----------------------!
   !
+
+# if defined (ROTATED_DIFFUSION_LEGACY)
+  CALL PREPARE_LEGACY_ROTATION(T1,TMEAN1)
+# endif
 
   DO K=1,KBM1
      PTPX  = 0.0_SP
@@ -430,6 +436,10 @@ SUBROUTINE ADV_T
 
      END DO
 
+# if defined (ROTATED_DIFFUSION_LEGACY)
+     CALL ROTATE_LEGACY_GRADIENT(K,PTPXD,PTPYD)
+# endif
+
      IF(K == KBM1)THEN
         DO I=1,M
            PFPXB(I) = PTPX(I)
@@ -560,7 +570,7 @@ SUBROUTINE ADV_T
         VISCOF=(FACT*0.5_SP*(VISCOFF(IA)*NN_HVC(IA)+VISCOFF(IB)*NN_HVC(IB)) + FM1*0.5_SP*(NN_HVC(IA)+NN_HVC(IB)))
 
 
-# if defined (ROTATED_DIFFUSION_FLUX)
+# if defined (ROTATED_DIFFUSION_FLUX) && !defined (ROTATED_DIFFUSION_LEGACY)
         FXX=0.0_SP
         FYY=0.0_SP
 # else
@@ -638,28 +648,35 @@ SUBROUTINE ADV_T
 
 #    if defined (SPHERICAL)
 #    if !defined (SEMI_IMPLICIT)
-#    if defined (ROTATED_DIFFUSION_FLUX)
+#    if defined (ROTATED_DIFFUSION_FLUX) && !defined (ROTATED_DIFFUSION_LEGACY)
        CALL ADV_T_XY(XFLUX,XFLUX_ADV,PTPX,PTPY,PTPXD,PTPYD,VISCOFF(1:M),K,0.0_SP)
 #    else
        CALL ADV_T_XY(XFLUX,XFLUX_ADV,PTPX,PTPY,PTPXD,PTPYD,VISCOFF,K,0.0_SP)
 #    endif
 #    else
-#    if defined (ROTATED_DIFFUSION_FLUX)
+#    if defined (ROTATED_DIFFUSION_FLUX) && !defined (ROTATED_DIFFUSION_LEGACY)
        CALL ADV_T_XY(XFLUX,XFLUX_ADV,PTPX,PTPY,PTPXD,PTPYD,VISCOFF(1:M),K,IFCETA)
 #    else
        CALL ADV_T_XY(XFLUX,XFLUX_ADV,PTPX,PTPY,PTPXD,PTPYD,VISCOFF,K,IFCETA)
 #    endif
 #    endif
-#    if defined (ROTATED_DIFFUSION_FLUX)
+#    if defined (ROTATED_DIFFUSION_FLUX) && !defined (ROTATED_DIFFUSION_LEGACY)
        ! Preserve the existing North Pole correction to the tracer coefficient.
        ROTATED_KH(1:M,K) = (FACT*VISCOFF(1:M)+FM1)*NN_HVC(1:M)
 #    endif
 #    endif  
 
+# if defined (ROTATED_DIFFUSION_LEGACY)
+     CALL SAVE_LEGACY_COEFFICIENT(K,VISCOFF)
+# endif
+
   END DO !! K LOOP
 
 # if defined (MULTIPROCESSOR)
   IF(PAR)CALL NODE_MATCH(0,NBN,BN_MLT,BN_LOC,BNC,MT,KB,MYID,NPROCS,XFLUX,XFLUX_ADV)
+# endif
+# if defined (ROTATED_DIFFUSION_LEGACY)
+  CALL ADD_LEGACY_VERTICAL(XFLUX)
 # endif
 
   DO K=1,KBM1
@@ -1247,7 +1264,7 @@ SUBROUTINE ADV_T
      END DO
   END DO
 # endif
-# if defined (ROTATED_DIFFUSION_FLUX)
+# if defined (ROTATED_DIFFUSION_FLUX) && !defined (ROTATED_DIFFUSION_LEGACY)
   ! Diffusion bypasses MPDATA's cellwise advection limiter and never alters WTS.
 # if defined (SPHERICAL)
   CALL APPLY_ROTATED_TRACER_DIFFUSION(T1,TMEAN1,TF1, DIFFUSIVITY=ROTATED_KH)

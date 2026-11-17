@@ -41,12 +41,21 @@ MODULE MOD_ROTATED_DIFFUSION
   USE MOD_PREC, ONLY: SP, DP
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: ROTATED_DIFFUSION_RESIDUAL
+  PUBLIC :: ROTATED_DIFFUSION_RESIDUAL, ROTATED_DIFFUSION_GEOMETRY
+  PUBLIC :: PREPARE_ROTATED_DIFFUSION_GEOMETRY
+
+  ! Immutable horizontal mesh data, reusable across tracers and time steps.
+  TYPE ROTATED_DIFFUSION_GEOMETRY
+    PRIVATE
+    INTEGER :: NNODE = 0, NELEM = -1
+    LOGICAL :: READY = .FALSE.
+    REAL(SP), ALLOCATABLE :: GX(:,:), GY(:,:), AREA(:)
+  END TYPE ROTATED_DIFFUSION_GEOMETRY
 
 CONTAINS
 
   SUBROUTINE ROTATED_DIFFUSION_RESIDUAL(NNODE, NELEM, NLAY, TRIANGLES, X, Y, &
-       Z, THICKNESS, KH, ANOMALY, RESIDUAL, BOUND, IERR, LATERAL, INTERFACE_FLUX, SPHERICAL_RADIUS)
+       Z, THICKNESS, KH, ANOMALY, RESIDUAL, BOUND, IERR, LATERAL, INTERFACE_FLUX, SPHERICAL_RADIUS, GEOMETRY)
     INTEGER, INTENT(IN) :: NNODE, NELEM, NLAY
     INTEGER, INTENT(IN) :: TRIANGLES(3,NELEM)
     REAL(SP), INTENT(IN) :: X(NNODE), Y(NNODE), Z(NNODE,NLAY)
@@ -60,12 +69,16 @@ CONTAINS
     ! Absent: retain the original Cartesian metre-coordinate calculation.
     REAL(SP), OPTIONAL, INTENT(IN) :: SPHERICAL_RADIUS
 
+    ! The caller must rebuild GEOMETRY if coordinates/connectivity change.
+    TYPE(ROTATED_DIFFUSION_GEOMETRY), OPTIONAL, TARGET, INTENT(IN) :: GEOMETRY
+    TYPE(ROTATED_DIFFUSION_GEOMETRY), TARGET :: LOCAL_GEOMETRY
+    TYPE(ROTATED_DIFFUSION_GEOMETRY), POINTER :: GEO
+
     INTEGER :: E, K, A, I, LO, HI, J
     INTEGER :: NODES(3)
     REAL(SP) :: GX(3), GY(3), BX(3,3), BY(3,3), SPAN(3)
     REAL(SP) :: AREA, SX, SY, DZC, QX, QY, WEIGHT, VFLUX, LX, LY
-    REAL(SP) :: SUMBX, SUMBY, DET, DX21, DY21, DX31, DY31, SCALE
-    REAL(SP), ALLOCATABLE :: SPHERE_GX(:,:), SPHERE_GY(:,:), SPHERE_AREA(:)
+    REAL(SP) :: SUMBX, SUMBY
 
     ! R has units tracer*volume/time. No volume division or timestep occurs
     ! here. BOUND is an upper bound on sum_j abs((B^T W K B)_ij), assembled
@@ -81,15 +94,6 @@ CONTAINS
       IERR = 1
       RETURN
     END IF
-    IF (ANY(TRIANGLES < 1) .OR. ANY(TRIANGLES > NNODE)) THEN
-      IERR = 2
-      RETURN
-    END IF
-    IF (.NOT.ALL(ABS(X) < HUGE(1.0_SP)) .OR. &
-        .NOT.ALL(ABS(Y) < HUGE(1.0_SP))) THEN
-      IERR = 3
-      RETURN
-    END IF
     IF (.NOT.ALL(THICKNESS > 0.0_SP) .OR. &
         .NOT.ALL(THICKNESS < HUGE(1.0_SP)) .OR. &
         .NOT.ALL(KH >= 0.0_SP) .OR. .NOT.ALL(KH < HUGE(1.0_SP))) THEN
@@ -102,56 +106,25 @@ CONTAINS
       RETURN
     END IF
 
-    ! Validate all geometry before assembly, leaving outputs zero on error.
-    IF (PRESENT(SPHERICAL_RADIUS)) THEN
-      IF (.NOT.(SPHERICAL_RADIUS > 0.0_SP .AND. SPHERICAL_RADIUS < HUGE(1.0_SP)) .OR. &
-          .NOT.ALL(ABS(Y) <= 90.0_SP)) THEN
-        IERR = 6
+    IF (PRESENT(GEOMETRY)) THEN
+      IF (.NOT.GEOMETRY%READY .OR. GEOMETRY%NNODE /= NNODE .OR. GEOMETRY%NELEM /= NELEM) THEN
+        IERR = 7
         RETURN
       END IF
-      ALLOCATE(SPHERE_GX(3,NELEM), SPHERE_GY(3,NELEM), SPHERE_AREA(NELEM))
-      DO E = 1, NELEM
-        NODES = TRIANGLES(:,E)
-        CALL SPHERICAL_TRIANGLE(X(NODES),Y(NODES),SPHERICAL_RADIUS, &
-             SPHERE_GX(:,E),SPHERE_GY(:,E),SPHERE_AREA(E),IERR)
-        IF (IERR /= 0) RETURN
-      END DO
+      GEO => GEOMETRY
     ELSE
-      DO E = 1, NELEM
-        NODES = TRIANGLES(:,E)
-        DX21 = X(NODES(2))-X(NODES(1))
-        DY21 = Y(NODES(2))-Y(NODES(1))
-        DX31 = X(NODES(3))-X(NODES(1))
-        DY31 = Y(NODES(3))-Y(NODES(1))
-        DET = DX21*DY31-DX31*DY21
-        SCALE = MAX(DX21*DX21+DY21*DY21, DX31*DX31+DY31*DY31)
-        IF (.NOT.(ABS(DET) > EPSILON(1.0_SP)*SCALE)) THEN
-          IERR = 3
-          RETURN
-        END IF
-      END DO
+      ! Standalone callers retain full validation without managing a cache.
+      CALL PREPARE_ROTATED_DIFFUSION_GEOMETRY(NNODE,NELEM,TRIANGLES,X,Y, &
+           LOCAL_GEOMETRY,IERR,SPHERICAL_RADIUS)
+      IF (IERR /= 0) RETURN
+      GEO => LOCAL_GEOMETRY
     END IF
 
     DO E = 1, NELEM
       NODES = TRIANGLES(:,E)
-      IF (PRESENT(SPHERICAL_RADIUS)) THEN
-        GX = SPHERE_GX(:,E)
-        GY = SPHERE_GY(:,E)
-        AREA = SPHERE_AREA(E)
-      ELSE
-        DX21 = X(NODES(2))-X(NODES(1))
-        DY21 = Y(NODES(2))-Y(NODES(1))
-        DX31 = X(NODES(3))-X(NODES(1))
-        DY31 = Y(NODES(3))-Y(NODES(1))
-        DET = DX21*DY31-DX31*DY21
-        AREA = 0.5_SP*ABS(DET)
-        GX(2) = DY31/DET
-        GX(3) = -DY21/DET
-        GX(1) = -GX(2)-GX(3)
-        GY(2) = -DX31/DET
-        GY(3) = DX21/DET
-        GY(1) = -GY(2)-GY(3)
-      END IF
+      GX = GEO%GX(:,E)
+      GY = GEO%GY(:,E)
+      AREA = GEO%AREA(E)
 
       DO K = 1, NLAY
         LO = MAX(1,K-1)
@@ -212,6 +185,68 @@ CONTAINS
       END DO
     END DO
   END SUBROUTINE ROTATED_DIFFUSION_RESIDUAL
+
+  ! INTENT(OUT) discards any previous cache, including after failed rebuilds.
+  SUBROUTINE PREPARE_ROTATED_DIFFUSION_GEOMETRY(NNODE,NELEM,TRIANGLES,X,Y,GEOMETRY,IERR,SPHERICAL_RADIUS)
+    INTEGER, INTENT(IN) :: NNODE, NELEM, TRIANGLES(3,NELEM)
+    REAL(SP), INTENT(IN) :: X(NNODE), Y(NNODE)
+    TYPE(ROTATED_DIFFUSION_GEOMETRY), INTENT(OUT) :: GEOMETRY
+    INTEGER, INTENT(OUT) :: IERR
+    REAL(SP), OPTIONAL, INTENT(IN) :: SPHERICAL_RADIUS
+    INTEGER :: E, NODES(3)
+    REAL(SP) :: DX21, DY21, DX31, DY31, DET, SCALE
+
+    IERR = 0
+    IF (NNODE < 1 .OR. NELEM < 0) THEN
+      IERR = 1
+      RETURN
+    END IF
+    IF (ANY(TRIANGLES < 1) .OR. ANY(TRIANGLES > NNODE)) THEN
+      IERR = 2
+      RETURN
+    END IF
+    IF (.NOT.ALL(ABS(X) < HUGE(1.0_SP)) .OR. .NOT.ALL(ABS(Y) < HUGE(1.0_SP))) THEN
+      IERR = 3
+      RETURN
+    END IF
+    IF (PRESENT(SPHERICAL_RADIUS)) THEN
+      IF (.NOT.(SPHERICAL_RADIUS > 0.0_SP .AND. SPHERICAL_RADIUS < HUGE(1.0_SP)) .OR. &
+          .NOT.ALL(ABS(Y) <= 90.0_SP)) THEN
+        IERR = 6
+        RETURN
+      END IF
+    END IF
+    ALLOCATE(GEOMETRY%GX(3,NELEM),GEOMETRY%GY(3,NELEM),GEOMETRY%AREA(NELEM))
+    DO E = 1, NELEM
+      NODES = TRIANGLES(:,E)
+      IF (PRESENT(SPHERICAL_RADIUS)) THEN
+        CALL SPHERICAL_TRIANGLE(X(NODES),Y(NODES),SPHERICAL_RADIUS, &
+             GEOMETRY%GX(:,E),GEOMETRY%GY(:,E),GEOMETRY%AREA(E),IERR)
+        IF (IERR /= 0) RETURN
+      ELSE
+        DX21 = X(NODES(2))-X(NODES(1))
+        DY21 = Y(NODES(2))-Y(NODES(1))
+        DX31 = X(NODES(3))-X(NODES(1))
+        DY31 = Y(NODES(3))-Y(NODES(1))
+        DET = DX21*DY31-DX31*DY21
+        SCALE = MAX(DX21*DX21+DY21*DY21, DX31*DX31+DY31*DY31)
+        IF (.NOT.(ABS(DET) > EPSILON(1.0_SP)*SCALE)) THEN
+          IERR = 3
+          RETURN
+        END IF
+        GEOMETRY%AREA(E) = 0.5_SP*ABS(DET)
+        GEOMETRY%GX(2,E) = DY31/DET
+        GEOMETRY%GX(3,E) = -DY21/DET
+        GEOMETRY%GX(1,E) = -GEOMETRY%GX(2,E)-GEOMETRY%GX(3,E)
+        GEOMETRY%GY(2,E) = -DX31/DET
+        GEOMETRY%GY(3,E) = DX21/DET
+        GEOMETRY%GY(1,E) = -GEOMETRY%GY(2,E)-GEOMETRY%GY(3,E)
+      END IF
+    END DO
+    GEOMETRY%NNODE = NNODE
+    GEOMETRY%NELEM = NELEM
+    GEOMETRY%READY = .TRUE.
+  END SUBROUTINE PREPARE_ROTATED_DIFFUSION_GEOMETRY
 
   ! Local P1 reconstruction in an orthonormal centroid tangent frame, with
   ! the true spherical triangle area for integration. This is a consistent
