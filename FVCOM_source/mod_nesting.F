@@ -160,6 +160,11 @@ Module Mod_Nesting
   REAL(SP), ALLOCATABLE, PRIVATE :: N4_NX(:,:),N4_NY(:,:),N4_LENGTH(:,:)
   REAL(SP), ALLOCATABLE, PRIVATE :: N4_UN_TARGET(:,:)
   REAL(SP), ALLOCATABLE, PRIVATE :: N4_ETA_SUM(:),N4_ETA_LENGTH(:)
+  ! Flather OBC: parent values at the time of the RK stage state, set by
+  ! NEST4_FLATHER_STAGE_NEST before EXTEL_EDGE and used by NEST4_FLATHER_ADD_FLUX.
+  LOGICAL, PRIVATE :: N4_FL_READY = .FALSE.
+  REAL(SP), PRIVATE :: N4_FL_RAMP = 1.0_SP
+  REAL(SP), ALLOCATABLE, PRIVATE :: N4_FL_UN(:,:),N4_FL_ETA(:)
 
   TYPE(TIME) :: INTERVAL_TIME_NCNEST, TIME_INTERVAL
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -180,7 +185,7 @@ Module Mod_Nesting
   LOGICAL NESTING_ON                   !!TRUE IF OUTPUT RESART FILES
   CHARACTER(LEN=80) NESTING_TYPE       !!TYPE OF NESTING: 1, 2, 3, 4
   LOGICAL NESTING_CHARACTERISTIC_OBC   !!Experimental type-4 outward-wave OBC
-  LOGICAL NESTING_FLATHER_OBC          !!Experimental type-4 velocity-only OBC
+  LOGICAL NESTING_FLATHER_OBC          !!Experimental type-4 Flather OBC on the open-edge flux
   LOGICAL NESTING_RAMP_ON              !!New type-4 ramp, also for hotstart
   REAL(SP) :: NESTING_RAMP_HOURS       !!Type-4 ramp duration in hours
   INTEGER :: NESTING_BLOCKSIZE         !!SIZE OF DATA BLOCKS IN FILE
@@ -3344,11 +3349,13 @@ END SUBROUTINE GENMAP_NESTING
          & N4_CELLIDS(NT),N4_NODEIDS(MT), &
          & N4_N1(0:NT,2),N4_N2(0:NT,2),N4_INNER(0:NT,2), &
          & N4_NX(0:NT,2),N4_NY(0:NT,2),N4_LENGTH(0:NT,2), &
-         & N4_UN_TARGET(0:NT,2),N4_ETA_SUM(0:MT),N4_ETA_LENGTH(0:MT))
+         & N4_UN_TARGET(0:NT,2),N4_ETA_SUM(0:MT),N4_ETA_LENGTH(0:MT), &
+         & N4_FL_UN(0:NT,2),N4_FL_ETA(0:MT))
     N4_CELLMAP=0; N4_NODEMAP=0; N4_NEDGE=0
     N4_N1=0; N4_N2=0; N4_INNER=0
     N4_NX=0.0_SP; N4_NY=0.0_SP; N4_LENGTH=0.0_SP
     N4_UN_TARGET=0.0_SP
+    N4_FL_UN=0.0_SP; N4_FL_ETA=0.0_SP
     N4_ETA_SUM=0.0_SP; N4_ETA_LENGTH=0.0_SP
     N4_NCELL=0; N4_NNODE=0
     DO I=1,NESTING_GRID%MT
@@ -3513,47 +3520,73 @@ END SUBROUTINE GENMAP_NESTING
     END DO
   END SUBROUTINE NEST4_CHAR_STAGE_UV
 
-  ! Add the missing exterior faces of the OBC nodal control volumes. The
-  ! native half-edge divergence is retained by EXTEL_EDGE in Flather mode.
-  ! Use the same stage velocity and element depth as its interior fluxes;
-  ! using a separate edge depth would spoil the discrete transport budget.
+  ! Flather OBC on the open-edge flux (flux form). EXTEL_EDGE keeps the native
+  ! half-edge divergence of the OBC control volumes; this adds their missing
+  ! exterior faces. Each OBC node owns half of each adjacent open edge, and that
+  ! half-edge carries the parent's normal transport plus the outgoing-wave
+  ! correction from the node's OWN sea level:
+  !     q_n = D*un_parent + sqrt(g*D)*(eta - eta_parent),   D = h + eta at the node.
+  ! The edge cell's velocity is NOT changed: it stays FVCOM's momentum solution,
+  ! which also carries the interior fluxes between the inner node and the OBC
+  ! nodes. (Overwriting it with the Flather velocity, as the first version did,
+  ! drains the inner node whatever its pressure gradient and is linearly unstable.)
+  ! A per-node sea level also damps node-to-node noise that an edge mean cannot see.
+  ! EL is the RK stage state used by EXTEL_EDGE's interior fluxes; the parent
+  ! values come from NEST4_FLATHER_STAGE_NEST at that state's time.
   SUBROUTINE NEST4_FLATHER_ADD_FLUX(XFLUX)
     IMPLICIT NONE
     REAL(SP), INTENT(INOUT) :: XFLUX(0:MT)
-    INTEGER :: IC,J,E,N1,N2
-    REAL(SP) :: HALF_FLUX,UN
+    INTEGER :: IC,J,E,K,N
+    REAL(SP) :: HALF_FLUX,HALF_OWN,UN,DEPTH,G,L
 
     CALL NEST4_CHAR_INIT
+    IF(.NOT. N4_FL_READY) &
+         & CALL FATAL_ERROR('TYPE 4 FLATHER: PARENT STAGE VALUES NOT SET')
     ! Include halo cells: their open edges can bound an owned OBC node.
     ! Each physical open edge occurs once in this rank's cell/edge cache.
     DO IC=1,N4_NCELL
        J=N4_CELLIDS(IC)
-       IF(.NOT. IEEE_IS_FINITE(D1(J)) .OR. D1(J)<=MIN_DEPTH) &
-            & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID FLUX WATER DEPTH')
        DO E=1,N4_NEDGE(J)
-          N1=N4_N1(J,E); N2=N4_N2(J,E)
+          L=N4_LENGTH(J,E)
+          ! FVCOM's own transport through this edge, used only while ramping.
           UN=UA(J)*N4_NX(J,E)+VA(J)*N4_NY(J,E)
-          ! Outward transport is positive; each endpoint owns half the edge.
-          HALF_FLUX=0.5_SP*N4_LENGTH(J,E)*D1(J)*UN
-          IF(.NOT. IEEE_IS_FINITE(HALF_FLUX)) &
-               & CALL FATAL_ERROR('TYPE 4 FLATHER: NONFINITE OPEN EDGE FLUX')
-          XFLUX(N1)=XFLUX(N1)+HALF_FLUX
-          XFLUX(N2)=XFLUX(N2)+HALF_FLUX
+          DO K=1,2
+             IF(K==1) THEN
+                N=N4_N1(J,E)
+             ELSE
+                N=N4_N2(J,E)
+             END IF
+             DEPTH=H(N)+EL(N)
+             IF(.NOT. IEEE_IS_FINITE(DEPTH) .OR. DEPTH<=MIN_DEPTH) &
+                  & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID OBC NODE WATER DEPTH')
+             G=GRAV_N(N)
+             IF(G<=0.0_SP .OR. .NOT. IEEE_IS_FINITE(G)) &
+                  & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID GRAVITY')
+             ! Outward transport is positive.
+             HALF_FLUX=0.5_SP*L*(DEPTH*N4_FL_UN(J,E) + &
+                  & SQRT(G*DEPTH)*(EL(N)-N4_FL_ETA(N)))
+             IF(N4_FL_RAMP<1.0_SP) THEN
+                ! Zero ramp keeps FVCOM's own flux through this half-edge.
+                HALF_OWN=0.5_SP*L*D1(J)*UN
+                HALF_FLUX=HALF_OWN+N4_FL_RAMP*(HALF_FLUX-HALF_OWN)
+             END IF
+             IF(.NOT. IEEE_IS_FINITE(HALF_FLUX)) &
+                  & CALL FATAL_ERROR('TYPE 4 FLATHER: NONFINITE OPEN EDGE FLUX')
+             XFLUX(N)=XFLUX(N)+HALF_FLUX
+          END DO
        END DO
     END DO
   END SUBROUTINE NEST4_FLATHER_ADD_FLUX
 
-  ! Velocity-only Flather experiment.  Do NOT prescribe OBC elevation:
-  ! EXTEL_EDGE and the FVCOM RK machinery provide ELF at this stage.
-  ! Parent data provide the incoming barotropic characteristic.  Edge geometry
-  ! is initialized once by NEST4_CHAR_INIT and shared with the prior experiment.
-  SUBROUTINE NEST4_FLATHER_STAGE_UV(NOW)
+  ! Parent values for the Flather flux at time NOW: the time of the RK stage
+  ! state that EXTEL_EDGE integrates (EXTERNAL_STEP calls this just before it).
+  ! Sea level at each OBC node of the open-edge cache, and the parent's normal
+  ! velocity on each open edge (from its cell-centred depth-mean velocity).
+  SUBROUTINE NEST4_FLATHER_STAGE_NEST(NOW)
     IMPLICIT NONE
     TYPE(TIME), INTENT(IN) :: NOW
-    INTEGER :: STEP,PREV,NEXT,I,J,E,N1,N2,IDX,IC,INFO
+    INTEGER :: STEP,PREV,NEXT,J,E,N1,N2,IDX,IC
     REAL(DP) :: NUMER,DENOM,PW,NW
-    REAL(SP) :: ETA_PARENT,ETA_LOCAL,UN_PARENT,DEPTH,G,U_NEW,V_NEW,DU,DV
-    REAL(SP) :: R_NEST,UN_LOCAL
 
     CALL NEST4_CHAR_INIT
     IF(NESTING_DATA%TIME_BLK(1)>NOW .OR. &
@@ -3568,54 +3601,31 @@ END SUBROUTINE GENMAP_NESTING
     IF(DENOM<=0.0_DP .OR. NUMER<0.0_DP .OR. NUMER>DENOM) &
          & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID PARENT TIME BRACKET')
     NW=NUMER/DENOM; PW=1.0_DP-NW
-    R_NEST=NEST4_RAMP_FACTOR(NOW)
+    N4_FL_RAMP=NEST4_RAMP_FACTOR(NOW)
 
     DO IC=1,N4_NCELL
        J=N4_CELLIDS(IC)
        IDX=N4_CELLMAP(J)
        DO E=1,N4_NEDGE(J)
           N1=N4_N1(J,E); N2=N4_N2(J,E)
-          ! The current FVCOM RK elevation, evaluated at this open edge.
-          ETA_LOCAL=0.5_SP*(ELF(N1)+ELF(N2))
-          ! Interpolate the parent elevation and cell-centered transport
-          ! velocity to the same RK stage time as ELF and UAF/VAF.
-          ETA_PARENT=0.5_SP*( &
-               & REAL(PW,SP)*(NESTING_DATA%EL_BLK(N4_NODEMAP(N1),PREV)+ &
-               &              NESTING_DATA%EL_BLK(N4_NODEMAP(N2),PREV)) + &
-               & REAL(NW,SP)*(NESTING_DATA%EL_BLK(N4_NODEMAP(N1),NEXT)+ &
-               &              NESTING_DATA%EL_BLK(N4_NODEMAP(N2),NEXT)))
-          UN_PARENT=REAL(PW,SP)*( &
+          N4_FL_UN(J,E)=REAL(PW,SP)*( &
                & NESTING_DATA%UA_BLK(IDX,PREV)*N4_NX(J,E)+ &
                & NESTING_DATA%VA_BLK(IDX,PREV)*N4_NY(J,E)) + &
                & REAL(NW,SP)*( &
                & NESTING_DATA%UA_BLK(IDX,NEXT)*N4_NX(J,E)+ &
                & NESTING_DATA%VA_BLK(IDX,NEXT)*N4_NY(J,E))
-          DEPTH=0.5_SP*(H(N1)+H(N2))+ETA_LOCAL
-          IF(DEPTH<=MIN_DEPTH .OR. .NOT. IEEE_IS_FINITE(DEPTH)) &
-               & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID EDGE WATER DEPTH')
-          G=0.5_SP*(GRAV_N(N1)+GRAV_N(N2))
-          IF(G<=0.0_SP .OR. .NOT. IEEE_IS_FINITE(G)) &
-               & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID GRAVITY')
-          N4_UN_TARGET(J,E)=NEST4_FLATHER_NORMAL( &
-               & ETA_LOCAL,ETA_PARENT,UN_PARENT,G,DEPTH)
-          ! Zero ramp retains FVCOM's own normal velocity on this edge.
-          UN_LOCAL=UAF(J)*N4_NX(J,E)+VAF(J)*N4_NY(J,E)
-          N4_UN_TARGET(J,E)=UN_LOCAL+R_NEST*(N4_UN_TARGET(J,E)-UN_LOCAL)
-          IF(.NOT. IEEE_IS_FINITE(N4_UN_TARGET(J,E))) &
-               & CALL FATAL_ERROR('TYPE 4 FLATHER: NONFINITE NORMAL VELOCITY')
+          N4_FL_ETA(N1)=REAL(PW,SP)*NESTING_DATA%EL_BLK(N4_NODEMAP(N1),PREV)+ &
+               & REAL(NW,SP)*NESTING_DATA%EL_BLK(N4_NODEMAP(N1),NEXT)
+          N4_FL_ETA(N2)=REAL(PW,SP)*NESTING_DATA%EL_BLK(N4_NODEMAP(N2),PREV)+ &
+               & REAL(NW,SP)*NESTING_DATA%EL_BLK(N4_NODEMAP(N2),NEXT)
+          IF(.NOT. IEEE_IS_FINITE(N4_FL_UN(J,E)) .OR. &
+               & .NOT. IEEE_IS_FINITE(N4_FL_ETA(N1)) .OR. &
+               & .NOT. IEEE_IS_FINITE(N4_FL_ETA(N2))) &
+               & CALL FATAL_ERROR('TYPE 4 FLATHER: NONFINITE PARENT VALUES')
        END DO
-       CALL NEST4_MATCH_EDGE_NORMALS(UAF(J),VAF(J),N4_NEDGE(J), &
-            & N4_NX(J,1:2),N4_NY(J,1:2),N4_UN_TARGET(J,1:2), &
-            & U_NEW,V_NEW,INFO)
-       IF(INFO/=0 .OR. .NOT. IEEE_IS_FINITE(U_NEW) .OR. &
-            & .NOT. IEEE_IS_FINITE(V_NEW)) &
-            & CALL FATAL_ERROR('TYPE 4 FLATHER: INVALID B-GRID EDGE VELOCITY')
-       DU=U_NEW-UAF(J); DV=V_NEW-VAF(J)
-       IF(SQRT(DU**2+DV**2)>NESTING_MAX_CORRECTION_SPEED) &
-            & CALL FATAL_ERROR('TYPE 4 FLATHER: OBC VELOCITY CORRECTION TOO LARGE')
-       UAF(J)=U_NEW; VAF(J)=V_NEW
     END DO
-  END SUBROUTINE NEST4_FLATHER_STAGE_UV
+    N4_FL_READY=.TRUE.
+  END SUBROUTINE NEST4_FLATHER_STAGE_NEST
 
   ! Conservative operator-split transport/SSH update, once per internal DTI.
   ! Never mutate FVCOM state until the projection converges and has been checked.
@@ -3631,7 +3641,9 @@ END SUBROUTINE GENMAP_NESTING
     REAL(SP), ALLOCATABLE :: DA(:),QSX(:),QSY(:),MOB(:),DQX(:),DQY(:)
     REAL(SP), ALLOCATABLE :: NEW_EL(:),NEW_EL1(:),NEW_D1(:)
     REAL(SP), ALLOCATABLE :: OBC_NX(:),OBC_NY(:)
-    INTEGER :: INODE,ICELL
+    REAL(SP), ALLOCATABLE :: DIVQ(:)
+    REAL(SP) :: EFLUX
+    INTEGER :: INODE,ICELL,IA,IB
 
     IF(TRIM(NESTING_TYPE)/='4') RETURN
 # if defined (SPHERICAL)
@@ -3679,8 +3691,9 @@ END SUBROUTINE GENMAP_NESTING
     IF(PAR) CALL AEXCHANGE(EC,MYID,NPROCS,OBC_NX,OBC_NY)
 # endif
 
-    ! Nodal sea-level target. OBC nodes are *never* changed by this correction:
-    ! they were already clamped during every RK stage in EXTERNAL_STEP.
+    ! Nodal sea-level target. OBC nodes get no target: they were already clamped
+    ! during every RK stage in EXTERNAL_STEP, or, with the Flather OBC, they take
+    ! the volume the projection moves through them (below).
     DO I=1,NESTING_GRID%MT
        J=NESTING_GRID%NLID_X(I)
        IF(ISONB(J)/=0) CYCLE
@@ -3692,8 +3705,9 @@ END SUBROUTINE GENMAP_NESTING
        IF(ISBCE(J)==1 .OR. ISBCE(J)==3) CYCLE
        ! The characteristic RK update already set boundary-cell normal
        ! transport. Do not overwrite it with the post-step projection.
-       IF((NESTING_CHARACTERISTIC_OBC .OR. NESTING_FLATHER_OBC) &
-            & .AND. ISBCE(J)==2) CYCLE
+       ! The Flather OBC acts on the open-edge flux only and leaves the edge
+       ! cells' velocity to FVCOM, so they are relaxed here as without it.
+       IF(NESTING_CHARACTERISTIC_OBC .AND. ISBCE(J)==2) CYCLE
        IF(.NOT. IEEE_IS_FINITE(WCELL_NEST(I)) .OR. &
             & WCELL_NEST(I)<0.0_SP .OR. WCELL_NEST(I)>1.0_SP) &
             & CALL FATAL_ERROR('TYPE 4: INVALID weight_cell FOR BAROTROPIC PROJECTION')
@@ -3742,6 +3756,27 @@ END SUBROUTINE GENMAP_NESTING
     IF(NEST4_MAX_DP(REAL(MAXVAL(SQRT(DQX(1:N)**2+DQY(1:N)**2) / &
          & MAX(D1(1:N),MIN_DEPTH)),DP)) > REAL(NESTING_MAX_CORRECTION_SPEED,DP)) &
          & CALL FATAL_ERROR('TYPE 4: REQUIRED TRANSPORT CORRECTION EXCEEDS SPEED LIMIT')
+    IF(NESTING_FLATHER_OBC) THEN
+       ! The projection treats OBC nodes as free sources (BTYPE 2). With a
+       ! clamped OBC sea level that is right; with the Flather OBC their sea
+       ! level is FVCOM's own, so the volume the correction moves through an
+       ! OBC node's control volume must change its sea level, exactly as the
+       ! constraint does at every other node: ART1*DA/DTI = -B(DQ).
+       ! B is EXTEL_EDGE's half-edge divergence (net outflow); NCV includes the
+       ! halo cells, and DQX/DQY are already exchanged, so owned nodes are complete.
+       ALLOCATE(DIVQ(0:MT)); DIVQ=0.0_SP
+       DO I=1,NCV
+          ICELL=NTRG(I); IA=NIEC(I,1); IB=NIEC(I,2)
+          EFLUX=-DQX(ICELL)*DLTYE(I)+DQY(ICELL)*DLTXE(I)
+          DIVQ(IA)=DIVQ(IA)-EFLUX
+          DIVQ(IB)=DIVQ(IB)+EFLUX
+       END DO
+       DO INODE=1,IOBCN
+          J=I_OBC_N(INODE)
+          DA(J)=-DTI*DIVQ(J)/ART1(J)
+       END DO
+       DEALLOCATE(DIVQ)
+    END IF
     NET_VOLUME_CHANGE=NEST4_SUM_DP(SUM(REAL(ART1(1:M),DP)*REAL(DA(1:M),DP)))
     IF(DBG_SET(DBG_SCL) .AND. MOD(IINT,100)==0) &
          & WRITE(IPT,*) 'TYPE 4 D_VOLUME [m3] = ',NET_VOLUME_CHANGE
