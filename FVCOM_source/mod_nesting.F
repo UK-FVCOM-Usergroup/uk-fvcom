@@ -165,6 +165,13 @@ Module Mod_Nesting
   LOGICAL, PRIVATE :: N4_FL_READY = .FALSE.
   REAL(SP), PRIVATE :: N4_FL_RAMP = 1.0_SP
   REAL(SP), ALLOCATABLE, PRIVATE :: N4_FL_UN(:,:),N4_FL_ETA(:)
+  ! NESTING_NUDGE_COAST: land cells (one land edge) of the nesting zone, by their
+  ! nesting-grid index, and the unit along-coast tangent of every local cell
+  ! (zero except in those land cells). Set once by NEST4_COAST_INIT.
+  LOGICAL, PRIVATE :: N4_COAST_READY = .FALSE.
+  INTEGER, PRIVATE :: N4_NCOAST = 0
+  INTEGER, ALLOCATABLE, PRIVATE :: N4_COAST_I(:)
+  REAL(SP), ALLOCATABLE, PRIVATE :: N4_TANX(:),N4_TANY(:)
 
   TYPE(TIME) :: INTERVAL_TIME_NCNEST, TIME_INTERVAL
 # if defined (WAVE_CURRENT_INTERACTION)
@@ -186,6 +193,7 @@ Module Mod_Nesting
   CHARACTER(LEN=80) NESTING_TYPE       !!TYPE OF NESTING: 1, 2, 3, 4
   LOGICAL NESTING_CHARACTERISTIC_OBC   !!Experimental type-4 outward-wave OBC
   LOGICAL NESTING_FLATHER_OBC          !!Experimental type-4 Flather OBC on the open-edge flux
+  LOGICAL NESTING_NUDGE_COAST          !!Type 4: also nudge coastal nodes and land cells in the zone
   LOGICAL NESTING_RAMP_ON              !!New type-4 ramp, also for hotstart
   REAL(SP) :: NESTING_RAMP_HOURS       !!Type-4 ramp duration in hours
   INTEGER :: NESTING_BLOCKSIZE         !!SIZE OF DATA BLOCKS IN FILE
@@ -210,6 +218,7 @@ Module Mod_Nesting
        & NESTING_TYPE,       &
        & NESTING_CHARACTERISTIC_OBC, &
        & NESTING_FLATHER_OBC, &
+       & NESTING_NUDGE_COAST, &
        & NESTING_RAMP_ON, &
        & NESTING_RAMP_HOURS, &
        & NESTING_BLOCKSIZE,  &
@@ -284,6 +293,7 @@ CONTAINS
     NESTING_TYPE = "'1' or '2' or '3' or '4'"
     NESTING_CHARACTERISTIC_OBC = .FALSE.
     NESTING_FLATHER_OBC = .FALSE.
+    NESTING_NUDGE_COAST = .FALSE.
     NESTING_RAMP_ON = .FALSE.
     NESTING_RAMP_HOURS = 24.0_SP
     NESTING_BLOCKSIZE = -1
@@ -443,6 +453,8 @@ CONTAINS
             & CALL FATAL_ERROR('FLATHER OBC REQUIRES NESTING_TYPE=4')
        IF(NESTING_CHARACTERISTIC_OBC .AND. NESTING_FLATHER_OBC) &
             & CALL FATAL_ERROR('TYPE 4: SELECT ONLY ONE BAROTROPIC OBC')
+       IF(NESTING_NUDGE_COAST .AND. TRIM(NESTING_TYPE)/='4') &
+            & CALL FATAL_ERROR('NESTING_NUDGE_COAST REQUIRES NESTING_TYPE=4')
 
        IF( NESTING_BLOCKSIZE < 2) CALL FATAL_ERROR &
             & ("THE NESTING_BLOCKSIZE IS LESS THAN TWO IN THE NESTING NAME LIST")
@@ -460,6 +472,8 @@ CONTAINS
                & WRITE(IPT,*) 'TYPE 4: CHARACTERISTIC OBC (EXPERIMENTAL)'
           IF(NESTING_FLATHER_OBC .AND. DBG_SET(DBG_LOG)) &
                & WRITE(IPT,*) 'TYPE 4: FLATHER OBC (EXPERIMENTAL)'
+          IF(NESTING_NUDGE_COAST .AND. DBG_SET(DBG_LOG)) &
+               & WRITE(IPT,*) 'TYPE 4: COASTAL NODES AND LAND CELLS NUDGED (EXPERIMENTAL)'
           IF(NESTING_TAU_TRANSPORT_NORMAL == -1.0_SP) &
                & NESTING_TAU_TRANSPORT_NORMAL = NESTING_TAU_TRANSPORT
           IF(NESTING_TAU_TRANSPORT_TANGENTIAL == -1.0_SP) &
@@ -3308,7 +3322,8 @@ END SUBROUTINE GENMAP_NESTING
          CALL FATAL_ERROR("TYPE 4: INVALID weight_node, MUST BE FINITE IN [0,1]")
     ! Land and OBC have different priorities: no nudging at land nodes;
     ! hard clamping at OBC nodes, regardless of alpha.
-    IF(ISONB(J) == 1) THEN
+    ! NESTING_NUDGE_COAST: land (coastal) nodes are relaxed like zone nodes.
+    IF(ISONB(J) == 1 .AND. .NOT. NESTING_NUDGE_COAST) THEN
        W = 0.0_SP
     ELSE
        W = NEST4_RELAX_WEIGHT(ALPHA_NEST,DT,TAU,ISONB(J) == 2)
@@ -3627,6 +3642,118 @@ END SUBROUTINE GENMAP_NESTING
     N4_FL_READY=.TRUE.
   END SUBROUTINE NEST4_FLATHER_STAGE_NEST
 
+  ! NESTING_NUDGE_COAST: cache the nesting zone's land cells with exactly one
+  ! land edge (ISBCE 1), and the unit tangent of that edge. The land edge is the
+  ! mesh-exterior edge (NBE 0) whose two nodes are both on the mesh boundary and
+  ! not both open-boundary nodes. A cell where this is not unique (possible only
+  ! at the rim of a halo) gets no tangent and is left alone; its owner has it.
+  ! FVCOM's land condition keeps land-cell velocities along this same edge.
+  SUBROUTINE NEST4_COAST_INIT
+# if defined (SPHERICAL)
+    USE MOD_SPHERICAL, ONLY : ARCX, ARCY
+# endif
+    IMPLICIT NONE
+    INTEGER :: I,J,E,N1,N2,NC,NE1,NE2
+    REAL(DP) :: DX,DY,ELEN
+    IF(N4_COAST_READY) RETURN
+    ALLOCATE(N4_TANX(0:NT),N4_TANY(0:NT),N4_COAST_I(MAX(NESTING_GRID%NT,1)))
+    N4_TANX=0.0_SP; N4_TANY=0.0_SP; N4_COAST_I=0; N4_NCOAST=0
+    DO I=1,NESTING_GRID%NT
+       J=NESTING_GRID%ELID_X(I)
+       IF(J<1 .OR. J>NT) CYCLE
+       IF(ISBCE(J)/=1) CYCLE
+       NC=0; NE1=0; NE2=0
+       DO E=1,3
+          IF(NBE(J,E)/=0) CYCLE
+          N1=NV(J,MOD(E,3)+1)
+          N2=NV(J,MOD(E+1,3)+1)
+          IF(ISONB(N1)==0 .OR. ISONB(N2)==0) CYCLE
+          IF(ISONB(N1)==2 .AND. ISONB(N2)==2) CYCLE
+          NC=NC+1; NE1=N1; NE2=N2
+       END DO
+       IF(NC/=1) CYCLE
+# if defined (SPHERICAL)
+       CALL ARCX(REAL(VX(NE1),DP),REAL(VY(NE1),DP), &
+            & REAL(VX(NE2),DP),REAL(VY(NE2),DP),DX)
+       CALL ARCY(REAL(VX(NE1),DP),REAL(VY(NE1),DP), &
+            & REAL(VX(NE2),DP),REAL(VY(NE2),DP),DY)
+# else
+       DX=REAL(VX(NE2),DP)-REAL(VX(NE1),DP)
+       DY=REAL(VY(NE2),DP)-REAL(VY(NE1),DP)
+# endif
+       ELEN=SQRT(DX*DX+DY*DY)
+       IF(ELEN<=0.0_DP .OR. .NOT. IEEE_IS_FINITE(ELEN)) &
+            & CALL FATAL_ERROR('TYPE 4 COAST: DEGENERATE LAND EDGE')
+       N4_TANX(J)=REAL(DX/ELEN,SP)
+       N4_TANY(J)=REAL(DY/ELEN,SP)
+       N4_NCOAST=N4_NCOAST+1
+       N4_COAST_I(N4_NCOAST)=I
+    END DO
+    IF(DBG_SET(DBG_LOG)) WRITE(IPT,*) 'TYPE 4 COAST: LAND CELLS NUDGED ALONG THE COAST ON THIS RANK: ', &
+         & N4_NCOAST
+    N4_COAST_READY=.TRUE.
+  END SUBROUTINE NEST4_COAST_INIT
+
+  ! NESTING_NUDGE_COAST: relax the along-coast part of the 3-D shear in the
+  ! zone's land cells (one land edge) towards the parent, keeping the model's
+  ! depth mean, as SET_VAR does for the other zone cells (NEST4_RELAX_SHEAR).
+  ! The across-coast part is left as it is. SET_VAR handles U and V one at a
+  ! time and skips land cells (NEST4_CELL_WEIGHT is 0 there), so INTERNAL_STEP
+  ! calls this after SET_VAR(U=UF) and SET_VAR(V=VF).
+  SUBROUTINE NEST4_RELAX_COAST_SHEAR(NOW,U,V)
+    IMPLICIT NONE
+    TYPE(TIME), INTENT(IN) :: NOW
+    REAL(SP), ALLOCATABLE, INTENT(INOUT) :: U(:,:),V(:,:)
+    REAL(SP), DIMENSION(KBM1)   :: PHY_Z,VZU,VZV,UT,PT,RES
+    REAL(SP), DIMENSION(KBM1_L) :: ZM,VSU,VSV
+    REAL(DP) :: NUMER,DENOM,PW,NW
+    REAL(SP) :: W,WC,R
+    INTEGER :: STEP,PREV,NEXT,IC,I,J
+
+    IF(.NOT. NESTING_NUDGE_COAST .OR. TRIM(NESTING_TYPE)/='4') RETURN
+    CALL NEST4_COAST_INIT
+    IF(N4_NCOAST==0) RETURN
+    IF(NESTING_DATA%TIME_BLK(1)>NOW .OR. &
+         & NESTING_DATA%TIME_BLK(NESTING_DATA%NBLK)<NOW) CALL UPDATE_BLOCK(NOW)
+    DO STEP=2,NESTING_DATA%NBLK
+       IF(NOW <= NESTING_DATA%TIME_BLK(STEP)) EXIT
+    END DO
+    STEP=MIN(STEP,NESTING_DATA%NBLK)
+    PREV=STEP-1; NEXT=STEP
+    NUMER=SECONDS(NOW-NESTING_DATA%TIME_BLK(PREV))
+    DENOM=SECONDS(NESTING_DATA%TIME_BLK(NEXT)-NESTING_DATA%TIME_BLK(PREV))
+    IF(DENOM<=0.0_DP .OR. NUMER<0.0_DP .OR. NUMER>DENOM) &
+         & CALL FATAL_ERROR('TYPE 4 COAST: INVALID PARENT TIME BRACKET')
+    NW=NUMER/DENOM; PW=1.0_DP-NW
+    R=NEST4_RAMP_FACTOR(NOW)
+    IF(R<=0.0_SP) RETURN
+
+    DO IC=1,N4_NCOAST
+       I=N4_COAST_I(IC)
+       J=NESTING_GRID%ELID_X(I)
+       WC=REAL(NESTING_DATA%WCELL_BLK(I,PREV)*PW+NESTING_DATA%WCELL_BLK(I,NEXT)*NW,SP)
+       IF(.NOT. IEEE_IS_FINITE(WC) .OR. WC<0.0_SP .OR. WC>1.0_SP) &
+            & CALL FATAL_ERROR('TYPE 4 COAST: INVALID weight_cell')
+       IF(WC<=0.0_SP) CYCLE
+       W=R*NEST4_RELAX_WEIGHT(WC,DTI,NESTING_TAU_SHEAR,.FALSE.)
+       ZM(1:KBM1_L)=ZZ1_L(I,1:KBM1_L)
+       PHY_Z(1:KBM1)=ZZ1(J,1:KBM1)
+       VSU(1:KBM1_L)=REAL(NESTING_DATA%U_BLK(I,1:KBM1_L,PREV)*PW + &
+            & NESTING_DATA%U_BLK(I,1:KBM1_L,NEXT)*NW,SP)
+       VSV(1:KBM1_L)=REAL(NESTING_DATA%V_BLK(I,1:KBM1_L,PREV)*PW + &
+            & NESTING_DATA%V_BLK(I,1:KBM1_L,NEXT)*NW,SP)
+       CALL SINTER_EXTRP_NONE(ZM,VSU,PHY_Z,VZU,KBM1_L,KBM1)
+       CALL SINTER_EXTRP_NONE(ZM,VSV,PHY_Z,VZV,KBM1_L,KBM1)
+       ! Along-coast components of the parent and the model profiles.
+       PT=VZU*N4_TANX(J)+VZV*N4_TANY(J)
+       UT=U(J,1:KBM1)*N4_TANX(J)+V(J,1:KBM1)*N4_TANY(J)
+       CALL NEST4_RELAX_SHEAR(UT,PT,DZ1(J,1:KBM1),W,RES)
+       ! Add the change along the coast only.
+       U(J,1:KBM1)=U(J,1:KBM1)+(RES-UT)*N4_TANX(J)
+       V(J,1:KBM1)=V(J,1:KBM1)+(RES-UT)*N4_TANY(J)
+    END DO
+  END SUBROUTINE NEST4_RELAX_COAST_SHEAR
+
   ! Conservative operator-split transport/SSH update, once per internal DTI.
   ! Never mutate FVCOM state until the projection converges and has been checked.
   SUBROUTINE NEST4_CORRECT_BAROTROPIC(NOW)
@@ -3642,7 +3769,7 @@ END SUBROUTINE GENMAP_NESTING
     REAL(SP), ALLOCATABLE :: NEW_EL(:),NEW_EL1(:),NEW_D1(:)
     REAL(SP), ALLOCATABLE :: OBC_NX(:),OBC_NY(:)
     REAL(SP), ALLOCATABLE :: DIVQ(:)
-    REAL(SP) :: EFLUX
+    REAL(SP) :: EFLUX,DTAN
     INTEGER :: INODE,ICELL,IA,IB
 
     IF(TRIM(NESTING_TYPE)/='4') RETURN
@@ -3700,8 +3827,28 @@ END SUBROUTINE GENMAP_NESTING
        W=NEST4_NODE_WEIGHT(I,DTI,NESTING_TAU_ETA)
        DA(J)=R_NEST*W*(EL_NEST(I)-EL(J))
     END DO
+    IF(NESTING_NUDGE_COAST) CALL NEST4_COAST_INIT
     DO I=1,NESTING_GRID%NT
        J=NESTING_GRID%ELID_X(I)
+       IF(NESTING_NUDGE_COAST .AND. ISBCE(J)==1) THEN
+          ! Land cell with one land edge: relax only the along-coast transport,
+          ! and let the projection correct it only along the coast
+          ! (NEST4_PROJECT_TRANSPORT's TANX/TANY), so the no-normal-flow
+          ! condition is kept. Cells with two land edges stay untouched.
+          IF(N4_TANX(J)**2+N4_TANY(J)**2>0.0_SP) THEN
+             IF(.NOT. IEEE_IS_FINITE(WCELL_NEST(I)) .OR. &
+                  & WCELL_NEST(I)<0.0_SP .OR. WCELL_NEST(I)>1.0_SP) &
+                  & CALL FATAL_ERROR('TYPE 4: INVALID weight_cell FOR BAROTROPIC PROJECTION')
+             IF(WCELL_NEST(I)>0.0_SP) THEN
+                W=R_NEST*NEST4_RELAX_WEIGHT(WCELL_NEST(I),DTI,NESTING_TAU_TRANSPORT,.FALSE.)
+                DTAN=(UA_NEST(I)-UA(J))*N4_TANX(J)+(VA_NEST(I)-VA(J))*N4_TANY(J)
+                QSX(J)=W*D1(J)*DTAN*N4_TANX(J)
+                QSY(J)=W*D1(J)*DTAN*N4_TANY(J)
+                MOB(J)=MAX(WCELL_NEST(I),0.01_SP)
+             END IF
+          END IF
+          CYCLE
+       END IF
        IF(ISBCE(J)==1 .OR. ISBCE(J)==3) CYCLE
        ! The characteristic RK update already set boundary-cell normal
        ! transport. Do not overwrite it with the post-step projection.
@@ -3743,9 +3890,28 @@ END SUBROUTINE GENMAP_NESTING
             & MOB(J)=MAX(WCELL_NEST(I),0.01_SP)
     END DO
 
-    CALL NEST4_PROJECT_TRANSPORT(M,MT,NT,NCV,NTRG,NIEC,DLTXE,DLTYE, &
-         & ART1,ISONB,MOB,DA,QSX,QSY,DTI,DQX,DQY,INFO,ITER,RELRES, &
-         & NEST4_EXCHANGE_NODE,NEST4_EXCHANGE_CELL,NEST4_SUM_DP)
+    IF(NESTING_NUDGE_COAST) THEN
+       ! Sea-level target at the zone's coastal nodes, as at the other zone
+       ! nodes. Only where an adjacent cell is mobile: otherwise the projection
+       ! cannot deliver it (it would stop as unreachable). Owned nodes only;
+       ! halo values come from their owners.
+       DO I=1,NESTING_GRID%MT
+          J=NESTING_GRID%NLID_X(I)
+          IF(J<1 .OR. J>M) CYCLE
+          IF(ISONB(J)/=1) CYCLE
+          IF(.NOT. ANY(MOB(NBVE(J,1:NTVE(J)))>0.0_SP)) CYCLE
+          W=NEST4_NODE_WEIGHT(I,DTI,NESTING_TAU_ETA)
+          DA(J)=R_NEST*W*(EL_NEST(I)-EL(J))
+       END DO
+       CALL NEST4_PROJECT_TRANSPORT(M,MT,NT,NCV,NTRG,NIEC,DLTXE,DLTYE, &
+            & ART1,ISONB,MOB,DA,QSX,QSY,DTI,DQX,DQY,INFO,ITER,RELRES, &
+            & NEST4_EXCHANGE_NODE,NEST4_EXCHANGE_CELL,NEST4_SUM_DP, &
+            & TANX=N4_TANX,TANY=N4_TANY)
+    ELSE
+       CALL NEST4_PROJECT_TRANSPORT(M,MT,NT,NCV,NTRG,NIEC,DLTXE,DLTYE, &
+            & ART1,ISONB,MOB,DA,QSX,QSY,DTI,DQX,DQY,INFO,ITER,RELRES, &
+            & NEST4_EXCHANGE_NODE,NEST4_EXCHANGE_CELL,NEST4_SUM_DP)
+    END IF
     IF(INFO/=0) THEN
        WRITE(IPT,*) 'TYPE 4: BAROTROPIC PROJECTION FAILED: ',INFO,ITER,RELRES
        CALL FATAL_ERROR('TYPE 4: CONSERVATIVE PROJECTION DID NOT CONVERGE')
