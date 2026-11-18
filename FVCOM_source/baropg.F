@@ -113,12 +113,14 @@
 #        if defined (ICE_EMBEDDING)
          LOCAL_Z(J,:) = LOCAL_Z(J,:)-QTHICE(IJK)
 #        endif
-         LOCAL_RHO(J,:) = RHO1(IJK,1:KBM1)
+         ! Work on anomalies relative to the existing domain reference.
+         ! Subtract a common anchor first to avoid a large offset in either field.
+         LOCAL_RHO(J,:) = (RHO1(IJK,1:KBM1)-RHO1(NV(I,1),1)) &
+                       - (RMEAN1(IJK,1:KBM1)-RMEAN1(NV(I,1),1))
        END DO
 
-       ! One reference rho_ref(z) for this triangle, evaluated at each node's
-       ! physical layer depths. Shared nodes have different residuals in
-       ! different triangles; the model density arrays are not changed.
+       ! Version 2: a local curvature correction to the domain reference.
+       ! No profile is extrapolated beyond its sampled depths.
        CALL REMOVE_TRIANGLE_MEAN(LOCAL_Z,LOCAL_RHO)
        LOCAL_RHO_C = ONE_THIRD*(LOCAL_RHO(1,:)+LOCAL_RHO(2,:)+LOCAL_RHO(3,:))
        DO K=1,KBM1
@@ -286,43 +288,43 @@
    CONTAINS
 
    PURE SUBROUTINE REMOVE_TRIANGLE_MEAN(Z,R)
-     ! Define a single physical-depth reference as the arithmetic mean of
-     ! three piecewise-linear nodal profiles, with linear end extrapolation.
-     ! Evaluating this function at each nodal depth is equivalent to forming
-     ! it on the union of all three sets of z levels and interpolating back.
-     ! A sigma-index mean is not a horizontally uniform physical-depth reference.
+     ! Mean curvature of the three domain-anomaly profiles in physical z.
+     ! Each profile's endpoint chord is removed before averaging. Its
+     ! curvature correction is zero outside its own sampled water depths.
      REAL(SP), INTENT(IN)    :: Z(3,KBM1)
      REAL(SP), INTENT(INOUT) :: R(3,KBM1)
-     REAL(SP) :: RESIDUAL(3,KBM1), DZ_PROFILE, WEIGHT
+     REAL(SP) :: RESULT(3,KBM1), SPAN, DZ_PROFILE, WEIGHT, FRACTION, CURVATURE
+     REAL(SP) :: COMMON_SPAN, COVERAGE
      INTEGER  :: NODE, SOURCE, LEVEL, LOWER
 
-     RESIDUAL=0.0_SP
+     IF(KBM1 < 3)RETURN
+     IF(ANY(Z(:,1:KBM1-1) <= Z(:,2:KBM1)))RETURN
+     COMMON_SPAN=MINVAL(Z(:,1))-MAXVAL(Z(:,KBM1))
+     IF(COMMON_SPAN <= 0.0_SP)RETURN
+     ! Fade continuously to the domain method as sampled overlap disappears.
+     COVERAGE=MIN(1.0_SP,COMMON_SPAN/MINVAL(Z(:,1)-Z(:,KBM1)))
+     RESULT=R
      DO SOURCE=1,3
+       SPAN=Z(SOURCE,1)-Z(SOURCE,KBM1)
        DO NODE=1,3
-         IF(NODE == SOURCE)CYCLE
          LOWER=1
          DO LEVEL=1,KBM1
-           IF(KBM1 == 1)THEN
-             RESIDUAL(NODE,LEVEL)=RESIDUAL(NODE,LEVEL)+R(NODE,LEVEL)-R(SOURCE,1)
-           ELSE
-             ! Both depth arrays descend, so this walk costs O(KBM1).
-             DO WHILE(LOWER < KBM1-1)
-               IF(Z(NODE,LEVEL) >= Z(SOURCE,LOWER+1))EXIT
-               LOWER=LOWER+1
-             END DO
-             DZ_PROFILE=Z(SOURCE,LOWER)-Z(SOURCE,LOWER+1)
-             WEIGHT=0.0_SP
-             IF(DZ_PROFILE > 0.0_SP)WEIGHT=(Z(SOURCE,LOWER)-Z(NODE,LEVEL))/DZ_PROFILE
-             ! Accumulate differences, avoiding an extra large mean followed
-             ! by subtraction. The source node's own contribution is zero.
-             RESIDUAL(NODE,LEVEL)=RESIDUAL(NODE,LEVEL) &
-               + (R(NODE,LEVEL)-R(SOURCE,LOWER)) &
-               - WEIGHT*(R(SOURCE,LOWER+1)-R(SOURCE,LOWER))
-           END IF
+           IF(Z(NODE,LEVEL) >= Z(SOURCE,1) .OR. Z(NODE,LEVEL) <= Z(SOURCE,KBM1))CYCLE
+           DO WHILE(LOWER < KBM1-1)
+             IF(Z(NODE,LEVEL) >= Z(SOURCE,LOWER+1))EXIT
+             LOWER=LOWER+1
+           END DO
+           DZ_PROFILE=Z(SOURCE,LOWER)-Z(SOURCE,LOWER+1)
+           WEIGHT=MIN(1.0_SP,MAX(0.0_SP,(Z(SOURCE,LOWER)-Z(NODE,LEVEL))/DZ_PROFILE))
+           FRACTION=(Z(SOURCE,1)-Z(NODE,LEVEL))/SPAN
+           CURVATURE=(R(SOURCE,LOWER)-R(SOURCE,1)) &
+             + WEIGHT*(R(SOURCE,LOWER+1)-R(SOURCE,LOWER)) &
+             - FRACTION*(R(SOURCE,KBM1)-R(SOURCE,1))
+           RESULT(NODE,LEVEL)=RESULT(NODE,LEVEL)-ONE_THIRD*COVERAGE*CURVATURE
          END DO
        END DO
      END DO
-     R=ONE_THIRD*RESIDUAL
+     R=RESULT
    END SUBROUTINE REMOVE_TRIANGLE_MEAN
 
    END SUBROUTINE BAROPG
