@@ -30,7 +30,7 @@
 !     CALCULATE THE BAROCLINIC PRESSURE GRADIENT IN SIGMA COORDINATES          |
 !==============================================================================|
 
-   SUBROUTINE BAROPG 
+   SUBROUTINE BAROPG_SHEAR_CORE 
 
 !==============================================================================|
    USE ALL_VARS
@@ -500,5 +500,60 @@
      END DO
    END SUBROUTINE INTERPOLATE_Z_FAST
 
-   END SUBROUTINE BAROPG
+   END SUBROUTINE BAROPG_SHEAR_CORE
 !==============================================================================|
+
+SUBROUTINE BAROPG
+  USE ALL_VARS, ONLY: SP,N,MT,NT,KB,KBM1,RHO1,RHO,RMEAN1,RMEAN, &
+    BAROCLINIC_PRESSURE_GRADIENT,DZ1,DRHOX,DRHOY
+  IMPLICIT NONE
+  REAL(SP), ALLOCATABLE :: RN(:,:,:), RC(:,:,:)
+  REAL(SP) :: BX(N),BY(N),SX,SY,SW
+  INTEGER :: I,K
+
+  IF (BAROCLINIC_PRESSURE_GRADIENT /= 'sigma levels v2 shear') THEN
+    CALL BAROPG_SHEAR_CORE
+    RETURN
+  END IF
+
+  ! Both forces use identical density, reference and geometry.
+  ALLOCATE(RN(0:MT,KB,2),RC(0:NT,KB,2))
+  RN(:,:,1)=RHO1
+  RN(:,:,2)=RMEAN1
+  RC(:,:,1)=RHO
+  RC(:,:,2)=RMEAN
+  BAROCLINIC_PRESSURE_GRADIENT='sigma levels'
+  CALL BAROPG_SHEAR_CORE
+  DO I=1,N
+    BX(I)=SUM(DRHOX(I,1:KBM1))
+    BY(I)=SUM(DRHOY(I,1:KBM1))
+  END DO
+
+  RHO1=RN(:,:,1)
+  RMEAN1=RN(:,:,2)
+  RHO=RC(:,:,1)
+  RMEAN=RC(:,:,2)
+  BAROCLINIC_PRESSURE_GRADIENT='sigma levels local mean'
+  CALL BAROPG_SHEAR_CORE
+  BAROCLINIC_PRESSURE_GRADIENT='sigma levels v2 shear'
+  RHO1=RN(:,:,1)
+  RMEAN1=RN(:,:,2)
+  RHO=RC(:,:,1)
+  RMEAN=RC(:,:,2)
+  DEALLOCATE(RN,RC)
+
+  ! DRHO already contains DZ1. Project only the added column force.
+  DO I=1,N
+    SX=SUM(DRHOX(I,1:KBM1))-BX(I)
+    SY=SUM(DRHOY(I,1:KBM1))-BY(I)
+    IF (SX == 0.0_SP .AND. SY == 0.0_SP) CYCLE
+    SW=SUM(DZ1(I,1:KBM1))
+    IF (SW <= 0.0_SP) CYCLE
+    SX=SX/SW
+    SY=SY/SW
+    DO K=1,KBM1
+      DRHOX(I,K)=DRHOX(I,K)-DZ1(I,K)*SX
+      DRHOY(I,K)=DRHOY(I,K)-DZ1(I,K)*SY
+    END DO
+  END DO
+END SUBROUTINE BAROPG
