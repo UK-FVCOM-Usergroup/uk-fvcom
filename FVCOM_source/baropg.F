@@ -49,7 +49,11 @@
    REAL(SP) :: LOCAL_Z(3,KBM1), LOCAL_RHO(3,KBM1), LOCAL_RHO_C(KBM1)
    REAL(SP) :: TEMP,DIJ,DRHO1,DRHO2
    INTEGER  :: I,K,J,J1,J2,IJK
-   LOGICAL  :: USE_LOCAL_MEAN
+   LOGICAL  :: USE_LOCAL_MEAN, USE_LOCAL_Z_MEAN, APPLY_V2
+   ! Zero selects the merged native layer depths; positive values select a uniform grid.
+   INTEGER, PARAMETER :: LOCAL_Z_GRID=0
+   REAL(SP) :: LOCAL_TOP(3), LOCAL_BOTTOM(3), LOCAL_Z_REFERENCE(3,KBM1)
+   INTEGER :: LOCAL_Z_STATUS
 #  if defined (SPHERICAL)
    REAL(SP) :: XTMP,XTMP1
 #  endif
@@ -69,7 +73,11 @@
 
 !----------SUBTRACT MEAN DENSITY TO MINIMIZE ROUNDOFF ERROR--------------------!
 
-   USE_LOCAL_MEAN = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local mean'
+   APPLY_V2 = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local mean' .OR. &
+     BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean v2'
+   USE_LOCAL_Z_MEAN = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean' .OR. &
+     BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean v2'
+   USE_LOCAL_MEAN = USE_LOCAL_Z_MEAN .OR. APPLY_V2
 #  if defined (ICESHELF)
    ! Ice-draft pressure terms need their own consistent reference treatment.
    IF(USE_LOCAL_MEAN) CALL FATAL_ERROR( &
@@ -107,6 +115,38 @@
        IF(ISWETCT(I)*ISWETC(I) /= 1)CYCLE
        IF(ALL(H(NV(I,:)) <= STATIC_SSH_ADJ))CYCLE
 #      endif
+       IF(USE_LOCAL_Z_MEAN)THEN
+         DO J=1,3
+           IJK=NV(I,J)
+           ! Same reference coordinates and physical mask as RHO_PMEAN.
+           LOCAL_Z(J,:)=ZZ(IJK,1:KBM1)*D(IJK)+EL(IJK)
+           LOCAL_TOP(J)=EL(IJK)
+           LOCAL_BOTTOM(J)=-H(IJK)
+#          if defined (ICE_EMBEDDING)
+           LOCAL_Z(J,:)=LOCAL_Z(J,:)-QTHICE(IJK)
+           LOCAL_TOP(J)=LOCAL_TOP(J)-QTHICE(IJK)
+#          endif
+           LOCAL_RHO(J,:)=RHO1(IJK,1:KBM1)
+         END DO
+         CALL BUILD_Z_REFERENCE(3,KBM1,LOCAL_Z_GRID, &
+           LOCAL_Z,LOCAL_RHO,LOCAL_TOP,LOCAL_BOTTOM,LOCAL_Z_REFERENCE,LOCAL_Z_STATUS)
+         IF(LOCAL_Z_STATUS /= 0)THEN
+           ! Invalid columns or uncovered z levels: use the domain reference.
+           DO J=1,3
+             LOCAL_Z_REFERENCE(J,:)=RMEAN1(NV(I,J),1:KBM1)
+           END DO
+         END IF
+         DO J=1,3
+           IJK=NV(I,J)
+           LOCAL_RHO(J,:)=(RHO1(IJK,1:KBM1)-RHO1(NV(I,1),1)) &
+             -(LOCAL_Z_REFERENCE(J,:)-LOCAL_Z_REFERENCE(1,1))
+           ! The v2 curvature correction keeps its original pressure coordinates.
+           LOCAL_Z(J,:)=ZZ(IJK,1:KBM1)*DT(IJK)+ET(IJK)
+#          if defined (ICE_EMBEDDING)
+           LOCAL_Z(J,:)=LOCAL_Z(J,:)-QTHICE(IJK)
+#          endif
+         END DO
+       ELSE
        DO J=1,3
          IJK=NV(I,J)
          LOCAL_Z(J,:) = ZZ(IJK,1:KBM1)*DT(IJK)+ET(IJK)
@@ -121,7 +161,8 @@
 
        ! Version 2: a local curvature correction to the domain reference.
        ! No profile is extrapolated beyond its sampled depths.
-       CALL REMOVE_TRIANGLE_MEAN(LOCAL_Z,LOCAL_RHO)
+       END IF
+       IF(APPLY_V2)CALL REMOVE_TRIANGLE_MEAN(LOCAL_Z,LOCAL_RHO)
        LOCAL_RHO_C = ONE_THIRD*(LOCAL_RHO(1,:)+LOCAL_RHO(2,:)+LOCAL_RHO(3,:))
        DO K=1,KBM1
          DO J=1,3
@@ -326,6 +367,138 @@
      END DO
      R=RESULT
    END SUBROUTINE REMOVE_TRIANGLE_MEAN
+
+   SUBROUTINE BUILD_Z_REFERENCE(NCOL,NLAY,NZ,Z,R,TOP,BOTTOM,REFERENCE,STATUS, &
+       LEVELS,MEAN_Z,COUNTS,N_USED)
+     ! Serial RHO_PMEAN algorithm on the supplied set of columns. Production
+     ! supplies three triangle corners; tests also supply the whole domain.
+     INTEGER, INTENT(IN) :: NCOL,NLAY,NZ
+     REAL(SP), INTENT(IN) :: Z(NCOL,NLAY),R(NCOL,NLAY),TOP(NCOL),BOTTOM(NCOL)
+     REAL(SP), INTENT(OUT) :: REFERENCE(NCOL,NLAY)
+     INTEGER, INTENT(OUT) :: STATUS
+     REAL(SP), OPTIONAL, INTENT(OUT) :: LEVELS(:),MEAN_Z(:),COUNTS(:)
+     INTEGER, OPTIONAL, INTENT(OUT) :: N_USED
+     REAL(SP) :: PHY_Z(MAX(NZ,NCOL*(NLAY+2))),RHOZ(MAX(NZ,NCOL*(NLAY+2)))
+     REAL(SP) :: RHOA(MAX(NZ,NCOL*(NLAY+2))),FCOUNT(MAX(NZ,NCOL*(NLAY+2)))
+     REAL(SP) :: NEXT_Z(NCOL),VALUE
+     INTEGER :: POSITION(NCOL),NGRID
+     REAL(SP) :: ZM(NLAY),RHOS(NLAY),Z_TOP,Z_BOTTOM,DELTZ
+     INTEGER :: COL,LEV
+
+     STATUS=1
+     REFERENCE=0.0_SP
+     IF(PRESENT(LEVELS))LEVELS=0.0_SP
+     IF(PRESENT(MEAN_Z))MEAN_Z=0.0_SP
+     IF(PRESENT(COUNTS))COUNTS=0.0_SP
+     IF(PRESENT(N_USED))N_USED=0
+     IF(NCOL < 1 .OR. NLAY < 2 .OR. (NZ /= 0 .AND. NZ < 2))RETURN
+     IF(ANY(TOP <= BOTTOM))RETURN
+     IF(ANY(Z(:,1:NLAY-1) <= Z(:,2:NLAY)))RETURN
+     IF(ANY(Z(:,1) > TOP) .OR. ANY(Z(:,NLAY) < BOTTOM))RETURN
+     IF(NZ == 0)THEN
+       ! Merge sorted native depths and physical boundaries, removing exact
+       ! duplicates. Every back-interpolation target is itself a grid point.
+       POSITION=0
+       NGRID=0
+       DO WHILE(ANY(POSITION <= NLAY+1))
+         DO COL=1,NCOL
+           IF(POSITION(COL) == 0)THEN
+             NEXT_Z(COL)=TOP(COL)
+           ELSE IF(POSITION(COL) <= NLAY)THEN
+             NEXT_Z(COL)=Z(COL,POSITION(COL))
+           ELSE IF(POSITION(COL) == NLAY+1)THEN
+             NEXT_Z(COL)=BOTTOM(COL)
+           ELSE
+             NEXT_Z(COL)=-HUGE(1.0_SP)
+           END IF
+         END DO
+         VALUE=MAXVAL(NEXT_Z)
+         IF(NGRID == 0)THEN
+           NGRID=1
+           PHY_Z(NGRID)=VALUE
+         ELSE IF(VALUE < PHY_Z(NGRID))THEN
+           NGRID=NGRID+1
+           PHY_Z(NGRID)=VALUE
+         END IF
+         WHERE(NEXT_Z == VALUE)POSITION=POSITION+1
+       END DO
+     ELSE
+       ! Uniform grid follows the serial RHO_PMEAN construction exactly.
+       NGRID=NZ
+       Z_TOP=MAXVAL(TOP)
+       Z_BOTTOM=MAXVAL(-BOTTOM)
+       Z_BOTTOM=Z_BOTTOM+SPACING(Z_BOTTOM)
+       IF(Z_TOP+Z_BOTTOM <= 0.0_SP)RETURN
+       DELTZ=(Z_BOTTOM+Z_TOP)/REAL(NGRID-1,SP)
+       DO LEV=1,NGRID
+         PHY_Z(LEV)=Z_TOP-REAL(LEV-1,SP)*DELTZ
+       END DO
+       PHY_Z(1)=NEAREST(Z_TOP,-1.0_SP)
+       PHY_Z(NGRID)=NEAREST(-Z_BOTTOM,1.0_SP)
+     END IF
+     IF(ANY(PHY_Z(1:NGRID-1) <= PHY_Z(2:NGRID)))RETURN
+     IF(PRESENT(LEVELS))THEN
+       IF(SIZE(LEVELS) < NGRID)RETURN
+       LEVELS(1:NGRID)=PHY_Z(1:NGRID)
+     END IF
+     IF(PRESENT(MEAN_Z))THEN
+       IF(SIZE(MEAN_Z) < NGRID)RETURN
+     END IF
+     IF(PRESENT(COUNTS))THEN
+       IF(SIZE(COUNTS) < NGRID)RETURN
+     END IF
+     IF(PRESENT(N_USED))N_USED=NGRID
+     RHOA=0.0_SP
+     FCOUNT=0.0_SP
+     DO COL=1,NCOL
+       ZM=Z(COL,:)
+       RHOS=R(COL,:)
+       CALL INTERPOLATE_Z_FAST(ZM,RHOS,PHY_Z(1:NGRID),RHOZ(1:NGRID),NLAY,NGRID)
+       DO LEV=1,NGRID
+         IF(BOTTOM(COL) <= PHY_Z(LEV) .AND. TOP(COL) >= PHY_Z(LEV))THEN
+           FCOUNT(LEV)=FCOUNT(LEV)+1.0_SP
+           RHOA(LEV)=RHOA(LEV)+RHOZ(LEV)
+         END IF
+       END DO
+     END DO
+     IF(PRESENT(COUNTS))COUNTS(1:NGRID)=FCOUNT(1:NGRID)
+     IF(ANY(FCOUNT(1:NGRID) < 1.0_SP))THEN
+       STATUS=2
+       RETURN
+     END IF
+     RHOA(1:NGRID)=RHOA(1:NGRID)/FCOUNT(1:NGRID)
+     IF(PRESENT(MEAN_Z))MEAN_Z(1:NGRID)=RHOA(1:NGRID)
+     DO COL=1,NCOL
+       ZM=Z(COL,:)
+       CALL INTERPOLATE_Z_FAST(PHY_Z(1:NGRID),RHOA(1:NGRID),ZM,RHOS,NGRID,NLAY)
+       REFERENCE(COL,:)=RHOS
+     END DO
+     STATUS=0
+   END SUBROUTINE BUILD_Z_REFERENCE
+
+   PURE SUBROUTINE INTERPOLATE_Z_FAST(X,A,Y,B,NSOURCE,NTARGET)
+     ! SINTER_EXTRP_NONE values and arithmetic, for strictly descending input
+     ! and descending queries. A single interval walk costs O(NSOURCE+NTARGET).
+     INTEGER, INTENT(IN) :: NSOURCE,NTARGET
+     REAL(SP), INTENT(IN) :: X(NSOURCE),A(NSOURCE),Y(NTARGET)
+     REAL(SP), INTENT(OUT) :: B(NTARGET)
+     INTEGER :: TARGET,LOWER
+     LOWER=1
+     DO TARGET=1,NTARGET
+       IF(Y(TARGET) > X(1))THEN
+         B(TARGET)=A(1)
+       ELSE IF(Y(TARGET) < X(NSOURCE))THEN
+         B(TARGET)=A(NSOURCE)
+       ELSE
+         DO WHILE(LOWER < NSOURCE-1)
+           IF(Y(TARGET) > X(LOWER+1))EXIT
+           LOWER=LOWER+1
+         END DO
+         B(TARGET)=A(LOWER)-(A(LOWER)-A(LOWER+1)) &
+           *(X(LOWER)-Y(TARGET))/(X(LOWER)-X(LOWER+1))
+       END IF
+     END DO
+   END SUBROUTINE INTERPOLATE_Z_FAST
 
    END SUBROUTINE BAROPG
 !==============================================================================|

@@ -352,7 +352,7 @@ CONTAINS
     SCALAR_POSITIVITY_CONTROL  = .FALSE.
     BAROTROPIC                 = .FALSE. 
 
-    BAROCLINIC_PRESSURE_GRADIENT = "'sigma levels', 'sigma levels local mean', or 'z coordinates'"
+    BAROCLINIC_PRESSURE_GRADIENT = "'sigma levels', 'z coordinates', or 'sigma levels local ...'; see method docs"
 
     SEA_WATER_DENSITY_FUNCTION ="'"//TRIM(SW_DENS0)//"','"//TRIM(SW_DENS1)//"', '"&
          &//TRIM(SW_DENS2)//"', or '"//TRIM(SW_DENS3)//"; Select your equation of state (eqs_of_state.F)"
