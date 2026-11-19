@@ -1,7 +1,7 @@
-! ROMS PJ_GRADPQ4 vertical reconstruction and pressure moments, adapted
-! to FVCOM triangular prisms. This is not the structured ROMS horizontal
-! FC limiter: horizontal forces here use a common-z pressure field and
-! its closed-surface integral. All pressure work uses double precision.
+! ROMS PJ_GRADPQ4 reconstruction and limited FC moments on FVCOM prisms.
+! Quadratic horizontal pressure traces reproduce each ROMS FC edge mean.
+! Native-column pressure moments and compatible caps give one closed force.
+! No density or pressure profile is evaluated outside its own water column.
 !
 ! Vertical reconstruction adapted from myroms/roms, ROMS/Nonlinear/
 ! prsgrd44.h, blob 1b4fa760511320eaded3984367676f8d9782e627.
@@ -33,7 +33,7 @@ MODULE MOD_PJ44
   USE, INTRINSIC :: IEEE_ARITHMETIC, ONLY: IEEE_IS_FINITE
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: PJ44_PROFILE, PJ44_BUILD, PJ44_VALUE, PJ44_PRISM, PJ44_EDGE
+  PUBLIC :: PJ44_PROFILE, PJ44_BUILD, PJ44_VALUE, PJ44_PRISM, PJ44_EDGE, PJ44_INTERFACE
   TYPE PJ44_PROFILE
     INTEGER :: N=0
     REAL(DP), ALLOCATABLE :: Z(:), R(:), D(:), P(:), S(:), MOM(:)
@@ -196,25 +196,15 @@ CONTAINS
     STATUS=0
   END SUBROUTINE PJ44_BUILD
 
-  ! P=int_z^eta rho dz; S=int_z^eta P dz. Endpoint continuation is LINEAR
-  ! in density, not a quartic polynomial extrapolated below the bottom.
+  ! Native-column evaluator for reconstruction tests. Never extrapolates.
   REAL(DP) FUNCTION PJ44_VALUE(C,Z,MOMENT) RESULT(V)
     TYPE(PJ44_PROFILE), INTENT(IN) :: C
     REAL(DP), INTENT(IN) :: Z
     LOGICAL, INTENT(IN) :: MOMENT
-    INTEGER :: LO,HI,K,L,E
-    REAL(DP) :: DZ,T
-    IF(Z<C%Z(0) .OR. Z>C%Z(C%N)) THEN
-      E=0
-      IF(Z>C%Z(C%N)) E=C%N
-      DZ=Z-C%Z(E)
-      IF(MOMENT) THEN
-        V=C%S(E)-C%P(E)*DZ+0.5_DP*C%R(E)*DZ**2+C%D(E)*DZ**3/6.0_DP
-      ELSE
-        V=C%P(E)-C%R(E)*DZ-0.5_DP*C%D(E)*DZ**2
-      END IF
-      RETURN
-    END IF
+    INTEGER :: LO,HI,K,L
+    REAL(DP) :: T
+    IF(Z<C%Z(0) .OR. Z>C%Z(C%N)) &
+      ERROR STOP 'PJ44_VALUE: point outside native water column'
     LO=1
     HI=C%N
     DO WHILE(LO<HI)
@@ -240,140 +230,81 @@ CONTAINS
     END IF
   END FUNCTION PJ44_VALUE
 
-  ! Exact piecewise-polynomial line integral with weight (1-s)^A*s^B.
-  REAL(DP) FUNCTION LINE(C,Z0,Z1,MOMENT,A,B) RESULT(V)
+  ! Exact ROMS44 horizontal limiter and FC moment at one native interface.
+  ! On a pair trace P(s)=(1-s)Pi+s*Pj+CORR*s*(1-s), FC is int P dz.
+  SUBROUTINE PJ44_INTERFACE(C1,C2,K,CORR,LIMITER,FC)
+    TYPE(PJ44_PROFILE), INTENT(IN) :: C1,C2
+    INTEGER, INTENT(IN) :: K
+    REAL(DP), INTENT(OUT) :: CORR,LIMITER,FC
+    REAL(DP) :: DH,DELP,W,DEN,NUM
+    DH=C2%Z(K)-C1%Z(K)
+    DELP=C1%P(K)-C2%P(K)
+    W=0.5_DP*DH*(C2%R(K)+C1%R(K)-DH*(C2%D(K)-C1%D(K))/6.0_DP)
+    NUM=2.0_DP*DELP*W
+    DEN=DELP**2+W**2
+    LIMITER=0.0_DP
+    IF(NUM>EPS*DEN) LIMITER=NUM/DEN
+    CORR=0.6_DP*LIMITER*DH*(C2%R(K)-C1%R(K)-DH*(C1%D(K)+C2%D(K))/12.0_DP)
+    FC=DH*(0.5_DP*(C1%P(K)+C2%P(K))+CORR/6.0_DP)
+  END SUBROUTINE PJ44_INTERFACE
+
+  ! Density and physical vertical derivative strictly inside native layer K.
+  SUBROUTINE NATIVE_QD(C,K,TAU,Q,D)
     TYPE(PJ44_PROFILE), INTENT(IN) :: C
-    REAL(DP), INTENT(IN) :: Z0,Z1
-    LOGICAL, INTENT(IN) :: MOMENT
-    INTEGER, INTENT(IN) :: A,B
+    INTEGER, INTENT(IN) :: K
+    REAL(DP), INTENT(IN) :: TAU
+    REAL(DP), INTENT(OUT) :: Q,D
+    REAL(DP) :: T,H
+    INTEGER :: M
+    T=1.0_DP-TAU
+    H=C%Z(K)-C%Z(K-1)
+    Q=5.0_DP*C%PC(5,K)
+    DO M=4,1,-1
+      Q=Q*T+REAL(M,DP)*C%PC(M,K)
+    END DO
+    Q=Q/H
+    D=20.0_DP*C%PC(5,K)
+    DO M=4,2,-1
+      D=D*T+REAL(M*(M-1),DP)*C%PC(M,K)
+    END DO
+    D=-D/H**2
+  END SUBROUTINE NATIVE_QD
+
+  ! Side-face integral per unit horizontal edge length. Pair data only,
+  ! so neighbour cells have the same trace and scalar face integral.
+  SUBROUTINE PJ44_EDGE(C1,C2,V)
+    TYPE(PJ44_PROFILE), INTENT(IN) :: C1,C2
+    REAL(DP), INTENT(OUT) :: V(C1%N)
     REAL(DP), PARAMETER :: X(4)=[0.069431844202973712_DP,0.33000947820757187_DP, &
                                 0.66999052179242813_DP,0.93056815579702629_DP]
     REAL(DP), PARAMETER :: W(4)=[0.17392742256872693_DP,0.32607257743127307_DP, &
                                 0.32607257743127307_DP,0.17392742256872693_DP]
-    REAL(DP) :: CUTS(C%N+3), DZ,T,L,R
-    INTEGER :: N,K,J,FIRST,LAST,STEP
-    V=0.0_DP
-    DZ=Z1-Z0
-    N=1
-    CUTS(1)=0.0_DP
-    IF(DZ/=0.0_DP) THEN
-      FIRST=0; LAST=C%N; STEP=1
-      IF(DZ<0.0_DP) THEN
-        FIRST=C%N; LAST=0; STEP=-1
-      END IF
-      DO K=FIRST,LAST,STEP
-        T=(C%Z(K)-Z0)/DZ
-        IF(T>0.0_DP .AND. T<1.0_DP) THEN
-          N=N+1
-          CUTS(N)=T
-        END IF
-      END DO
-    END IF
-    N=N+1
-    CUTS(N)=1.0_DP
-    DO K=1,N-1
-      L=CUTS(K); R=CUTS(K+1)
-      DO J=1,4
-        T=L+(R-L)*X(J)
-        V=V+(R-L)*W(J)*(1.0_DP-T)**A*T**B*PJ44_VALUE(C,Z0+DZ*T,MOMENT)
-      END DO
-    END DO
-  END FUNCTION LINE
-
-  SUBROUTINE PJ44_EDGE(C1,C2,V)
-    TYPE(PJ44_PROFILE), INTENT(IN) :: C1,C2
-    REAL(DP), INTENT(OUT) :: V(C1%N)
-    REAL(DP) :: J(0:C1%N),B1,B2,E1,E2
-    INTEGER :: K
-    E1=C1%Z(C1%N); E2=C2%Z(C2%N)
-    B1=LINE(C1,E1,E2,.FALSE.,2,0)+LINE(C2,E1,E2,.FALSE.,1,1)
-    B2=LINE(C1,E1,E2,.FALSE.,1,1)+LINE(C2,E1,E2,.FALSE.,0,2)
-    DO K=0,C1%N
-      J(K)=LINE(C1,C1%Z(K),C2%Z(K),.TRUE.,1,0)+ &
-           LINE(C2,C1%Z(K),C2%Z(K),.TRUE.,0,1)
-    END DO
+    REAL(DP) :: H1,H2,L0,L1,L,DUMMY,FC,Q1,Q2,D1,D2,DH,CINT,T
+    INTEGER :: K,J
     DO K=1,C1%N
-      V(K)=J(K-1)-J(K)-(C1%Z(K)-C1%Z(K-1))*B1-(C2%Z(K)-C2%Z(K-1))*B2
+      CALL PJ44_INTERFACE(C1,C2,K-1,DUMMY,L0,FC)
+      CALL PJ44_INTERFACE(C1,C2,K,DUMMY,L1,FC)
+      ! FC is independent of its limiter when both height and pressure
+      ! jumps vanish (notably at a flat free surface). Continue the other
+      ! endpoint limiter here, avoiding a spurious top-layer loss of balance.
+      IF(C1%Z(K-1)==C2%Z(K-1) .AND. C1%P(K-1)==C2%P(K-1)) L0=L1
+      IF(C1%Z(K)==C2%Z(K) .AND. C1%P(K)==C2%P(K)) L1=L0
+      H1=C1%Z(K)-C1%Z(K-1)
+      H2=C2%Z(K)-C2%Z(K-1)
+      CINT=0.0_DP
+      DO J=1,4
+        T=X(J)
+        CALL NATIVE_QD(C1,K,T,Q1,D1)
+        CALL NATIVE_QD(C2,K,T,Q2,D2)
+        DH=(C2%Z(K-1)+H2*T)-(C1%Z(K-1)+H1*T)
+        ! Interpolate the limiter between interfaces: integrand degree <=6.
+        L=(1.0_DP-T)*L0+T*L1
+        CINT=CINT+W(J)*0.6_DP*L*DH*(Q2-Q1-DH*(D1+D2)/12.0_DP)
+      END DO
+      V(K)=(2.0_DP+H2/H1)*C1%MOM(K)/6.0_DP &
+          +(2.0_DP+H1/H2)*C2%MOM(K)/6.0_DP+(H1+H2)*CINT/12.0_DP
     END DO
   END SUBROUTINE PJ44_EDGE
-
-  ! Clip a barycentric polygon by an affine height bound.
-  SUBROUTINE CLIP(P,N,Z,BOUND,ABOVE)
-    REAL(DP), INTENT(INOUT) :: P(3,8)
-    INTEGER, INTENT(INOUT) :: N
-    REAL(DP), INTENT(IN) :: Z(3),BOUND
-    LOGICAL, INTENT(IN) :: ABOVE
-    REAL(DP) :: OUT(3,8),A(3),B(3),FA,FB,SGN
-    INTEGER :: I,J,NO
-    IF(N==0) RETURN
-    SGN=1.0_DP
-    IF(.NOT.ABOVE) SGN=-1.0_DP
-    NO=0
-    DO I=1,N
-      J=MOD(I,N)+1
-      A=P(:,I); B=P(:,J)
-      FA=SGN*(DOT_PRODUCT(A,Z)-BOUND)
-      FB=SGN*(DOT_PRODUCT(B,Z)-BOUND)
-      IF(FA>=0.0_DP) THEN
-        NO=NO+1; OUT(:,NO)=A
-      END IF
-      IF((FA<0.0_DP .AND. FB>0.0_DP) .OR. (FA>0.0_DP .AND. FB<0.0_DP)) THEN
-        NO=NO+1; OUT(:,NO)=A+(B-A)*(FA/(FA-FB))
-      END IF
-    END DO
-    N=NO
-    IF(N>0) P(:,1:N)=OUT(:,1:N)
-  END SUBROUTINE CLIP
-
-  ! Degree-six positive quadrature, exact after splitting at profile knots.
-  REAL(DP) FUNCTION CAP(C,SOURCE,Z) RESULT(V)
-    TYPE(PJ44_PROFILE), INTENT(IN) :: C
-    INTEGER, INTENT(IN) :: SOURCE
-    REAL(DP), INTENT(IN) :: Z(3)
-    REAL(DP), PARAMETER :: A=.501426509658179_DP,B=.249286745170910_DP
-    REAL(DP), PARAMETER :: D=.873821971016996_DP,E=.063089014491502_DP
-    REAL(DP), PARAMETER :: F=.053145049844816_DP,G=.310352451033785_DP,H=.636502499121399_DP
-    REAL(DP), PARAMETER :: Q(3,12)=RESHAPE([A,B,B,B,A,B,B,B,A, D,E,E,E,D,E,E,E,D, &
-                                      F,G,H,F,H,G,G,F,H,G,H,F,H,F,G,H,G,F],[3,12])
-    REAL(DP), PARAMETER :: W(12)=[.116786275726379_DP,.116786275726379_DP,.116786275726379_DP, &
-      .050844906370207_DP,.050844906370207_DP,.050844906370207_DP, &
-      .082851075618374_DP,.082851075618374_DP,.082851075618374_DP, &
-      .082851075618374_DP,.082851075618374_DP,.082851075618374_DP]
-    REAL(DP) :: P(3,8),LAMBDA(3),DET,ZMIN,ZMAX
-    INTEGER :: K,N,I,J
-    V=0.0_DP
-    ZMIN=MINVAL(Z); ZMAX=MAXVAL(Z)
-    DO K=0,C%N+1
-      IF(K>0) THEN
-        IF(ZMAX<C%Z(K-1)) CYCLE
-      END IF
-      IF(K<=C%N) THEN
-        IF(ZMIN>C%Z(K)) CYCLE
-      END IF
-      ! If all heights coincide with an interface, count exactly one strip.
-      IF(ZMIN==ZMAX) THEN
-        IF(K==0) THEN
-          IF(ZMIN>=C%Z(0)) CYCLE
-        ELSE IF(K<=C%N) THEN
-          IF(ZMIN<C%Z(K-1) .OR. ZMIN>=C%Z(K)) CYCLE
-        ELSE
-          IF(ZMIN<C%Z(C%N)) CYCLE
-        END IF
-      END IF
-      P=0.0_DP
-      P(1,1)=1.0_DP; P(2,2)=1.0_DP; P(3,3)=1.0_DP
-      N=3
-      IF(K>0) CALL CLIP(P,N,Z,C%Z(K-1),.TRUE.)
-      IF(K<=C%N) CALL CLIP(P,N,Z,C%Z(K),.FALSE.)
-      DO I=2,N-1
-        DET=ABS((P(2,I)-P(2,1))*(P(3,I+1)-P(3,1))-(P(3,I)-P(3,1))*(P(2,I+1)-P(2,1)))
-        DO J=1,12
-          LAMBDA=Q(1,J)*P(:,1)+Q(2,J)*P(:,I)+Q(3,J)*P(:,I+1)
-          V=V+DET*W(J)*LAMBDA(SOURCE)*PJ44_VALUE(C,DOT_PRODUCT(LAMBDA,Z),.FALSE.)
-        END DO
-      END DO
-    END DO
-  END FUNCTION CAP
 
   ! Output is +int_V grad_h(P) dV, without g/reference-density scaling.
   ! FVCOM subtracts this quantity in momentum. Both vertex orders work.
@@ -383,7 +314,7 @@ CONTAINS
     REAL(DP), INTENT(OUT) :: FORCE(2,C(1)%N)
     INTEGER, INTENT(OUT) :: STATUS
     REAL(DP) :: GRAD(2,3),TWICE_AREA,AREA,JFACE(0:C(1)%N),Z(3)
-    REAL(DP) :: EDGE(C(1)%N),NORMAL(2),GLO(2),GHI(2)
+    REAL(DP) :: EDGE(C(1)%N),NORMAL(2),GLO(2),GHI(2),CORR,LIMITER,FC
     INTEGER :: I,J,K,L,A,B
     FORCE=0.0_DP
     STATUS=1
@@ -396,18 +327,16 @@ CONTAINS
       J=MOD(I,3)+1; K=MOD(I+1,3)+1
       GRAD(:,I)=[XY(2,J)-XY(2,K),XY(1,K)-XY(1,J)]/TWICE_AREA
     END DO
+    ! P_T(lambda,tau)=sum lambda_i*P_i(tau)+sum CORR_ij(tau)*lambda_i*lambda_j.
+    ! Integral lambda_i = area/3 and integral lambda_i*lambda_j = area/12.
     DO K=0,C(1)%N
+      JFACE(K)=AREA*(C(1)%P(K)+C(2)%P(K)+C(3)%P(K))/3.0_DP
       DO I=1,3
-        Z(I)=C(I)%Z(K)
-      END DO
-      JFACE(K)=0.0_DP
-      DO I=1,3
-        JFACE(K)=JFACE(K)+AREA*CAP(C(I),I,Z)
+        J=MOD(I,3)+1
+        CALL PJ44_INTERFACE(C(I),C(J),K,CORR,LIMITER,FC)
+        JFACE(K)=JFACE(K)+AREA*CORR/12.0_DP
       END DO
     END DO
-    ! Subtract the same surface pressure B(x) from the whole column.
-    ! This enforces P(x,eta(x))=0 without duplicating FVCOM's g*grad(eta).
-    JFACE=JFACE-JFACE(C(1)%N)
     DO I=1,3
       J=MOD(I,3)+1
       A=I; B=J
@@ -436,7 +365,7 @@ END MODULE MOD_PJ44
 
 SUBROUTINE BAROPG_PJ44
   USE ALL_VARS, ONLY: SP,DP,N,KB,KBM1,NV,VX,VY,ET,DT,Z,RHO1,RMEAN1, &
-    ART,DT1,DZ1,GRAV_E,RAMP,DRHOX,DRHOY
+    ART,DT1,DZ1,GRAV_E,RAMP,DRHOX,DRHOY,MSR,IPT
 #if defined (ICE_EMBEDDING)
   USE ALL_VARS, ONLY: QTHICE
 #endif
@@ -447,6 +376,11 @@ SUBROUTINE BAROPG_PJ44
   TYPE(PJ44_PROFILE) :: C(3)
   REAL(DP) :: HEIGHT(0:KBM1),Q(KBM1),FORCE(2,KBM1),XY(2,3),VOLUME,MODEL_VOLUME,AREA
   INTEGER :: I,J,K,L,NODE,STATUS
+  LOGICAL, SAVE :: REPORTED=.FALSE.
+  IF(.NOT.REPORTED) THEN
+    IF(MSR) WRITE(IPT,'(A)') 'BAROPG_PJ44 FACES v2: native columns; no below-bottom extrapolation'
+    REPORTED=.TRUE.
+  END IF
 #if defined (ICESHELF)
   CALL FATAL_ERROR('sigma levels pj44 does not support ICESHELF')
   RETURN

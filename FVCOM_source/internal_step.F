@@ -590,7 +590,7 @@ SUBROUTINE INTERNAL_STEP
 
   IF(.NOT. BAROTROPIC)THEN                    !Barotropic Flow ?            !
      SELECT CASE(BAROCLINIC_PRESSURE_GRADIENT)
-     CASE ('sigma levels pj44')
+     CASE ('sigma levels pj44', 'sigma levels pj44 faces')
         CALL BAROPG_PJ44
      CASE ('sigma levels local cubic')
         CALL BAROPG
