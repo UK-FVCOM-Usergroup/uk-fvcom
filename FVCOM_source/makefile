@@ -57,7 +57,7 @@ MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	mod_main.F	mod_spherical.F	mod_utils.F	mod_clock.F	\
 	eqs_of_state.F	mod_bulk.F	mod_interp.F	mod_par.F	\
 	mod_par_special.F		mod_ncll.F	mod_nctools.F	\
-	mod_wd.F	mod_sng.F	mod_heatflux.F	mod_solar.F	\
+	mod_wd.F mod_pj44.F	mod_sng.F	mod_heatflux.F	mod_solar.F	\
 	mod_fabm_data.F mod_input.F	mod_fabm_3D.F	mod_force.F	\
 	mod_obcs.F	mod_petsc.F	mod_tvd.F	mod_isf.F \
 	mod_semi_implicit.F		mod_non_hydro.F	mod_set_time.F	\
@@ -213,6 +213,9 @@ Makefiles::
 includes::
 include ./makedepends
 include ./make.inc
+
+# Keep the new module safe in parallel builds with the checked-in dependencies.
+mod_pj44.o: mod_prec.o mod_main.o mod_utils.o mod_wd.o
 
 ifeq ($(rotated_diffusion_flux),ON)
 CPPARGS += -DROTATED_DIFFUSION_FLUX

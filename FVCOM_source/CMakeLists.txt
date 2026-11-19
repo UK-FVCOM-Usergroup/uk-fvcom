@@ -18,6 +18,7 @@ target_sources(fvcom
     mod_ncll.F
     mod_nctools.F
     mod_wd.F
+    mod_pj44.F
     mod_sng.F
     mod_solar.F
     mod_input.F
