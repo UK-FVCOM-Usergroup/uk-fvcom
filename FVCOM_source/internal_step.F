@@ -594,6 +594,9 @@ SUBROUTINE INTERNAL_STEP
         CALL BAROPG_PJ44
      CASE ('sigma levels local cubic')
         CALL BAROPG
+     CASE ("sigma levels deep reference", "sigma levels neighborhood mean", &
+           "sigma levels deep reference frozen", "sigma levels neighborhood mean frozen")
+        CALL BAROPG      !Private physical-z reference in the native sigma operator.
      CASE ("sigma levels v2 shear", "sigma levels", "sigma levels local mean", &
            "sigma levels local z mean", "sigma levels local z mean v2")
         CALL BAROPG      !Sigma Level Pressure Gradient!

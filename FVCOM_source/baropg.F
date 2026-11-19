@@ -37,16 +37,35 @@
    USE MOD_SPHERICAL
    USE MOD_NORTHPOLE
    USE MOD_WD
+   USE MOD_UTILS, ONLY: FATAL_ERROR
+   USE MOD_PAR, ONLY: NGID_X
+# if defined (MULTIPROCESSOR)
+   USE MOD_PAR, ONLY: AEXCHANGE, NC
+# endif
    
 # if defined (ICESHELF)
     USE MOD_ISF
-    USE MOD_UTILS, ONLY: FATAL_ERROR
 # endif
 
 
    IMPLICIT NONE
    REAL(SP) :: RIJK(0:N,3,KBM1), DRIJK1(0:N,3,KBM1), DRIJK2(0:N,KBM1)
    REAL(SP) :: LOCAL_Z(3,KBM1), LOCAL_RHO(3,KBM1), LOCAL_RHO_C(KBM1)
+   REAL(DP) :: REFERENCE_Z(3,KBM1), REFERENCE_RAW(3,KBM1), REFERENCE_RHO_AT_Z(3,KBM1)
+   REAL(DP) :: REFERENCE_TOP(3), REFERENCE_BOTTOM(3)
+   INTEGER :: PATCH_NODES(3+6*MX_NBR_ELEM), PATCH_COUNT, P, NODE_ID
+   REAL(DP) :: PATCH_Z(3+6*MX_NBR_ELEM,KBM1), PATCH_RHO(3+6*MX_NBR_ELEM,KBM1)
+   REAL(DP) :: PATCH_TOP(3+6*MX_NBR_ELEM), PATCH_BOTTOM(3+6*MX_NBR_ELEM)
+   REAL(SP), ALLOCATABLE, TARGET :: REFERENCE_RHO(:,:)
+   ! Snapshot native-depth products plus initial surface/density: fixed physical-z profiles.
+   REAL(DP), ALLOCATABLE, SAVE :: FROZEN_ZD(:,:), FROZEN_TOP(:), FROZEN_BOTTOM(:), FROZEN_EL(:)
+   REAL(SP), ALLOCATABLE, SAVE :: FROZEN_RHO(:,:)
+   LOGICAL, SAVE :: FROZEN_PAR=.FALSE.
+# if defined (ICE_EMBEDDING)
+   REAL(DP), ALLOCATABLE, SAVE :: FROZEN_ICE(:)
+# endif
+   LOGICAL :: USE_LOCAL_REFERENCE, USE_NEIGHBOR_MEAN, USE_FROZEN_REFERENCE, NEED_DONOR_RHO
+   INTEGER :: LOCAL_STATUS
    REAL(SP) :: TEMP,DIJ,DRHO1,DRHO2
    INTEGER  :: I,K,J,J1,J2,IJK
    LOGICAL  :: USE_LOCAL_MEAN, USE_LOCAL_Z_MEAN, APPLY_V2, USE_LOCAL_CUBIC
@@ -73,13 +92,32 @@
 
 !----------SUBTRACT MEAN DENSITY TO MINIMIZE ROUNDOFF ERROR--------------------!
 
+   USE_FROZEN_REFERENCE = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels deep reference frozen' .OR. &
+     BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels neighborhood mean frozen'
+   USE_NEIGHBOR_MEAN = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels neighborhood mean' .OR. &
+     BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels neighborhood mean frozen'
+   USE_LOCAL_REFERENCE = USE_NEIGHBOR_MEAN .OR. USE_FROZEN_REFERENCE .OR. &
+     BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels deep reference'
+   NEED_DONOR_RHO = (USE_NEIGHBOR_MEAN .AND. .NOT.USE_FROZEN_REFERENCE) .OR. &
+     (USE_FROZEN_REFERENCE .AND. .NOT.ALLOCATED(FROZEN_RHO))
+   IF(NEED_DONOR_RHO .AND. PAR) THEN
+     ! Refresh a PRIVATE density copy for halo donors. No global field is written.
+     ALLOCATE(REFERENCE_RHO(0:MT,KB))
+     REFERENCE_RHO=RHO1
+# if defined (MULTIPROCESSOR)
+     CALL AEXCHANGE(NC,MYID,NPROCS,REFERENCE_RHO)
+# endif
+   END IF
+   IF(USE_FROZEN_REFERENCE) CALL CAPTURE_LOCAL_REFERENCE
+
    APPLY_V2 = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local mean' .OR. &
      BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean v2'
    USE_LOCAL_Z_MEAN = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean' .OR. &
      BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean v2'
    USE_LOCAL_CUBIC = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local cubic'
-   USE_LOCAL_MEAN = USE_LOCAL_Z_MEAN .OR. APPLY_V2 .OR. USE_LOCAL_CUBIC
+   USE_LOCAL_MEAN = USE_LOCAL_Z_MEAN .OR. APPLY_V2 .OR. USE_LOCAL_CUBIC .OR. USE_LOCAL_REFERENCE
 #  if defined (ICESHELF)
+   IF(USE_LOCAL_REFERENCE) CALL FATAL_ERROR('Local reference is not implemented for ICESHELF')
    ! Ice-draft pressure terms need their own consistent reference treatment.
    IF(USE_LOCAL_MEAN) CALL FATAL_ERROR( &
      'sigma levels local mean is not yet supported with ICESHELF')
@@ -116,7 +154,94 @@
        IF(ISWETCT(I)*ISWETC(I) /= 1)CYCLE
        IF(ALL(H(NV(I,:)) <= STATIC_SSH_ADJ))CYCLE
 #      endif
-       IF(USE_LOCAL_CUBIC)THEN
+       IF(USE_LOCAL_REFERENCE)THEN
+         DO J=1,3
+           IJK=NV(I,J)
+           ! Same physical depth convention as the existing RHO_PMEAN.
+           REFERENCE_Z(J,:)=REAL(ZZ(IJK,1:KBM1),DP)*REAL(D(IJK),DP)+REAL(EL(IJK),DP)
+           REFERENCE_TOP(J)=REAL(EL(IJK),DP)
+           REFERENCE_BOTTOM(J)=-REAL(H(IJK),DP)
+# if defined (ICE_EMBEDDING)
+           REFERENCE_Z(J,:)=REFERENCE_Z(J,:)-REAL(QTHICE(IJK),DP)
+           REFERENCE_TOP(J)=REFERENCE_TOP(J)-REAL(QTHICE(IJK),DP)
+# endif
+           REFERENCE_RAW(J,:)=REAL(RHO1(IJK,1:KBM1),DP)
+         END DO
+         IF(USE_NEIGHBOR_MEAN) THEN
+           CALL REFERENCE_NEIGHBORS(I,PATCH_NODES,PATCH_COUNT,LOCAL_STATUS)
+           IF(LOCAL_STATUS/=0) CALL FATAL_ERROR('Incomplete topology for neighborhood reference')
+           DO P=1,PATCH_COUNT
+             NODE_ID=PATCH_NODES(P)
+             IF(USE_FROZEN_REFERENCE) THEN
+               PATCH_BOTTOM(P)=FROZEN_BOTTOM(NODE_ID)
+               PATCH_TOP(P)=FROZEN_TOP(NODE_ID)
+               PATCH_Z(P,:)=0.0_DP
+               PATCH_RHO(P,:)=0.0_DP
+               IF(PATCH_TOP(P)<=PATCH_BOTTOM(P)) CYCLE
+               PATCH_Z(P,:)=FROZEN_ZD(NODE_ID,:)+PATCH_TOP(P)
+               PATCH_RHO(P,:)=REAL(FROZEN_RHO(NODE_ID,:),DP)
+               CYCLE
+             END IF
+             PATCH_BOTTOM(P)=-REAL(H(NODE_ID),DP)
+             PATCH_TOP(P)=REAL(EL(NODE_ID),DP)
+# if defined (ICE_EMBEDDING)
+             PATCH_TOP(P)=PATCH_TOP(P)-REAL(QTHICE(NODE_ID),DP)
+# endif
+# if defined (WET_DRY)
+             IF(WETTING_DRYING_ON .AND. ISWETN(NODE_ID)==0) PATCH_TOP(P)=PATCH_BOTTOM(P)
+# endif
+             PATCH_Z(P,:)=0.0_DP
+             PATCH_RHO(P,:)=0.0_DP
+             IF(PATCH_TOP(P)<=PATCH_BOTTOM(P)) CYCLE
+             PATCH_Z(P,:)=REAL(ZZ(NODE_ID,1:KBM1),DP)*REAL(D(NODE_ID),DP)+PATCH_TOP(P)
+             IF(PAR) THEN
+               PATCH_RHO(P,:)=REAL(REFERENCE_RHO(NODE_ID,1:KBM1),DP)
+             ELSE
+               PATCH_RHO(P,:)=REAL(RHO1(NODE_ID,1:KBM1),DP)
+             END IF
+           END DO
+           IF(USE_FROZEN_REFERENCE) THEN
+             ! Extend the entire frozen mean constantly above its initial surface.
+             CALL NEIGHBOR_RMEAN(KBM1,PATCH_Z(1:PATCH_COUNT,:),PATCH_RHO(1:PATCH_COUNT,:), &
+               PATCH_TOP(1:PATCH_COUNT),PATCH_BOTTOM(1:PATCH_COUNT),REFERENCE_Z,REFERENCE_RHO_AT_Z,LOCAL_STATUS, &
+               TOP_CAP=MAXVAL(PATCH_TOP(1:PATCH_COUNT), &
+                 MASK=PATCH_TOP(1:PATCH_COUNT)>PATCH_BOTTOM(1:PATCH_COUNT)))
+           ELSE
+           CALL NEIGHBOR_RMEAN(KBM1,PATCH_Z(1:PATCH_COUNT,:),PATCH_RHO(1:PATCH_COUNT,:), &
+             PATCH_TOP(1:PATCH_COUNT),PATCH_BOTTOM(1:PATCH_COUNT),REFERENCE_Z,REFERENCE_RHO_AT_Z,LOCAL_STATUS)
+           END IF
+         ELSE IF(USE_FROZEN_REFERENCE) THEN
+           DO J=1,3
+             NODE_ID=NV(I,J)
+             PATCH_Z(J,:)=FROZEN_ZD(NODE_ID,:)+FROZEN_EL(NODE_ID)
+# if defined (ICE_EMBEDDING)
+             PATCH_Z(J,:)=PATCH_Z(J,:)-FROZEN_ICE(NODE_ID)
+# endif
+             PATCH_RHO(J,:)=REAL(FROZEN_RHO(NODE_ID,:),DP)
+             PATCH_TOP(J)=FROZEN_TOP(NODE_ID)
+             PATCH_BOTTOM(J)=FROZEN_BOTTOM(NODE_ID)
+           END DO
+           CALL TRIANGLE_DEEP_REFERENCE(KBM1,PATCH_Z(1:3,:),PATCH_RHO(1:3,:),PATCH_TOP(1:3),PATCH_BOTTOM(1:3), &
+             REFERENCE_RHO_AT_Z,LOCAL_STATUS,QUERY_Z=REFERENCE_Z)
+         ELSE
+           CALL TRIANGLE_DEEP_REFERENCE(KBM1,REFERENCE_Z,REFERENCE_RAW,REFERENCE_TOP,REFERENCE_BOTTOM, &
+             REFERENCE_RHO_AT_Z,LOCAL_STATUS)
+         END IF
+         IF(LOCAL_STATUS==2 .AND. USE_NEIGHBOR_MEAN) THEN
+           IF(USE_FROZEN_REFERENCE) CALL FATAL_ERROR('Frozen reference has no initial wet donor at target depth')
+           ! No wet donor covers a target (e.g. shoreline): retain original reference.
+           DO J=1,3
+             NODE_ID=NV(I,J)
+             LOCAL_RHO(J,:)=RHO1(NODE_ID,1:KBM1)-RMEAN1(NODE_ID,1:KBM1)
+           END DO
+           LOCAL_RHO_C=RHO(I,1:KBM1)-RMEAN(I,1:KBM1)
+         ELSE
+           IF(LOCAL_STATUS/=0) CALL FATAL_ERROR('Invalid wet column in local reference')
+           LOCAL_RHO=REAL(REFERENCE_RAW,SP)-REAL(REFERENCE_RHO_AT_Z,SP)
+           LOCAL_RHO_C=RHO(I,1:KBM1)-ONE_THIRD*(REAL(REFERENCE_RHO_AT_Z(1,:),SP) &
+             +REAL(REFERENCE_RHO_AT_Z(2,:),SP)+REAL(REFERENCE_RHO_AT_Z(3,:),SP))
+         END IF
+       ELSE IF(USE_LOCAL_CUBIC)THEN
          DO J=1,3
            IJK=NV(I,J)
            LOCAL_Z(J,:)=ZZ(IJK,1:KBM1)*DT(IJK)+ET(IJK)
@@ -180,8 +305,10 @@
        ! Version 2: a local curvature correction to the domain reference.
        ! No profile is extrapolated beyond its sampled depths.
        END IF
-       IF(APPLY_V2)CALL REMOVE_TRIANGLE_MEAN(LOCAL_Z,LOCAL_RHO)
-       LOCAL_RHO_C = ONE_THIRD*(LOCAL_RHO(1,:)+LOCAL_RHO(2,:)+LOCAL_RHO(3,:))
+       IF(.NOT.USE_LOCAL_REFERENCE)THEN
+         IF(APPLY_V2)CALL REMOVE_TRIANGLE_MEAN(LOCAL_Z,LOCAL_RHO)
+         LOCAL_RHO_C = ONE_THIRD*(LOCAL_RHO(1,:)+LOCAL_RHO(2,:)+LOCAL_RHO(3,:))
+       END IF
        DO K=1,KBM1
          DO J=1,3
            J1=J+1-INT((J+1)/4)*3
@@ -345,6 +472,202 @@
 
    RETURN
    CONTAINS
+
+   SUBROUTINE CAPTURE_LOCAL_REFERENCE
+     INTEGER :: NODE
+     IF(ALLOCATED(FROZEN_RHO)) THEN
+       IF(SIZE(FROZEN_RHO,1)/=MT+1 .OR. SIZE(FROZEN_RHO,2)/=KBM1 .OR. (FROZEN_PAR.NEQV.PAR)) &
+         CALL FATAL_ERROR('Frozen reference grid or execution mode changed')
+       RETURN
+     END IF
+     ALLOCATE(FROZEN_RHO(0:MT,KBM1),FROZEN_ZD(0:MT,KBM1))
+     ALLOCATE(FROZEN_TOP(0:MT),FROZEN_BOTTOM(0:MT),FROZEN_EL(0:MT))
+# if defined (ICE_EMBEDDING)
+     ALLOCATE(FROZEN_ICE(0:MT))
+     FROZEN_ICE=REAL(QTHICE,DP)
+# endif
+     IF(PAR) THEN
+       FROZEN_RHO=REFERENCE_RHO(:,1:KBM1)
+     ELSE
+       FROZEN_RHO=RHO1(:,1:KBM1)
+     END IF
+     FROZEN_EL=REAL(EL,DP)
+     FROZEN_TOP=FROZEN_EL
+     FROZEN_BOTTOM=-REAL(H,DP)
+# if defined (ICE_EMBEDDING)
+     FROZEN_TOP=FROZEN_TOP-FROZEN_ICE
+# endif
+     FROZEN_ZD=0.0_DP
+     DO NODE=1,MT
+# if defined (WET_DRY)
+       IF(WETTING_DRYING_ON .AND. ISWETN(NODE)==0) FROZEN_TOP(NODE)=FROZEN_BOTTOM(NODE)
+# endif
+       IF(FROZEN_TOP(NODE)<=FROZEN_BOTTOM(NODE)) CYCLE
+       FROZEN_ZD(NODE,:)=REAL(ZZ(NODE,1:KBM1),DP)*REAL(D(NODE),DP)
+     END DO
+     FROZEN_PAR=PAR
+     IF(SERIAL .OR. MYID==1) WRITE(IPT,*) 'BAROPG: local reference frozen at first call (physical z)'
+   END SUBROUTINE CAPTURE_LOCAL_REFERENCE
+
+   PURE SUBROUTINE REFERENCE_NEIGHBORS(CELL,NODES,NCOUNT,STATUS)
+     ! Union of all nodes in triangles incident on any target-triangle vertex.
+     ! genmap includes this full vertex star in the normal MPI halo.
+     INTEGER, INTENT(IN) :: CELL
+     INTEGER, INTENT(OUT) :: NODES(:),NCOUNT,STATUS
+     INTEGER :: VERTEX,SEED,K,ELEMENT,J,ID,A,B,KEY,OTHER
+     STATUS=1
+     NCOUNT=3
+     NODES=0
+     NODES(1:3)=NV(CELL,:)
+     DO VERTEX=1,3
+       SEED=NV(CELL,VERTEX)
+       IF(SEED<1 .OR. SEED>UBOUND(NBVE,1)) RETURN
+       IF(NTVE(SEED)<1 .OR. NTVE(SEED)>SIZE(NBVE,2)) RETURN
+       DO K=1,NTVE(SEED)
+         ELEMENT=NBVE(SEED,K)
+         IF(ELEMENT<1 .OR. ELEMENT>UBOUND(NV,1)) RETURN
+         DO J=1,3
+           ID=NV(ELEMENT,J)
+           IF(ID<1 .OR. ID>MT) RETURN
+           IF(ANY(NODES(1:NCOUNT)==ID)) CYCLE
+           IF(NCOUNT==SIZE(NODES)) RETURN
+           NCOUNT=NCOUNT+1
+           NODES(NCOUNT)=ID
+         END DO
+       END DO
+     END DO
+     ! Canonical global-node order keeps summation independent of MPI numbering.
+     DO A=2,NCOUNT
+       ID=NODES(A)
+       KEY=ID
+       IF(PAR) KEY=NGID_X(ID)
+       B=A-1
+       DO WHILE(B>=1)
+         OTHER=NODES(B)
+         IF(PAR) OTHER=NGID_X(OTHER)
+         IF(OTHER<=KEY) EXIT
+         NODES(B+1)=NODES(B)
+         B=B-1
+       END DO
+       NODES(B+1)=ID
+     END DO
+     STATUS=0
+   END SUBROUTINE REFERENCE_NEIGHBORS
+
+   PURE SUBROUTINE NEIGHBOR_RMEAN(NLAY,Z,R,TOP,BOTTOM,QUERY_Z,REF,STATUS,TOP_CAP)
+     ! Equal-weight mean at each physical z; each unique wet node counts once.
+     ! End values are constant only between sample centres and that node's
+     ! water boundary. A donor never contributes below its physical bottom.
+     USE, INTRINSIC :: IEEE_ARITHMETIC, ONLY: IEEE_IS_FINITE
+     INTEGER, INTENT(IN) :: NLAY
+     REAL(DP), INTENT(IN) :: Z(:,:),R(:,:),TOP(:),BOTTOM(:),QUERY_Z(3,NLAY)
+     REAL(DP), INTENT(OUT) :: REF(3,NLAY)
+     INTEGER, INTENT(OUT) :: STATUS
+     REAL(DP), OPTIONAL, INTENT(IN) :: TOP_CAP
+     INTEGER :: COUNT(3,NLAY),DONOR,NODE,K,LOWER
+     REAL(DP) :: QUERY,VALUE,WEIGHT
+     STATUS=1
+     REF=0.0_DP
+     COUNT=0
+     IF(NLAY<1 .OR. SIZE(Z,1)<1) RETURN
+     IF(.NOT.ALL(IEEE_IS_FINITE(QUERY_Z))) RETURN
+     IF(NLAY>1) THEN
+       IF(ANY(QUERY_Z(:,1:NLAY-1)<=QUERY_Z(:,2:NLAY))) RETURN
+     END IF
+     DO DONOR=1,SIZE(Z,1)
+       IF(.NOT.IEEE_IS_FINITE(TOP(DONOR)) .OR. .NOT.IEEE_IS_FINITE(BOTTOM(DONOR))) RETURN
+       IF(TOP(DONOR)<=BOTTOM(DONOR)) CYCLE
+       IF(.NOT.ALL(IEEE_IS_FINITE(Z(DONOR,:))) .OR. .NOT.ALL(IEEE_IS_FINITE(R(DONOR,:)))) RETURN
+       IF(Z(DONOR,1)>TOP(DONOR) .OR. Z(DONOR,NLAY)<BOTTOM(DONOR)) RETURN
+       IF(NLAY>1) THEN
+         IF(ANY(Z(DONOR,1:NLAY-1)<=Z(DONOR,2:NLAY))) RETURN
+       END IF
+       DO NODE=1,3
+         LOWER=1
+         DO K=1,NLAY
+           QUERY=QUERY_Z(NODE,K)
+           IF(PRESENT(TOP_CAP)) QUERY=MIN(QUERY,TOP_CAP)
+           IF(QUERY>TOP(DONOR) .OR. QUERY<BOTTOM(DONOR)) CYCLE
+           IF(QUERY>=Z(DONOR,1)) THEN
+             VALUE=R(DONOR,1)
+           ELSE IF(QUERY<=Z(DONOR,NLAY)) THEN
+             VALUE=R(DONOR,NLAY)
+           ELSE
+             DO WHILE(LOWER<NLAY-1)
+               IF(QUERY>=Z(DONOR,LOWER+1)) EXIT
+               LOWER=LOWER+1
+             END DO
+             WEIGHT=(Z(DONOR,LOWER)-QUERY)/(Z(DONOR,LOWER)-Z(DONOR,LOWER+1))
+             VALUE=R(DONOR,LOWER)+WEIGHT*(R(DONOR,LOWER+1)-R(DONOR,LOWER))
+           END IF
+           REF(NODE,K)=REF(NODE,K)+VALUE
+           COUNT(NODE,K)=COUNT(NODE,K)+1
+         END DO
+       END DO
+     END DO
+     IF(ANY(COUNT==0)) THEN
+       STATUS=2
+       RETURN
+     END IF
+     REF=REF/REAL(COUNT,DP)
+     STATUS=0
+   END SUBROUTINE NEIGHBOR_RMEAN
+
+   PURE SUBROUTINE TRIANGLE_DEEP_REFERENCE(NLAY,Z,R,TOP,BOTTOM,REF,STATUS,QUERY_Z)
+     ! One common physical-z reference: the triangle node with deepest seabed.
+     ! Linear interpolation; constant endpoint values as SINTER_EXTRP_NONE.
+     ! No query is below the chosen donor's physical bottom.
+     USE, INTRINSIC :: IEEE_ARITHMETIC, ONLY: IEEE_IS_FINITE
+     INTEGER, INTENT(IN) :: NLAY
+     REAL(DP), INTENT(IN) :: Z(:,:),R(:,:),TOP(3),BOTTOM(3)
+     REAL(DP), INTENT(OUT) :: REF(3,NLAY)
+     INTEGER, INTENT(OUT) :: STATUS
+     REAL(DP), OPTIONAL, INTENT(IN) :: QUERY_Z(3,NLAY)
+     INTEGER :: DONOR,NODE,K,LOWER
+     REAL(DP) :: QUERY,WEIGHT
+     STATUS=1
+     REF=0.0_DP
+     IF(NLAY<1) RETURN
+     IF(SIZE(Z,1)/=3 .OR. SIZE(Z,2)/=NLAY .OR. SIZE(R,1)/=3 .OR. SIZE(R,2)/=NLAY) RETURN
+     IF(.NOT.ALL(IEEE_IS_FINITE(Z)) .OR. .NOT.ALL(IEEE_IS_FINITE(R))) RETURN
+     IF(.NOT.ALL(IEEE_IS_FINITE(TOP)) .OR. .NOT.ALL(IEEE_IS_FINITE(BOTTOM))) RETURN
+     IF(ANY(TOP<=BOTTOM)) RETURN
+     IF(ANY(Z(:,1)>TOP) .OR. ANY(Z(:,NLAY)<BOTTOM)) RETURN
+     IF(NLAY>1) THEN
+       IF(ANY(Z(:,1:NLAY-1)<=Z(:,2:NLAY))) RETURN
+     END IF
+     DONOR=MINLOC(BOTTOM,DIM=1) ! Fixed bathymetry; ties use first NV entry.
+     IF(PRESENT(QUERY_Z)) THEN
+       IF(.NOT.ALL(IEEE_IS_FINITE(QUERY_Z))) RETURN
+       IF(ANY(QUERY_Z<BOTTOM(DONOR))) RETURN
+       IF(NLAY>1) THEN
+         IF(ANY(QUERY_Z(:,1:NLAY-1)<=QUERY_Z(:,2:NLAY))) RETURN
+       END IF
+     ELSE
+       IF(ANY(Z<BOTTOM(DONOR))) RETURN
+     END IF
+     DO NODE=1,3
+       LOWER=1
+       DO K=1,NLAY
+         QUERY=Z(NODE,K)
+         IF(PRESENT(QUERY_Z)) QUERY=QUERY_Z(NODE,K)
+         IF(QUERY>=Z(DONOR,1)) THEN
+           REF(NODE,K)=R(DONOR,1)
+         ELSE IF(QUERY<=Z(DONOR,NLAY)) THEN
+           REF(NODE,K)=R(DONOR,NLAY)
+         ELSE
+           DO WHILE(LOWER<NLAY-1)
+             IF(QUERY>=Z(DONOR,LOWER+1)) EXIT
+             LOWER=LOWER+1
+           END DO
+           WEIGHT=(Z(DONOR,LOWER)-QUERY)/(Z(DONOR,LOWER)-Z(DONOR,LOWER+1))
+           REF(NODE,K)=R(DONOR,LOWER)+WEIGHT*(R(DONOR,LOWER+1)-R(DONOR,LOWER))
+         END IF
+       END DO
+     END DO
+     STATUS=0
+   END SUBROUTINE TRIANGLE_DEEP_REFERENCE
+
 
    PURE SUBROUTINE REMOVE_TRIANGLE_MEAN(Z,R)
      ! Mean curvature of the three domain-anomaly profiles in physical z.
