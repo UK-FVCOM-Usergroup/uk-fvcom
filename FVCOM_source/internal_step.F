@@ -594,11 +594,9 @@ SUBROUTINE INTERNAL_STEP
         CALL BAROPG_PJ44
      CASE ('sigma levels local cubic')
         CALL BAROPG
-     CASE ('sigma levels neighborhood mean partial')
-        CALL BAROPG_INIT_PARTIAL_DENSITY
-        CALL BAROPG
      CASE ("sigma levels deep reference", "sigma levels neighborhood mean", &
-           "sigma levels deep reference frozen", "sigma levels neighborhood mean frozen")
+           "sigma levels deep reference frozen", "sigma levels neighborhood mean frozen", &
+           "sigma levels neighborhood mean partial")
         CALL BAROPG      !Private physical-z reference in the native sigma operator.
      CASE ("sigma levels v2 shear", "sigma levels", "sigma levels local mean", &
            "sigma levels local z mean", "sigma levels local z mean v2")
@@ -1990,40 +1988,3 @@ SUBROUTINE INTERNAL_STEP
        & "End: internal_step"
 
 END SUBROUTINE INTERNAL_STEP
-
-! Rebuild hotstart density before the partial reference captures its first profile.
-SUBROUTINE BAROPG_INIT_PARTIAL_DENSITY
-  USE ALL_VARS
-  USE EQS_OF_STATE
-  USE MOD_PAR
-  USE MOD_UTILS, ONLY: FATAL_ERROR
-  IMPLICIT NONE
-  LOGICAL, SAVE :: INITIALIZED=.FALSE.
-
-  IF(BAROTROPIC .OR. INITIALIZED) RETURN
-  IF(BAROCLINIC_PRESSURE_GRADIENT/='sigma levels neighborhood mean partial') RETURN
-
-  SELECT CASE(SEA_WATER_DENSITY_FUNCTION)
-  CASE(SW_DENS0)
-    CALL DENS0
-  CASE(SW_DENS1)
-    CALL DENS1
-  CASE(SW_DENS2)
-    CALL DENS2
-  CASE(SW_DENS3)
-    CALL DENS3
-  CASE DEFAULT
-    CALL FATAL_ERROR('INVALID DENSITY FUNCTION SELECTED:',TRIM(SEA_WATER_DENSITY_FUNCTION))
-  END SELECT
-# if defined (MULTIPROCESSOR)
-  IF(PAR) THEN
-    CALL AEXCHANGE(NC,MYID,NPROCS,RHO1)
-    ! Rebuild element density after nodal halo synchronization.
-    CALL N2E3D(RHO1,RHO)
-    CALL AEXCHANGE(EC,MYID,NPROCS,RHO)
-  END IF
-# endif
-  INITIALIZED=.TRUE.
-  IF(SERIAL .OR. MYID==1) &
-    WRITE(IPT,*) 'BAROPG partial: initial density recalculated from T1/S1'
-END SUBROUTINE BAROPG_INIT_PARTIAL_DENSITY

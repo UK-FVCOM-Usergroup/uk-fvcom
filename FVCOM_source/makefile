@@ -216,6 +216,7 @@ include ./make.inc
 
 # Private local-reference halo exchange and error reporting in BAROPG.
 baropg.o: mod_par.o mod_utils.o
+mod_startup.o: mod_par.o
 
 # Keep the new module safe in parallel builds with the checked-in dependencies.
 mod_pj44.o: mod_prec.o mod_main.o mod_utils.o mod_wd.o
