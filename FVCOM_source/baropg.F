@@ -30,7 +30,7 @@
 !     CALCULATE THE BAROCLINIC PRESSURE GRADIENT IN SIGMA COORDINATES          |
 !==============================================================================|
 
-   SUBROUTINE BAROPG_SHEAR_CORE 
+   SUBROUTINE BAROPG_SHEAR_CORE
 
 !==============================================================================|
    USE ALL_VARS
@@ -49,7 +49,7 @@
    REAL(SP) :: LOCAL_Z(3,KBM1), LOCAL_RHO(3,KBM1), LOCAL_RHO_C(KBM1)
    REAL(SP) :: TEMP,DIJ,DRHO1,DRHO2
    INTEGER  :: I,K,J,J1,J2,IJK
-   LOGICAL  :: USE_LOCAL_MEAN, USE_LOCAL_Z_MEAN, APPLY_V2
+   LOGICAL  :: USE_LOCAL_MEAN, USE_LOCAL_Z_MEAN, APPLY_V2, USE_LOCAL_CUBIC
    ! Zero selects the merged native layer depths; positive values select a uniform grid.
    INTEGER, PARAMETER :: LOCAL_Z_GRID=0
    REAL(SP) :: LOCAL_TOP(3), LOCAL_BOTTOM(3), LOCAL_Z_REFERENCE(3,KBM1)
@@ -77,7 +77,8 @@
      BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean v2'
    USE_LOCAL_Z_MEAN = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean' .OR. &
      BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local z mean v2'
-   USE_LOCAL_MEAN = USE_LOCAL_Z_MEAN .OR. APPLY_V2
+   USE_LOCAL_CUBIC = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels local cubic'
+   USE_LOCAL_MEAN = USE_LOCAL_Z_MEAN .OR. APPLY_V2 .OR. USE_LOCAL_CUBIC
 #  if defined (ICESHELF)
    ! Ice-draft pressure terms need their own consistent reference treatment.
    IF(USE_LOCAL_MEAN) CALL FATAL_ERROR( &
@@ -115,7 +116,24 @@
        IF(ISWETCT(I)*ISWETC(I) /= 1)CYCLE
        IF(ALL(H(NV(I,:)) <= STATIC_SSH_ADJ))CYCLE
 #      endif
-       IF(USE_LOCAL_Z_MEAN)THEN
+       IF(USE_LOCAL_CUBIC)THEN
+         DO J=1,3
+           IJK=NV(I,J)
+           LOCAL_Z(J,:)=ZZ(IJK,1:KBM1)*DT(IJK)+ET(IJK)
+#          if defined (ICE_EMBEDDING)
+           LOCAL_Z(J,:)=LOCAL_Z(J,:)-QTHICE(IJK)
+#          endif
+           LOCAL_RHO(J,:)=RHO1(IJK,1:KBM1)
+         END DO
+         CALL TRIANGLE_CUBIC_RESIDUAL(KBM1,LOCAL_Z,LOCAL_RHO,LOCAL_Z_STATUS)
+         IF(LOCAL_Z_STATUS /= 0)THEN
+           DO J=1,3
+             IJK=NV(I,J)
+             LOCAL_RHO(J,:)=(RHO1(IJK,1:KBM1)-RHO1(NV(I,1),1)) &
+               -(RMEAN1(IJK,1:KBM1)-RMEAN1(NV(I,1),1))
+           END DO
+         END IF
+       ELSE IF(USE_LOCAL_Z_MEAN)THEN
          DO J=1,3
            IJK=NV(I,J)
            ! Same reference coordinates and physical mask as RHO_PMEAN.
@@ -367,6 +385,179 @@
      END DO
      R=RESULT
    END SUBROUTINE REMOVE_TRIANGLE_MEAN
+
+   PURE SUBROUTINE TRIANGLE_CUBIC_RESIDUAL(NLAY,Z,R,STATUS)
+     ! ROMS-inspired reconstruction; FVCOM pressure quadrature is unchanged.
+     ! prsgrd32.h: harmonic slopes for BOTH rho(s) and z(s), then invert z(s).
+     ! https://github.com/myroms/roms/blob/develop/ROMS/Nonlinear/prsgrd32.h
+     ! Shchepetkin & McWilliams (2003), doi:10.1029/2001JC001047.
+     !
+     ! Copyright (c) 2002-2026 Regional Ocean Modeling System (ROMS)
+     ! Permission is hereby granted, free of charge, to any person obtaining a
+     ! copy of this software and associated documentation files (the Software),
+     ! to deal in the Software without restriction, including without limitation
+     ! the rights to use, copy, modify, merge, publish, distribute, sublicense,
+     ! and/or sell copies of the Software, and to permit persons to whom the
+     ! Software is furnished to do so, subject to the following conditions:
+     ! The above copyright notice and this permission notice shall be included
+     ! in all copies or substantial portions of the Software.
+     ! THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     ! IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     ! FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+     ! THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+     ! OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+     ! ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+     ! OTHER DEALINGS IN THE SOFTWARE.
+     USE, INTRINSIC :: IEEE_ARITHMETIC, ONLY: IEEE_IS_FINITE
+     INTEGER, INTENT(IN) :: NLAY
+     REAL(SP), INTENT(IN) :: Z(3,NLAY)
+     REAL(SP), INTENT(INOUT) :: R(3,NLAY)
+     INTEGER, INTENT(OUT) :: STATUS
+     REAL(DP) :: ZD(NLAY,3),RD(NLAY,3),DZ(NLAY,3),DR(NLAY,3)
+     REAL(DP) :: OFFSET(2,3),SLOPE(2,3),WIDTH(2,3),DELTA(3)
+     REAL(DP) :: B,DB,V,DV,Q,U,SIGN_Z,MEAN_DELTA
+     REAL(SP) :: RESULT(3,NLAY)
+     INTEGER :: J,K,NODE,DONOR,ENDPT,LEV,LOWER(3),IDX
+
+     STATUS=1
+     IF(NLAY < 2)RETURN
+     IF(.NOT.ALL(IEEE_IS_FINITE(Z)) .OR. .NOT.ALL(IEEE_IS_FINITE(R)))RETURN
+     IF(ANY(Z(:,1:NLAY-1) <= Z(:,2:NLAY)))RETURN
+     ZD=TRANSPOSE(REAL(Z,DP))
+     RD=TRANSPOSE(REAL(R,DP))-REAL(R(1,1),DP)
+     DO J=1,3
+       CALL ROMS_CUBIC_SLOPES(NLAY,ZD(:,J),RD(:,J),DZ(:,J),DR(:,J))
+     END DO
+     ! The deepest sampled column covers every bottom query. Its continuation
+     ! supplies the deep stratification; shallow-column offsets join it C1.
+     DONOR=MINLOC(ZD(NLAY,:),DIM=1)
+     DO J=1,3
+       DO ENDPT=1,2
+         LEV=1
+         IF(ENDPT == 2)LEV=NLAY
+         IDX=1
+         CALL ROMS_CUBIC_EVAL(NLAY,ZD(:,DONOR),RD(:,DONOR),DZ(:,DONOR), &
+           DR(:,DONOR),ZD(LEV,J),IDX,B,DB)
+         OFFSET(ENDPT,J)=RD(LEV,J)-B
+         SLOPE(ENDPT,J)=DR(LEV,J)/DZ(LEV,J)-DB
+       END DO
+       WIDTH(1,J)=ZD(1,J)-ZD(2,J)
+       WIDTH(2,J)=ZD(NLAY-1,J)-ZD(NLAY,J)
+     END DO
+     DO NODE=1,3
+       LOWER=1
+       DO K=1,NLAY
+         Q=ZD(K,NODE)
+         CALL ROMS_CUBIC_EVAL(NLAY,ZD(:,DONOR),RD(:,DONOR),DZ(:,DONOR), &
+           DR(:,DONOR),Q,LOWER(DONOR),B,DB)
+         DELTA=0.0_DP
+         DO J=1,3
+           IF(J == DONOR)CYCLE
+           IF(J == NODE)THEN
+             DELTA(J)=RD(K,J)-B
+           ELSE IF(Q <= ZD(1,J) .AND. Q >= ZD(NLAY,J))THEN
+             CALL ROMS_CUBIC_EVAL(NLAY,ZD(:,J),RD(:,J),DZ(:,J),DR(:,J), &
+               Q,LOWER(J),V,DV)
+             DELTA(J)=V-B
+           ELSE
+             ENDPT=1
+             LEV=1
+             SIGN_Z=1.0_DP
+             IF(Q < ZD(NLAY,J))THEN
+               ENDPT=2
+               LEV=NLAY
+               SIGN_Z=-1.0_DP
+             END IF
+             U=MIN(1.0_DP,SIGN_Z*(Q-ZD(LEV,J))/WIDTH(ENDPT,J))
+             ! Bounded cubic continuation of the DIFFERENCE from the donor.
+             ! Its derivative tends to zero over one native layer spacing.
+             DELTA(J)=OFFSET(ENDPT,J)+SIGN_Z*SLOPE(ENDPT,J)*WIDTH(ENDPT,J) &
+               *U*(1.0_DP-U+U*U/3.0_DP)
+           END IF
+         END DO
+         MEAN_DELTA=SUM(DELTA)/3.0_DP
+         RESULT(NODE,K)=REAL(DELTA(NODE)-MEAN_DELTA,SP)
+       END DO
+     END DO
+     R=RESULT
+     STATUS=0
+   END SUBROUTINE TRIANGLE_CUBIC_RESIDUAL
+
+   PURE SUBROUTINE ROMS_CUBIC_SLOPES(N,Z,R,DZ,DR)
+     INTEGER, INTENT(IN) :: N
+     REAL(DP), INTENT(IN) :: Z(N),R(N)
+     REAL(DP), INTENT(OUT) :: DZ(N),DR(N)
+     INTEGER :: K
+     DZ(1:N-1)=Z(2:N)-Z(1:N-1)
+     DR(1:N-1)=R(2:N)-R(1:N-1)
+     DZ(N)=DZ(N-1)
+     DR(N)=DR(N-1)
+     DO K=N-1,2,-1
+       DZ(K)=2.0_DP*DZ(K)*DZ(K-1)/(DZ(K)+DZ(K-1))
+       ! Sign limiting avoids a dimensional density threshold: FVCOM stores
+       ! density anomalies scaled by 1e-3 relative to ROMS rho in kg/m3.
+       IF(DR(K)*DR(K-1) > 0.0_DP)THEN
+         DR(K)=2.0_DP*DR(K)*DR(K-1)/(DR(K)+DR(K-1))
+       ELSE
+         DR(K)=0.0_DP
+       END IF
+     END DO
+   END SUBROUTINE ROMS_CUBIC_SLOPES
+
+   PURE SUBROUTINE ROMS_CUBIC_EVAL(N,Z,R,DZ,DR,Q,LOWER,V,SLOPE)
+     INTEGER, INTENT(IN) :: N
+     REAL(DP), INTENT(IN) :: Z(N),R(N),DZ(N),DR(N),Q
+     INTEGER, INTENT(INOUT) :: LOWER
+     REAL(DP), INTENT(OUT) :: V,SLOPE
+     REAL(DP) :: AZ,BZ,AR,BR,T,LO,HI,F,DF,TNEW,DQ,TOL
+     INTEGER :: K,IT
+     ! Only the donor uses this tangent outside its own sampled interval.
+     ! It covers all deep targets; its top continuation is normally <1 layer.
+     IF(Q >= Z(1))THEN
+       SLOPE=DR(1)/DZ(1)
+       V=R(1)+(Q-Z(1))*SLOPE
+       RETURN
+     ELSE IF(Q <= Z(N))THEN
+       SLOPE=DR(N)/DZ(N)
+       V=R(N)+(Q-Z(N))*SLOPE
+       RETURN
+     END IF
+     LOWER=MAX(1,MIN(N-1,LOWER))
+     DO WHILE(LOWER > 1)
+       IF(Q <= Z(LOWER))EXIT
+       LOWER=LOWER-1
+     END DO
+     DO WHILE(LOWER < N-1)
+       IF(Q >= Z(LOWER+1))EXIT
+       LOWER=LOWER+1
+     END DO
+     K=LOWER
+     AZ=2.0_DP*(Z(K)-Z(K+1))+DZ(K)+DZ(K+1)
+     BZ=3.0_DP*(Z(K+1)-Z(K))-2.0_DP*DZ(K)-DZ(K+1)
+     DQ=Q-Z(K)
+     T=DQ/(Z(K+1)-Z(K))
+     LO=0.0_DP
+     HI=1.0_DP
+     TOL=16.0_DP*EPSILON(1.0_DP)*MAX(1.0_DP,ABS(Z(K+1)-Z(K)))
+     DO IT=1,52
+       F=T*(DZ(K)+T*(BZ+T*AZ))-DQ
+       IF(ABS(F) <= TOL)EXIT
+       IF(F > 0.0_DP)THEN
+         LO=T
+       ELSE
+         HI=T
+       END IF
+       DF=DZ(K)+T*(2.0_DP*BZ+3.0_DP*T*AZ)
+       TNEW=T-F/DF
+       IF(TNEW <= LO .OR. TNEW >= HI)TNEW=0.5_DP*(LO+HI)
+       T=TNEW
+     END DO
+     AR=2.0_DP*(R(K)-R(K+1))+DR(K)+DR(K+1)
+     BR=3.0_DP*(R(K+1)-R(K))-2.0_DP*DR(K)-DR(K+1)
+     V=R(K)+T*(DR(K)+T*(BR+T*AR))
+     SLOPE=(DR(K)+T*(2.0_DP*BR+3.0_DP*T*AR)) &
+       /(DZ(K)+T*(2.0_DP*BZ+3.0_DP*T*AZ))
+   END SUBROUTINE ROMS_CUBIC_EVAL
 
    SUBROUTINE BUILD_Z_REFERENCE(NCOL,NLAY,NZ,Z,R,TOP,BOTTOM,REFERENCE,STATUS, &
        LEVELS,MEAN_Z,COUNTS,N_USED)
