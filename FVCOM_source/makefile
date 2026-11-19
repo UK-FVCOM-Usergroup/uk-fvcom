@@ -214,6 +214,9 @@ includes::
 include ./makedepends
 include ./make.inc
 
+# Local pressure-reference halo exchange and error reporting.
+baropg.o: mod_par.o mod_utils.o
+
 ifeq ($(rotated_diffusion_flux),ON)
 CPPARGS += -DROTATED_DIFFUSION_FLUX
 mod_rotated_diffusion.o: mod_prec.o

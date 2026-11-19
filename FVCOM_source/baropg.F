@@ -38,6 +38,10 @@
    USE MOD_NORTHPOLE
    USE MOD_WD
    USE MOD_UTILS, ONLY: FATAL_ERROR
+   USE MOD_PAR, ONLY: NGID_X
+# if defined (MULTIPROCESSOR)
+   USE MOD_PAR, ONLY: AEXCHANGE, NC
+# endif
    
 # if defined (ICESHELF)
     USE MOD_ISF
@@ -49,7 +53,11 @@
    REAL(SP) :: LOCAL_RHO(3,KBM1), LOCAL_RHO_C(KBM1)
    REAL(DP) :: LOCAL_Z(3,KBM1), LOCAL_RAW(3,KBM1), LOCAL_REF(3,KBM1)
    REAL(DP) :: LOCAL_TOP(3), LOCAL_BOTTOM(3)
-   LOGICAL :: USE_DEEP_REFERENCE
+   INTEGER :: PATCH_NODES(3+6*MX_NBR_ELEM), PATCH_COUNT, P, NODE_ID
+   REAL(DP) :: PATCH_Z(3+6*MX_NBR_ELEM,KBM1), PATCH_RHO(3+6*MX_NBR_ELEM,KBM1)
+   REAL(DP) :: PATCH_TOP(3+6*MX_NBR_ELEM), PATCH_BOTTOM(3+6*MX_NBR_ELEM)
+   REAL(SP), ALLOCATABLE, TARGET :: REFERENCE_RHO(:,:)
+   LOGICAL :: USE_LOCAL_REFERENCE, USE_NEIGHBOR_MEAN
    INTEGER :: LOCAL_STATUS
    REAL(SP) :: TEMP,DIJ,DRHO1,DRHO2
    INTEGER  :: I,K,J,J1,J2,IJK
@@ -72,11 +80,21 @@
 
 !----------SUBTRACT MEAN DENSITY TO MINIMIZE ROUNDOFF ERROR--------------------!
 
-   USE_DEEP_REFERENCE = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels deep reference'
-# if defined (ICESHELF)
-   IF(USE_DEEP_REFERENCE) CALL FATAL_ERROR('Deep reference is not implemented for ICESHELF')
+   USE_NEIGHBOR_MEAN = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels neighborhood mean'
+   USE_LOCAL_REFERENCE = USE_NEIGHBOR_MEAN .OR. &
+     BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels deep reference'
+   IF(USE_NEIGHBOR_MEAN .AND. PAR) THEN
+     ! Refresh a PRIVATE density copy for halo donors. No global field is written.
+     ALLOCATE(REFERENCE_RHO(0:MT,KB))
+     REFERENCE_RHO=RHO1
+# if defined (MULTIPROCESSOR)
+     CALL AEXCHANGE(NC,MYID,NPROCS,REFERENCE_RHO)
 # endif
-   IF(.NOT.USE_DEEP_REFERENCE) THEN
+   END IF
+# if defined (ICESHELF)
+   IF(USE_LOCAL_REFERENCE) CALL FATAL_ERROR('Local reference is not implemented for ICESHELF')
+# endif
+   IF(.NOT.USE_LOCAL_REFERENCE) THEN
      RHO1(:,1:KBM1) = RHO1(:,1:KBM1) - RMEAN1(:,1:KBM1)
      RHO = RHO - RMEAN
    END IF
@@ -85,7 +103,7 @@
 
    DRHOX      = 0.0_SP
    DRHOY      = 0.0_SP
-   IF(.NOT.USE_DEEP_REFERENCE) THEN
+   IF(.NOT.USE_LOCAL_REFERENCE) THEN
      RMEAN(0,:) = 0.0_SP
      RHO(0,:)   = 0.0_SP
    END IF
@@ -101,7 +119,7 @@
 
 !----------CALCULATE AVERAGE DENSITY ON EACH EDGE------------------------------!
 
-   IF(USE_DEEP_REFERENCE) THEN
+   IF(USE_LOCAL_REFERENCE) THEN
      DO I=1,N
 # if defined (WET_DRY)
        IF(ISWETCT(I)*ISWETC(I)/=1) CYCLE
@@ -119,11 +137,47 @@
 # endif
          LOCAL_RAW(J,:)=REAL(RHO1(IJK,1:KBM1),DP)
        END DO
-       CALL TRIANGLE_DEEP_REFERENCE(KBM1,LOCAL_Z,LOCAL_RAW,LOCAL_TOP,LOCAL_BOTTOM,LOCAL_REF,LOCAL_STATUS)
-       IF(LOCAL_STATUS/=0) CALL FATAL_ERROR('Invalid wet column in deep reference')
-       LOCAL_RHO=REAL(LOCAL_RAW,SP)-REAL(LOCAL_REF,SP)
-       LOCAL_RHO_C=RHO(I,1:KBM1)-ONE_THIRD*(REAL(LOCAL_REF(1,:),SP) &
-         +REAL(LOCAL_REF(2,:),SP)+REAL(LOCAL_REF(3,:),SP))
+       IF(USE_NEIGHBOR_MEAN) THEN
+         CALL REFERENCE_NEIGHBORS(I,PATCH_NODES,PATCH_COUNT,LOCAL_STATUS)
+         IF(LOCAL_STATUS/=0) CALL FATAL_ERROR('Incomplete topology for neighborhood reference')
+         DO P=1,PATCH_COUNT
+           NODE_ID=PATCH_NODES(P)
+           PATCH_BOTTOM(P)=-REAL(H(NODE_ID),DP)
+           PATCH_TOP(P)=REAL(EL(NODE_ID),DP)
+# if defined (ICE_EMBEDDING)
+           PATCH_TOP(P)=PATCH_TOP(P)-REAL(QTHICE(NODE_ID),DP)
+# endif
+# if defined (WET_DRY)
+           IF(WETTING_DRYING_ON .AND. ISWETN(NODE_ID)==0) PATCH_TOP(P)=PATCH_BOTTOM(P)
+# endif
+           PATCH_Z(P,:)=0.0_DP
+           PATCH_RHO(P,:)=0.0_DP
+           IF(PATCH_TOP(P)<=PATCH_BOTTOM(P)) CYCLE
+           PATCH_Z(P,:)=REAL(ZZ(NODE_ID,1:KBM1),DP)*REAL(D(NODE_ID),DP)+PATCH_TOP(P)
+           IF(PAR) THEN
+             PATCH_RHO(P,:)=REAL(REFERENCE_RHO(NODE_ID,1:KBM1),DP)
+           ELSE
+             PATCH_RHO(P,:)=REAL(RHO1(NODE_ID,1:KBM1),DP)
+           END IF
+         END DO
+         CALL NEIGHBOR_RMEAN(KBM1,PATCH_Z(1:PATCH_COUNT,:),PATCH_RHO(1:PATCH_COUNT,:), &
+           PATCH_TOP(1:PATCH_COUNT),PATCH_BOTTOM(1:PATCH_COUNT),LOCAL_Z,LOCAL_REF,LOCAL_STATUS)
+       ELSE
+         CALL TRIANGLE_DEEP_REFERENCE(KBM1,LOCAL_Z,LOCAL_RAW,LOCAL_TOP,LOCAL_BOTTOM,LOCAL_REF,LOCAL_STATUS)
+       END IF
+       IF(LOCAL_STATUS==2 .AND. USE_NEIGHBOR_MEAN) THEN
+         ! No wet donor covers a target (e.g. shoreline): retain original reference.
+         DO J=1,3
+           NODE_ID=NV(I,J)
+           LOCAL_RHO(J,:)=RHO1(NODE_ID,1:KBM1)-RMEAN1(NODE_ID,1:KBM1)
+         END DO
+         LOCAL_RHO_C=RHO(I,1:KBM1)-RMEAN(I,1:KBM1)
+       ELSE
+         IF(LOCAL_STATUS/=0) CALL FATAL_ERROR('Invalid wet column in local reference')
+         LOCAL_RHO=REAL(LOCAL_RAW,SP)-REAL(LOCAL_REF,SP)
+         LOCAL_RHO_C=RHO(I,1:KBM1)-ONE_THIRD*(REAL(LOCAL_REF(1,:),SP) &
+           +REAL(LOCAL_REF(2,:),SP)+REAL(LOCAL_REF(3,:),SP))
+       END IF
        DO K=1,KBM1
          DO J=1,3
            J1=J+1-INT((J+1)/4)*3
@@ -158,7 +212,7 @@
      END DO
    END DO
 
-   IF(.NOT.USE_DEEP_REFERENCE) THEN
+   IF(.NOT.USE_LOCAL_REFERENCE) THEN
    DO I=1,N
      DRIJK2(I,1)=0.0_SP
      DO K=2,KBM1
@@ -276,7 +330,7 @@
 
 !----------ADD MEAN DENSITY BACK ON--------------------------------------------!
 
-   IF(.NOT.USE_DEEP_REFERENCE) THEN
+   IF(.NOT.USE_LOCAL_REFERENCE) THEN
      RHO1 = RHO1 + RMEAN1
      RHO  = RHO  + RMEAN
    END IF
@@ -285,6 +339,108 @@
 
    RETURN
    CONTAINS
+
+   PURE SUBROUTINE REFERENCE_NEIGHBORS(CELL,NODES,NCOUNT,STATUS)
+     ! Union of all nodes in triangles incident on any target-triangle vertex.
+     ! genmap includes this full vertex star in the normal MPI halo.
+     INTEGER, INTENT(IN) :: CELL
+     INTEGER, INTENT(OUT) :: NODES(:),NCOUNT,STATUS
+     INTEGER :: VERTEX,SEED,K,ELEMENT,J,ID,A,B,KEY,OTHER
+     STATUS=1
+     NCOUNT=3
+     NODES=0
+     NODES(1:3)=NV(CELL,:)
+     DO VERTEX=1,3
+       SEED=NV(CELL,VERTEX)
+       IF(SEED<1 .OR. SEED>UBOUND(NBVE,1)) RETURN
+       IF(NTVE(SEED)<1 .OR. NTVE(SEED)>SIZE(NBVE,2)) RETURN
+       DO K=1,NTVE(SEED)
+         ELEMENT=NBVE(SEED,K)
+         IF(ELEMENT<1 .OR. ELEMENT>UBOUND(NV,1)) RETURN
+         DO J=1,3
+           ID=NV(ELEMENT,J)
+           IF(ID<1 .OR. ID>MT) RETURN
+           IF(ANY(NODES(1:NCOUNT)==ID)) CYCLE
+           IF(NCOUNT==SIZE(NODES)) RETURN
+           NCOUNT=NCOUNT+1
+           NODES(NCOUNT)=ID
+         END DO
+       END DO
+     END DO
+     ! Canonical global-node order keeps summation independent of MPI numbering.
+     DO A=2,NCOUNT
+       ID=NODES(A)
+       KEY=ID
+       IF(PAR) KEY=NGID_X(ID)
+       B=A-1
+       DO WHILE(B>=1)
+         OTHER=NODES(B)
+         IF(PAR) OTHER=NGID_X(OTHER)
+         IF(OTHER<=KEY) EXIT
+         NODES(B+1)=NODES(B)
+         B=B-1
+       END DO
+       NODES(B+1)=ID
+     END DO
+     STATUS=0
+   END SUBROUTINE REFERENCE_NEIGHBORS
+
+   PURE SUBROUTINE NEIGHBOR_RMEAN(NLAY,Z,R,TOP,BOTTOM,QUERY_Z,REF,STATUS)
+     ! Equal-weight mean at each physical z; each unique wet node counts once.
+     ! End values are constant only between sample centres and that node's
+     ! water boundary. A donor never contributes below its physical bottom.
+     USE, INTRINSIC :: IEEE_ARITHMETIC, ONLY: IEEE_IS_FINITE
+     INTEGER, INTENT(IN) :: NLAY
+     REAL(DP), INTENT(IN) :: Z(:,:),R(:,:),TOP(:),BOTTOM(:),QUERY_Z(3,NLAY)
+     REAL(DP), INTENT(OUT) :: REF(3,NLAY)
+     INTEGER, INTENT(OUT) :: STATUS
+     INTEGER :: COUNT(3,NLAY),DONOR,NODE,K,LOWER
+     REAL(DP) :: QUERY,VALUE,WEIGHT
+     STATUS=1
+     REF=0.0_DP
+     COUNT=0
+     IF(NLAY<1 .OR. SIZE(Z,1)<1) RETURN
+     IF(.NOT.ALL(IEEE_IS_FINITE(QUERY_Z))) RETURN
+     IF(NLAY>1) THEN
+       IF(ANY(QUERY_Z(:,1:NLAY-1)<=QUERY_Z(:,2:NLAY))) RETURN
+     END IF
+     DO DONOR=1,SIZE(Z,1)
+       IF(.NOT.IEEE_IS_FINITE(TOP(DONOR)) .OR. .NOT.IEEE_IS_FINITE(BOTTOM(DONOR))) RETURN
+       IF(TOP(DONOR)<=BOTTOM(DONOR)) CYCLE
+       IF(.NOT.ALL(IEEE_IS_FINITE(Z(DONOR,:))) .OR. .NOT.ALL(IEEE_IS_FINITE(R(DONOR,:)))) RETURN
+       IF(Z(DONOR,1)>TOP(DONOR) .OR. Z(DONOR,NLAY)<BOTTOM(DONOR)) RETURN
+       IF(NLAY>1) THEN
+         IF(ANY(Z(DONOR,1:NLAY-1)<=Z(DONOR,2:NLAY))) RETURN
+       END IF
+       DO NODE=1,3
+         LOWER=1
+         DO K=1,NLAY
+           QUERY=QUERY_Z(NODE,K)
+           IF(QUERY>TOP(DONOR) .OR. QUERY<BOTTOM(DONOR)) CYCLE
+           IF(QUERY>=Z(DONOR,1)) THEN
+             VALUE=R(DONOR,1)
+           ELSE IF(QUERY<=Z(DONOR,NLAY)) THEN
+             VALUE=R(DONOR,NLAY)
+           ELSE
+             DO WHILE(LOWER<NLAY-1)
+               IF(QUERY>=Z(DONOR,LOWER+1)) EXIT
+               LOWER=LOWER+1
+             END DO
+             WEIGHT=(Z(DONOR,LOWER)-QUERY)/(Z(DONOR,LOWER)-Z(DONOR,LOWER+1))
+             VALUE=R(DONOR,LOWER)+WEIGHT*(R(DONOR,LOWER+1)-R(DONOR,LOWER))
+           END IF
+           REF(NODE,K)=REF(NODE,K)+VALUE
+           COUNT(NODE,K)=COUNT(NODE,K)+1
+         END DO
+       END DO
+     END DO
+     IF(ANY(COUNT==0)) THEN
+       STATUS=2
+       RETURN
+     END IF
+     REF=REF/REAL(COUNT,DP)
+     STATUS=0
+   END SUBROUTINE NEIGHBOR_RMEAN
 
    PURE SUBROUTINE TRIANGLE_DEEP_REFERENCE(NLAY,Z,R,TOP,BOTTOM,REF,STATUS)
      ! One common physical-z reference: the triangle node with deepest seabed.
