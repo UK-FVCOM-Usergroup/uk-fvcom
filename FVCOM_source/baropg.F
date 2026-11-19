@@ -37,6 +37,7 @@
    USE MOD_SPHERICAL
    USE MOD_NORTHPOLE
    USE MOD_WD
+   USE MOD_UTILS, ONLY: FATAL_ERROR
    
 # if defined (ICESHELF)
     USE MOD_ISF
@@ -45,6 +46,11 @@
 
    IMPLICIT NONE
    REAL(SP) :: RIJK(0:N,3,KBM1), DRIJK1(0:N,3,KBM1), DRIJK2(0:N,KBM1)
+   REAL(SP) :: LOCAL_RHO(3,KBM1), LOCAL_RHO_C(KBM1)
+   REAL(DP) :: LOCAL_Z(3,KBM1), LOCAL_RAW(3,KBM1), LOCAL_REF(3,KBM1)
+   REAL(DP) :: LOCAL_TOP(3), LOCAL_BOTTOM(3)
+   LOGICAL :: USE_DEEP_REFERENCE
+   INTEGER :: LOCAL_STATUS
    REAL(SP) :: TEMP,DIJ,DRHO1,DRHO2
    INTEGER  :: I,K,J,J1,J2,IJK
 #  if defined (SPHERICAL)
@@ -66,15 +72,23 @@
 
 !----------SUBTRACT MEAN DENSITY TO MINIMIZE ROUNDOFF ERROR--------------------!
 
-   RHO1(:,1:KBM1) = RHO1(:,1:KBM1) - RMEAN1(:,1:KBM1)
-   RHO = RHO - RMEAN 
+   USE_DEEP_REFERENCE = BAROCLINIC_PRESSURE_GRADIENT == 'sigma levels deep reference'
+# if defined (ICESHELF)
+   IF(USE_DEEP_REFERENCE) CALL FATAL_ERROR('Deep reference is not implemented for ICESHELF')
+# endif
+   IF(.NOT.USE_DEEP_REFERENCE) THEN
+     RHO1(:,1:KBM1) = RHO1(:,1:KBM1) - RMEAN1(:,1:KBM1)
+     RHO = RHO - RMEAN
+   END IF
 
 !----------INITIALIZE ARRAYS---------------------------------------------------!
 
    DRHOX      = 0.0_SP
    DRHOY      = 0.0_SP
-   RMEAN(0,:) = 0.0_SP
-   RHO(0,:)   = 0.0_SP
+   IF(.NOT.USE_DEEP_REFERENCE) THEN
+     RMEAN(0,:) = 0.0_SP
+     RHO(0,:)   = 0.0_SP
+   END IF
    RIJK       = 0.0_SP
    DRIJK1     = 0.0_SP
    DRIJK2     = 0.0_SP
@@ -87,6 +101,42 @@
 
 !----------CALCULATE AVERAGE DENSITY ON EACH EDGE------------------------------!
 
+   IF(USE_DEEP_REFERENCE) THEN
+     DO I=1,N
+# if defined (WET_DRY)
+       IF(ISWETCT(I)*ISWETC(I)/=1) CYCLE
+       IF(ALL(H(NV(I,:))<=STATIC_SSH_ADJ)) CYCLE
+# endif
+       DO J=1,3
+         IJK=NV(I,J)
+         ! Same physical depth convention as the existing RHO_PMEAN.
+         LOCAL_Z(J,:)=REAL(ZZ(IJK,1:KBM1),DP)*REAL(D(IJK),DP)+REAL(EL(IJK),DP)
+         LOCAL_TOP(J)=REAL(EL(IJK),DP)
+         LOCAL_BOTTOM(J)=-REAL(H(IJK),DP)
+# if defined (ICE_EMBEDDING)
+         LOCAL_Z(J,:)=LOCAL_Z(J,:)-REAL(QTHICE(IJK),DP)
+         LOCAL_TOP(J)=LOCAL_TOP(J)-REAL(QTHICE(IJK),DP)
+# endif
+         LOCAL_RAW(J,:)=REAL(RHO1(IJK,1:KBM1),DP)
+       END DO
+       CALL TRIANGLE_DEEP_REFERENCE(KBM1,LOCAL_Z,LOCAL_RAW,LOCAL_TOP,LOCAL_BOTTOM,LOCAL_REF,LOCAL_STATUS)
+       IF(LOCAL_STATUS/=0) CALL FATAL_ERROR('Invalid wet column in deep reference')
+       LOCAL_RHO=REAL(LOCAL_RAW,SP)-REAL(LOCAL_REF,SP)
+       LOCAL_RHO_C=RHO(I,1:KBM1)-ONE_THIRD*(REAL(LOCAL_REF(1,:),SP) &
+         +REAL(LOCAL_REF(2,:),SP)+REAL(LOCAL_REF(3,:),SP))
+       DO K=1,KBM1
+         DO J=1,3
+           J1=J+1-INT((J+1)/4)*3
+           J2=J+2-INT((J+2)/4)*3
+           RIJK(I,J,K)=0.5_SP*(LOCAL_RHO(J1,K)+LOCAL_RHO(J2,K))
+         END DO
+       END DO
+       DO K=2,KBM1
+         DRIJK2(I,K)=0.5_SP*(ZZ1(I,K-1)+ZZ1(I,K))*(LOCAL_RHO_C(K)-LOCAL_RHO_C(K-1))
+         DRIJK2(I,K)=DRIJK2(I,K-1)+DRIJK2(I,K)
+       END DO
+     END DO
+   ELSE
    DO K=1,KBM1
      DO I=1,N
        DO J=1,3
@@ -96,6 +146,7 @@
        END DO
      END DO
    END DO
+   END IF
 
    DO I=1,N
      DO J=1,3
@@ -107,6 +158,7 @@
      END DO
    END DO
 
+   IF(.NOT.USE_DEEP_REFERENCE) THEN
    DO I=1,N
      DRIJK2(I,1)=0.0_SP
      DO K=2,KBM1
@@ -114,6 +166,7 @@
        DRIJK2(I,K)=DRIJK2(I,K-1)+DRIJK2(I,K)
      END DO
    END DO
+   END IF
    
 # if defined (ICESHELF)
  DO K=1,KBM1
@@ -223,11 +276,58 @@
 
 !----------ADD MEAN DENSITY BACK ON--------------------------------------------!
 
-   RHO1 = RHO1 + RMEAN1
-   RHO  = RHO  + RMEAN
+   IF(.NOT.USE_DEEP_REFERENCE) THEN
+     RHO1 = RHO1 + RMEAN1
+     RHO  = RHO  + RMEAN
+   END IF
 
    IF(DBG_SET(DBG_SBR)) WRITE(IPT,*) "End: baropg.F"
 
    RETURN
+   CONTAINS
+
+   PURE SUBROUTINE TRIANGLE_DEEP_REFERENCE(NLAY,Z,R,TOP,BOTTOM,REF,STATUS)
+     ! One common physical-z reference: the triangle node with deepest seabed.
+     ! Linear interpolation; constant endpoint values as SINTER_EXTRP_NONE.
+     ! No query is below the chosen donor's physical bottom.
+     USE, INTRINSIC :: IEEE_ARITHMETIC, ONLY: IEEE_IS_FINITE
+     INTEGER, INTENT(IN) :: NLAY
+     REAL(DP), INTENT(IN) :: Z(3,NLAY),R(3,NLAY),TOP(3),BOTTOM(3)
+     REAL(DP), INTENT(OUT) :: REF(3,NLAY)
+     INTEGER, INTENT(OUT) :: STATUS
+     INTEGER :: DONOR,NODE,K,LOWER
+     REAL(DP) :: QUERY,WEIGHT
+     STATUS=1
+     REF=0.0_DP
+     IF(NLAY<1) RETURN
+     IF(.NOT.ALL(IEEE_IS_FINITE(Z)) .OR. .NOT.ALL(IEEE_IS_FINITE(R))) RETURN
+     IF(.NOT.ALL(IEEE_IS_FINITE(TOP)) .OR. .NOT.ALL(IEEE_IS_FINITE(BOTTOM))) RETURN
+     IF(ANY(TOP<=BOTTOM)) RETURN
+     IF(ANY(Z(:,1)>TOP) .OR. ANY(Z(:,NLAY)<BOTTOM)) RETURN
+     IF(NLAY>1) THEN
+       IF(ANY(Z(:,1:NLAY-1)<=Z(:,2:NLAY))) RETURN
+     END IF
+     DONOR=MINLOC(BOTTOM,DIM=1) ! Fixed bathymetry; ties use first NV entry.
+     IF(ANY(Z<BOTTOM(DONOR))) RETURN
+     DO NODE=1,3
+       LOWER=1
+       DO K=1,NLAY
+         QUERY=Z(NODE,K)
+         IF(QUERY>=Z(DONOR,1)) THEN
+           REF(NODE,K)=R(DONOR,1)
+         ELSE IF(QUERY<=Z(DONOR,NLAY)) THEN
+           REF(NODE,K)=R(DONOR,NLAY)
+         ELSE
+           DO WHILE(LOWER<NLAY-1)
+             IF(QUERY>=Z(DONOR,LOWER+1)) EXIT
+             LOWER=LOWER+1
+           END DO
+           WEIGHT=(Z(DONOR,LOWER)-QUERY)/(Z(DONOR,LOWER)-Z(DONOR,LOWER+1))
+           REF(NODE,K)=R(DONOR,LOWER)+WEIGHT*(R(DONOR,LOWER+1)-R(DONOR,LOWER))
+         END IF
+       END DO
+     END DO
+     STATUS=0
+   END SUBROUTINE TRIANGLE_DEEP_REFERENCE
    END SUBROUTINE BAROPG
 !==============================================================================|
