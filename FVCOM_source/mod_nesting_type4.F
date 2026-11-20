@@ -154,15 +154,21 @@ CONTAINS
   ! F_e = -qy_x * DLTYE + qy_y * DLTXE,  B(q)(ia)-=F, B(q)(ib)+=F.
   ! All constraints are on owned NON-OBC nodes. OBC nodes take up the residual
   ! as a real open-boundary volume exchange, not as an interior source.
+  ! Optional TANX/TANY: a unit tangent per cell (zero elsewhere). Where it is
+  ! non-zero the mobility acts along it only, so the correction there stays
+  ! along the tangent (land cells: no flow across the coast). Without them,
+  ! the computation is unchanged.
   SUBROUTINE NEST4_PROJECT_TRANSPORT(M,MT,NT,NCV,TRI,ENDS,DX,DY, &
        & AREA, BTYPE, MOBILITY, DELTA_ETA, QX_SOFT,QY_SOFT,DT, &
-       & DQX,DQY,INFO,ITER,RELRES,EXCHANGE_NODE,EXCHANGE_CELL,GLOBAL_SUM)
+       & DQX,DQY,INFO,ITER,RELRES,EXCHANGE_NODE,EXCHANGE_CELL,GLOBAL_SUM, &
+       & TANX,TANY)
     INTEGER, INTENT(IN) :: M,MT,NT,NCV
     INTEGER, INTENT(IN) :: TRI(:),ENDS(:,:),BTYPE(0:MT)
     REAL(SP), INTENT(IN) :: DX(:),DY(:),AREA(0:MT),MOBILITY(0:NT)
     REAL(SP), INTENT(IN) :: DELTA_ETA(0:MT), QX_SOFT(0:NT),QY_SOFT(0:NT),DT
     REAL(SP), INTENT(OUT) :: DQX(0:NT),DQY(0:NT),RELRES
     INTEGER, INTENT(OUT) :: INFO,ITER
+    REAL(SP), INTENT(IN), OPTIONAL :: TANX(0:NT),TANY(0:NT)
     INTERFACE
        SUBROUTINE EXCHANGE_NODE(F)
          IMPORT SP
@@ -180,6 +186,8 @@ CONTAINS
     END INTERFACE
     REAL(SP), ALLOCATABLE :: PHI(:),RES(:),DIR(:),Z(:),AP(:),RHS(:),DIAG(:)
     REAL(SP), ALLOCATABLE :: AX(:),AY(:),DIV(:)
+    REAL(SP), ALLOCATABLE :: TX(:),TY(:)
+    LOGICAL :: HAS_TAN
     REAL(DP) :: RHSNORM2,RHO,RHO_NEW,PDOT,STEP,BETA,NORM2
     INTEGER :: E,IA,IB,C,I,UNREACHABLE
     LOGICAL :: NONFINITE
@@ -206,6 +214,12 @@ CONTAINS
     END IF
     ALLOCATE(PHI(0:MT),RES(0:MT),DIR(0:MT),Z(0:MT),AP(0:MT), &
          & RHS(0:MT),DIAG(0:MT),AX(0:NT),AY(0:NT),DIV(0:MT))
+    HAS_TAN = PRESENT(TANX) .AND. PRESENT(TANY)
+    ALLOCATE(TX(0:NT),TY(0:NT))
+    TX=0.0_SP; TY=0.0_SP
+    IF(HAS_TAN) THEN
+       TX=TANX; TY=TANY
+    END IF
     CALL APPLY_B(QX_SOFT,QY_SOFT,DIV)
     RHS=0.0_SP; DIAG=0.0_SP
     DO I=1,M
@@ -216,6 +230,12 @@ CONTAINS
     DO E=1,NCV
        C=TRI(E); IA=ENDS(E,1); IB=ENDS(E,2)
        IF (MOBILITY(C) <= 0.0_SP) CYCLE
+       IF (HAS_TAN .AND. TX(C)**2+TY(C)**2 > 0.0_SP) THEN
+          ! Only the half-edge flux of the along-tangent transport counts.
+          DIAG(IA)=DIAG(IA)+MOBILITY(C)*(-DY(E)*TX(C)+DX(E)*TY(C))**2
+          DIAG(IB)=DIAG(IB)+MOBILITY(C)*(-DY(E)*TX(C)+DX(E)*TY(C))**2
+          CYCLE
+       END IF
        DIAG(IA)=DIAG(IA)+MOBILITY(C)*(DX(E)**2+DY(E)**2)
        DIAG(IB)=DIAG(IB)+MOBILITY(C)*(DX(E)**2+DY(E)**2)
     END DO
@@ -284,8 +304,14 @@ CONTAINS
 
     CALL EXCHANGE_NODE(PHI)
     CALL APPLY_BT(PHI,AX,AY)
-    AX=QX_SOFT+MOBILITY*AX
-    AY=QY_SOFT+MOBILITY*AY
+    IF(HAS_TAN) THEN
+       AX=MOBILITY*AX; AY=MOBILITY*AY
+       CALL TANGENT_ONLY(AX,AY)
+       AX=QX_SOFT+AX; AY=QY_SOFT+AY
+    ELSE
+       AX=QX_SOFT+MOBILITY*AX
+       AY=QY_SOFT+MOBILITY*AY
+    END IF
     CALL EXCHANGE_CELL(AX)
     CALL EXCHANGE_CELL(AY)
     DQX=AX
@@ -308,6 +334,18 @@ CONTAINS
     IF(RELRES > 2.0E-5_SP) INFO=5
 
   CONTAINS
+    ! Keep only the component along the cell's tangent, where it has one.
+    SUBROUTINE TANGENT_ONLY(QX,QY)
+      REAL(SP), INTENT(INOUT) :: QX(0:NT),QY(0:NT)
+      INTEGER :: K
+      REAL(SP) :: P
+      DO K=0,NT
+         IF(TX(K)**2+TY(K)**2 <= 0.0_SP) CYCLE
+         P=QX(K)*TX(K)+QY(K)*TY(K)
+         QX(K)=P*TX(K); QY(K)=P*TY(K)
+      END DO
+    END SUBROUTINE TANGENT_ONLY
+
     SUBROUTINE APPLY_B(QX,QY,OUT)
       REAL(SP), INTENT(IN) :: QX(0:NT),QY(0:NT)
       REAL(SP), INTENT(OUT) :: OUT(0:MT)
@@ -342,6 +380,7 @@ CONTAINS
       CALL EXCHANGE_NODE(POT)
       CALL APPLY_BT(POT,AX,AY)
       AX=AX*MOBILITY; AY=AY*MOBILITY
+      IF(HAS_TAN) CALL TANGENT_ONLY(AX,AY)
       CALL EXCHANGE_CELL(AX)
       CALL EXCHANGE_CELL(AY)
       CALL APPLY_B(AX,AY,OUT)

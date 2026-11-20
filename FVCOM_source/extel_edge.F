@@ -177,8 +177,9 @@
      END DO
    END IF
 
-   ! Flather supplies velocity rather than elevation. Close each OBC control
-   ! volume with its physical open-edge flux and retain the RK continuity update.
+   ! Flather supplies the open-edge flux rather than elevation. Close each OBC
+   ! control volume with its open-edge flux (parent transport plus the outgoing
+   ! wave from the node's own sea level) and retain the RK continuity update.
    ! Other boundary modes retain the legacy prescribed-elevation treatment.
    IF(FLATHER_OBC_ACTIVE) CALL NEST4_FLATHER_ADD_FLUX(XFLUX)
 

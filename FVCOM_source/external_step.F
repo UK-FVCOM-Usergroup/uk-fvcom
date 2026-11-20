@@ -234,6 +234,16 @@ SUBROUTINE EXTERNAL_STEP
 # endif 
      
      
+     ! Flather OBC: parent values for the open-edge flux in EXTEL_EDGE, at the
+     ! time of the state it integrates (stage K uses the state of stage K-1).
+     IF(FLATHER_OBC_ACTIVE) THEN
+        IF(K==1) THEN
+           CALL NEST4_FLATHER_STAGE_NEST(ExtTime + IMDTE * (-1.0_DP))
+        ELSE
+           CALL NEST4_FLATHER_STAGE_NEST(ExtTime + IMDTE * (ALPHA_RK(K-1) - 1.0_DP))
+        END IF
+     END IF
+
 !FREE SURFACE AMPLITUDE UPDATE  --> ELF
      CALL EXTEL_EDGE(K)
 # if defined (MULTIPROCESSOR)
@@ -391,11 +401,11 @@ SUBROUTINE EXTERNAL_STEP
      CALL BCOND_GCY(2,K)
 # endif
 
+     ! The Flather OBC sets only the open-edge flux (EXTEL_EDGE); the edge
+     ! cells keep FVCOM's own velocity.
      IF(NESTING_ON .AND. TRIM(NESTING_TYPE)=='4') THEN
         IF(NESTING_CHARACTERISTIC_OBC) THEN
            CALL NEST4_CHAR_STAGE_UV
-        ELSEIF(NESTING_FLATHER_OBC) THEN
-           CALL NEST4_FLATHER_STAGE_UV(RKTime)
         END IF
      END IF
 

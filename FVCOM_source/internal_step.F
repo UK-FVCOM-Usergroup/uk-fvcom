@@ -1000,6 +1000,9 @@ SUBROUTINE INTERNAL_STEP
 # if !defined (ISOMIP)
       CALL SET_VAR(intTime,U=UF)
       CALL SET_VAR(intTime,V=VF)
+      ! Type 4, NESTING_NUDGE_COAST: along-coast shear in the zone's land cells.
+      IF(TRIM(NESTING_TYPE)=='4' .AND. NESTING_NUDGE_COAST) &
+           & CALL NEST4_RELAX_COAST_SHEAR(intTime,UF,VF)
 # endif
     END IF  
 #   endif
@@ -1200,6 +1203,9 @@ SUBROUTINE INTERNAL_STEP
 # if !defined (ISOMIP)
       CALL SET_VAR(intTime,U=UF)
       CALL SET_VAR(intTime,V=VF)
+      ! Type 4, NESTING_NUDGE_COAST: along-coast shear in the zone's land cells.
+      IF(TRIM(NESTING_TYPE)=='4' .AND. NESTING_NUDGE_COAST) &
+           & CALL NEST4_RELAX_COAST_SHEAR(intTime,UF,VF)
 # endif
     END IF
 #   endif
