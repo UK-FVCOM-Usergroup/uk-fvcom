@@ -217,7 +217,7 @@ include ./make.inc
 # Private local-reference halo exchange and error reporting in BAROPG.
 baropg.o: mod_par.o mod_utils.o
 mod_startup.o: mod_par.o
-mod_biharmonic_momentum.o: mod_prec.o mod_main.o mod_utils.o mod_par.o
+mod_biharmonic_momentum.o: mod_prec.o mod_main.o mod_utils.o mod_par.o mod_northpole.o
 advection_edge_gcn.o advection_edge_gcy.o adv_uv_edge_gcn.o adv_uv_edge_gcy.o advave_edge_gcn.o advave_edge_gcy.o cntrl_prmtrs.o: mod_biharmonic_momentum.o
 
 # Keep the new module safe in parallel builds with the checked-in dependencies.
