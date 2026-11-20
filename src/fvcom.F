@@ -399,6 +399,7 @@ PROGRAM FVCOM
 
   USE MOD_UTILS
   USE CONTROL
+  USE MOD_NID_RELAX, ONLY: NID_RELAX_INIT
 
   USE MOD_PAR  
 
@@ -857,6 +858,7 @@ PROGRAM FVCOM
      ! == PURE SIMULATION MODE - Instantanious data assimilation only ==============!
   CASE(FVCOM_PURE_SIM)
      ! =============================================================================!
+     CALL NID_RELAX_INIT   ! NiD4Ocean D20 (no-op when NID_RELAX_ON = F)
 
 
      !==============================================================================!

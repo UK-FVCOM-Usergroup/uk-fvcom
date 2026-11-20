@@ -31,6 +31,7 @@ SUBROUTINE INTERNAL_STEP
   USE ALL_VARS
   USE MOD_UTILS
   USE MOD_OBCS
+  USE MOD_NID_RELAX, ONLY: NID_RELAX_ON, NID_RELAX_INDEX, NID_RELAX_APPLY
   USE MOD_TIME
   USE EQS_OF_STATE
   USE MOD_WD
@@ -59,6 +60,7 @@ SUBROUTINE INTERNAL_STEP
 # endif      
 # if defined (FABM)
   USE MOD_FABM_3D
+  USE MOD_FABM_DATA, ONLY: model, FABM_ALL
 # endif
 # if defined (NH)
   USE NON_HYDRO
@@ -111,6 +113,7 @@ SUBROUTINE INTERNAL_STEP
   IMPLICIT NONE
   INTEGER :: I,J,K
   REAL(SP) :: UTMP,VTMP
+  INTEGER :: IFABM_RELAX   ! NiD4Ocean D20
 # if defined (ICE)
     real(SP) :: DUVI,ice_ocnDX,ice_ocnDY
 # endif
@@ -1391,6 +1394,12 @@ SUBROUTINE INTERNAL_STEP
 !----------------------------------------------------!
      CALL FABM_UPDATE
      CALL FABM_UPDATE_DEPTH
+     IF (NID_RELAX_ON) THEN   ! NiD4Ocean D20: relax FABM interior states named in the relaxation file
+        DO IFABM_RELAX = 1, size(model%interior_state_variables)
+           CALL NID_RELAX_APPLY(NID_RELAX_INDEX(model%interior_state_variables(IFABM_RELAX)%name), &
+                & FABM_ALL(:,:,IFABM_RELAX))
+        END DO
+     END IF
   END IF
 # if defined (DATA_ASSIM)
   ELSEIF (.NOT. DATA_ASSIMILATION) THEN
@@ -1547,6 +1556,7 @@ SUBROUTINE INTERNAL_STEP
        ENDIF
      ENDIF
 !J. Ge for tracer advection
+     IF (NID_RELAX_ON) CALL NID_RELAX_APPLY(NID_RELAX_INDEX('temp'), TF1)   ! NiD4Ocean D20
      T1 = TF1                                       !Update to new time level  !
 #   endif
 
@@ -1684,6 +1694,7 @@ SUBROUTINE INTERNAL_STEP
        ENDIF
      ENDIF
 !J. Ge for tracer advection
+     IF (NID_RELAX_ON) CALL NID_RELAX_APPLY(NID_RELAX_INDEX('salinity'), SF1)   ! NiD4Ocean D20
      S1 = SF1                                     !Update to new time level  !
 #   endif
 
