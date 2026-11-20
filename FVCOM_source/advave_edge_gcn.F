@@ -33,6 +33,7 @@
 !==============================================================================|
 
    USE ALL_VARS
+   USE MOD_BIHARMONIC_MOMENTUM, ONLY: ADD_BIHARMONIC_2D
    USE MOD_SETUP, ONLY: OBC_SPONGE_VISC
    USE MOD_UTILS
    USE MOD_SPHERICAL
@@ -903,6 +904,8 @@
 #  endif
 
 !#  if !defined (SEMI_IMPLICIT)
+   CALL ADD_BIHARMONIC_2D(XFLUX,YFLUX)
+
 #  if defined (SPHERICAL)
 #  if !defined (SEMI_IMPLICIT)
    CALL ADVAVE_EDGE_XY(XFLUX,YFLUX,0.0_SP)

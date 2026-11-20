@@ -55,7 +55,7 @@
 
 MODS  = mod_prec.F	sinter.F	mod_types.F	mod_time.F	\
 	mod_main.F	mod_spherical.F	mod_utils.F	mod_clock.F	\
-	eqs_of_state.F	mod_bulk.F	mod_interp.F	mod_par.F	\
+	eqs_of_state.F	mod_bulk.F	mod_interp.F	mod_par.F	mod_biharmonic_momentum.F \
 	mod_par_special.F		mod_ncll.F	mod_nctools.F	\
 	mod_wd.F mod_pj44.F	mod_sng.F	mod_heatflux.F	mod_solar.F	\
 	mod_fabm_data.F mod_input.F	mod_fabm_3D.F	mod_force.F	\
@@ -217,6 +217,8 @@ include ./make.inc
 # Private local-reference halo exchange and error reporting in BAROPG.
 baropg.o: mod_par.o mod_utils.o
 mod_startup.o: mod_par.o
+mod_biharmonic_momentum.o: mod_prec.o mod_main.o mod_utils.o mod_par.o
+advection_edge_gcn.o advection_edge_gcy.o adv_uv_edge_gcn.o adv_uv_edge_gcy.o advave_edge_gcn.o advave_edge_gcy.o cntrl_prmtrs.o: mod_biharmonic_momentum.o
 
 # Keep the new module safe in parallel builds with the checked-in dependencies.
 mod_pj44.o: mod_prec.o mod_main.o mod_utils.o mod_wd.o

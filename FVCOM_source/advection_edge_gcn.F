@@ -35,6 +35,7 @@
 !==============================================================================|
 
    USE ALL_VARS
+   USE MOD_BIHARMONIC_MOMENTUM, ONLY: ADD_BIHARMONIC_3D
    USE MOD_UTILS
    USE BCS
    USE MOD_SPHERICAL
@@ -623,6 +624,8 @@
    END DO
 
 #  endif
+
+   CALL ADD_BIHARMONIC_3D(XFLUX,YFLUX)
 
 #  if defined (SPHERICAL)
    CALL ADVECTION_EDGE_XY(XFLUX,YFLUX)

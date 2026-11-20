@@ -14,6 +14,7 @@ target_sources(fvcom
     mod_bulk.F
     mod_interp.F
     mod_par.F
+    mod_biharmonic_momentum.F
     mod_par_special.F
     mod_ncll.F
     mod_nctools.F

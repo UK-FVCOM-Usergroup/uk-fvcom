@@ -36,6 +36,7 @@
 !==============================================================================!
 
    USE ALL_VARS
+   USE MOD_BIHARMONIC_MOMENTUM, ONLY: ADD_BIHARMONIC_3D
    USE MOD_SETUP, ONLY: OBC_SPONGE_VISC
    USE BCS
    USE MOD_UTILS
@@ -1033,6 +1034,8 @@
     END IF
 #  endif
    END DO
+
+   CALL ADD_BIHARMONIC_3D(XFLUX,YFLUX)
 
 #  if defined (SPHERICAL)
 #  if !defined (SEMI_IMPLICIT)
